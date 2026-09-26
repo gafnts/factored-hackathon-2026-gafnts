@@ -4,7 +4,7 @@ set -euo pipefail
 # shellcheck source-path=SCRIPTDIR
 source "$(dirname "$0")/common.sh"
 
-ENVS=("local" "demo")
+ENVS=("local" "prototype")
 
 # bootstrap.sh passes the account ID; CI and everyone else ask STS.
 ACCOUNT_ID="${1:-$(aws sts get-caller-identity --query Account --output text)}"

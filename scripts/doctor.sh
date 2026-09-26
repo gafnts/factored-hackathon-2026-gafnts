@@ -13,7 +13,7 @@ DATASET_REGION="us-east-2"
 LOCAL_PROFILE="${PROJECT}-local"
 BACKEND_FILES=(
   infra/envs/local.backend.tfbackend
-  infra/envs/demo.backend.tfbackend
+  infra/envs/prototype.backend.tfbackend
   infra/iam/backend.tfbackend
 )
 

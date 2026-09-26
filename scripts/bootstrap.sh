@@ -97,4 +97,4 @@ echo "  direnv allow               # Only once the banking-agent-local profile e
 echo "  make doctor                # Check every AWS profile the project uses"
 echo "  make plan && make apply    # Apply local infra"
 echo ""
-echo "Demo is initialized and applied by CI on merge to main."
+echo "Prototype is initialized and applied by CI on merge to main."

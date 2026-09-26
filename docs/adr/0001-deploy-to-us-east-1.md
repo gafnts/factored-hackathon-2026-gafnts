@@ -12,7 +12,7 @@ Three forces pull on it:
 
 - **The dataset lives in us-east-2.** The organizer-provided dataset (about 5 GB) sits in a read-only S3 bucket in the organizers' AWS account, in us-east-2.
 - **The agent depends on Amazon Bedrock.** Bedrock serves the LLM calls, and is the likely source of embeddings, reranking over Spanish and Portuguese policy text, and Guardrails for prompt-injection defense. Model availability differs by region.
-- **The demo will be served on a subdomain of `gabriel.com.gt`.** That domain's DNS is hosted on Netlify, not Route 53. If the demo sits behind CloudFront, its ACM certificate must be issued in us-east-1 regardless of where the rest of the stack runs.
+- **The prototype will be served on a subdomain of `gabriel.com.gt`.** That domain's DNS is hosted on Netlify, not Route 53. If the prototype sits behind CloudFront, its ACM certificate must be issued in us-east-1 regardless of where the rest of the stack runs.
 
 ## Decision
 

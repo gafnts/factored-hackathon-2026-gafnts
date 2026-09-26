@@ -1,6 +1,6 @@
 # Hello, Factored! 👋
 
-This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `demo`, the hosted prototype behind the hackathon submission.
+This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
 
 Setup commands are idempotent, so re-running one after a failure is always safe, and `make doctor` tells you at any point which steps are done and which are left.
 
@@ -19,7 +19,7 @@ Setup commands are idempotent, so re-running one after a failure is always safe,
   - [Make a change](#make-a-change)
   - [Run the quality gates](#run-the-quality-gates)
   - [Iterate on infrastructure](#iterate-on-infrastructure)
-  - [Promote to demo](#promote-to-demo)
+  - [Promote to prototype](#promote-to-prototype)
   - [Record decisions](#record-decisions)
 - [Troubleshooting](#troubleshooting)
 - [Teardown](#teardown)
@@ -48,13 +48,13 @@ No path depends on the maintainers' AWS account or credentials. Resource names a
 | Environment | Deployed by | When | Purpose |
 |---|---|---|---|
 | `local` | You, from your laptop | When you run `make apply` | Iterating on infrastructure |
-| `demo` | GitHub Actions | On every merge to `main` | The hosted prototype linked from the submission |
+| `prototype` | GitHub Actions | On every merge to `main` | The hosted prototype linked from the submission |
 
-Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role can only touch resources tagged for its own environment. `demo` runs on synthetic data and mock banking tools, and is deliberately not called production.
+Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role can only touch resources tagged for its own environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
 
 ### Branches
 
-Feature branches merge into `develop`, which runs the quality gates and deploys nothing. `main` mirrors what is live on `demo` and only accepts merges from `develop`, so promoting is a deliberate step and a half-finished feature never reaches the demo by accident.
+Feature branches merge into `develop`, which runs the quality gates and deploys nothing. `main` mirrors what is live on `prototype` and only accepts merges from `develop`, so promoting is a deliberate step and a half-finished feature never reaches the prototype by accident.
 
 ```mermaid
 flowchart LR
@@ -62,8 +62,8 @@ flowchart LR
     develop -->|quality gates| checks{{Checks}}
 
     develop -->|PR| main[main]
-    main -->|CI plans demo| planDemo{{Plan demo}}
-    planDemo -->|merge| applyDemo[CI applies demo]
+    main -->|CI plans prototype| planPrototype{{Plan prototype}}
+    planPrototype -->|merge| applyPrototype[CI applies prototype]
 ```
 
 ### Guardrails
@@ -72,10 +72,10 @@ The operations that can hurt are hard to trigger by mistake:
 
 | Risk | What stops it |
 |---|---|
-| Applying or destroying `demo` from a laptop | `make` refuses without `I_KNOW=1`; CI owns `demo` |
+| Applying or destroying `prototype` from a laptop | `make` refuses without `I_KNOW=1`; CI owns `prototype` |
 | `make destroy` hitting the wrong environment | It requires an explicit `ENV`, and refuses when Terraform is initialized for a different one |
-| Unfinished work reaching the demo | A workflow fails any PR into `main` that doesn't come from `develop` |
-| Deploying from an unreviewed branch | The demo deploy role only trusts jobs in the `demo` GitHub Environment, which only `main` can use |
+| Unfinished work reaching the prototype | A workflow fails any PR into `main` that doesn't come from `develop` |
+| Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
 | Write credentials on pull requests | PR plans run under a read-only role |
 | CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials, and the deploy roles are denied IAM changes to themselves |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
@@ -130,7 +130,7 @@ Check it with `make doctor`: under "Dataset profile" it should report that it ca
 
 ### 3. Deploy your own copy
 
-This stands up the full stack in an AWS account you control: a Terraform state bucket, three deploy roles, the `local` environment, and CI deployments of `demo`. It happens once per account, with admin credentials.
+This stands up the full stack in an AWS account you control: a Terraform state bucket, three deploy roles, the `local` environment, and CI deployments of `prototype`. It happens once per account, with admin credentials.
 
 #### 3.1 Before you start
 
@@ -169,8 +169,8 @@ This applies `infra/iam/` (Terraform asks you to confirm) and initializes the `l
 | Role | Assumed by | Permissions |
 |---|---|---|
 | `banking-agent-local-deploy` | You, from your laptop | Write, scoped to `local` |
-| `banking-agent-demo-deploy` | The apply job, only from the `demo` GitHub Environment | Write, scoped to `demo` |
-| `banking-agent-demo-plan` | The plan job on PRs into `main` | Read-only |
+| `banking-agent-prototype-deploy` | The apply job, only from the `prototype` GitHub Environment | Write, scoped to `prototype` |
+| `banking-agent-prototype-plan` | The plan job on PRs into `main` | Read-only |
 
 `make iam-output` prints their ARNs whenever you need them.
 
@@ -188,14 +188,14 @@ Use your `AWS_ADMIN_PROFILE` as `source_profile` if it isn't `default`. Then act
 
 #### 3.5 Connect GitHub
 
-The deploy workflow needs a `demo` environment and two repository variables. Until the variables exist, its jobs are skipped rather than failed, so CI stays green before AWS is ready.
+The deploy workflow needs a `prototype` environment and two repository variables. Until the variables exist, its jobs are skipped rather than failed, so CI stays green before AWS is ready.
 
-1. In **Settings → Environments → New environment**, create `demo`. Under **Deployment branches and tags**, choose **Selected branches and tags** and add `main`. The demo deploy role only trusts jobs in this environment, which makes a merge to `main` the only path to a demo apply. Leave required reviewers off: merges deploy straight away.
+1. In **Settings → Environments → New environment**, create `prototype`. Under **Deployment branches and tags**, choose **Selected branches and tags** and add `main`. The prototype deploy role only trusts jobs in this environment, which makes a merge to `main` the only path to a prototype apply. Leave required reviewers off: merges deploy straight away.
 2. Store the plan and deploy role ARNs from `make iam-output` as repository variables. They're variables, not secrets, because role ARNs aren't sensitive on their own:
 
    ```bash
-   gh variable set AWS_ROLE_ARN_DEMO_PLAN --body "<demo_plan_role_arn>"
-   gh variable set AWS_ROLE_ARN_DEMO --body "<demo_role_arn>"
+   gh variable set AWS_ROLE_ARN_PROTOTYPE_PLAN --body "<prototype_plan_role_arn>"
+   gh variable set AWS_ROLE_ARN_PROTOTYPE --body "<prototype_role_arn>"
    ```
 
    Or add them under **Settings → Secrets and variables → Actions → Variables**.
@@ -215,7 +215,7 @@ Admin profile: default (bootstrap, IAM roles, teardown)
   ok    arn:aws:iam::<account-id>:user/<you>
   ok    state bucket banking-agent-tfstate-<account-id>-us-east-1-an exists
   ok    infra/envs/local.backend.tfbackend points at it
-  ok    infra/envs/demo.backend.tfbackend points at it
+  ok    infra/envs/prototype.backend.tfbackend points at it
   ok    infra/iam/backend.tfbackend points at it
 
 Dataset profile: factored-hackathon (organizers' read-only keys)
@@ -229,7 +229,7 @@ AWS_PROFILE in this shell: banking-agent-local
 No failures.
 ```
 
-From here on, every merge to `main` deploys `demo` (see [Promote to demo](#promote-to-demo)).
+From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
 
 ---
 
@@ -290,9 +290,9 @@ After adding a module or bumping a provider version, regenerate the lock files s
 make lock
 ```
 
-### Promote to demo
+### Promote to prototype
 
-When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/`), CI posts a sticky **Terraform Plan · `demo`** comment for reviewers. Merging applies the change to `demo`.
+When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`.
 
 > [!NOTE]
 > The apply runs `terraform apply` against current state at merge time; the PR plan is informational, not the artifact applied, and there is no manual approval gate. A plan-bound, approval-gated production pipeline is remaining deployment work, not something this prototype operates.
@@ -328,13 +328,13 @@ Teardown is setup in reverse, and the order matters: every `terraform destroy` r
 
 ```bash
 make destroy ENV=local
-AWS_PROFILE=default make init ENV=demo
-AWS_PROFILE=default make destroy ENV=demo I_KNOW=1
+AWS_PROFILE=default make init ENV=prototype
+AWS_PROFILE=default make destroy ENV=prototype I_KNOW=1
 make iam-destroy I_KNOW=1
 make teardown
 ```
 
-Everything after the local destroy runs with admin credentials: the local deploy role can't reach `demo` state, and the demo deploy role is only assumable from CI. The `iam-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `demo` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it.
+Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it.
 
 ---
 
@@ -346,8 +346,8 @@ Run `make help` for every target.
 
 | Variable | Default | Used by |
 |---|---|---|
-| `ENV` | `local` | The Terraform targets (`local` or `demo`) |
-| `I_KNOW` | Unset | Set to `1` to allow `demo` apply or destroy, and `iam-destroy` |
+| `ENV` | `local` | The Terraform targets (`local` or `prototype`) |
+| `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, and `iam-destroy` |
 | `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, and ad hoc AWS CLI calls |
 | `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` targets, `make teardown`, `make doctor` |
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor` |

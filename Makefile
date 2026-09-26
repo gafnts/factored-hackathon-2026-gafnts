@@ -114,16 +114,16 @@ init: ## Initialize Terraform backend for ENV
 plan: ## Preview infrastructure changes for ENV
 	$(TF) plan $(VARS)
 
-apply: _check-backend ## Apply infrastructure changes for ENV (refuses demo unless I_KNOW=1)
-	@if [ "$(ENV)" = "demo" ] && [ "$(I_KNOW)" != "1" ]; then \
-		echo "Refusing to apply demo from local. CI owns demo."; exit 1; fi
+apply: _check-backend ## Apply infrastructure changes for ENV (refuses prototype unless I_KNOW=1)
+	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to apply prototype from local. CI owns prototype."; exit 1; fi
 	$(TF) apply $(VARS)
 
-destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses demo unless I_KNOW=1)
+destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
 		echo "destroy requires explicit ENV (e.g. make destroy ENV=local). Refusing default."; exit 1; fi
-	@if [ "$(ENV)" = "demo" ] && [ "$(I_KNOW)" != "1" ]; then \
-		echo "Refusing to destroy demo. Re-run with I_KNOW=1."; exit 1; fi
+	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to destroy prototype. Re-run with I_KNOW=1."; exit 1; fi
 	$(TF) destroy $(VARS)
 
 
@@ -138,8 +138,8 @@ lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) i
 # INTERNAL
 
 # Verify the configured backend key matches ENV. Prevents the footgun where
-# `make init ENV=demo` followed by `make destroy` (defaulting to local)
-# operates on the demo state because the backend pointer persists in
+# `make init ENV=prototype` followed by `make destroy` (defaulting to local)
+# operates on the prototype state because the backend pointer persists in
 # infra/.terraform/terraform.tfstate across runs.
 _check-backend:
 	@if [ ! -f infra/.terraform/terraform.tfstate ]; then \

@@ -4,11 +4,11 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "One of: local (your laptop) or demo (the hosted prototype, deployed by CI). Tagged on every resource; the deploy roles can only touch resources tagged with their own environment."
+  description = "One of: local (your laptop) or prototype (the hosted environment, deployed by CI). Tagged on every resource; the deploy roles can only touch resources tagged with their own environment."
   type        = string
   validation {
-    condition     = contains(["local", "demo"], var.environment)
-    error_message = "environment must be one of: local, demo."
+    condition     = contains(["local", "prototype"], var.environment)
+    error_message = "environment must be one of: local, prototype."
   }
 }
 

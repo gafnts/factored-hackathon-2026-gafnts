@@ -3,7 +3,7 @@ data "aws_caller_identity" "current" {}
 locals {
   account_id    = data.aws_caller_identity.current.account_id
   oidc_provider = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
-  envs          = ["local", "demo"]
+  envs          = ["local", "prototype"]
 }
 
 data "aws_iam_policy_document" "trust_local" {
@@ -17,10 +17,10 @@ data "aws_iam_policy_document" "trust_local" {
   }
 }
 
-# Only jobs running in the `demo` GitHub Environment can assume the demo deploy
+# Only jobs running in the `prototype` GitHub Environment can assume the prototype deploy
 # role. Restricting that environment's deployment branches to `main` is what
-# makes a merge to main the only path to a demo apply.
-data "aws_iam_policy_document" "trust_demo" {
+# makes a merge to main the only path to a prototype apply.
+data "aws_iam_policy_document" "trust_prototype" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -36,12 +36,12 @@ data "aws_iam_policy_document" "trust_demo" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:demo"]
+      values   = ["repo:${var.github_repo}:environment:prototype"]
     }
   }
 }
 
-data "aws_iam_policy_document" "trust_demo_plan" {
+data "aws_iam_policy_document" "trust_prototype_plan" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -156,8 +156,8 @@ resource "aws_iam_role" "deploy" {
 
   name = "${var.project_name}-${each.key}-deploy"
   assume_role_policy = {
-    "local" = data.aws_iam_policy_document.trust_local.json
-    "demo"  = data.aws_iam_policy_document.trust_demo.json
+    "local"     = data.aws_iam_policy_document.trust_local.json
+    "prototype" = data.aws_iam_policy_document.trust_prototype.json
   }[each.key]
 
   tags = {
@@ -197,31 +197,31 @@ resource "aws_iam_role_policy" "service_roles" {
   policy = data.aws_iam_policy_document.service_roles[each.key].json
 }
 
-# Read-only role for the demo plan posted on PRs into main. PR workflows never
-# hold write credentials; only the apply job in the `demo` environment does.
-resource "aws_iam_role" "demo_plan" {
-  name               = "${var.project_name}-demo-plan"
-  assume_role_policy = data.aws_iam_policy_document.trust_demo_plan.json
+# Read-only role for the prototype plan posted on PRs into main. PR workflows never
+# hold write credentials; only the apply job in the `prototype` environment does.
+resource "aws_iam_role" "prototype_plan" {
+  name               = "${var.project_name}-prototype-plan"
+  assume_role_policy = data.aws_iam_policy_document.trust_prototype_plan.json
 
   tags = {
-    Environment = "demo"
+    Environment = "prototype"
     Role        = "plan"
   }
 }
 
-resource "aws_iam_role_policy_attachment" "demo_plan_readonly" {
-  role       = aws_iam_role.demo_plan.name
+resource "aws_iam_role_policy_attachment" "prototype_plan_readonly" {
+  role       = aws_iam_role.prototype_plan.name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
-resource "aws_iam_role_policy" "demo_plan_state_access" {
+resource "aws_iam_role_policy" "prototype_plan_state_access" {
   name   = "tfstate-access"
-  role   = aws_iam_role.demo_plan.id
-  policy = data.aws_iam_policy_document.state_access["demo"].json
+  role   = aws_iam_role.prototype_plan.id
+  policy = data.aws_iam_policy_document.state_access["prototype"].json
 }
 
-resource "aws_iam_role_policy" "demo_plan_deny_other_envs" {
+resource "aws_iam_role_policy" "prototype_plan_deny_other_envs" {
   name   = "deny-other-envs"
-  role   = aws_iam_role.demo_plan.id
-  policy = data.aws_iam_policy_document.deny_other_envs["demo"].json
+  role   = aws_iam_role.prototype_plan.id
+  policy = data.aws_iam_policy_document.deny_other_envs["prototype"].json
 }

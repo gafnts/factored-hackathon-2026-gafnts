@@ -4,7 +4,7 @@
 </p>
 <p align="center">
 <a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/checks.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/checks.yml/badge.svg" alt="Quality gates"></a>
-<a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/deploy-demo.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/deploy-demo.yml/badge.svg" alt="Deploy demo"></a>
+<a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/deploy-prototype.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/deploy-prototype.yml/badge.svg" alt="Deploy prototype"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -45,11 +45,11 @@ make check
 |---|---|
 | [src/banking_agent/](src/banking_agent/) | The Python package |
 | [tests/](tests/) | Pytest suite (integration tests are marked and deselected by default) |
-| [infra/](infra/) | Terraform service stack, one state file per environment (`local` and `demo`) |
+| [infra/](infra/) | Terraform service stack, one state file per environment (`local` and `prototype`) |
 | [infra/iam/](infra/iam/) | One-time IAM bootstrap: the deploy roles for each environment |
 | [scripts/](scripts/) | Account bootstrap, teardown, and setup checks, run through `make` |
 | [docs/](docs/) | Requirements catalogue and architecture decision records |
-| [.github/workflows/](.github/workflows/) | Quality gates and the `demo` deploy pipeline |
+| [.github/workflows/](.github/workflows/) | Quality gates and the `prototype` deploy pipeline |
 | [Makefile](Makefile) | Every setup, quality, and deploy command (`make help` lists them) |
 
 ---

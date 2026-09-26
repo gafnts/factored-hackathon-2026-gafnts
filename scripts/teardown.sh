@@ -5,8 +5,8 @@ set -euo pipefail
 # is destroyed, or whatever Terraform still tracks is orphaned:
 #
 #   make destroy ENV=local
-#   AWS_PROFILE=default make init ENV=demo
-#   AWS_PROFILE=default make destroy ENV=demo I_KNOW=1
+#   AWS_PROFILE=default make init ENV=prototype
+#   AWS_PROFILE=default make destroy ENV=prototype I_KNOW=1
 #   make iam-destroy I_KNOW=1
 #
 # Uses the admin profile; the deploy roles can't delete the bucket.
