@@ -5,7 +5,10 @@ TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
 
-IAM_TF      := terraform -chdir=infra/iam
+# The IAM bootstrap module is admin-only, so it ignores the scoped AWS_PROFILE
+# that .envrc sets (that profile can't exist until this module has run).
+AWS_ADMIN_PROFILE ?= default
+IAM_TF      := AWS_PROFILE=$(AWS_ADMIN_PROFILE) terraform -chdir=infra/iam
 IAM_VARS    := -var-file=iam.tfvars
 IAM_BACKEND := -backend-config=backend.tfbackend
 
