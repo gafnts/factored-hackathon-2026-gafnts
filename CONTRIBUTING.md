@@ -356,7 +356,7 @@ Run `make help` for every target.
 
 | What | Where |
 |---|---|
-| Python 3.13 | `.python-version` |
+| Python 3.13 | `.python-version`, and `requires-python` in `pyproject.toml` |
 | Python dependencies | `uv.lock` |
 | Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
 | AWS provider | `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
