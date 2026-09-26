@@ -50,7 +50,10 @@ No path depends on the maintainers' AWS account or credentials. Resource names a
 | `local` | You, from your laptop | When you run `make apply` | Iterating on infrastructure |
 | `prototype` | GitHub Actions | On every merge to `main` | The hosted prototype linked from the submission |
 
-Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role can only touch resources tagged for its own environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
+Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role is denied any resource tagged for the other environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
+
+> [!NOTE]
+> Tag-based isolation is partial: it doesn't reach untagged resources, or actions that ignore resource tags (S3 object reads and writes among them). The state bucket is covered by explicit denies instead (see [Guardrails](#guardrails)). A separate AWS account per environment is remaining deployment work.
 
 ### Branches
 
@@ -78,10 +81,10 @@ The operations that can hurt are hard to trigger by mistake:
 | Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
 | Write credentials on pull requests | PR plans run under a read-only role, without taking the state lock |
 | CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials; the deploy roles are denied IAM changes to themselves, and every role they create must carry a permissions boundary that excludes IAM |
-| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself |
+| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself; the roles they create are denied the bucket entirely |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` needs `I_KNOW=1`, and `make teardown` makes you type the bucket name |
-| Secrets in commits | `gitleaks` and `detect-private-key` run on every commit |
+| Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
 
 ---
 
@@ -112,8 +115,8 @@ From now on, hooks run on their own:
 
 | Stage | What runs | When |
 |---|---|---|
-| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy` | On `git commit` |
-| `pre-push` | `terraform validate`, `trivy`, `pytest` (with an 80% coverage floor) | On `git push` |
+| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy` | On `git commit` |
+| `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor) | On `git push` |
 
 ### 2. Connect to the dataset
 
