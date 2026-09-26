@@ -15,7 +15,7 @@ IAM_BACKEND := -backend-config=backend.tfbackend
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration \
-	bootstrap backend provision teardown \
+	bootstrap backend doctor provision teardown \
 	iam-init iam-plan iam-apply iam-destroy \
 	init plan apply destroy lock \
 	_check-backend
@@ -73,6 +73,9 @@ bootstrap: ## Create state bucket and write backend files for all environments (
 
 backend: ## Write backend files for all environments (used by CI; one STS call for the account ID)
 	@bash scripts/bootstrap-backend.sh
+
+doctor: ## Check that every AWS profile resolves to the right account (read-only)
+	@bash scripts/doctor.sh
 
 teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
 	@bash scripts/teardown.sh
