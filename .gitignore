@@ -15,7 +15,7 @@ dist/
 coverage.xml
 htmlcov/
 
-# Notebooks: commit the .ipynb, never the checkpoints
+# Notebooks
 .ipynb_checkpoints/
 
 # Terraform: lock files and *.backend.tfbackend are committed on purpose
@@ -24,21 +24,21 @@ htmlcov/
 *.tfstate.*
 crash.log
 crash.*.log
-# Holds your principal ARN; written by scripts/bootstrap.sh
+# Holds your principal ARN (written by scripts/bootstrap.sh)
 infra/iam/iam.tfvars
 
-# Secrets and local environment (keep API keys in .env, share the shape in .env.example)
+# Secrets and local environment
 .env
 .env.*
 !.env.example
-# Sets AWS_PROFILE; written by scripts/bootstrap.sh
+# Sets AWS_PROFILE (written by scripts/bootstrap.sh)
 .envrc
 
-# Hackathon material (organizer-provided; never committed)
+# Hackathon material (organizer-provided)
 /data/
 /docs/hackathon/
 
-# Editors and OS: share the workspace settings, keep the rest personal
+# Editors and OS
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json

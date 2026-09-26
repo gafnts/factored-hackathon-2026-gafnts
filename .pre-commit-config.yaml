@@ -18,8 +18,6 @@ repos:
       - id: terraform_validate
         args:
           - --tf-init-args=-backend=false
-          # aws provider >= 6.5x rejects an unknown region at validate time,
-          # when var.aws_region is not yet resolved.
           - --env-vars=AWS_REGION=us-east-1
         stages: [pre-push]
       - id: terraform_tflint
