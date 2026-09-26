@@ -35,6 +35,7 @@ The repository is bootstrapped: Python tooling, quality gates, CI, and a Terrafo
 | [tests/](tests/) | Pytest suite (integration tests are marked and deselected by default) |
 | [infra/](infra/) | Terraform service stack, one state file per environment |
 | [infra/iam/](infra/iam/) | One-time IAM bootstrap: deploy roles for `local` and `demo` |
+| [scripts/](scripts/) | Account bootstrap, teardown, and setup checks, run through `make` |
 | [docs/adr/](docs/adr/) | Architecture decision records |
 | [.github/workflows/](.github/workflows/) | Quality gates and the `demo` deploy pipeline |
 

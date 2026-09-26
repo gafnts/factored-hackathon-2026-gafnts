@@ -49,7 +49,7 @@ aws s3api put-bucket-encryption \
 # 5. Write backend files for all environments
 echo ""
 echo "Writing backend files"
-bash bootstrap-backend.sh
+bash "$(dirname "$0")/bootstrap-backend.sh"
 
 # 6. Write iam.tfvars from caller identity (idempotent)
 IAM_TFVARS="./infra/iam/iam.tfvars"

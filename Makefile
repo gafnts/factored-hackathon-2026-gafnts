@@ -12,7 +12,7 @@ IAM_BACKEND := -backend-config=backend.tfbackend
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration \
-	bootstrap backend provision \
+	bootstrap backend provision teardown \
 	iam-init iam-plan iam-apply iam-destroy \
 	init plan apply destroy lock \
 	_check-backend
@@ -66,10 +66,13 @@ integration: ## Run integration-marked tests (requires credentials and network a
 # BOOTSTRAP & PROVISIONING
 
 bootstrap: ## Create state bucket and write backend files for all environments
-	@bash bootstrap.sh
+	@bash scripts/bootstrap.sh
 
 backend: ## Write backend files for all environments (used by CI; no AWS calls)
-	@bash bootstrap-backend.sh
+	@bash scripts/bootstrap-backend.sh
+
+teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
+	@bash scripts/teardown.sh
 
 provision: ## One-time: create IAM roles and initialize Terraform for ENV=local
 	$(MAKE) iam-init
