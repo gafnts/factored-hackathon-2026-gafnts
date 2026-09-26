@@ -36,7 +36,7 @@ data "aws_iam_policy_document" "trust_prototype" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:prototype"]
+      values   = ["${var.github_oidc_subject_prefix}:environment:prototype"]
     }
   }
 }
@@ -57,7 +57,7 @@ data "aws_iam_policy_document" "trust_prototype_plan" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:pull_request"]
+      values   = ["${var.github_oidc_subject_prefix}:pull_request"]
     }
   }
 }

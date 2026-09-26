@@ -156,7 +156,7 @@ This creates the state bucket (private, versioned, encrypted, with S3 native loc
 The bucket is named `banking-agent-tfstate-<account-id>-us-east-1-an`, in your account's [regional namespace](https://docs.aws.amazon.com/AmazonS3/latest/userguide/gpbucketnamespaces.html): only your account can own that name. The script always runs as the admin profile, whatever `AWS_PROFILE` says, and refuses the organizers' account.
 
 > [!NOTE]
-> Deploying from a fork? The regenerated backend files name your bucket, so commit them. Also add `github_repo = "<owner>/<repo>"` to `infra/iam/iam.tfvars` before the next step, so the CI roles trust your repository instead of this one.
+> Deploying from a fork? The regenerated backend files name your bucket, so commit them. Also add `github_oidc_subject_prefix` to `infra/iam/iam.tfvars` before the next step, so the CI roles trust your repository instead of this one. Copy the value from `gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix`: repositories created after 2026-07-15 carry the owner and repository IDs in it (`repo:<owner>@<owner-id>/<repo>@<repo-id>`), so it can't be written from the name alone.
 
 #### 3.3 Create the deploy roles
 
@@ -373,7 +373,7 @@ The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbacken
 Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
-- `infra/iam/iam.tfvars`: your principal ARN (and `github_repo`, on a fork)
+- `infra/iam/iam.tfvars`: your principal ARN (and `github_oidc_subject_prefix`, on a fork)
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets such as LLM API keys; if you add one, document its variables in a tracked `.env.example`
 - `data/`: the organizer-provided dataset, which must never be committed
