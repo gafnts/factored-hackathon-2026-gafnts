@@ -36,7 +36,7 @@ env:
 
 jobs:
   # Both jobs are skipped until their role ARN is set as a repository variable
-  # (CONTRIBUTING > Configure GitHub), so the pipeline stays green before the
+  # (CONTRIBUTING.md, step 3.5), so the pipeline stays green before the
   # AWS side is bootstrapped.
 
   # PR plan (develop -> main): posts a sticky comment so reviewers can see what

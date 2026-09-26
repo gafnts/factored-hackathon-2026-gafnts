@@ -56,12 +56,12 @@ make check
 ```
 
 > [!NOTE]
-> Deploying to AWS needs a one-time bootstrap of the state bucket, the IAM roles, and the GitHub variables. The full sequence is in [CONTRIBUTING.md](CONTRIBUTING.md#first-time-setup).
+> Changing code needs no AWS access. Working with the dataset or deploying your own copy of the stack takes a few more steps; [CONTRIBUTING.md](CONTRIBUTING.md#pick-your-path) maps each goal to them.
 
 ---
 
 ## Documentation
 
-- [CONTRIBUTING.md](CONTRIBUTING.md): environment and branch model, first-time setup, day-to-day workflow, and teardown
+- [CONTRIBUTING.md](CONTRIBUTING.md): setup paths by goal, environments and guardrails, day-to-day workflow, troubleshooting, and teardown
 - [docs/hackathon-requirements.md](docs/hackathon-requirements.md): every point the organizers will evaluate, with stable requirement IDs
 - [docs/adr/README.md](docs/adr/README.md): architecture decision records and the template for new ones
