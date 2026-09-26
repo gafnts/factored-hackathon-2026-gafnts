@@ -13,6 +13,9 @@ on:
       - "infra/**"
       - "!infra/iam/**"
       - ".github/workflows/deploy-prototype.yml"
+  # Manual redeploy from main (Actions, Run workflow): the first deploy after
+  # the role ARN variables are set, or a re-apply without an infra change.
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -24,10 +27,6 @@ permissions:
 defaults:
   run:
     shell: bash
-
-concurrency:
-  group: deploy-prototype
-  cancel-in-progress: false
 
 env:
   ENV: prototype
@@ -44,7 +43,13 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && vars.AWS_ROLE_ARN_PROTOTYPE_PLAN != ''
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && vars.AWS_ROLE_ARN_PROTOTYPE_PLAN != ''
+    concurrency:
+      group: deploy-prototype-plan-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -99,14 +104,24 @@ jobs:
       - if: steps.plan.outcome == 'failure'
         run: exit 1
 
-  # Post-merge apply. The `prototype` GitHub Environment is the only OIDC subject the
-  # prototype deploy role trusts; restrict its deployment branches to main. Add
-  # `url:` under `environment:` once the app has a public endpoint, and GitHub
-  # will link the live prototype from every deployment.
+  # Post-merge apply, or a manual redeploy from main. The `prototype` GitHub
+  # Environment is the only OIDC subject the prototype deploy role trusts;
+  # restrict its deployment branches to main. Add `url:` under `environment:`
+  # once the app has a public endpoint, and GitHub will link the live prototype
+  # from every deployment.
+  #
+  # Applies queue rather than cancel each other: a newer pending run replaces an
+  # older pending one, which is safe because it applies a later commit.
   apply:
     name: Apply
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && vars.AWS_ROLE_ARN_PROTOTYPE != ''
+    if: >-
+      github.event_name != 'pull_request'
+      && github.ref == 'refs/heads/main'
+      && vars.AWS_ROLE_ARN_PROTOTYPE != ''
+    concurrency:
+      group: deploy-prototype-apply
+      cancel-in-progress: false
     environment:
       name: prototype
     steps:

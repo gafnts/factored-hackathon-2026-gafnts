@@ -12,11 +12,15 @@ jobs:
     name: Verify source branch is develop
     runs-on: ubuntu-latest
     steps:
+      # A fork can name a branch `develop` too, so check the head repository.
       - name: Verify source branch is develop
-        if: github.head_ref != 'develop'
+        if: >-
+          github.head_ref != 'develop'
+          || github.event.pull_request.head.repo.full_name != github.repository
         env:
           HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
-          echo "ERROR: Merges into 'main' are exclusively permitted from the 'develop' branch."
-          echo "Current source branch is: '${HEAD_REF}'"
+          echo "ERROR: Merges into 'main' are exclusively permitted from this repository's 'develop' branch."
+          echo "Current source is: '${HEAD_REPO}:${HEAD_REF}'"
           exit 1
