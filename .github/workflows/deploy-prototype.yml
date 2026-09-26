@@ -13,8 +13,6 @@ on:
       - "infra/**"
       - "!infra/iam/**"
       - ".github/workflows/deploy-prototype.yml"
-  # Manual redeploy from main (Actions, Run workflow): the first deploy after
-  # the role ARN variables are set, or a re-apply without an infra change.
   workflow_dispatch:
 
 permissions:
@@ -22,8 +20,7 @@ permissions:
   contents: read
   pull-requests: write
 
-# Explicit bash gets -o pipefail, so `make plan | tee plan.txt` fails when the
-# plan fails (the implicit default shell is plain `bash -e`).
+# Explicit bash adds -o pipefail, so `make plan | tee` fails when the plan does.
 defaults:
   run:
     shell: bash
@@ -34,14 +31,7 @@ env:
   TF_VERSION: 1.16.4
 
 jobs:
-  # Both jobs are skipped until their role ARN is set as a repository variable
-  # (CONTRIBUTING.md, step 3.5), so the pipeline stays green before the
-  # AWS side is bootstrapped.
-
-  # PR plan (develop -> main): posts a sticky comment so reviewers can see what
-  # the merge would change. Runs under the read-only prototype-plan role, without
-  # the state lock, so it never waits on an apply or leaves a stale lock behind.
-  # Fork PRs get no OIDC token, so they skip it.
+  # Read-only role and no state lock, so a plan never blocks an apply.
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -106,14 +96,8 @@ jobs:
       - if: steps.plan.outcome == 'failure'
         run: exit 1
 
-  # Post-merge apply, or a manual redeploy from main. The `prototype` GitHub
-  # Environment is the only OIDC subject the prototype deploy role trusts;
-  # restrict its deployment branches to main. Add `url:` under `environment:`
-  # once the app has a public endpoint, and GitHub will link the live prototype
-  # from every deployment.
-  #
-  # Applies queue rather than cancel each other: a newer pending run replaces an
-  # older pending one, which is safe because it applies a later commit.
+  # The deploy role trusts only the `prototype` Environment (limit it to main).
+  # Applies queue instead of cancelling; a newer pending run replaces an older one.
   apply:
     name: Apply
     runs-on: ubuntu-latest
