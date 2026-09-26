@@ -92,8 +92,8 @@ The operations that can hurt are hard to trigger by mistake:
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | Recent | Python 3.13 (uv installs it from `.python-version`), dependencies, pre-commit |
 | [Terraform](https://developer.hashicorp.com/terraform/install) | 1.16.x (`.terraform-version`) | Infrastructure, and the Terraform hooks |
-| [tflint](https://github.com/terraform-linters/tflint#installation) | CI uses v0.59.1 | Terraform lint hook |
-| [trivy](https://github.com/aquasecurity/trivy) | CI uses v0.70.0 | Terraform security scan (pre-push hook) |
+| [tflint](https://github.com/terraform-linters/tflint#installation) | CI uses v0.64.0 | Terraform lint hook. On Homebrew, install from `terraform-linters/tap/tflint`: since v0.63, homebrew-core no longer gets new releases |
+| [trivy](https://github.com/aquasecurity/trivy) | CI uses v0.74.0 | Terraform security scan (pre-push hook) |
 | [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) | Recent (2.37 works) | Steps 2 and 3 only |
 | [direnv](https://direnv.net) | Optional | Setting `AWS_PROFILE` when you enter the repo |
 
