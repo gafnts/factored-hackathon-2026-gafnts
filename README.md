@@ -62,4 +62,5 @@ make check
 ## Documentation
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): environment and branch model, first-time setup, day-to-day workflow, and teardown
+- [docs/hackathon-requirements.md](docs/hackathon-requirements.md): every point the organizers will evaluate, with stable requirement IDs
 - [docs/adr/README.md](docs/adr/README.md): architecture decision records and the template for new ones
