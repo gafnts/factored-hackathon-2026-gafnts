@@ -81,7 +81,7 @@ The operations that can hurt are hard to trigger by mistake:
 | One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` needs `I_KNOW=1`, and `make teardown` makes you type the bucket name |
-| Secrets in commits | `gitleaks` and `detect-private-key` run on every commit |
+| Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
 
 ---
 
