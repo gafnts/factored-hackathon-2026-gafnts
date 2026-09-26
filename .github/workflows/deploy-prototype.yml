@@ -39,7 +39,9 @@ jobs:
   # AWS side is bootstrapped.
 
   # PR plan (develop -> main): posts a sticky comment so reviewers can see what
-  # the merge would change. Runs under the read-only prototype-plan role.
+  # the merge would change. Runs under the read-only prototype-plan role, without
+  # the state lock, so it never waits on an apply or leaves a stale lock behind.
+  # Fork PRs get no OIDC token, so they skip it.
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -72,7 +74,7 @@ jobs:
       - name: Plan
         id: plan
         env:
-          TF_CLI_ARGS_plan: -no-color
+          TF_CLI_ARGS_plan: -no-color -lock=false
         run: make plan ENV=${{ env.ENV }} 2>&1 | tee plan.txt
         continue-on-error: true
 

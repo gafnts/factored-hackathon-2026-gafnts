@@ -6,3 +6,8 @@ output "aws_account_id" {
 output "environment" {
   value = var.environment
 }
+
+output "permissions_boundary_arn" {
+  description = "Boundary every IAM role in this stack must carry"
+  value       = local.permissions_boundary_arn
+}

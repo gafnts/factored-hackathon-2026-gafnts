@@ -4,6 +4,10 @@ locals {
   account_id    = data.aws_caller_identity.current.account_id
   oidc_provider = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
   envs          = ["local", "prototype"]
+
+  state_bucket_arn = "arn:aws:s3:::${var.state_bucket_name}"
+  # Every state prefix in the bucket: one per env, plus this module's own.
+  state_prefixes = concat(local.envs, ["iam"])
 }
 
 data "aws_iam_policy_document" "trust_local" {
@@ -62,14 +66,37 @@ data "aws_iam_policy_document" "trust_prototype_plan" {
   }
 }
 
+# PowerUserAccess and ReadOnlyAccess both reach every object in the account, so
+# these denies are what confine a role to its own environment's state and keep
+# it from reconfiguring or deleting the bucket.
+data "aws_iam_policy_document" "state_isolation" {
+  for_each = toset(local.envs)
+
+  statement {
+    sid       = "DenyOtherStatePrefixes"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [for prefix in setsubtract(local.state_prefixes, [each.key]) : "${local.state_bucket_arn}/service/${prefix}/*"]
+  }
+
+  statement {
+    sid         = "DenyStateBucketChanges"
+    effect      = "Deny"
+    not_actions = ["s3:GetBucket*", "s3:ListBucket"]
+    resources   = [local.state_bucket_arn]
+  }
+}
+
 data "aws_iam_policy_document" "state_access" {
   for_each = toset(local.envs)
+
+  source_policy_documents = [data.aws_iam_policy_document.state_isolation[each.key].json]
 
   statement {
     sid       = "ListOwnPrefix"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = ["arn:aws:s3:::${var.state_bucket_name}"]
+    resources = [local.state_bucket_arn]
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
@@ -86,7 +113,7 @@ data "aws_iam_policy_document" "state_access" {
       "s3:DeleteObject",
       "s3:GetObjectAttributes",
     ]
-    resources = ["arn:aws:s3:::${var.state_bucket_name}/service/${each.key}/*"]
+    resources = ["${local.state_bucket_arn}/service/${each.key}/*"]
   }
 }
 
@@ -111,10 +138,38 @@ data "aws_iam_policy_document" "deny_other_envs" {
   }
 }
 
+# The ceiling for every role a deploy role creates: no IAM, and nothing tagged
+# for another environment. Without it, a deploy role could create a role with
+# AdministratorAccess, let itself assume it, and escape both limits.
+data "aws_iam_policy_document" "boundary" {
+  for_each = toset(local.envs)
+
+  source_policy_documents = [data.aws_iam_policy_document.deny_other_envs[each.key].json]
+
+  statement {
+    sid         = "AllowAllButIdentityManagement"
+    effect      = "Allow"
+    not_actions = ["iam:*", "organizations:*", "account:*"]
+    resources   = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "boundary" {
+  for_each = toset(local.envs)
+
+  name        = "${var.project_name}-${each.key}-boundary"
+  description = "Permissions boundary for the service roles the ${each.key} deploy role creates"
+  policy      = data.aws_iam_policy_document.boundary[each.key].json
+
+  tags = {
+    Environment = each.key
+  }
+}
+
 # PowerUserAccess excludes IAM, so each deploy role gets just enough to manage
-# the execution roles its own stack creates (named <project>-<env>-*). The
-# explicit deny keeps a deploy role from editing itself or its siblings, which
-# would otherwise be a path to escalating its own permissions.
+# the execution roles its own stack creates (named <project>-<env>-*), and only
+# while they carry the environment's boundary. The explicit deny keeps a deploy
+# role from editing itself or its siblings.
 data "aws_iam_policy_document" "service_roles" {
   for_each = toset(local.envs)
 
@@ -122,22 +177,46 @@ data "aws_iam_policy_document" "service_roles" {
     sid    = "ManageOwnServiceRoles"
     effect = "Allow"
     actions = [
-      "iam:CreateRole",
       "iam:DeleteRole",
       "iam:GetRole",
-      "iam:PassRole",
-      "iam:AttachRolePolicy",
-      "iam:DetachRolePolicy",
-      "iam:PutRolePolicy",
-      "iam:DeleteRolePolicy",
       "iam:GetRolePolicy",
-      "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:ListInstanceProfilesForRole",
+      "iam:ListRolePolicies",
+      "iam:ListRoleTags",
+      "iam:PassRole",
       "iam:TagRole",
       "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:UpdateRole",
     ]
     resources = ["arn:aws:iam::${local.account_id}:role/${var.project_name}-${each.key}-*"]
+  }
+
+  statement {
+    sid    = "GrantOnlyWithinBoundary"
+    effect = "Allow"
+    actions = [
+      "iam:AttachRolePolicy",
+      "iam:CreateRole",
+      "iam:DeleteRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePermissionsBoundary",
+      "iam:PutRolePolicy",
+    ]
+    resources = ["arn:aws:iam::${local.account_id}:role/${var.project_name}-${each.key}-*"]
+    condition {
+      test     = "ArnEquals"
+      variable = "iam:PermissionsBoundary"
+      values   = [aws_iam_policy.boundary[each.key].arn]
+    }
+  }
+
+  statement {
+    sid       = "KeepBoundaries"
+    effect    = "Deny"
+    actions   = ["iam:DeleteRolePermissionsBoundary"]
+    resources = ["*"]
   }
 
   statement {
@@ -214,10 +293,12 @@ resource "aws_iam_role_policy_attachment" "prototype_plan_readonly" {
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
+# ReadOnlyAccess already reads the bucket; this confines it to prototype state.
+# PR plans run with -lock=false, so the role never writes a lock file.
 resource "aws_iam_role_policy" "prototype_plan_state_access" {
   name   = "tfstate-access"
   role   = aws_iam_role.prototype_plan.id
-  policy = data.aws_iam_policy_document.state_access["prototype"].json
+  policy = data.aws_iam_policy_document.state_isolation["prototype"].json
 }
 
 resource "aws_iam_role_policy" "prototype_plan_deny_other_envs" {

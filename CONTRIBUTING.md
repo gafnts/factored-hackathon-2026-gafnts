@@ -76,8 +76,9 @@ The operations that can hurt are hard to trigger by mistake:
 | `make destroy` hitting the wrong environment | It requires an explicit `ENV`, and refuses when Terraform is initialized for a different one |
 | Unfinished work reaching the prototype | A workflow fails any PR into `main` that doesn't come from `develop` |
 | Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
-| Write credentials on pull requests | PR plans run under a read-only role |
-| CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials, and the deploy roles are denied IAM changes to themselves |
+| Write credentials on pull requests | PR plans run under a read-only role, without taking the state lock |
+| CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials; the deploy roles are denied IAM changes to themselves, and every role they create must carry a permissions boundary that excludes IAM |
+| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` needs `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit |
@@ -284,7 +285,7 @@ make destroy ENV=local   # Tear down your local resources
 
 `ENV` defaults to `local`.
 
-Add infrastructure as per-concern modules under `infra/modules/`, wired into `infra/main.tf`. The deploy roles have `PowerUserAccess`, which covers almost any AWS service. IAM is the exception: a deploy role can only manage roles named `banking-agent-<env>-*`, so name Lambda and task execution roles accordingly.
+Add infrastructure as per-concern modules under `infra/modules/`, wired into `infra/main.tf`. The deploy roles have `PowerUserAccess`, which covers almost any AWS service. IAM is the exception: a deploy role can only manage roles named `banking-agent-<env>-*` that carry the environment's permissions boundary, so name Lambda and task execution roles accordingly and set `permissions_boundary = local.permissions_boundary_arn` on each (pass it into modules as a variable). The boundary allows everything except IAM and other environments' resources.
 
 After adding a module or bumping a provider version, regenerate the lock files so CI (linux/amd64) has the right platform hashes, and commit them with your change:
 
