@@ -10,6 +10,15 @@ export AWS_PROFILE="${ADMIN_PROFILE}"
 IDENTITY=$(aws sts get-caller-identity --query '[Account,Arn]' --output text)
 read -r ACCOUNT_ID PRINCIPAL_ARN <<< "${IDENTITY}"
 assert_not_organizer "${ACCOUNT_ID}"
+
+# In a trust policy, the root ARN means every principal in the account.
+if [[ "${PRINCIPAL_ARN}" == *":root" ]]; then
+  echo "Refusing to continue: signed in as the account root user." >&2
+  echo "The local deploy role would trust every principal in the account." >&2
+  echo "Point AWS_ADMIN_PROFILE (default: 'default') at an IAM user or role with admin access." >&2
+  exit 1
+fi
+
 BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
 
 # Before creating anything, so a missing gh sign-in fails early.
