@@ -20,12 +20,16 @@ IAM_BACKEND := -backend-config=backend.tfbackend
 	init plan apply destroy lock \
 	_check-backend
 
+# Targets tagged `## ...` are listed under the nearest `##@ Section` header.
 help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@if [ -t 1 ] && [ -z "$$NO_COLOR" ]; then t='\033[36m'; h='\033[1m'; r='\033[0m'; fi; \
+	awk -v t="$$t" -v h="$$h" -v r="$$r" 'BEGIN {FS = ":.*## "} \
+		NR == 1 {printf "Usage: make %s<target>%s [ENV=local]\n", t, r} \
+		/^##@ / {printf "\n%s%s%s\n", h, substr($$0, 5), r} \
+		/^[a-zA-Z_-]+:.*## / {printf "  %s%-13s%s %s\n", t, $$1, r, $$2}' $(MAKEFILE_LIST)
 
 
-# LOCAL DEVELOPMENT SETUP
+##@ Setup
 
 install: ## Sync deps, install pre-commit hooks (both stages), install tflint plugins
 	uv sync --all-groups --all-extras
@@ -37,7 +41,7 @@ tflint-init: ## Refresh tflint plugins after a .tflint.hcl version bump
 	tflint --init
 
 
-# QUALITY GATES
+##@ Quality gates
 
 check: ## Run every pre-commit hook against every file (both stages)
 	uv run pre-commit run --all-files --hook-stage pre-commit
@@ -57,7 +61,7 @@ tf-format: ## Format all Terraform files
 	$(TF) fmt -recursive
 
 
-# TESTING
+##@ Testing
 
 test: ## Run pytest with branch coverage
 	uv run pytest --cov --cov-report=term-missing
@@ -66,19 +70,10 @@ integration: ## Run integration-marked tests (requires credentials and network a
 	uv run pytest -m integration -v
 
 
-# BOOTSTRAP & PROVISIONING
+##@ Bootstrap
 
 bootstrap: ## Create state bucket and write backend files for all environments (admin profile)
 	@bash scripts/bootstrap.sh
-
-backend: ## Write backend files for all environments (used by CI; one STS call for the account ID)
-	@bash scripts/bootstrap-backend.sh
-
-doctor: ## Check that every AWS profile resolves to the right account (read-only)
-	@bash scripts/doctor.sh
-
-teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
-	@bash scripts/teardown.sh
 
 provision: ## One-time: create IAM roles and initialize Terraform for ENV=local
 	$(MAKE) iam-init
@@ -86,7 +81,16 @@ provision: ## One-time: create IAM roles and initialize Terraform for ENV=local
 	$(MAKE) init ENV=local
 
 
-# IAM BOOTSTRAP MODULE
+doctor: ## Check that every AWS profile resolves to the right account (read-only)
+	@bash scripts/doctor.sh
+
+backend: ## Write backend files for all environments (used by CI; one STS call for the account ID)
+	@bash scripts/bootstrap-backend.sh
+
+teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
+	@bash scripts/teardown.sh
+
+##@ IAM module
 
 iam-init: ## Initialize Terraform backend for the IAM bootstrap module
 	$(IAM_TF) init -reconfigure $(IAM_BACKEND)
@@ -106,7 +110,7 @@ iam-destroy: ## Destroy the IAM bootstrap module (removes every deploy role; req
 	$(IAM_TF) destroy $(IAM_VARS)
 
 
-# TERRAFORM LIFECYCLE
+##@ Terraform (per ENV)
 
 init: ## Initialize Terraform backend for ENV
 	$(TF) init -reconfigure $(BACKEND)
@@ -127,7 +131,7 @@ destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit
 	$(TF) destroy $(VARS)
 
 
-# MAINTENANCE
+##@ Maintenance
 
 lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) in all modules
 	@find infra -name ".terraform.lock.hcl" -not -path "*/.terraform/*" -exec dirname {} \; | \
