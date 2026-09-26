@@ -162,7 +162,7 @@ The bucket is named `banking-agent-tfstate-<account-id>-us-east-1-an`, in your a
 The OIDC subject prefix is what the CI roles trust. The script reads it from GitHub for the repository `origin` points at, and prints it; check that it names your repository. Repositories created after 2026-07-15 carry the owner and repository IDs in it (`repo:<owner>@<owner-id>/<repo>@<repo-id>`), so it can't be written from the name alone. To set it without the GitHub CLI, export `GITHUB_OIDC_SUBJECT_PREFIX` before running the script.
 
 > [!NOTE]
-> Deploying from a fork? The regenerated backend files name your bucket, so commit them to your fork: CI reads them on every deploy.
+> Deploying from a fork? The regenerated backend files name your bucket, so commit them to your fork: every clone of it then points at your state, as `make doctor` checks. CI regenerates them on its own.
 
 #### 3.3 Create the deploy roles
 
