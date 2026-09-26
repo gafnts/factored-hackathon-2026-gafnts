@@ -38,6 +38,18 @@ infra/iam/iam.tfvars
 /data/
 /docs/hackathon/
 
+# Dataset extracts stay out of the public repo wherever they land (SEC-03)
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.arrow
+*.duckdb
+*.duckdb.wal
+*.sqlite
+*.db
+!tests/fixtures/**
+
 # Editors and OS
 .vscode/*
 !.vscode/settings.json
