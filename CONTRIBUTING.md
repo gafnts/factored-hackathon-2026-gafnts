@@ -361,7 +361,10 @@ Run `make help` for every target.
 | Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
 | AWS provider | `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
 | Hook versions | `rev` entries in `.pre-commit-config.yaml` |
+| GitHub Actions | Commit SHAs in `.github/workflows/`, with the release in a trailing comment |
 | CI tool versions | `env` blocks in `.github/workflows/` |
+
+Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR into `develop` for each of: Python dependencies, hook versions, GitHub Actions and the AWS provider. It skips releases younger than a week. Python, Terraform and the CI tool versions are still bumped by hand.
 
 ### Files
 
