@@ -115,8 +115,8 @@ From now on, hooks run on their own:
 
 | Stage | What runs | When |
 |---|---|---|
-| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy` | On `git commit` |
-| `pre-push` | `terraform validate`, `trivy`, `pytest` (with an 80% coverage floor) | On `git push` |
+| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy` | On `git commit` |
+| `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor) | On `git push` |
 
 ### 2. Connect to the dataset
 
