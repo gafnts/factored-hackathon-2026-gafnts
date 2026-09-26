@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deletes the state bucket, undoing bootstrap.sh. Run it last, once every stack
-# is destroyed, or whatever Terraform still tracks is orphaned:
-#
-#   make destroy ENV=local
-#   AWS_PROFILE=default make init ENV=prototype
-#   AWS_PROFILE=default make destroy ENV=prototype I_KNOW=1
-#   make iam-destroy I_KNOW=1
-#
-# Uses the admin profile; the deploy roles can't delete the bucket.
+# Deletes the state bucket as the admin profile. Run it last (CONTRIBUTING.md, Teardown).
 
 # shellcheck source-path=SCRIPTDIR
 source "$(dirname "$0")/common.sh"
@@ -45,7 +37,6 @@ if ! aws s3api head-bucket --bucket "${BUCKET}" 2>/dev/null; then
   exit 0
 fi
 
-# Versioned bucket: remove every version and delete marker, a page at a time.
 purge_versions() {
   local query="$1"
   while :; do

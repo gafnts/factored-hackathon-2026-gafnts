@@ -12,8 +12,7 @@ read -r ACCOUNT_ID PRINCIPAL_ARN <<< "${IDENTITY}"
 assert_not_organizer "${ACCOUNT_ID}"
 BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
 
-# The CI roles trust the GitHub OIDC tokens of the repository `origin` points
-# at. Resolved before anything is created, so a missing sign-in costs nothing.
+# Before creating anything, so a missing gh sign-in fails early.
 if [ -z "${GITHUB_OIDC_SUBJECT_PREFIX:-}" ]; then
   if ! ORIGIN_REPO=$(origin_github_repo); then
     echo "Refusing to continue: origin is not a GitHub repository." >&2
@@ -32,7 +31,6 @@ echo "Bootstrapping ${PROJECT} in account ${ACCOUNT_ID} (${AWS_REGION})"
 echo "  as ${PRINCIPAL_ARN} (profile: ${AWS_PROFILE})"
 echo "  CI roles will trust ${GITHUB_OIDC_SUBJECT_PREFIX}"
 
-# 1. Create the state bucket (idempotent, shared across envs)
 echo ""
 echo "Creating S3 bucket: ${BUCKET}"
 if aws s3api head-bucket --bucket "${BUCKET}" 2>/dev/null; then
@@ -52,14 +50,12 @@ else
   fi
 fi
 
-# 2. Versioning
 echo ""
 echo "Enabling versioning"
 aws s3api put-bucket-versioning \
   --bucket "${BUCKET}" \
   --versioning-configuration Status=Enabled
 
-# 3. Block public access
 echo ""
 echo "Blocking public access"
 aws s3api put-public-access-block \
@@ -67,7 +63,6 @@ aws s3api put-public-access-block \
   --public-access-block-configuration \
     "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
 
-# 4. Default encryption
 echo ""
 echo "Enabling encryption"
 aws s3api put-bucket-encryption \
@@ -75,12 +70,10 @@ aws s3api put-bucket-encryption \
   --server-side-encryption-configuration \
     '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 
-# 5. Write backend files for all environments
 echo ""
 echo "Writing backend files"
 bash "$(dirname "$0")/bootstrap-backend.sh" "${ACCOUNT_ID}"
 
-# 6. Write iam.tfvars from caller identity and the GitHub repository (idempotent)
 IAM_TFVARS="./infra/iam/iam.tfvars"
 echo ""
 if [ ! -f "${IAM_TFVARS}" ]; then
@@ -97,7 +90,6 @@ else
   echo "  ${IAM_TFVARS} exists, skipping"
 fi
 
-# 7. Write .envrc for direnv (idempotent)
 ENVRC="./.envrc"
 echo ""
 if [ -f "${ENVRC}" ]; then

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Read-only checks of the AWS profiles, the backend files, and the GitHub
-# repository the CI roles trust. No -e, so every check runs even after a failure.
+# No -e: keep checking after a failure.
 
 # shellcheck source-path=SCRIPTDIR
 source "$(dirname "$0")/common.sh"
@@ -17,7 +16,7 @@ BACKEND_FILES=(
   infra/iam/backend.tfbackend
 )
 
-# Every call passes --profile; the one .envrc sets may not exist yet.
+# The profile .envrc sets may not exist yet, so every call passes --profile.
 ACTIVE_PROFILE="${AWS_PROFILE:-}"
 unset AWS_PROFILE
 
@@ -66,7 +65,7 @@ else
   fi
 fi
 
-# Only step 3 needs GitHub, so a missing CLI or sign-in is a todo, not a failure.
+# Only step 3 needs GitHub, so a missing CLI or sign-in is a todo.
 echo ""
 ORIGIN_REPO=$(origin_github_repo)
 echo "GitHub repository: ${ORIGIN_REPO:-<origin is not on GitHub>} (CI runs here; the CI roles trust it)"
