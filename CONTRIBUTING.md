@@ -91,7 +91,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Tool | Version | Needed for |
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | Recent | Python 3.13 (uv installs it from `.python-version`), dependencies, pre-commit |
-| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.15.x (`.terraform-version`) | Infrastructure, and the Terraform hooks |
+| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.16.x (`.terraform-version`) | Infrastructure, and the Terraform hooks |
 | [tflint](https://github.com/terraform-linters/tflint#installation) | CI uses v0.59.1 | Terraform lint hook |
 | [trivy](https://github.com/aquasecurity/trivy) | CI uses v0.70.0 | Terraform security scan (pre-push hook) |
 | [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) | Recent (2.37 works) | Steps 2 and 3 only |
@@ -358,7 +358,7 @@ Run `make help` for every target.
 |---|---|
 | Python 3.13 | `.python-version` |
 | Python dependencies | `uv.lock` |
-| Terraform 1.15.x | `.terraform-version`, and `required_version` in each root |
+| Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
 | AWS provider | `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
 | Hook versions | `rev` entries in `.pre-commit-config.yaml` |
 | CI tool versions | `env` blocks in `.github/workflows/` |

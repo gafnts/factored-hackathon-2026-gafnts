@@ -32,7 +32,7 @@ concurrency:
 env:
   ENV: demo
   AWS_REGION: us-east-1
-  TF_VERSION: 1.15.0
+  TF_VERSION: 1.16.4
 
 jobs:
   # Both jobs are skipped until their role ARN is set as a repository variable
