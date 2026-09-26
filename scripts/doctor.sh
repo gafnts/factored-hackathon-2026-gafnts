@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Read-only checks of the AWS profiles and backend files. No -e, so every
-# check runs even after a failure.
+# Read-only checks of the AWS profiles, the backend files, and the GitHub
+# repository the CI roles trust. No -e, so every check runs even after a failure.
 
 # shellcheck source-path=SCRIPTDIR
 source "$(dirname "$0")/common.sh"
@@ -64,6 +64,39 @@ else
       fi
     done
   fi
+fi
+
+# Only step 3 needs GitHub, so a missing CLI or sign-in is a todo, not a failure.
+echo ""
+ORIGIN_REPO=$(origin_github_repo)
+echo "GitHub repository: ${ORIGIN_REPO:-<origin is not on GitHub>} (CI runs here; the CI roles trust it)"
+PREFIX=""
+if [ -z "${ORIGIN_REPO}" ]; then
+  fail "origin is not a GitHub repository; point it at your fork"
+elif ! command -v gh >/dev/null 2>&1; then
+  todo "GitHub CLI not installed; see CONTRIBUTING.md, step 1"
+elif ! gh auth status >/dev/null 2>&1; then
+  todo "GitHub CLI not signed in; run 'gh auth login'"
+elif ! PREFIX=$(oidc_subject_prefix "${ORIGIN_REPO}" 2>&1); then
+  fail "cannot read its OIDC subject: ${PREFIX}"
+  PREFIX=""
+else
+  ok "OIDC subject ${PREFIX}"
+fi
+IAM_TFVARS=infra/iam/iam.tfvars
+if [ -f "${IAM_TFVARS}" ]; then
+  TRUSTED=$(sed -n 's/^github_oidc_subject_prefix *= *"\(.*\)"$/\1/p' "${IAM_TFVARS}")
+  if [ -z "${TRUSTED}" ]; then
+    todo "${IAM_TFVARS} doesn't set github_oidc_subject_prefix; run 'make bootstrap'"
+  elif [ -z "${PREFIX}" ]; then
+    ok "${IAM_TFVARS} trusts ${TRUSTED} (not compared with GitHub)"
+  elif [ "${TRUSTED}" = "${PREFIX}" ]; then
+    ok "${IAM_TFVARS} trusts it"
+  else
+    fail "${IAM_TFVARS} trusts ${TRUSTED}; fix it, then run 'make iam-apply'"
+  fi
+else
+  todo "${IAM_TFVARS} not found; run 'make bootstrap'"
 fi
 
 echo ""

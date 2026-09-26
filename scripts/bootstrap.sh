@@ -13,18 +13,14 @@ assert_not_organizer "${ACCOUNT_ID}"
 BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
 
 # The CI roles trust the GitHub OIDC tokens of the repository `origin` points
-# at. Their subject carries the owner and repository IDs, so ask GitHub for it
-# rather than build it from the name. Resolved before anything is created.
+# at. Resolved before anything is created, so a missing sign-in costs nothing.
 if [ -z "${GITHUB_OIDC_SUBJECT_PREFIX:-}" ]; then
-  ORIGIN_URL=$(git remote get-url origin)
-  ORIGIN_REPO="${ORIGIN_URL%.git}"
-  ORIGIN_REPO="${ORIGIN_REPO#*github.com[:/]}"
-  if [[ ! "${ORIGIN_REPO}" =~ ^[^/]+/[^/]+$ ]]; then
-    echo "Refusing to continue: origin (${ORIGIN_URL}) is not a GitHub repository." >&2
+  if ! ORIGIN_REPO=$(origin_github_repo); then
+    echo "Refusing to continue: origin is not a GitHub repository." >&2
     echo "Point origin at your fork, or set GITHUB_OIDC_SUBJECT_PREFIX yourself." >&2
     exit 1
   fi
-  if ! GITHUB_OIDC_SUBJECT_PREFIX=$(gh api "repos/${ORIGIN_REPO}/actions/oidc/customization/sub" --jq .sub_claim_prefix); then
+  if ! GITHUB_OIDC_SUBJECT_PREFIX=$(oidc_subject_prefix "${ORIGIN_REPO}"); then
     echo "Could not read the OIDC subject prefix of ${ORIGIN_REPO} with the GitHub CLI." >&2
     echo "Sign in with 'gh auth login', or set GITHUB_OIDC_SUBJECT_PREFIX yourself." >&2
     exit 1

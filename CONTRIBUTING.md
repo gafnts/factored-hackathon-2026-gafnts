@@ -147,7 +147,7 @@ This stands up the full stack in an AWS account you control: a Terraform state b
     --client-id-list sts.amazonaws.com
   ```
 
-- `make doctor` should report `ok` for the admin profile.
+- `make doctor` should report `ok` for the admin profile, and name your repository under "GitHub repository" with an `ok` for its OIDC subject.
 
 #### 3.2 Bootstrap the state backend
 
@@ -225,6 +225,10 @@ Admin profile: default (bootstrap, IAM roles, teardown)
   ok    infra/envs/local.backend.tfbackend points at it
   ok    infra/envs/prototype.backend.tfbackend points at it
   ok    infra/iam/backend.tfbackend points at it
+
+GitHub repository: <owner>/<repo> (CI runs here; the CI roles trust it)
+  ok    OIDC subject repo:<owner>@<owner-id>/<repo>@<repo-id>
+  ok    infra/iam/iam.tfvars trusts it
 
 Dataset profile: factored-hackathon (organizers' read-only keys)
   ok    arn:aws:iam::157725502942:user/factored-datathon-2026-s3-reader can read s3://factored-datathon-2026-s3-157725502942-us-east-2-an/data/
@@ -326,7 +330,9 @@ Run `make doctor` first; most setup problems show up there.
 | `Backend mismatch: configured key is ...` | Terraform is initialized for another environment. Run `make init ENV=<env>`. |
 | `Terraform not initialized` | Run `make init ENV=<env>`. |
 | Expired credentials | Your sign-in session ended. Run `aws login` again. |
+| `make bootstrap` can't read the OIDC subject prefix | The GitHub CLI isn't signed in, or `origin` isn't a repository you can read. Run `gh auth login`; `make doctor` shows which repository `origin` points at. |
 | Deploy workflow jobs show as skipped | The repository variables from [step 3.5](#35-connect-github) aren't set yet. |
+| CI fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The roles trust another repository's OIDC subject. `make doctor` compares `iam.tfvars` with your repository; fix the value, then `make iam-apply`. |
 | CI's `terraform init` fails on provider checksums | The lock files lack hashes for linux/amd64. Run `make lock` and commit them. |
 | A hook passes on commit but fails in CI | Commit hooks only see changed files. Run `make check`, which runs both stages on every file, as CI does. |
 
