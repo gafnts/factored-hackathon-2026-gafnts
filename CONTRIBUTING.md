@@ -78,7 +78,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
 | Write credentials on pull requests | PR plans run under a read-only role, without taking the state lock |
 | CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials; the deploy roles are denied IAM changes to themselves, and every role they create must carry a permissions boundary that excludes IAM |
-| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself |
+| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself; the roles they create are denied the bucket entirely |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` needs `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |

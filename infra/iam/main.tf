@@ -145,6 +145,14 @@ data "aws_iam_policy_document" "boundary" {
     not_actions = ["iam:*", "organizations:*", "account:*"]
     resources   = ["*"]
   }
+
+  # The state bucket has no Environment tag, so the tag deny never reaches it.
+  statement {
+    sid       = "DenyStateBucket"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [local.state_bucket_arn, "${local.state_bucket_arn}/*"]
+  }
 }
 
 resource "aws_iam_policy" "boundary" {
