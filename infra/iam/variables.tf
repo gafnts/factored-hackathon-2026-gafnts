@@ -9,15 +9,14 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
-# No default: a copy of the project must trust its own repository, never this
-# one. make bootstrap reads the value from GitHub and writes it to iam.tfvars.
+# No default, so a fork can't end up trusting this repository. Written by make bootstrap.
 variable "github_oidc_subject_prefix" {
-  description = "Start of the sub claim in the GitHub OIDC tokens of the repository CI runs in. Repositories created after 2026-07-15 use the immutable form repo:<owner>@<owner-id>/<repo>@<repo-id>; print it with: gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix"
+  description = "Prefix of the sub claim in the CI repository's OIDC tokens (gh api repos/<owner>/<repo>/actions/oidc/customization/sub)"
   type        = string
 
   validation {
     condition     = startswith(var.github_oidc_subject_prefix, "repo:")
-    error_message = "github_oidc_subject_prefix must start with \"repo:\"; re-run make bootstrap, or copy it from the gh api command in the description."
+    error_message = "github_oidc_subject_prefix must start with \"repo:\"; re-run make bootstrap."
   }
 }
 

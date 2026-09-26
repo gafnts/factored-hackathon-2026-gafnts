@@ -6,8 +6,7 @@ locals {
   envs          = ["local", "prototype"]
 
   state_bucket_arn = "arn:aws:s3:::${var.state_bucket_name}"
-  # Every state prefix in the bucket: one per env, plus this module's own.
-  state_prefixes = concat(local.envs, ["iam"])
+  state_prefixes   = concat(local.envs, ["iam"])
 }
 
 data "aws_iam_policy_document" "trust_local" {
@@ -21,9 +20,7 @@ data "aws_iam_policy_document" "trust_local" {
   }
 }
 
-# Only jobs running in the `prototype` GitHub Environment can assume the prototype deploy
-# role. Restricting that environment's deployment branches to `main` is what
-# makes a merge to main the only path to a prototype apply.
+# The `prototype` GitHub Environment only allows main, so only main can deploy.
 data "aws_iam_policy_document" "trust_prototype" {
   statement {
     effect  = "Allow"
@@ -66,9 +63,7 @@ data "aws_iam_policy_document" "trust_prototype_plan" {
   }
 }
 
-# PowerUserAccess and ReadOnlyAccess both reach every object in the account, so
-# these denies are what confine a role to its own environment's state and keep
-# it from reconfiguring or deleting the bucket.
+# PowerUserAccess and ReadOnlyAccess reach every bucket; these denies do the scoping.
 data "aws_iam_policy_document" "state_isolation" {
   for_each = toset(local.envs)
 
@@ -138,9 +133,7 @@ data "aws_iam_policy_document" "deny_other_envs" {
   }
 }
 
-# The ceiling for every role a deploy role creates: no IAM, and nothing tagged
-# for another environment. Without it, a deploy role could create a role with
-# AdministratorAccess, let itself assume it, and escape both limits.
+# Caps the roles a deploy role creates, so it can't escalate through them.
 data "aws_iam_policy_document" "boundary" {
   for_each = toset(local.envs)
 
@@ -166,10 +159,7 @@ resource "aws_iam_policy" "boundary" {
   }
 }
 
-# PowerUserAccess excludes IAM, so each deploy role gets just enough to manage
-# the execution roles its own stack creates (named <project>-<env>-*), and only
-# while they carry the environment's boundary. The explicit deny keeps a deploy
-# role from editing itself or its siblings.
+# PowerUserAccess excludes IAM; this adds what the stack's own service roles need.
 data "aws_iam_policy_document" "service_roles" {
   for_each = toset(local.envs)
 
@@ -276,8 +266,7 @@ resource "aws_iam_role_policy" "service_roles" {
   policy = data.aws_iam_policy_document.service_roles[each.key].json
 }
 
-# Read-only role for the prototype plan posted on PRs into main. PR workflows never
-# hold write credentials; only the apply job in the `prototype` environment does.
+# Read-only role for the plan on PRs into main.
 resource "aws_iam_role" "prototype_plan" {
   name               = "${var.project_name}-prototype-plan"
   assume_role_policy = data.aws_iam_policy_document.trust_prototype_plan.json
@@ -293,8 +282,7 @@ resource "aws_iam_role_policy_attachment" "prototype_plan_readonly" {
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
-# ReadOnlyAccess already reads the bucket; this confines it to prototype state.
-# PR plans run with -lock=false, so the role never writes a lock file.
+# Reads come from ReadOnlyAccess, and plans run with -lock=false.
 resource "aws_iam_role_policy" "prototype_plan_state_access" {
   name   = "tfstate-access"
   role   = aws_iam_role.prototype_plan.id
