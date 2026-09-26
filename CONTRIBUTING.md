@@ -59,7 +59,7 @@ Feature branches merge into `develop`, which runs the quality gates and deploys 
 ```mermaid
 flowchart LR
     feature[Feature branch] -->|PR| develop[develop]
-    develop -->|quality gates| checks{{Checks}}
+    develop -->|CI runs| qualityGates{{Quality gates}}
 
     develop -->|PR| main[main]
     main -->|CI plans prototype| planPrototype{{Plan prototype}}

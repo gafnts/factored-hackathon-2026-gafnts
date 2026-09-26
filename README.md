@@ -3,7 +3,7 @@
   <strong>Customer service in Spanish and Portuguese that resolves what it can verify, asks when a request is unclear, and hands off when it should not act.</strong>
 </p>
 <p align="center">
-<a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/checks.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/checks.yml/badge.svg" alt="Quality gates"></a>
+<a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/quality-gates.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/quality-gates.yml/badge.svg" alt="Quality gates"></a>
 <a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/deploy-prototype.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/deploy-prototype.yml/badge.svg" alt="Deploy prototype"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
