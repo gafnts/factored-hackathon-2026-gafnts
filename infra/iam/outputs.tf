@@ -2,10 +2,10 @@ output "local_role_arn" {
   value = aws_iam_role.deploy["local"].arn
 }
 
-output "demo_role_arn" {
-  value = aws_iam_role.deploy["demo"].arn
+output "prototype_role_arn" {
+  value = aws_iam_role.deploy["prototype"].arn
 }
 
-output "demo_plan_role_arn" {
-  value = aws_iam_role.demo_plan.arn
+output "prototype_plan_role_arn" {
+  value = aws_iam_role.prototype_plan.arn
 }

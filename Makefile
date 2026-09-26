@@ -5,15 +5,18 @@ TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
 
-IAM_TF      := terraform -chdir=infra/iam
+# The IAM bootstrap module is admin-only, so it ignores the scoped AWS_PROFILE
+# that .envrc sets (that profile can't exist until this module has run).
+AWS_ADMIN_PROFILE ?= default
+IAM_TF      := AWS_PROFILE=$(AWS_ADMIN_PROFILE) terraform -chdir=infra/iam
 IAM_VARS    := -var-file=iam.tfvars
 IAM_BACKEND := -backend-config=backend.tfbackend
 
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration \
-	bootstrap backend provision \
-	iam-init iam-plan iam-apply iam-destroy \
+	bootstrap backend doctor provision teardown \
+	iam-init iam-plan iam-apply iam-output iam-destroy \
 	init plan apply destroy lock \
 	_check-backend
 
@@ -65,11 +68,17 @@ integration: ## Run integration-marked tests (requires credentials and network a
 
 # BOOTSTRAP & PROVISIONING
 
-bootstrap: ## Create state bucket and write backend files for all environments
-	@bash bootstrap.sh
+bootstrap: ## Create state bucket and write backend files for all environments (admin profile)
+	@bash scripts/bootstrap.sh
 
-backend: ## Write backend files for all environments (used by CI; no AWS calls)
-	@bash bootstrap-backend.sh
+backend: ## Write backend files for all environments (used by CI; one STS call for the account ID)
+	@bash scripts/bootstrap-backend.sh
+
+doctor: ## Check that every AWS profile resolves to the right account (read-only)
+	@bash scripts/doctor.sh
+
+teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
+	@bash scripts/teardown.sh
 
 provision: ## One-time: create IAM roles and initialize Terraform for ENV=local
 	$(MAKE) iam-init
@@ -88,6 +97,9 @@ iam-plan: ## Preview changes to the IAM bootstrap module
 iam-apply: ## Apply the IAM bootstrap module (creates deploy roles)
 	$(IAM_TF) apply $(IAM_VARS)
 
+iam-output: ## Print the deploy role ARNs (for your AWS profile and the GitHub variables)
+	$(IAM_TF) output
+
 iam-destroy: ## Destroy the IAM bootstrap module (removes every deploy role; requires I_KNOW=1)
 	@if [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy the deploy roles for every env. Re-run with I_KNOW=1."; exit 1; fi
@@ -102,16 +114,16 @@ init: ## Initialize Terraform backend for ENV
 plan: ## Preview infrastructure changes for ENV
 	$(TF) plan $(VARS)
 
-apply: _check-backend ## Apply infrastructure changes for ENV (refuses demo unless I_KNOW=1)
-	@if [ "$(ENV)" = "demo" ] && [ "$(I_KNOW)" != "1" ]; then \
-		echo "Refusing to apply demo from local. CI owns demo."; exit 1; fi
+apply: _check-backend ## Apply infrastructure changes for ENV (refuses prototype unless I_KNOW=1)
+	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to apply prototype from local. CI owns prototype."; exit 1; fi
 	$(TF) apply $(VARS)
 
-destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses demo unless I_KNOW=1)
+destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
 		echo "destroy requires explicit ENV (e.g. make destroy ENV=local). Refusing default."; exit 1; fi
-	@if [ "$(ENV)" = "demo" ] && [ "$(I_KNOW)" != "1" ]; then \
-		echo "Refusing to destroy demo. Re-run with I_KNOW=1."; exit 1; fi
+	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to destroy prototype. Re-run with I_KNOW=1."; exit 1; fi
 	$(TF) destroy $(VARS)
 
 
@@ -126,8 +138,8 @@ lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) i
 # INTERNAL
 
 # Verify the configured backend key matches ENV. Prevents the footgun where
-# `make init ENV=demo` followed by `make destroy` (defaulting to local)
-# operates on the demo state because the backend pointer persists in
+# `make init ENV=prototype` followed by `make destroy` (defaulting to local)
+# operates on the prototype state because the backend pointer persists in
 # infra/.terraform/terraform.tfstate across runs.
 _check-backend:
 	@if [ ! -f infra/.terraform/terraform.tfstate ]; then \

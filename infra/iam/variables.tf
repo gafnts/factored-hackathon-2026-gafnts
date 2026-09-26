@@ -9,10 +9,15 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
-variable "github_repo" {
-  description = "GitHub repo in owner/name form"
+# No default, so a fork can't end up trusting this repository. Written by make bootstrap.
+variable "github_oidc_subject_prefix" {
+  description = "Prefix of the sub claim in the CI repository's OIDC tokens (gh api repos/<owner>/<repo>/actions/oidc/customization/sub)"
   type        = string
-  default     = "gafnts/factored-hackathon-2026-gafnts"
+
+  validation {
+    condition     = startswith(var.github_oidc_subject_prefix, "repo:")
+    error_message = "github_oidc_subject_prefix must start with \"repo:\"; re-run make bootstrap."
+  }
 }
 
 variable "local_principal_arn" {

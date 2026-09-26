@@ -3,7 +3,10 @@ data "aws_caller_identity" "current" {}
 locals {
   account_id    = data.aws_caller_identity.current.account_id
   oidc_provider = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
-  envs          = ["local", "demo"]
+  envs          = ["local", "prototype"]
+
+  state_bucket_arn = "arn:aws:s3:::${var.state_bucket_name}"
+  state_prefixes   = concat(local.envs, ["iam"])
 }
 
 data "aws_iam_policy_document" "trust_local" {
@@ -17,10 +20,8 @@ data "aws_iam_policy_document" "trust_local" {
   }
 }
 
-# Only jobs running in the `demo` GitHub Environment can assume the demo deploy
-# role. Restricting that environment's deployment branches to `main` is what
-# makes a merge to main the only path to a demo apply.
-data "aws_iam_policy_document" "trust_demo" {
+# The `prototype` GitHub Environment only allows main, so only main can deploy.
+data "aws_iam_policy_document" "trust_prototype" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -36,12 +37,12 @@ data "aws_iam_policy_document" "trust_demo" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:demo"]
+      values   = ["${var.github_oidc_subject_prefix}:environment:prototype"]
     }
   }
 }
 
-data "aws_iam_policy_document" "trust_demo_plan" {
+data "aws_iam_policy_document" "trust_prototype_plan" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -57,19 +58,40 @@ data "aws_iam_policy_document" "trust_demo_plan" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:pull_request"]
+      values   = ["${var.github_oidc_subject_prefix}:pull_request"]
     }
+  }
+}
+
+# PowerUserAccess and ReadOnlyAccess reach every bucket; these denies do the scoping.
+data "aws_iam_policy_document" "state_isolation" {
+  for_each = toset(local.envs)
+
+  statement {
+    sid       = "DenyOtherStatePrefixes"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [for prefix in setsubtract(local.state_prefixes, [each.key]) : "${local.state_bucket_arn}/service/${prefix}/*"]
+  }
+
+  statement {
+    sid         = "DenyStateBucketChanges"
+    effect      = "Deny"
+    not_actions = ["s3:GetBucket*", "s3:ListBucket"]
+    resources   = [local.state_bucket_arn]
   }
 }
 
 data "aws_iam_policy_document" "state_access" {
   for_each = toset(local.envs)
 
+  source_policy_documents = [data.aws_iam_policy_document.state_isolation[each.key].json]
+
   statement {
     sid       = "ListOwnPrefix"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = ["arn:aws:s3:::${var.state_bucket_name}"]
+    resources = [local.state_bucket_arn]
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
@@ -86,7 +108,7 @@ data "aws_iam_policy_document" "state_access" {
       "s3:DeleteObject",
       "s3:GetObjectAttributes",
     ]
-    resources = ["arn:aws:s3:::${var.state_bucket_name}/service/${each.key}/*"]
+    resources = ["${local.state_bucket_arn}/service/${each.key}/*"]
   }
 }
 
@@ -111,10 +133,33 @@ data "aws_iam_policy_document" "deny_other_envs" {
   }
 }
 
-# PowerUserAccess excludes IAM, so each deploy role gets just enough to manage
-# the execution roles its own stack creates (named <project>-<env>-*). The
-# explicit deny keeps a deploy role from editing itself or its siblings, which
-# would otherwise be a path to escalating its own permissions.
+# Caps the roles a deploy role creates, so it can't escalate through them.
+data "aws_iam_policy_document" "boundary" {
+  for_each = toset(local.envs)
+
+  source_policy_documents = [data.aws_iam_policy_document.deny_other_envs[each.key].json]
+
+  statement {
+    sid         = "AllowAllButIdentityManagement"
+    effect      = "Allow"
+    not_actions = ["iam:*", "organizations:*", "account:*"]
+    resources   = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "boundary" {
+  for_each = toset(local.envs)
+
+  name        = "${var.project_name}-${each.key}-boundary"
+  description = "Permissions boundary for the service roles the ${each.key} deploy role creates"
+  policy      = data.aws_iam_policy_document.boundary[each.key].json
+
+  tags = {
+    Environment = each.key
+  }
+}
+
+# PowerUserAccess excludes IAM; this adds what the stack's own service roles need.
 data "aws_iam_policy_document" "service_roles" {
   for_each = toset(local.envs)
 
@@ -122,22 +167,46 @@ data "aws_iam_policy_document" "service_roles" {
     sid    = "ManageOwnServiceRoles"
     effect = "Allow"
     actions = [
-      "iam:CreateRole",
       "iam:DeleteRole",
       "iam:GetRole",
-      "iam:PassRole",
-      "iam:AttachRolePolicy",
-      "iam:DetachRolePolicy",
-      "iam:PutRolePolicy",
-      "iam:DeleteRolePolicy",
       "iam:GetRolePolicy",
-      "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:ListInstanceProfilesForRole",
+      "iam:ListRolePolicies",
+      "iam:ListRoleTags",
+      "iam:PassRole",
       "iam:TagRole",
       "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:UpdateRole",
     ]
     resources = ["arn:aws:iam::${local.account_id}:role/${var.project_name}-${each.key}-*"]
+  }
+
+  statement {
+    sid    = "GrantOnlyWithinBoundary"
+    effect = "Allow"
+    actions = [
+      "iam:AttachRolePolicy",
+      "iam:CreateRole",
+      "iam:DeleteRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePermissionsBoundary",
+      "iam:PutRolePolicy",
+    ]
+    resources = ["arn:aws:iam::${local.account_id}:role/${var.project_name}-${each.key}-*"]
+    condition {
+      test     = "ArnEquals"
+      variable = "iam:PermissionsBoundary"
+      values   = [aws_iam_policy.boundary[each.key].arn]
+    }
+  }
+
+  statement {
+    sid       = "KeepBoundaries"
+    effect    = "Deny"
+    actions   = ["iam:DeleteRolePermissionsBoundary"]
+    resources = ["*"]
   }
 
   statement {
@@ -156,8 +225,8 @@ resource "aws_iam_role" "deploy" {
 
   name = "${var.project_name}-${each.key}-deploy"
   assume_role_policy = {
-    "local" = data.aws_iam_policy_document.trust_local.json
-    "demo"  = data.aws_iam_policy_document.trust_demo.json
+    "local"     = data.aws_iam_policy_document.trust_local.json
+    "prototype" = data.aws_iam_policy_document.trust_prototype.json
   }[each.key]
 
   tags = {
@@ -197,31 +266,31 @@ resource "aws_iam_role_policy" "service_roles" {
   policy = data.aws_iam_policy_document.service_roles[each.key].json
 }
 
-# Read-only role for the demo plan posted on PRs into main. PR workflows never
-# hold write credentials; only the apply job in the `demo` environment does.
-resource "aws_iam_role" "demo_plan" {
-  name               = "${var.project_name}-demo-plan"
-  assume_role_policy = data.aws_iam_policy_document.trust_demo_plan.json
+# Read-only role for the plan on PRs into main.
+resource "aws_iam_role" "prototype_plan" {
+  name               = "${var.project_name}-prototype-plan"
+  assume_role_policy = data.aws_iam_policy_document.trust_prototype_plan.json
 
   tags = {
-    Environment = "demo"
+    Environment = "prototype"
     Role        = "plan"
   }
 }
 
-resource "aws_iam_role_policy_attachment" "demo_plan_readonly" {
-  role       = aws_iam_role.demo_plan.name
+resource "aws_iam_role_policy_attachment" "prototype_plan_readonly" {
+  role       = aws_iam_role.prototype_plan.name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
-resource "aws_iam_role_policy" "demo_plan_state_access" {
+# Reads come from ReadOnlyAccess, and plans run with -lock=false.
+resource "aws_iam_role_policy" "prototype_plan_state_access" {
   name   = "tfstate-access"
-  role   = aws_iam_role.demo_plan.id
-  policy = data.aws_iam_policy_document.state_access["demo"].json
+  role   = aws_iam_role.prototype_plan.id
+  policy = data.aws_iam_policy_document.state_isolation["prototype"].json
 }
 
-resource "aws_iam_role_policy" "demo_plan_deny_other_envs" {
+resource "aws_iam_role_policy" "prototype_plan_deny_other_envs" {
   name   = "deny-other-envs"
-  role   = aws_iam_role.demo_plan.id
-  policy = data.aws_iam_policy_document.deny_other_envs["demo"].json
+  role   = aws_iam_role.prototype_plan.id
+  policy = data.aws_iam_policy_document.deny_other_envs["prototype"].json
 }

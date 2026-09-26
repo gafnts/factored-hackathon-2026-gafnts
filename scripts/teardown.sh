@@ -1,33 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Out-of-band teardown: the mirror image of bootstrap.sh.
-#
-# Deletes the shared, versioned state bucket, which lives OUTSIDE Terraform's
-# lifecycle. This is the LAST step of a full teardown. Run it only after every
-# Terraform stack is gone:
-#
-#   make destroy ENV=local
-#   AWS_PROFILE=default make init ENV=demo
-#   AWS_PROFILE=default make destroy ENV=demo I_KNOW=1
-#   AWS_PROFILE=default make iam-destroy I_KNOW=1
-#
-# Deleting the state bucket orphans anything Terraform still tracks (the
-# resources keep existing in AWS but Terraform can no longer see them), which is
-# why the stacks come first.
-#
-# Run with ADMIN/DEFAULT credentials, not the scoped deploy role: the deploy
-# roles can only touch their own state prefix and cannot delete the bucket. The
-# repo's .envrc sets AWS_PROFILE=banking-agent-local, so override it, e.g.
-#   AWS_PROFILE=default bash teardown.sh
-#
-# The state bucket deletion is irreversible.
+# Deletes the state bucket as the admin profile. Run it last (CONTRIBUTING.md, Teardown).
 
-AWS_REGION="${AWS_REGION:-us-east-1}"
-PROJECT="banking-agent"
+# shellcheck source-path=SCRIPTDIR
+source "$(dirname "$0")/common.sh"
 
-SUFFIX=$(echo -n "${PROJECT}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-8)
-BUCKET="${PROJECT}-tfstate-${SUFFIX}"
+export AWS_PROFILE="${ADMIN_PROFILE}"
+
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+assert_not_organizer "${ACCOUNT_ID}"
+BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
 
 echo ""
 echo "This permanently deletes the state bucket for ${PROJECT} (and ALL"
@@ -54,8 +37,6 @@ if ! aws s3api head-bucket --bucket "${BUCKET}" 2>/dev/null; then
   exit 0
 fi
 
-# Versioned bucket: an object isn't gone until every version and delete marker
-# is removed. Loop in case there are more than one page (1000) of them.
 purge_versions() {
   local query="$1"
   while :; do
