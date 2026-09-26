@@ -16,7 +16,7 @@ IAM_BACKEND := -backend-config=backend.tfbackend
 	check lint format type tf-format \
 	test integration \
 	bootstrap backend doctor provision teardown \
-	iam-init iam-plan iam-apply iam-destroy \
+	iam-init iam-plan iam-apply iam-output iam-destroy \
 	init plan apply destroy lock \
 	_check-backend
 
@@ -96,6 +96,9 @@ iam-plan: ## Preview changes to the IAM bootstrap module
 
 iam-apply: ## Apply the IAM bootstrap module (creates deploy roles)
 	$(IAM_TF) apply $(IAM_VARS)
+
+iam-output: ## Print the deploy role ARNs (for your AWS profile and the GitHub variables)
+	$(IAM_TF) output
 
 iam-destroy: ## Destroy the IAM bootstrap module (removes every deploy role; requires I_KNOW=1)
 	@if [ "$(I_KNOW)" != "1" ]; then \
