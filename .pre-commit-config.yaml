@@ -31,6 +31,12 @@ repos:
     hooks:
       - id: gitleaks
 
+  # Outputs can hold dataset rows, and the repo is public (SEC-03).
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
