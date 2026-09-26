@@ -24,7 +24,7 @@ htmlcov/
 *.tfstate.*
 crash.log
 crash.*.log
-# Holds your principal ARN (written by scripts/bootstrap.sh)
+# Your principal ARN and the OIDC subject CI trusts (written by scripts/bootstrap.sh)
 infra/iam/iam.tfvars
 
 # Secrets and local environment

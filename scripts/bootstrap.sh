@@ -12,9 +12,29 @@ read -r ACCOUNT_ID PRINCIPAL_ARN <<< "${IDENTITY}"
 assert_not_organizer "${ACCOUNT_ID}"
 BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
 
+# The CI roles trust the GitHub OIDC tokens of the repository `origin` points
+# at. Their subject carries the owner and repository IDs, so ask GitHub for it
+# rather than build it from the name. Resolved before anything is created.
+if [ -z "${GITHUB_OIDC_SUBJECT_PREFIX:-}" ]; then
+  ORIGIN_URL=$(git remote get-url origin)
+  ORIGIN_REPO="${ORIGIN_URL%.git}"
+  ORIGIN_REPO="${ORIGIN_REPO#*github.com[:/]}"
+  if [[ ! "${ORIGIN_REPO}" =~ ^[^/]+/[^/]+$ ]]; then
+    echo "Refusing to continue: origin (${ORIGIN_URL}) is not a GitHub repository." >&2
+    echo "Point origin at your fork, or set GITHUB_OIDC_SUBJECT_PREFIX yourself." >&2
+    exit 1
+  fi
+  if ! GITHUB_OIDC_SUBJECT_PREFIX=$(gh api "repos/${ORIGIN_REPO}/actions/oidc/customization/sub" --jq .sub_claim_prefix); then
+    echo "Could not read the OIDC subject prefix of ${ORIGIN_REPO} with the GitHub CLI." >&2
+    echo "Sign in with 'gh auth login', or set GITHUB_OIDC_SUBJECT_PREFIX yourself." >&2
+    exit 1
+  fi
+fi
+
 echo ""
 echo "Bootstrapping ${PROJECT} in account ${ACCOUNT_ID} (${AWS_REGION})"
 echo "  as ${PRINCIPAL_ARN} (profile: ${AWS_PROFILE})"
+echo "  CI roles will trust ${GITHUB_OIDC_SUBJECT_PREFIX}"
 
 # 1. Create the state bucket (idempotent, shared across envs)
 echo ""
@@ -64,17 +84,21 @@ echo ""
 echo "Writing backend files"
 bash "$(dirname "$0")/bootstrap-backend.sh" "${ACCOUNT_ID}"
 
-# 6. Write iam.tfvars from caller identity (idempotent)
+# 6. Write iam.tfvars from caller identity and the GitHub repository (idempotent)
 IAM_TFVARS="./infra/iam/iam.tfvars"
 echo ""
-if [ -f "${IAM_TFVARS}" ]; then
-  echo "  ${IAM_TFVARS} exists, skipping"
-else
+if [ ! -f "${IAM_TFVARS}" ]; then
   echo "Writing ${IAM_TFVARS} (principal: ${PRINCIPAL_ARN})"
   cat > "${IAM_TFVARS}" <<EOT
-local_principal_arn = "${PRINCIPAL_ARN}"
-state_bucket_name   = "${BUCKET}"
+local_principal_arn        = "${PRINCIPAL_ARN}"
+state_bucket_name          = "${BUCKET}"
+github_oidc_subject_prefix = "${GITHUB_OIDC_SUBJECT_PREFIX}"
 EOT
+elif ! grep -q '^github_oidc_subject_prefix' "${IAM_TFVARS}"; then
+  echo "Adding github_oidc_subject_prefix to ${IAM_TFVARS}"
+  echo "github_oidc_subject_prefix = \"${GITHUB_OIDC_SUBJECT_PREFIX}\"" >> "${IAM_TFVARS}"
+else
+  echo "  ${IAM_TFVARS} exists, skipping"
 fi
 
 # 7. Write .envrc for direnv (idempotent)

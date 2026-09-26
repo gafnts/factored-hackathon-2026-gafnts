@@ -35,7 +35,7 @@ Most contributions need no AWS access at all. Find the row that matches what you
 |---|---|---|
 | Change code, tests, or docs | Only the toolchain | [Step 1](#1-install-the-toolchain) |
 | Explore or process the organizers' dataset | The read-only keys from the dataset dictionary | [Steps 1 and 2](#2-connect-to-the-dataset) |
-| Run the whole stack in your own AWS account | Admin access to an AWS account | [Steps 1 and 3](#3-deploy-your-own-copy), plus step 2 when you need the data |
+| Run the whole stack in your own AWS account | Admin access to an AWS account, and your own fork of this repository | [Steps 1 and 3](#3-deploy-your-own-copy), plus step 2 when you need the data |
 
 No path depends on the maintainers' AWS account or credentials. Resource names are derived from the account you sign in to, so a second copy of the project never collides with the first.
 
@@ -96,6 +96,7 @@ The operations that can hurt are hard to trigger by mistake:
 | [tflint](https://github.com/terraform-linters/tflint#installation) | CI uses v0.64.0 | Terraform lint hook. On Homebrew, install from `terraform-linters/tap/tflint`: since v0.63, homebrew-core no longer gets new releases |
 | [trivy](https://github.com/aquasecurity/trivy) | CI uses v0.74.0 | Terraform security scan (pre-push hook) |
 | [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) | Recent (2.37 works) | Steps 2 and 3 only |
+| [GitHub CLI](https://cli.github.com) | Recent | Step 3 only |
 | [direnv](https://direnv.net) | Optional | Setting `AWS_PROFILE` when you enter the repo |
 
 Then install the dependencies and hooks, and run every check once:
@@ -135,6 +136,8 @@ This stands up the full stack in an AWS account you control: a Terraform state b
 
 #### 3.1 Before you start
 
+- Work from a GitHub repository you administer, with `origin` pointing at it: your own fork, unless you maintain this one. The prototype pipeline runs in that repository's Actions, and its CI roles trust only that repository. On a fork, enable workflows once under the **Actions** tab; GitHub disables them on new forks.
+- Sign in to the GitHub CLI with `gh auth login`. `make bootstrap` uses it to read your repository's OIDC subject, and step 3.5 to set its variables.
 - Sign in to the account as an admin: `aws login`, SSO, and access keys all work. The one-time steps use the `default` profile; set `AWS_ADMIN_PROFILE` to use another.
 - The account needs GitHub's OIDC provider, once per account and shared across projects. If `aws iam list-open-id-connect-providers` doesn't list `token.actions.githubusercontent.com`, create it:
 
@@ -152,12 +155,14 @@ This stands up the full stack in an AWS account you control: a Terraform state b
 make bootstrap
 ```
 
-This creates the state bucket (private, versioned, encrypted, with S3 native locking, so no DynamoDB table), regenerates the backend files, writes `infra/iam/iam.tfvars` with your principal ARN, and writes a `.envrc` that sets `AWS_PROFILE=banking-agent-local`. Hold off on `direnv allow` until step 3.4 creates that profile.
+This creates the state bucket (private, versioned, encrypted, with S3 native locking, so no DynamoDB table), regenerates the backend files, writes `infra/iam/iam.tfvars` with your principal ARN and your repository's OIDC subject prefix, and writes a `.envrc` that sets `AWS_PROFILE=banking-agent-local`. Hold off on `direnv allow` until step 3.4 creates that profile.
 
 The bucket is named `banking-agent-tfstate-<account-id>-us-east-1-an`, in your account's [regional namespace](https://docs.aws.amazon.com/AmazonS3/latest/userguide/gpbucketnamespaces.html): only your account can own that name. The script always runs as the admin profile, whatever `AWS_PROFILE` says, and refuses the organizers' account.
 
+The OIDC subject prefix is what the CI roles trust. The script reads it from GitHub for the repository `origin` points at, and prints it; check that it names your repository. Repositories created after 2026-07-15 carry the owner and repository IDs in it (`repo:<owner>@<owner-id>/<repo>@<repo-id>`), so it can't be written from the name alone. To set it without the GitHub CLI, export `GITHUB_OIDC_SUBJECT_PREFIX` before running the script.
+
 > [!NOTE]
-> Deploying from a fork? The regenerated backend files name your bucket, so commit them. Also add `github_oidc_subject_prefix` to `infra/iam/iam.tfvars` before the next step, so the CI roles trust your repository instead of this one. Copy the value from `gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix`: repositories created after 2026-07-15 carry the owner and repository IDs in it (`repo:<owner>@<owner-id>/<repo>@<repo-id>`), so it can't be written from the name alone.
+> Deploying from a fork? The regenerated backend files name your bucket, so commit them to your fork: CI reads them on every deploy.
 
 #### 3.3 Create the deploy roles
 
@@ -356,6 +361,7 @@ Run `make help` for every target.
 | `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, and ad hoc AWS CLI calls |
 | `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` targets, `make teardown`, `make doctor` |
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor` |
+| `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
 
 ### What's pinned
 
@@ -378,7 +384,7 @@ The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbacken
 Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
-- `infra/iam/iam.tfvars`: your principal ARN (and `github_oidc_subject_prefix`, on a fork)
+- `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets such as LLM API keys; if you add one, document its variables in a tracked `.env.example`
 - `data/`: the organizer-provided dataset, which must never be committed
