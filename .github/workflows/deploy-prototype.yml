@@ -15,10 +15,7 @@ on:
       - ".github/workflows/deploy-prototype.yml"
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-  pull-requests: write
+permissions: {}
 
 # Explicit bash adds -o pipefail, so `make plan | tee` fails when the plan does.
 defaults:
@@ -39,6 +36,10 @@ jobs:
       github.event_name == 'pull_request'
       && github.event.pull_request.head.repo.full_name == github.repository
       && vars.AWS_ROLE_ARN_PROTOTYPE_PLAN != ''
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
     concurrency:
       group: deploy-prototype-plan-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -107,6 +108,9 @@ jobs:
       github.event_name != 'pull_request'
       && github.ref == 'refs/heads/main'
       && vars.AWS_ROLE_ARN_PROTOTYPE != ''
+    permissions:
+      id-token: write
+      contents: read
     concurrency:
       group: deploy-prototype-apply
       cancel-in-progress: false
