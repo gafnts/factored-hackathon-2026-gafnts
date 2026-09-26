@@ -50,7 +50,10 @@ No path depends on the maintainers' AWS account or credentials. Resource names a
 | `local` | You, from your laptop | When you run `make apply` | Iterating on infrastructure |
 | `prototype` | GitHub Actions | On every merge to `main` | The hosted prototype linked from the submission |
 
-Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role can only touch resources tagged for its own environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
+Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role is denied any resource tagged for the other environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
+
+> [!NOTE]
+> Tag-based isolation is partial: it doesn't reach untagged resources, or actions that ignore resource tags (S3 object reads and writes among them). The state bucket is covered by explicit denies instead (see [Guardrails](#guardrails)). A separate AWS account per environment is remaining deployment work.
 
 ### Branches
 
