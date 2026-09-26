@@ -42,7 +42,7 @@ repos:
     hooks:
       - id: shellcheck
         name: shellcheck
-        entry: uv run shellcheck
+        entry: uv run shellcheck -x
         language: system
         types: [shell]
 

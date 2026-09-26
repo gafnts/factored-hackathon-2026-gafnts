@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AWS_REGION="${AWS_REGION:-us-east-1}"
-PROJECT="banking-agent"
+# shellcheck source-path=SCRIPTDIR
+source "$(dirname "$0")/common.sh"
 
-SUFFIX=$(echo -n "${PROJECT}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-8)
-BUCKET="${PROJECT}-tfstate-${SUFFIX}"
+# Admin only, even if .envrc already points AWS_PROFILE at the local role.
+export AWS_PROFILE="${ADMIN_PROFILE}"
+
+IDENTITY=$(aws sts get-caller-identity --query '[Account,Arn]' --output text)
+read -r ACCOUNT_ID PRINCIPAL_ARN <<< "${IDENTITY}"
+assert_not_organizer "${ACCOUNT_ID}"
+BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
+
+echo ""
+echo "Bootstrapping ${PROJECT} in account ${ACCOUNT_ID} (${AWS_REGION})"
+echo "  as ${PRINCIPAL_ARN} (profile: ${AWS_PROFILE})"
 
 # 1. Create the state bucket (idempotent, shared across envs)
 echo ""
@@ -14,10 +23,14 @@ if aws s3api head-bucket --bucket "${BUCKET}" 2>/dev/null; then
   echo "  bucket already exists, skipping"
 else
   if [ "${AWS_REGION}" = "us-east-1" ]; then
-    aws s3api create-bucket --bucket "${BUCKET}" --region "${AWS_REGION}"
+    aws s3api create-bucket \
+      --bucket "${BUCKET}" \
+      --bucket-namespace account-regional \
+      --region "${AWS_REGION}"
   else
     aws s3api create-bucket \
       --bucket "${BUCKET}" \
+      --bucket-namespace account-regional \
       --region "${AWS_REGION}" \
       --create-bucket-configuration LocationConstraint="${AWS_REGION}"
   fi
@@ -49,7 +62,7 @@ aws s3api put-bucket-encryption \
 # 5. Write backend files for all environments
 echo ""
 echo "Writing backend files"
-bash "$(dirname "$0")/bootstrap-backend.sh"
+bash "$(dirname "$0")/bootstrap-backend.sh" "${ACCOUNT_ID}"
 
 # 6. Write iam.tfvars from caller identity (idempotent)
 IAM_TFVARS="./infra/iam/iam.tfvars"
@@ -57,7 +70,6 @@ echo ""
 if [ -f "${IAM_TFVARS}" ]; then
   echo "  ${IAM_TFVARS} exists, skipping"
 else
-  PRINCIPAL_ARN=$(aws sts get-caller-identity --query Arn --output text)
   echo "Writing ${IAM_TFVARS} (principal: ${PRINCIPAL_ARN})"
   cat > "${IAM_TFVARS}" <<EOT
 local_principal_arn = "${PRINCIPAL_ARN}"

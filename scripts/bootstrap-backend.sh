@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AWS_REGION="${AWS_REGION:-us-east-1}"
-PROJECT="banking-agent"
+# shellcheck source-path=SCRIPTDIR
+source "$(dirname "$0")/common.sh"
+
 ENVS=("local" "demo")
 
-SUFFIX=$(echo -n "${PROJECT}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-8)
-BUCKET="${PROJECT}-tfstate-${SUFFIX}"
+# bootstrap.sh passes the account ID; CI and everyone else ask STS.
+ACCOUNT_ID="${1:-$(aws sts get-caller-identity --query Account --output text)}"
+assert_not_organizer "${ACCOUNT_ID}"
+BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
 
 write_backend() {
   local file="$1" key="$2"
