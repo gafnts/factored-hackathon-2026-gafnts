@@ -14,6 +14,7 @@ BACKEND_FILES=(
   infra/envs/local.backend.tfbackend
   infra/envs/prototype.backend.tfbackend
   infra/iam/backend.tfbackend
+  infra/dataset/backend.tfbackend
 )
 
 # The profile .envrc sets may not exist yet, so every call passes --profile.

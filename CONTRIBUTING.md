@@ -81,9 +81,9 @@ The operations that can hurt are hard to trigger by mistake:
 | Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
 | Write credentials on pull requests | PR plans run under a read-only role, without taking the state lock |
 | CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials; the deploy roles are denied IAM changes to themselves, and every role they create must carry a permissions boundary that excludes IAM |
-| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself; the roles they create are denied the bucket entirely |
+| One environment touching another's state | Each role is denied every other prefix in the state bucket (including the IAM and dataset roots'), and any change to the bucket itself; the roles they create are denied the bucket entirely |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
-| Deleting shared state | `iam-destroy` needs `I_KNOW=1`, and `make teardown` makes you type the bucket name |
+| Deleting shared state | `iam-destroy` and `dataset-destroy` need `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
 
 ---
@@ -135,7 +135,7 @@ Check it with `make doctor`: under "Dataset profile" it should report that it ca
 
 ### 3. Deploy your own copy
 
-This stands up the full stack in an AWS account you control: a Terraform state bucket, three deploy roles, the `local` environment, and CI deployments of `prototype`. It happens once per account, with admin credentials.
+This stands up the full stack in an AWS account you control: a Terraform state bucket, three deploy roles, the dataset bucket, the `local` environment, and CI deployments of `prototype`. It happens once per account, with admin credentials.
 
 #### 3.1 Before you start
 
@@ -173,7 +173,7 @@ The OIDC subject prefix is what the CI roles trust. The script reads it from Git
 make provision
 ```
 
-This applies `infra/iam/` (Terraform asks you to confirm) and initializes the `local` stack. It creates:
+This applies `infra/iam/`, then `infra/dataset/` (Terraform asks you to confirm each), and initializes the `local` stack. The first creates the deploy roles:
 
 | Role | Assumed by | Permissions |
 |---|---|---|
@@ -181,7 +181,7 @@ This applies `infra/iam/` (Terraform asks you to confirm) and initializes the `l
 | `banking-agent-prototype-deploy` | The apply job, only from the `prototype` GitHub Environment | Write, scoped to `prototype` |
 | `banking-agent-prototype-plan` | The plan job on PRs into `main` | Read-only |
 
-`make iam-output` prints their ARNs whenever you need them.
+`make iam-output` prints their ARNs whenever you need them. The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots. It lives outside the environment stacks, so destroying one never deletes the data.
 
 #### 3.4 Configure your local deploy profile
 
@@ -228,6 +228,7 @@ Admin profile: default (bootstrap, IAM roles, teardown)
   ok    infra/envs/local.backend.tfbackend points at it
   ok    infra/envs/prototype.backend.tfbackend points at it
   ok    infra/iam/backend.tfbackend points at it
+  ok    infra/dataset/backend.tfbackend points at it
 
 GitHub repository: <owner>/<repo> (CI runs here; the CI roles trust it)
   ok    OIDC subject repo:<owner>@<owner-id>/<repo>@<repo-id>
@@ -308,14 +309,14 @@ make lock
 
 ### Promote to prototype
 
-When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`. Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
+When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/` and `infra/dataset/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`. Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
 
 To redeploy `main` without an infrastructure change, run the workflow by hand: **Actions → Deploy · Prototype → Run workflow**.
 
 > [!NOTE]
 > The apply runs `terraform apply` against current state at merge time; the PR plan is informational, not the artifact applied, and there is no manual approval gate. A plan-bound, approval-gated production pipeline is remaining deployment work, not something this prototype operates.
 
-Changes under `infra/iam/` never deploy from CI. Apply them by hand with admin credentials (`make iam-plan`, then `make iam-apply`).
+Changes under `infra/iam/` and `infra/dataset/` never deploy from CI. Apply them by hand with admin credentials (`make iam-plan`, then `make iam-apply`; or `make dataset-plan`, then `make dataset-apply`).
 
 ### Record decisions
 
@@ -351,10 +352,11 @@ make destroy ENV=local
 AWS_PROFILE=default make init ENV=prototype
 AWS_PROFILE=default make destroy ENV=prototype I_KNOW=1
 make iam-destroy I_KNOW=1
+make dataset-destroy I_KNOW=1
 make teardown
 ```
 
-Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it.
+Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` and `dataset-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it. `make dataset-destroy` deletes the data bucket with every dataset snapshot in it.
 
 ---
 
@@ -367,9 +369,9 @@ Run `make help` for every target.
 | Variable | Default | Used by |
 |---|---|---|
 | `ENV` | `local` | The Terraform targets (`local` or `prototype`) |
-| `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, and `iam-destroy` |
+| `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, `iam-destroy`, and `dataset-destroy` |
 | `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, and ad hoc AWS CLI calls |
-| `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` targets, `make teardown`, `make doctor` |
+| `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` and `dataset-*` targets, `make teardown`, `make doctor` |
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor` |
 | `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
 
@@ -389,7 +391,7 @@ Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR
 
 ### Files
 
-The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
+The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
 
 Gitignored files worth knowing about:
 

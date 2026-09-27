@@ -6,7 +6,7 @@ locals {
   envs          = ["local", "prototype"]
 
   state_bucket_arn = "arn:aws:s3:::${var.state_bucket_name}"
-  state_prefixes   = concat(local.envs, ["iam"])
+  state_prefixes   = concat(local.envs, ["iam", "dataset"])
 }
 
 data "aws_iam_policy_document" "trust_local" {

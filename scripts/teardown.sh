@@ -19,7 +19,7 @@ echo ""
 echo "    ${BUCKET}"
 echo ""
 echo "Run this ONLY after every Terraform stack is destroyed (destroy for each"
-echo "env, then iam-destroy). Deleting the bucket orphans anything Terraform"
+echo "env, then iam-destroy and dataset-destroy). Deleting the bucket orphans anything Terraform"
 echo "still tracks."
 echo ""
 

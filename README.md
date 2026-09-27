@@ -47,6 +47,7 @@ make check
 | [tests/](tests/) | Pytest suite (integration tests are marked and deselected by default) |
 | [infra/](infra/) | Terraform service stack, one state file per environment (`local` and `prototype`) |
 | [infra/iam/](infra/iam/) | One-time IAM bootstrap: the deploy roles for each environment |
+| [infra/dataset/](infra/dataset/) | The bucket holding the pinned dataset snapshots, outside every environment |
 | [scripts/](scripts/) | Account bootstrap, teardown, and setup checks, run through `make` |
 | [docs/](docs/) | Requirements catalogue and architecture decision records |
 | [.github/workflows/](.github/workflows/) | Quality gates and the `prototype` deploy pipeline |
