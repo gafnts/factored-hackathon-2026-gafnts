@@ -180,28 +180,32 @@ BANK_FILES = {
     "C2,Argentina,Basic,Active,,2000.00,1985-05-05,2021-01-01 10:00:00\n"
     "C3,Colombia,Basic,Active,650,3000.00,1980-01-01,2026-06-18 07:00:00\n",
     # C1 holds a credit and a debit card; the debit card has no expiration date or limit.
-    "products.csv": "product_id,customer_id,product_type,product_status,currency,current_balance,"
-    "credit_limit,interest_rate,expiration_date,days_past_due,opening_date\n"
-    "P1,C1,Tarjeta Crédito,Active,MXN,100.00,500.00,30.00,2028-01-01,0,2021-01-01\n"
-    "P2,C1,Tarjeta Débito,Active,MXN,0.00,,,,,2021-01-01\n"
-    "P3,C2,Cuenta Ahorro,Active,ARS,50.00,,,,,2021-01-01\n"
-    "P4,C2,Préstamo Personal,Active,ARS,900.00,,12.50,2030-01-01,45,2022-01-01\n",
+    "products.csv": "product_id,customer_id,product_type,product_number,product_status,currency,"
+    "current_balance,credit_limit,interest_rate,expiration_date,days_past_due,opening_date,"
+    "last_transaction_date,last_updated\n"
+    "P1,C1,Tarjeta Crédito,4000000000000002,Active,MXN,100.00,500.00,30.00,2028-01-01,0,2021-01-01,"
+    "2026-06-10 10:00:00,2026-06-10 10:00:00\n"
+    "P2,C1,Tarjeta Débito,4000000000000010,Active,MXN,0.00,,,,,2021-01-01,,2021-01-01 12:00:00\n"
+    "P3,C2,Cuenta Ahorro,1000000001,Active,ARS,50.00,,,,,2021-01-01,2026-06-01 09:00:00,"
+    "2026-06-01 09:00:00\n"
+    "P4,C2,Préstamo Personal,LOAN-00000001,Active,ARS,900.00,,12.50,2030-01-01,45,2022-01-01,,"
+    "2022-01-01 12:00:00\n",
     # T2 falls a minute before the as-of instant and T3 after it; T5 is outside both windows.
     "transactions/year=2026/month=06/day=17/transactions_20260617.csv": "transaction_id,"
     "transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,"
-    "amount,currency,channel,merchant_name,merchant_category,transaction_country,"
+    "amount,amount_usd,currency,channel,merchant_name,merchant_category,transaction_country,"
     "transaction_status,response_code,is_fraud,fraud_score\n"
-    "T1,2026-06-10 10:00:00,2026-06-10,P1,C1,Purchase,Food,25.00,MXN,POS,Shop,5411,Mexico,Approved,00,False,1.20\n"
-    "T2,2026-06-18 05:59:00,2026-06-17,P2,C1,Purchase,,40.00,MXN,Web,,,Brazil,Declined,51,True,\n"
-    "T3,2026-06-18 06:30:00,2026-06-17,P1,C1,Purchase,Food,10.00,MXN,POS,Shop,5411,México,Approved,00,False,0.50\n"
-    "T4,2026-06-01 09:00:00,2026-06-01,P3,C2,Deposit,,300.00,ARS,Branch,,,Argentina,Approved,00,False,0.10\n"
-    "T5,2026-04-01 09:00:00,2026-04-01,P3,C2,Transfer,,20.00,ARS,App,,,Argentina,Approved,00,False,0.10\n",
+    "T1,2026-06-10 10:00:00,2026-06-10,P1,C1,Purchase,Food,25.00,1.25,MXN,POS,Shop,5411,Mexico,Approved,00,False,1.20\n"
+    "T2,2026-06-18 05:59:00,2026-06-17,P2,C1,Purchase,,40.00,,MXN,Web,,,Brazil,Declined,51,True,\n"
+    "T3,2026-06-18 06:30:00,2026-06-17,P1,C1,Purchase,Food,10.00,0.50,MXN,POS,Shop,5411,México,Approved,00,False,0.50\n"
+    "T4,2026-06-01 09:00:00,2026-06-01,P3,C2,Deposit,,300.00,0.86,ARS,Branch,,,Argentina,Approved,00,False,0.10\n"
+    "T5,2026-04-01 09:00:00,2026-04-01,P3,C2,Transfer,,20.00,0.06,ARS,App,,,Argentina,Approved,00,False,0.10\n",
     # K3 is created after the as-of instant.
     "complaints/year=2026/month=06/day=17/complaints_20260617.csv": "complaint_id,creation_date,"
-    "process_date,customer_id,case_type,category,subcategory,claimed_amount,status\n"
-    "K1,2026-06-01 10:00:00,2026-06-01,C1,Claim,Transactions,Cargo no reconocido,20.00,Open\n"
-    "K2,2026-06-02 10:00:00,2026-06-02,C2,Complaint,Fees,,,Resolved\n"
-    "K3,2026-06-19 10:00:00,2026-06-17,C2,Complaint,Service,Calidad de servicio,,Open\n",
+    "process_date,customer_id,case_type,category,subcategory,affected_product_id,claimed_amount,status\n"
+    "K1,2026-06-01 10:00:00,2026-06-01,C1,Claim,Transactions,Cargo no reconocido,P1,20.00,Open\n"
+    "K2,2026-06-02 10:00:00,2026-06-02,C2,Complaint,Fees,,,,Resolved\n"
+    "K3,2026-06-19 10:00:00,2026-06-17,C2,Complaint,Service,Calidad de servicio,P3,,Open\n",
     # I2 is older than the 12-month window and I4 is past the as-of instant; I3 has no duration.
     "call_center_interactions/year=2026/month=06/day=17/call_center_interactions_20260617.csv": "interaction_id,"
     "interaction_date,process_date,customer_id,reason_category,duration_seconds,was_resolved,was_escalated\n"
