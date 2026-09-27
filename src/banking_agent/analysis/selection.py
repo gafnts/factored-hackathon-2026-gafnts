@@ -19,6 +19,8 @@ from banking_agent.dataset.lock import Lock
 FIELD_SHARE = 0.90
 STATE_CUSTOMERS = 100
 RULES = 3
+# ADR-0003's revisit: no candidate can pass E2 on this snapshot, so its results are evidence only.
+SET_ASIDE = frozenset({"e2"})
 
 STAGED = frozenset(
     {
@@ -153,8 +155,12 @@ class CandidateGates:
         return self.signal is not None and self.signal.passes
 
     @property
+    def verdicts(self) -> dict[str, bool]:
+        return {"f1": self.f1, "f2": self.f2, "e1": self.e1, "e2": self.e2}
+
+    @property
     def passes(self) -> bool:
-        return self.f1 and self.f2 and self.e1 and self.e2
+        return all(v for gate, v in self.verdicts.items() if gate not in SET_ASIDE)
 
 
 @dataclass(frozen=True)

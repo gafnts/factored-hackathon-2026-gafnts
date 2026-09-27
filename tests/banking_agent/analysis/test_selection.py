@@ -151,6 +151,15 @@ def test_rules_must_read_the_dictionary_through_declared_references() -> None:
     assert not check.passes
 
 
+def test_passes_without_e2_which_the_revisit_sets_aside(selection: Selection) -> None:
+    card, disputes = selection.candidates[1], selection.candidates[2]
+    flat = replace(card, signal=disputes.signal)
+
+    assert flat.verdicts == {"f1": True, "f2": True, "e1": True, "e2": False}
+    assert flat.passes
+    assert not disputes.passes
+
+
 def test_selects_as_of_the_instant_it_is_given(bank: tuple[Lock, Path]) -> None:
     lock, root = bank
     result = select(lock, root, TABLES, date(2026, 6, 17), AS_OF, log=lambda _: None)

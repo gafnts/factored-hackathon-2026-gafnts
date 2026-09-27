@@ -28,10 +28,10 @@ def test_names_the_gate_and_the_number_behind_each_verdict(
     assert "**fails**: <10 customers" in markdown
     assert "not in the dictionary: `complaints.transaction_id`" in markdown
     assert "never `transactions`" in markdown
-    assert "**One candidate passes all four gates: Card support.**" in markdown
+    assert "**One candidate passes the gates: Card support.**" in markdown
     assert "passes: ROC AUC 0.710 [0.620, 0.800]" in markdown
-    assert "**fails**: ROC AUC 0.505 [0.470, 0.540]" in markdown
-    assert "**fails**: no label in the dictionary" in markdown
+    assert "| fails: ROC AUC 0.505 [0.470, 0.540] |" in markdown
+    assert "| fails: no label in the dictionary |" in markdown
     assert "0.840 [0.800, 0.880] on 800 rows" in markdown
     assert "| 40 to 60 | 50 | 50 (100.00%) |" in markdown
     assert "| not scored | 200 | 0 |" in markdown
@@ -50,6 +50,20 @@ def test_names_what_the_rule_does_when_none_or_several_pass(
     assert "the written judgment chooses among them" in to_markdown(two)
 
 
+def test_shows_e2_as_set_aside(selection: Selection) -> None:
+    card, disputes = selection.candidates[1], selection.candidates[2]
+    flat = replace(selection, candidates=(replace(card, signal=disputes.signal),))
+    markdown = to_markdown(flat)
+
+    assert "**One candidate passes the gates: Card support.**" in markdown
+    assert (
+        "ADR-0003's [revisit](../adr/0003-choose-workflow-from-evidence.md#revisit)"
+        in markdown
+    )
+    assert "| E2: learned component (set aside) |" in markdown
+    assert json.loads(to_json(flat))["gates"]["card_support"]["passes"] is True
+
+
 def test_json_suppresses_row_counts_but_not_thresholds(selection: Selection) -> None:
     data = json.loads(to_json(selection))
     disputes = data["candidates"][2]
@@ -58,6 +72,7 @@ def test_json_suppresses_row_counts_but_not_thresholds(selection: Selection) -> 
     assert disputes["customers_in_state"] == "<10"
     assert disputes["fields"][1]["populated"] == "<10"
     assert data["thresholds"]["state_customers"] == 100
+    assert data["set_aside"] == ["e2"]
     assert data["gates"]["card_support"] == {
         "f1": True,
         "f2": True,

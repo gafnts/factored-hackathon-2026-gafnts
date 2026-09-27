@@ -29,6 +29,7 @@ from banking_agent.analysis.report import (
 from banking_agent.analysis.selection import (
     FIELD_SHARE,
     RULES,
+    SET_ASIDE,
     STATE_CUSTOMERS,
     CandidateGates,
     FieldPopulation,
@@ -84,9 +85,9 @@ def to_json(selection: Selection) -> str:
             "level": LEVEL,
             "seed": SEED,
         },
+        "set_aside": sorted(SET_ASIDE),
         "gates": {
-            c.key: {"f1": c.f1, "f2": c.f2, "e1": c.e1, "e2": c.e2, "passes": c.passes}
-            for c in selection.candidates
+            c.key: {**c.verdicts, "passes": c.passes} for c in selection.candidates
         },
     }
     return json.dumps(suppress(data, ROW_COUNTS), indent=2, ensure_ascii=False) + "\n"
@@ -131,26 +132,29 @@ def _auc(auc: Auc | None) -> str:
 
 def _e2_cell(c: CandidateGates) -> str:
     if c.signal is None:
-        return _verdict(False, "no label in the dictionary")
-    if c.signal.auc is None:
-        return _verdict(False, "no estimate: a side holds one class")
-    return _verdict(c.e2, f"ROC AUC {_auc(c.signal.auc)}")
+        detail = "no label in the dictionary"
+    elif c.signal.auc is None:
+        detail = "no estimate: a side holds one class"
+    else:
+        detail = f"ROC AUC {_auc(c.signal.auc)}"
+    # Unemphasized: E2 is set aside, so its failures don't decide.
+    return f"{'passes' if c.e2 else 'fails'}: {detail}"
 
 
 def _result(selection: Selection) -> str:
     passing = [c.name for c in selection.candidates if c.passes]
     if not passing:
         return (
-            "**No candidate passes all four gates.** Under ADR-0003, the gates are revisited "
+            "**No candidate passes the gates.** Under ADR-0003, the gates are revisited "
             "in writing before anything else."
         )
     if len(passing) == 1:
         return (
-            f"**One candidate passes all four gates: {passing[0]}.** Under ADR-0003, a single "
+            f"**One candidate passes the gates: {passing[0]}.** Under ADR-0003, a single "
             "passing candidate wins."
         )
     return (
-        f"**{len(passing)} candidates pass all four gates:** {', '.join(passing)}. Under "
+        f"**{len(passing)} candidates pass the gates:** {', '.join(passing)}. Under "
         "ADR-0003, the written judgment chooses among them."
     )
 
@@ -295,13 +299,16 @@ def to_markdown(selection: Selection) -> str:
         "",
         _result(selection),
         "",
+        f"The gates are F1, F2, and E1. ADR-0003's [revisit]({ADR}#revisit) sets E2 aside, since "
+        "no candidate can pass it on this snapshot; its results stay in the report as evidence.",
+        "",
         *markdown_table(
             [
                 "Candidate",
                 "F1: fields",
                 "F2: state",
                 "E1: reference outcomes",
-                "E2: learned component",
+                "E2: learned component (set aside)",
             ],
             (
                 [c.name, _f1_cell(c), _f2_cell(c), _e1_cell(c), _e2_cell(c)]
@@ -381,7 +388,8 @@ def to_markdown(selection: Selection) -> str:
         f"divisible by {HELD_OUT_EVERY}) and scored on that fifth. E2 passes when the {LEVEL:.0%} "
         f"percentile interval of the held-out ROC AUC, over {RESAMPLES:,} resamples of held-out "
         f"customers (seed {SEED}), lies above {CHANCE}. The features are ADR-0003's; "
-        "`fraud_score`, `response_code`, and `transaction_status` are never among them.",
+        "`fraud_score`, `response_code`, and `transaction_status` are never among them. "
+        "ADR-0003's revisit sets E2 aside, so these results are evidence, not a gate.",
         "",
         f"![Held-out ROC AUC by candidate, against fraud_score]({FIGURES}/{E2_FIGURE})",
         "",
