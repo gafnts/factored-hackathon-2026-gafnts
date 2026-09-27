@@ -4,6 +4,7 @@ The gates of ADR-0003 measure what its Measurement section says, on a snapshot w
 
 from dataclasses import replace
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
@@ -75,6 +76,23 @@ def test_stages_only_rows_dated_by_the_as_of_instant(
     assert counts == (2, 4, 2)
     assert one(staged, "select count(*) from interactions") == (3,)
     assert one(staged, "select count(*) from surveys") == (3,)
+
+
+def test_stages_the_card_fields_typed(staged: duckdb.DuckDBPyConnection) -> None:
+    assert one(
+        staged,
+        "select product_number, typeof(last_transaction_date), typeof(last_updated) "
+        "from products where product_id = 'P1'",
+    ) == ("4000000000000002", "TIMESTAMP", "TIMESTAMP")
+    assert one(
+        staged, "select amount_usd from transactions where transaction_id = 'T1'"
+    ) == (Decimal("1.25"),)
+    assert one(
+        staged, "select affected_product_id from complaints where complaint_id = 'K1'"
+    ) == ("P1",)
+    assert one(
+        staged, "select customer_id from interactions where interaction_id = 'I1'"
+    ) == ("C1",)
 
 
 def test_compares_countries_without_accents(staged: duckdb.DuckDBPyConnection) -> None:

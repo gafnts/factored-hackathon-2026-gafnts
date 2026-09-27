@@ -41,7 +41,8 @@ STAGED = frozenset(
 
 Log = Callable[[str], None]
 
-# Each table keeps only rows dated by the as-of instant, with the columns the gates read, typed.
+# Each table keeps only rows dated by the as-of instant, with the columns the gates and the card support
+# analysis read, typed.
 _STAGING = {
     "customers": """
         select customer_id, strip_accents(country) as country, segment, customer_status,
@@ -53,13 +54,15 @@ _STAGING = {
         where try_cast(registration_date as timestamp) <= getvariable('as_of')
     """,
     "products": """
-        select product_id, customer_id, product_type, product_status, currency,
+        select product_id, customer_id, product_type, product_number, product_status, currency,
           try_cast(current_balance as decimal(15,2)) as current_balance,
           try_cast(credit_limit as decimal(15,2)) as credit_limit,
           try_cast(interest_rate as decimal(5,2)) as interest_rate,
           try_cast(expiration_date as date) as expiration_date,
           try_cast(days_past_due as integer) as days_past_due,
-          try_cast(opening_date as date) as opening_date
+          try_cast(opening_date as date) as opening_date,
+          try_cast(last_transaction_date as timestamp) as last_transaction_date,
+          try_cast(last_updated as timestamp) as last_updated
         from raw_products
         where try_cast(opening_date as date) <= getvariable('as_of')
     """,
@@ -67,7 +70,8 @@ _STAGING = {
         select t.transaction_id, t.customer_id, t.product_id, p.product_type,
           try_cast(t.transaction_date as timestamp) as transaction_date,
           t.transaction_type, t.transaction_category,
-          try_cast(t.amount as decimal(15,2)) as amount, t.currency, t.channel,
+          try_cast(t.amount as decimal(15,2)) as amount,
+          try_cast(t.amount_usd as decimal(15,2)) as amount_usd, t.currency, t.channel,
           t.merchant_name, t.merchant_category,
           strip_accents(t.transaction_country) as transaction_country,
           t.transaction_status, t.response_code,
@@ -78,13 +82,14 @@ _STAGING = {
     """,
     "complaints": """
         select complaint_id, customer_id, category, subcategory, case_type, status,
+          affected_product_id,
           try_cast(creation_date as timestamp) as creation_date,
           try_cast(claimed_amount as decimal(15,2)) as claimed_amount
         from raw_complaints
         where try_cast(creation_date as timestamp) <= getvariable('as_of')
     """,
     "interactions": """
-        select interaction_id, reason_category,
+        select interaction_id, customer_id, reason_category,
           try_cast(interaction_date as timestamp) as interaction_date,
           try_cast(duration_seconds as integer) as duration_seconds,
           try_cast(was_resolved as boolean) as was_resolved,

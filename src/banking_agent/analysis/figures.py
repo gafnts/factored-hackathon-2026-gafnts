@@ -1,19 +1,13 @@
 """
-Figures for the selection report, written as SVG that a rerun reproduces byte for byte.
+Figures for the selection report.
 """
 
 from collections.abc import Sequence
-from pathlib import Path
 
-import matplotlib
 import polars as pl
 from plotnine import (
     aes,
     coord_flip,
-    element_blank,
-    element_line,
-    element_rect,
-    element_text,
     facet_wrap,
     geom_hline,
     geom_point,
@@ -28,43 +22,13 @@ from plotnine import (
     scale_y_continuous,
     scale_y_discrete,
     theme,
-    theme_minimal,
 )
 
 from banking_agent.analysis.learned import CHANCE
+from banking_agent.analysis.plotting import INK, MUTED, SERIES, base_theme, percent
 from banking_agent.analysis.selection import FIELD_SHARE, Selection
 
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-SECONDARY = "#52514e"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-SERIES = ("#2a78d6", "#eb6834")
 NEAR = 0.01
-
-
-class _Minimal(theme_minimal):
-    def __init__(self) -> None:
-        super().__init__()
-        # Matplotlib ships DejaVu Sans, so every machine lays the text out alike; viewers fall back to their sans.
-        self._rcParams["font.sans-serif"] = ["DejaVu Sans"]
-
-
-def _theme() -> theme:
-    return _Minimal() + theme(
-        text=element_text(color=SECONDARY, size=8),
-        strip_text=element_text(color=INK, size=9, ha="left"),
-        axis_title=element_text(color=SECONDARY, size=8),
-        panel_grid_major=element_line(color=GRID, size=0.4),
-        panel_grid_minor=element_blank(),
-        plot_background=element_rect(fill=SURFACE, color=SURFACE),
-        legend_position="top",
-        legend_title=element_blank(),
-    )
-
-
-def _percent(values: Sequence[float] | Sequence[str]) -> list[str]:
-    return [f"{float(v):.0%}" for v in values]
 
 
 def _after_key(keys: Sequence[float] | Sequence[str]) -> list[str]:
@@ -100,11 +64,11 @@ def field_populations(selection: Selection) -> ggplot:
         + geom_text(aes(label="label"), color=INK, size=7, nudge_y=0.45, ha="center")
         + facet_wrap("candidate", ncol=1, scales="free_y")
         + scale_x_continuous(
-            limits=(0, 1), breaks=[0, 0.25, 0.5, 0.75, FIELD_SHARE, 1], labels=_percent
+            limits=(0, 1), breaks=[0, 0.25, 0.5, 0.75, FIELD_SHARE, 1], labels=percent
         )
         + scale_y_discrete(labels=_after_key)
         + labs(x="Share populated in the rows the tools read", y="")
-        + _theme()
+        + base_theme()
     )
     return plot
 
@@ -137,23 +101,7 @@ def learned_signals(selection: Selection) -> ggplot:
         + scale_color_manual(values=list(SERIES), drop=False)
         + scale_y_continuous(limits=(floor, 1), breaks=[CHANCE, 0.6, 0.7, 0.8, 0.9, 1])
         + labs(x="", y="Held-out ROC AUC, with its 95% interval over customers")
-        + _theme()
+        + base_theme()
         + theme(legend_direction="vertical")
     )
     return plot
-
-
-def save(plot: ggplot, path: Path, width: float, height: float) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with matplotlib.rc_context(
-        {"svg.hashsalt": "banking-agent", "svg.fonttype": "none"}
-    ):
-        plot.save(
-            path,
-            width=width,
-            height=height,
-            units="in",
-            verbose=False,
-            metadata={"Date": None},
-        )
-    return path

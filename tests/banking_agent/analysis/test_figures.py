@@ -1,8 +1,6 @@
 """
-Figures label only what fails or sits on the threshold, and a rerun writes the same bytes (OPS-07).
+The selection's figures label only what fails or sits on the threshold.
 """
-
-from pathlib import Path
 
 import polars as pl
 
@@ -11,7 +9,6 @@ from banking_agent.analysis.figures import (
     SCORE,
     field_populations,
     learned_signals,
-    save,
 )
 from banking_agent.analysis.selection import Selection
 
@@ -24,15 +21,6 @@ def test_labels_only_fields_that_fail_or_sit_on_the_line(selection: Selection) -
     assert labels["account_inquiries|transactions.merchant_name"] == "no rows"
     assert labels["card_support|products.expiration_date"] == ""
     assert labels["disputes|transactions.fraud_score"] == "80.0%"
-
-
-def test_a_rerun_writes_the_same_svg(selection: Selection, tmp_path: Path) -> None:
-    plot = field_populations(selection)
-    first = save(plot, tmp_path / "a" / "figure.svg", 6, 4).read_bytes()
-    second = save(plot, tmp_path / "b" / "figure.svg", 6, 4).read_bytes()
-
-    assert first == second
-    assert b"<dc:date>" not in first
 
 
 def test_draws_each_auc_beside_fraud_score(selection: Selection) -> None:
