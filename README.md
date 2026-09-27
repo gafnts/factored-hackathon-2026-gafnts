@@ -51,6 +51,7 @@ make check
 | [scripts/](scripts/) | Account bootstrap, teardown, and setup checks, run through `make` |
 | [docs/](docs/) | Requirements catalogue and architecture decision records |
 | [.github/workflows/](.github/workflows/) | Quality gates and the `prototype` deploy pipeline |
+| [dataset.lock](dataset.lock) | The pinned dataset snapshot every run reads ([ADR-0002](docs/adr/0002-mirror-dataset-into-pinned-snapshots.md)) |
 | [Makefile](Makefile) | Every setup, quality, and deploy command (`make help` lists them) |
 
 ---
