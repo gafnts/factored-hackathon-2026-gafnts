@@ -49,4 +49,4 @@ Negative:
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-deploy-to-us-east-1.md) | Deploy to us-east-1 | Accepted |
-| [0002](0002-mirror-dataset-into-pinned-snapshots.md) | Mirror the organizer dataset into pinned snapshots | Proposed |
+| [0002](0002-mirror-dataset-into-pinned-snapshots.md) | Mirror the organizer dataset into pinned snapshots | Accepted |
