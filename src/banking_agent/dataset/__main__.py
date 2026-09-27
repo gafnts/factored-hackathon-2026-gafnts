@@ -9,6 +9,7 @@ from pathlib import Path
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
 from banking_agent.dataset.lock import LockError, describe
 from banking_agent.dataset.snapshot import (
@@ -83,6 +84,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except (SnapshotError, LockError) as error:
         print(f"Error: {error}", file=sys.stderr)
+        return 1
+    except (BotoCoreError, ClientError) as error:
+        print(
+            f"AWS error: {error}; check the profile with make doctor", file=sys.stderr
+        )
         return 1
     return 0
 

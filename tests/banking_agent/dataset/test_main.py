@@ -57,3 +57,18 @@ def test_explains_a_missing_lock(
 ) -> None:
     assert main([*options(tmp_path), "upload"]) == 1
     assert "run make data first" in capsys.readouterr().err
+
+
+def test_explains_an_aws_error_without_a_traceback(
+    aws: None,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("DATASET_SOURCE_PROFILE", "missing")
+
+    assert main([*options(tmp_path), "download"]) == 1
+    assert (
+        "AWS error: The config profile (missing) could not be found"
+        in capsys.readouterr().err
+    )
