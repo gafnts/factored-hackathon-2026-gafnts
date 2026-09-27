@@ -18,6 +18,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 	check lint format type tf-format \
 	test integration \
 	bootstrap backend doctor provision teardown \
+	data snapshot \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
 	init plan apply destroy lock \
@@ -94,6 +95,14 @@ backend: ## Write backend files for all environments (used by CI; one STS call f
 
 teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
 	@bash scripts/teardown.sh
+
+##@ Dataset snapshot
+
+data: ## Download the pinned dataset snapshot into data/ and verify it (ADOPT=1 accepts a changed source)
+	uv run python -m banking_agent.dataset download $(if $(filter 1,$(ADOPT)),--adopt)
+
+snapshot: data ## Copy the pinned snapshot into this account's data bucket
+	uv run python -m banking_agent.dataset upload
 
 ##@ IAM module
 

@@ -14,6 +14,11 @@ state_bucket_name() {
   echo "${PROJECT}-tfstate-${account_id}-${AWS_REGION}-an"
 }
 
+data_bucket_name() {
+  local account_id="$1"
+  echo "${PROJECT}-data-${account_id}-${AWS_REGION}-an"
+}
+
 # owner/repo of origin, if it's on GitHub.
 origin_github_repo() {
   local url repo
