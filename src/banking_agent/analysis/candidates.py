@@ -10,6 +10,8 @@ CARDS = ("Tarjeta Crédito", "Tarjeta Débito")
 CREDIT_PRODUCTS = ("Tarjeta Crédito", "Préstamo Personal", "Préstamo Hipotecario")
 
 DISPUTES = "disputes"
+# The response codes card support explains, read with their ISO 8583 meanings (ADR-0003).
+DECLINE_REASONS = ("05", "14", "51", "54")
 
 # ADR-0003's mapping from complaint category and subcategory to candidate; complaints
 # without a subcategory follow their category.
@@ -56,6 +58,14 @@ class Rule:
 
 
 @dataclass(frozen=True)
+class Situation:
+    # The E1 rule whose records it counts, as the report names it.
+    description: str
+    # Selects the customer_id of every customer whose records could back the situation.
+    customers: str
+
+
+@dataclass(frozen=True)
 class Label:
     description: str
     # Which of ADR-0003's feature lists the rows carry: "transaction" or "credit".
@@ -73,6 +83,9 @@ class Candidate:
     # Selects the customer_id of every customer in the normal-path state (F2).
     state: str
     rules: tuple[Rule, ...]
+    # A request the workflow must decline or can't confirm (SCP-04), and a handoff (SCP-05).
+    unsupported: Situation
+    handoff: Situation
     # None when the dictionary holds no label for the candidate, which then fails E2.
     label: Label | None = None
 
@@ -154,6 +167,16 @@ ACCOUNT_INQUIRIES = Candidate(
             ("transactions.product_id",),
         ),
     ),
+    unsupported=Situation(
+        "Movement not found: any account holder can ask about a movement that isn't there",
+        f"select customer_id from products where {IS_ACCOUNT}",
+    ),
+    handoff=Situation(
+        "Failed payment handed off: a declined or reversed payment in the last 30 days",
+        f"select customer_id from transactions where {IS_ACCOUNT} "
+        "and transaction_type = 'Payment' and transaction_status in ('Declined', 'Reversed') "
+        "and within(transaction_date, 30)",
+    ),
 )
 
 CARD_SUPPORT = Candidate(
@@ -219,6 +242,20 @@ CARD_SUPPORT = Candidate(
             ("products.customer_id", "transactions.product_id"),
         ),
     ),
+    unsupported=Situation(
+        "Declined transaction explained: a decline in the last 30 days with a missing "
+        "or unlisted `response_code`",
+        f"select customer_id from transactions where {IS_CARD} "
+        "and transaction_status = 'Declined' and within(transaction_date, 30) "
+        f"and (response_code is null or response_code not in {sql_list(DECLINE_REASONS)})",
+    ),
+    handoff=Situation(
+        "Card block, handed off over fraud: a transaction marked `is_fraud` in the last "
+        "30 days on an active card",
+        f"select customer_id from transactions t where {IS_CARD} and is_fraud "
+        "and within(transaction_date, 30) and exists (select 1 from products p "
+        "where p.product_id = t.product_id and p.product_status = 'Active')",
+    ),
     label=Label(
         "`is_fraud` on card transactions", "transaction", _transaction_rows(IS_CARD)
     ),
@@ -278,6 +315,18 @@ DISPUTE_INTAKE = Candidate(
             ("transactions.customer_id",),
         ),
     ),
+    unsupported=Situation(
+        "Eligibility to dispute: a transaction in the last 60 days that isn't an approved "
+        "purchase",
+        "select customer_id from transactions where within(transaction_date, 60) "
+        f"and not ({IS_APPROVED_PURCHASE})",
+    ),
+    handoff=Situation(
+        "Fraud or merchant route: an approved purchase in the last 60 days marked "
+        "`is_fraud`, routed to human review",
+        f"select customer_id from transactions where {IS_APPROVED_PURCHASE} "
+        "and within(transaction_date, 60) and is_fraud",
+    ),
     label=Label(
         "`is_fraud` on the transactions a customer could dispute (approved purchases)",
         "transaction",
@@ -334,6 +383,20 @@ CREDIT_ELIGIBILITY = Candidate(
             "Review path",
             _reads("customers", "credit_score", "estimated_monthly_income"),
         ),
+    ),
+    unsupported=Situation(
+        "Simulated eligibility, negative: an active, scored customer with a credit product "
+        "30 or more days past due",
+        "select c.customer_id from customers c where c.customer_status = 'Active' "
+        "and c.credit_score is not null and c.estimated_monthly_income is not null "
+        "and exists (select 1 from products p where p.customer_id = c.customer_id "
+        f"and {IS_CREDIT} and p.days_past_due >= 30)",
+    ),
+    handoff=Situation(
+        "Review path: an active customer missing `credit_score` or "
+        "`estimated_monthly_income`",
+        "select customer_id from customers where customer_status = 'Active' "
+        "and (credit_score is null or estimated_monthly_income is null)",
     ),
     label=Label(
         "`days_past_due` of 30 or more on credit products",

@@ -11,6 +11,7 @@ import duckdb
 
 from banking_agent.analysis.candidates import CANDIDATES, IS_CARD, Candidate, Scope
 from banking_agent.analysis.catalog import Column, Table
+from banking_agent.analysis.evidence import Evidence, gather
 from banking_agent.analysis.learned import ScoreBand, Signal, fraud_by_score, measure
 from banking_agent.analysis.source import AnalysisError, connect, one, table_keys
 from banking_agent.dataset.lock import Lock
@@ -19,7 +20,16 @@ FIELD_SHARE = 0.90
 STATE_CUSTOMERS = 100
 RULES = 3
 
-STAGED = frozenset({"customers", "products", "transactions", "complaints"})
+STAGED = frozenset(
+    {
+        "customers",
+        "products",
+        "transactions",
+        "complaints",
+        "call_center_interactions",
+        "satisfaction_surveys",
+    }
+)
 
 Log = Callable[[str], None]
 
@@ -64,6 +74,20 @@ _STAGING = {
           try_cast(claimed_amount as decimal(15,2)) as claimed_amount
         from raw_complaints
         where try_cast(creation_date as timestamp) <= getvariable('as_of')
+    """,
+    "interactions": """
+        select interaction_id, reason_category,
+          try_cast(interaction_date as timestamp) as interaction_date,
+          try_cast(duration_seconds as integer) as duration_seconds,
+          try_cast(was_resolved as boolean) as was_resolved,
+          try_cast(was_escalated as boolean) as was_escalated
+        from raw_call_center_interactions
+        where try_cast(interaction_date as timestamp) <= getvariable('as_of')
+    """,
+    "surveys": """
+        select interaction_id, survey_type, try_cast(main_score as integer) as main_score
+        from raw_satisfaction_surveys
+        where try_cast(survey_date as timestamp) <= getvariable('as_of')
     """,
 }
 
@@ -144,6 +168,7 @@ class Selection:
     complaints_reference: tuple[str, ...]
     # How is_fraud on card transactions varies with the bank's fraud_score, the field E2 leaves out.
     fraud_by_score: tuple[ScoreBand, ...]
+    evidence: Evidence
 
 
 def stage(con: duckdb.DuckDBPyConnection, as_of: datetime) -> None:
@@ -247,6 +272,8 @@ def select(
                     signal=_signal(con, c, business_date, log),
                 )
             )
+        log("Gathering the evidence for the judgment")
+        evidence = gather(con, tuple(candidates))
     finally:
         con.close()
     return Selection(
@@ -261,4 +288,5 @@ def select(
             )
         ),
         fraud_by_score=bands,
+        evidence=evidence,
     )

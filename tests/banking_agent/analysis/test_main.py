@@ -80,7 +80,7 @@ def test_select_needs_the_tables_it_stages(
     monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
 
     assert cli.main([*options(tmp_path), "select"]) == 1
-    assert "the selection needs complaints" in capsys.readouterr().err
+    assert "the selection needs call_center_interactions" in capsys.readouterr().err
 
 
 def test_select_needs_a_business_date(

@@ -86,3 +86,23 @@ def test_says_so_when_complaints_reference_transactions(selection: Selection) ->
     linked = replace(selection, complaints_reference=("customers", "transactions"))
 
     assert "Complaints reference `customers`, `transactions`." in to_markdown(linked)
+
+
+def test_reports_the_evidence_with_small_counts_suppressed(
+    selection: Selection,
+) -> None:
+    markdown = to_markdown(selection)
+
+    assert "| Card support | 150 | 96 | <10 | 120 | 2 of 4 |" in markdown
+    assert (
+        "| Transactions | Cargo no reconocido | Transaction-dispute intake | 40 (40.00%) |"
+        in markdown
+    )
+    assert "| Branch | (none) | Out of scope | 60 (60.00%) |" in markdown
+    assert "| Card support | 0 |" in markdown
+    assert (
+        "| Queja | 1,000 | 7:11 | 10:07 | 437 (43.70%) | 100 (10.00%) | 2.44 (180) |"
+        in markdown
+    )
+    assert "| Retención | <10 | n/a | n/a | <10 | <10 | n/a |" in markdown
+    assert "run from 1 to 4, against the dictionary's 1 to 5" in markdown

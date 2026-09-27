@@ -7,6 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from banking_agent.analysis import figures
+from banking_agent.analysis.evidence import COVERED, Evidence, ReasonBaseline
 from banking_agent.analysis.learned import (
     CHANCE,
     HELD_OUT_EVERY,
@@ -49,8 +50,21 @@ ROW_COUNTS = frozenset(
         "fraud_score_rows",
         "transactions",
         "fraud",
+        "complaints",
+        "contacts",
+        "timed",
+        "resolution_known",
+        "resolved",
+        "escalated",
+        "csat_responses",
     }
 )
+SITUATIONS = {
+    "SCP-03": "Normal path (SCP-03)",
+    "SCP-04": "Decline or can't confirm (SCP-04)",
+    "SCP-05": "Handoff (SCP-05)",
+    "EVL-02": "Missing data (EVL-02)",
+}
 
 
 def to_json(selection: Selection) -> str:
@@ -143,6 +157,128 @@ def _result(selection: Selection) -> str:
 
 def _band(b: ScoreBand) -> str:
     return "not scored" if b.low is None else f"{b.low} to {b.low + SCORE_BAND}"
+
+
+def _duration(seconds: float | None, rows: int) -> str:
+    if seconds is None or rows < SUPPRESS_BELOW:
+        return "n/a"
+    minutes, rest = divmod(round(seconds), 60)
+    return f"{minutes}:{rest:02d}"
+
+
+def _csat(r: ReasonBaseline) -> str:
+    if r.csat_mean is None or r.csat_responses < SUPPRESS_BELOW:
+        return "n/a"
+    return f"{r.csat_mean:.2f} ({count(r.csat_responses)})"
+
+
+def _evidence_lines(selection: Selection) -> list[str]:
+    e: Evidence = selection.evidence
+    names = {c.key: c.name for c in selection.candidates}
+    complaints = sum(c.complaints for c in e.complaints)
+    attributed = {
+        key: sum(c.complaints for c in e.complaints if c.candidate == key)
+        for key in names
+    }
+    csat_range = (
+        f"the snapshot's CSAT scores run from {e.csat_range[0]} to {e.csat_range[1]}, "
+        "against the dictionary's 1 to 5"
+        if e.csat_range
+        else "the snapshot holds no CSAT surveys"
+    )
+    return [
+        "",
+        "## Judgment evidence",
+        "",
+        "ADR-0003's judgment runs only among candidates that pass every gate. The evidence is "
+        "reported for all four, for the judgment or for the written revisit of the gates.",
+        "",
+        "### Evaluation depth",
+        "",
+        "Customers at the as-of instant whose records could back each evaluation situation that "
+        f"depends on the workflow; a situation counts as covered with at least {COVERED}. "
+        "Each situation counts the records of one of the candidate's E1 rules.",
+        "",
+        *markdown_table(
+            ["Candidate", *SITUATIONS.values(), "Covered"],
+            (
+                [
+                    d.name,
+                    *(count(c.customers) for c in d.coverage),
+                    f"{d.covered} of {len(d.coverage)}",
+                ]
+                for d in e.depth
+            ),
+        ),
+        "",
+        *markdown_table(
+            ["Candidate", "Situation", "Records that back it"],
+            (
+                [d.name, c.situation, c.description]
+                for d in e.depth
+                for c in d.coverage
+                if c.situation in ("SCP-04", "SCP-05")
+            ),
+        ),
+        "",
+        "### Attributable demand",
+        "",
+        "Complaints created in the 12 months before the as-of instant, by ADR-0003's mapping. "
+        "Contacts can't be attributed to a workflow (see the "
+        "[profile](profiling.md#contact-attribution)).",
+        "",
+        *markdown_table(
+            ["Category", "Subcategory", "Candidate", "Complaints"],
+            (
+                [
+                    c.category,
+                    c.subcategory or "(none)",
+                    names.get(c.candidate, c.candidate)
+                    if c.candidate
+                    else "Out of scope",
+                    share(c.complaints, complaints),
+                ]
+                for c in e.complaints
+            ),
+        ),
+        "",
+        *markdown_table(
+            ["Candidate", "Attributable complaints"],
+            ([name, share(attributed[key], complaints)] for key, name in names.items()),
+        ),
+        "",
+        "### Contact-center baseline",
+        "",
+        "Contacts in the 12 months before the as-of instant, by `reason_category`, dated by "
+        "their own `interaction_date` (PRB-07). Context for the human baseline and EVL-14; it "
+        "doesn't enter the choice. Handle time is `duration_seconds`; resolution counts "
+        "`was_resolved` among contacts that record it; CSAT is the mean `main_score` of CSAT "
+        f"surveys about the contact, and {csat_range}.",
+        "",
+        *markdown_table(
+            [
+                "Reason",
+                "Contacts",
+                "Median handle time",
+                "p90 handle time",
+                "Resolved on first contact",
+                "Escalated",
+                "CSAT (responses)",
+            ],
+            (
+                [
+                    r.reason,
+                    count(r.contacts),
+                    _duration(r.median_seconds, r.timed),
+                    _duration(r.p90_seconds, r.timed),
+                    share(r.resolved, r.resolution_known),
+                    share(r.escalated, r.contacts),
+                    _csat(r),
+                ]
+                for r in e.contacts
+            ),
+        ),
+    ]
 
 
 def to_markdown(selection: Selection) -> str:
@@ -286,6 +422,7 @@ def to_markdown(selection: Selection) -> str:
                 for b in selection.fraud_by_score
             ),
         ),
+        *_evidence_lines(selection),
     ]
     return "\n".join(lines) + "\n"
 
