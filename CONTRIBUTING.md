@@ -142,13 +142,13 @@ make data
 
 [`dataset.lock`](dataset.lock) lists every file of the snapshot the code is pinned to, with its size, the organizers' ETag, and a SHA-256 ([ADR-0002](docs/adr/0002-mirror-dataset-into-pinned-snapshots.md)). `make data` downloads the organizers' `data/` prefix (5.35 GB) into `data/snapshots/<snapshot-id>/` and checks every file against both, so a rerun downloads only what's missing, and your copy holds exactly the bytes the evaluation reports were computed from. If the organizers' bucket no longer matches the lock, it stops and lists the difference (see [Troubleshooting](#troubleshooting)).
 
-With the snapshot in place, profile it:
+With the snapshot in place, analyze it:
 
 ```bash
 make analysis
 ```
 
-It reads exactly the files in the lock, with no AWS access, and writes [docs/analysis/](docs/analysis/): a Markdown report and the same numbers as JSON, stamped with the snapshot ID. The reports publish aggregates only, with row counts under 10 suppressed ([ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md)). A rerun on the same snapshot writes the same bytes.
+It reads exactly the files in the lock, with no AWS access, and writes two reports to [docs/analysis/](docs/analysis/), stamped with the snapshot ID: the data quality profile, and the workflow selection that [ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md) rules on, read as of the instant the profile dates. Each is a Markdown report with the same numbers as JSON; the selection adds SVG figures. The reports publish aggregates only, with row counts under 10 suppressed. A rerun on the same snapshot writes the same bytes, and takes a few minutes.
 
 ### 3. Deploy your own copy
 

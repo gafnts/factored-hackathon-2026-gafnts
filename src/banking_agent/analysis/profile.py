@@ -5,7 +5,7 @@ Data quality profile of the pinned snapshot: what the bronze contracts and quali
 import statistics
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 import duckdb
@@ -128,6 +128,21 @@ class Profile:
             if t.arrival and t.arrival.last_complete_day
         ]
         return min(days) if days else None
+
+    @property
+    def as_of(self) -> datetime | None:
+        business_date = self.business_date
+        if business_date is None:
+            return None
+        # A table with no events past midnight closes its processing day at midnight.
+        cutoffs = [
+            time.fromisoformat(t.arrival.next_day_until)
+            if t.arrival.next_day_until
+            else time()
+            for t in self.tables
+            if t.arrival
+        ]
+        return datetime.combine(business_date + timedelta(days=1), min(cutoffs))
 
 
 def profile(

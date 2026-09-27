@@ -56,11 +56,16 @@ def share(n: int, total: int) -> str:
     return f"{n:,} ({n / total:.2%})"
 
 
-def _suppress(value: object, counted: bool = False) -> object:
+def suppress(
+    value: object, row_counts: frozenset[str] = ROW_COUNTS, counted: bool = False
+) -> object:
     if isinstance(value, dict):
-        return {k: _suppress(v, counted or k in ROW_COUNTS) for k, v in value.items()}
+        return {
+            k: suppress(v, row_counts, counted or k in row_counts)
+            for k, v in value.items()
+        }
     if isinstance(value, list | tuple):
-        return [_suppress(v, counted) for v in value]
+        return [suppress(v, row_counts, counted) for v in value]
     if isinstance(value, date):
         return value.isoformat()
     if counted and isinstance(value, int) and not isinstance(value, bool):
@@ -70,14 +75,16 @@ def _suppress(value: object, counted: bool = False) -> object:
 
 def to_json(profile: Profile) -> str:
     business_date = profile.business_date
+    as_of = profile.as_of
     data = {
         **asdict(profile),
         "business_date": business_date.isoformat() if business_date else None,
+        "as_of": as_of.isoformat(sep=" ") if as_of else None,
     }
-    return json.dumps(_suppress(data), indent=2, ensure_ascii=False) + "\n"
+    return json.dumps(suppress(data), indent=2, ensure_ascii=False) + "\n"
 
 
-def _table(header: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
+def markdown_table(header: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
     lines = [
         "| " + " | ".join(header) + " |",
         "|" + "|".join("---" for _ in header) + "|",
@@ -100,6 +107,7 @@ def _has_issue(c: ColumnProfile) -> bool:
 
 def to_markdown(profile: Profile) -> str:
     business_date = profile.business_date
+    as_of = profile.as_of
     daily = [t for t in profile.tables if t.arrival]
     lines = [
         "# Snapshot profile",
@@ -110,7 +118,7 @@ def to_markdown(profile: Profile) -> str:
         "",
         "## Tables",
         "",
-        *_table(
+        *markdown_table(
             [
                 "Table",
                 "Files",
@@ -138,7 +146,10 @@ def to_markdown(profile: Profile) -> str:
         "can be expected to hold at least 99% of its rows, given how late its rows arrived over the rest of the "
         "history (ADR-0003). `call_transcripts` has no date of its own and is dated by its interaction.",
         "",
-        *_table(
+        f"Everything downstream reads the snapshot as of **{as_of.isoformat(sep=' ') if as_of else 'undetermined'}**: "
+        "the end of the business date's processing day, at the earliest of the cutoffs below.",
+        "",
+        *markdown_table(
             [
                 "Table",
                 "Partitions",
@@ -170,7 +181,7 @@ def to_markdown(profile: Profile) -> str:
         "Days from event date to process date. Events dated the day after their process date belong to a "
         "processing day that runs past midnight; the column above shows the latest such time of day.",
         "",
-        *_table(
+        *markdown_table(
             ["Table", *LAG_BUCKETS],
             (
                 [f"`{t.name}`", *(share(a.lags[b], t.rows) for b in LAG_BUCKETS)]
@@ -184,7 +195,7 @@ def to_markdown(profile: Profile) -> str:
     ]
     ratios = {t.name: dict(t.arrival.recent) for t in daily if t.arrival}
     days = sorted({day for by_day in ratios.values() for day in by_day})
-    lines += _table(
+    lines += markdown_table(
         ["Day", *(f"`{name}`" for name in ratios)],
         (
             [str(day), *(_ratio(by_day.get(day)) for by_day in ratios.values())]
@@ -199,7 +210,7 @@ def to_markdown(profile: Profile) -> str:
         "Exact copies repeat another row byte for byte; redelivered rows differ from another only in `process_date`; "
         "conflicting versions share a key but differ in content.",
         "",
-        *_table(
+        *markdown_table(
             [
                 "Table",
                 "Rows",
@@ -228,7 +239,7 @@ def to_markdown(profile: Profile) -> str:
         "",
         "Rows whose reference points to no row of the referenced table:",
         "",
-        *_table(
+        *markdown_table(
             ["Reference", "Rows pointing nowhere"],
             (
                 [f"`{t.name}.{column}`", share(n, t.rows)]
@@ -250,7 +261,7 @@ def to_markdown(profile: Profile) -> str:
         ranged = [c for c in t.columns if c.low is not None]
         lines += ["", f"### {t.name}", ""]
         if issues:
-            lines += _table(
+            lines += markdown_table(
                 [
                     "Column",
                     "Type",
@@ -283,7 +294,7 @@ def to_markdown(profile: Profile) -> str:
             lines += [f"- `{c.name}`: {_code(c.spellings)}" for c in spellings]
         if ranged:
             lines += [""]
-            lines += _table(
+            lines += markdown_table(
                 ["Column", "Min", "Max"],
                 ([f"`{c.name}`", str(c.low), str(c.high)] for c in ranged),
             )
@@ -295,7 +306,7 @@ def to_markdown(profile: Profile) -> str:
     if counted:
         lines += ["", "## Languages", ""]
         for t, column, values in counted:
-            lines += _table(
+            lines += markdown_table(
                 [f"`{t.name}.{column}`", "Rows"],
                 ([f"`{value}`", share(n, t.rows)] for value, n in values.items()),
             )
@@ -310,7 +321,7 @@ def _cutoff_lines(cutoffs: Sequence[Cutoff]) -> list[str]:
         "Where each processing day ends, by customer country. A time zone would move the cutoff with the "
         "country's offset from UTC (Mexico -6, Colombia -5, Argentina -3); a processing day keeps it in place.",
         "",
-        *_table(
+        *markdown_table(
             [
                 "Table",
                 "Country",
@@ -340,7 +351,7 @@ def _attribution_lines(a: Attribution | None) -> list[str]:
         "",
         "Whether a contact can be traced to the workflow it was about (ADR-0003):",
         "",
-        *_table(
+        *markdown_table(
             ["Signal", "Finding"],
             [
                 [

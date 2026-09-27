@@ -1,0 +1,310 @@
+"""
+The four candidate workflows as ADR-0003 fixes them, written as SQL over the tables staged at the as-of instant.
+"""
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+
+ACCOUNTS = ("Cuenta Corriente", "Cuenta Ahorro")
+CARDS = ("Tarjeta Crédito", "Tarjeta Débito")
+CREDIT_PRODUCTS = ("Tarjeta Crédito", "Préstamo Personal", "Préstamo Hipotecario")
+
+DISPUTES = "disputes"
+
+# ADR-0003's mapping from complaint category and subcategory to candidate; complaints
+# without a subcategory follow their category.
+COMPLAINT_MAPPING: Mapping[tuple[str, str], str | None] = {
+    ("Transactions", "Cargo no reconocido"): DISPUTES,
+    ("Fees", "Cobro indebido"): DISPUTES,
+    ("Technical", "Problema con app"): None,
+    ("Service", "Calidad de servicio"): None,
+    ("Branch", "Atención en sucursal"): None,
+}
+
+
+def sql_list(values: Sequence[str]) -> str:
+    return "(" + ", ".join("'" + v.replace("'", "''") + "'" for v in values) + ")"
+
+
+IS_ACCOUNT = f"product_type in {sql_list(ACCOUNTS)}"
+IS_CARD = f"product_type in {sql_list(CARDS)}"
+IS_CREDIT = f"product_type in {sql_list(CREDIT_PRODUCTS)}"
+IS_PURCHASE = "transaction_type = 'Purchase'"
+IS_APPROVED_PURCHASE = f"{IS_PURCHASE} and transaction_status = 'Approved'"
+IS_DISPUTE = "category in " + sql_list(
+    sorted(
+        {category for (category, _), c in COMPLAINT_MAPPING.items() if c == DISPUTES}
+    )
+)
+
+
+@dataclass(frozen=True)
+class Scope:
+    table: str
+    rows: str
+    fields: tuple[str, ...]
+    # Fields the dictionary documents for only some rows, with the rows it names.
+    only: Mapping[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Rule:
+    name: str
+    # As table.field, like the references it follows (a product to its customer).
+    reads: tuple[str, ...]
+    follows: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Candidate:
+    key: str
+    name: str
+    normal_path: str
+    scopes: tuple[Scope, ...]
+    # Selects the customer_id of every customer in the normal-path state (F2).
+    state: str
+    rules: tuple[Rule, ...]
+
+
+def _active_with_recent(kind: str) -> str:
+    return (
+        f"select p.customer_id from products p where p.{kind} and p.product_status = 'Active' "
+        "and exists (select 1 from transactions t where t.product_id = p.product_id "
+        "and within(t.transaction_date, 30))"
+    )
+
+
+def _reads(table: str, *fields: str) -> tuple[str, ...]:
+    return tuple(f"{table}.{f}" for f in fields)
+
+
+ACCOUNT_INQUIRIES = Candidate(
+    key="account_inquiries",
+    name="Account and payment inquiries",
+    normal_path="An active checking or savings account with a transaction in the 30 days before the business date",
+    scopes=(
+        Scope(
+            "products",
+            IS_ACCOUNT,
+            ("product_type", "product_status", "current_balance", "currency"),
+        ),
+        Scope(
+            "transactions",
+            f"{IS_ACCOUNT} and within(transaction_date, 30)",
+            (
+                "transaction_date",
+                "amount",
+                "transaction_type",
+                "transaction_status",
+                "merchant_name",
+                "channel",
+            ),
+            {"merchant_name": IS_PURCHASE},
+        ),
+    ),
+    state=_active_with_recent(IS_ACCOUNT),
+    rules=(
+        Rule(
+            "Balance and recent movements",
+            _reads(
+                "products", "customer_id", "product_type", "current_balance", "currency"
+            )
+            + _reads(
+                "transactions",
+                "product_id",
+                "transaction_date",
+                "amount",
+                "transaction_type",
+                "transaction_status",
+                "merchant_name",
+                "channel",
+            ),
+            ("products.customer_id", "transactions.product_id"),
+        ),
+        Rule(
+            "Movement not found",
+            _reads("transactions", "amount", "transaction_date"),
+            ("transactions.product_id",),
+        ),
+        Rule(
+            "Failed payment handed off",
+            _reads("transactions", "transaction_type", "transaction_status"),
+            ("transactions.product_id",),
+        ),
+    ),
+)
+
+CARD_SUPPORT = Candidate(
+    key="card_support",
+    name="Card support",
+    normal_path="An active credit or debit card with a transaction in the 30 days before the business date",
+    scopes=(
+        Scope(
+            "products",
+            IS_CARD,
+            (
+                "product_type",
+                "product_status",
+                "credit_limit",
+                "current_balance",
+                "expiration_date",
+            ),
+            {"credit_limit": "product_type = 'Tarjeta Crédito'"},
+        ),
+        Scope(
+            "transactions",
+            f"{IS_CARD} and within(transaction_date, 30)",
+            (
+                "transaction_status",
+                "response_code",
+                "is_fraud",
+                "merchant_name",
+                "channel",
+                "transaction_country",
+            ),
+            {"merchant_name": IS_PURCHASE},
+        ),
+    ),
+    state=_active_with_recent(IS_CARD),
+    rules=(
+        Rule(
+            "Card status and available credit",
+            _reads(
+                "products",
+                "customer_id",
+                "product_type",
+                "product_status",
+                "credit_limit",
+                "current_balance",
+            ),
+            ("products.customer_id",),
+        ),
+        Rule(
+            "Declined transaction explained",
+            _reads("transactions", "transaction_status", "response_code"),
+            ("transactions.product_id",),
+        ),
+        Rule(
+            "Card block, handed off over fraud",
+            _reads("products", "product_status")
+            + _reads(
+                "transactions",
+                "is_fraud",
+                "merchant_name",
+                "channel",
+                "transaction_country",
+            ),
+            ("products.customer_id", "transactions.product_id"),
+        ),
+    ),
+)
+
+DISPUTE_INTAKE = Candidate(
+    key=DISPUTES,
+    name="Transaction-dispute intake",
+    normal_path="An approved purchase in the 60 days before the business date",
+    scopes=(
+        Scope(
+            "transactions",
+            f"{IS_APPROVED_PURCHASE} and within(transaction_date, 60)",
+            (
+                "transaction_date",
+                "amount",
+                "currency",
+                "transaction_status",
+                "merchant_name",
+                "is_fraud",
+                "fraud_score",
+            ),
+        ),
+        Scope("complaints", IS_DISPUTE, ("case_type", "claimed_amount", "status")),
+    ),
+    state=(
+        f"select customer_id from transactions "
+        f"where {IS_APPROVED_PURCHASE} and within(transaction_date, 60)"
+    ),
+    rules=(
+        Rule(
+            "Eligibility to dispute",
+            _reads(
+                "transactions",
+                "customer_id",
+                "transaction_type",
+                "transaction_status",
+                "transaction_date",
+            ),
+            ("transactions.customer_id",),
+        ),
+        Rule(
+            "Case facts from the transaction",
+            _reads(
+                "transactions",
+                "transaction_id",
+                "transaction_date",
+                "amount",
+                "currency",
+                "merchant_name",
+            ),
+            ("transactions.customer_id",),
+        ),
+        Rule(
+            "Fraud or merchant route",
+            _reads("transactions", "is_fraud"),
+            ("transactions.customer_id",),
+        ),
+    ),
+)
+
+CREDIT_ELIGIBILITY = Candidate(
+    key="credit",
+    name="Credit information and eligibility",
+    normal_path="An active customer with `credit_score` and `estimated_monthly_income` populated",
+    scopes=(
+        Scope(
+            "customers",
+            "true",
+            ("credit_score", "estimated_monthly_income", "segment", "customer_status"),
+        ),
+        Scope(
+            "products",
+            IS_CREDIT,
+            ("product_type", "credit_limit", "interest_rate", "days_past_due"),
+        ),
+    ),
+    state=(
+        "select customer_id from customers where customer_status = 'Active' "
+        "and credit_score is not null and estimated_monthly_income is not null"
+    ),
+    rules=(
+        Rule(
+            "Held credit products",
+            _reads(
+                "products",
+                "customer_id",
+                "product_type",
+                "credit_limit",
+                "interest_rate",
+                "days_past_due",
+            ),
+            ("products.customer_id",),
+        ),
+        Rule(
+            "Simulated eligibility",
+            _reads(
+                "customers",
+                "customer_status",
+                "segment",
+                "credit_score",
+                "estimated_monthly_income",
+            )
+            + _reads("products", "days_past_due"),
+            ("products.customer_id",),
+        ),
+        Rule(
+            "Review path",
+            _reads("customers", "credit_score", "estimated_monthly_income"),
+        ),
+    ),
+)
+
+CANDIDATES = (ACCOUNT_INQUIRIES, CARD_SUPPORT, DISPUTE_INTAKE, CREDIT_ELIGIBILITY)

@@ -2,7 +2,8 @@
 The profile finds each problem planted in the fixture snapshot, and nothing else (PRB-03, DML-02, DML-03).
 """
 
-from datetime import date
+from dataclasses import replace
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -107,6 +108,16 @@ def test_dates_a_table_through_its_reference(result: Profile) -> None:
 def test_the_business_date_is_the_earliest_last_complete_day(result: Profile) -> None:
     assert result.business_date == date(2026, 6, 14)
     assert by_name(result, "branches").arrival is None
+
+
+def test_reads_as_of_the_earliest_processing_day_cutoff(result: Profile) -> None:
+    # Receipts have no events past midnight, so their processing day closes at midnight.
+    assert result.as_of == datetime(2026, 6, 15, 0, 0)
+    payments_only = replace(
+        result, tables=tuple(t for t in result.tables if t.name != "receipts")
+    )
+    assert payments_only.as_of == datetime(2026, 6, 16, 3, 0)
+    assert replace(result, tables=()).as_of is None
 
 
 def test_skips_the_checks_whose_tables_the_catalog_lacks(result: Profile) -> None:

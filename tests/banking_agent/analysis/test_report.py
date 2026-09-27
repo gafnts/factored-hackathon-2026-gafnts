@@ -43,6 +43,7 @@ def test_json_suppresses_row_counts_but_not_files_or_days(result: Profile) -> No
     payments = next(t for t in data["tables"] if t["name"] == "payments")
 
     assert data["business_date"] == "2026-06-14"
+    assert data["as_of"] == "2026-06-15 00:00:00"
     assert payments["rows"] == "<10"
     assert payments["files"] == 3
     assert payments["arrival"]["lag_p99"] == 2
@@ -54,6 +55,7 @@ def test_markdown_lists_what_the_contracts_must_handle(result: Profile) -> None:
     markdown = to_markdown(result)
 
     assert "**2026-06-14**" in markdown
+    assert "as of **2026-06-15 00:00:00**" in markdown
     assert "`Urbana`" in markdown
     assert "- `approved`: `False`, `True`, `maybe`" in markdown
     assert "`payments.branch_id` | <10" in markdown

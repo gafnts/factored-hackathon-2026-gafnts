@@ -1,13 +1,22 @@
 """
-A three-table snapshot written by the team, with one instance of each problem the profile looks for.
+A three-table snapshot written by the team, with one instance of each problem the profile looks for,
+and a selection with one instance of each verdict the report writes.
 """
 
 import hashlib
+from collections.abc import Callable
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
 
 from banking_agent.analysis.catalog import EventDate, Table, table
+from banking_agent.analysis.selection import (
+    CandidateGates,
+    FieldPopulation,
+    RuleCheck,
+    Selection,
+)
 from banking_agent.dataset.lock import Lock, LockedFile, make_lock
 from banking_agent.dataset.snapshot import snapshot_dir
 
@@ -115,3 +124,72 @@ def root(tmp_path: Path, lock: Lock) -> Path:
 @pytest.fixture
 def tables() -> tuple[Table, ...]:
     return TABLES
+
+
+@pytest.fixture
+def snapshot_of(tmp_path: Path) -> Callable[[dict[str, str]], tuple[Lock, Path]]:
+    def write(files: dict[str, str]) -> tuple[Lock, Path]:
+        lock = lock_for({key: text.encode() for key, text in files.items()})
+        directory = snapshot_dir(tmp_path / "data", lock.snapshot_id)
+        for key, text in files.items():
+            path = directory / key
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(text.encode())
+        return lock, directory
+
+    return write
+
+
+def _gates(
+    key: str,
+    name: str,
+    fields: tuple[FieldPopulation, ...],
+    customers: int,
+    unknown: tuple[str, ...] = (),
+) -> CandidateGates:
+    return CandidateGates(
+        key=key,
+        name=name,
+        normal_path=f"The {key} normal path",
+        fields=fields,
+        customers_in_state=customers,
+        rules=RuleCheck(("One", "Two", "Three"), 11, unknown, ()),
+    )
+
+
+@pytest.fixture
+def selection() -> Selection:
+    return Selection(
+        snapshot_id="0123456789abcdef",
+        duckdb_version="1.5.5",
+        business_date=date(2026, 6, 17),
+        as_of=datetime(2026, 6, 18, 6, 0),
+        candidates=(
+            _gates(
+                "account_inquiries",
+                "Account and payment inquiries",
+                (FieldPopulation("transactions", "merchant_name", 0, 0),),
+                400,
+            ),
+            _gates(
+                "card_support",
+                "Card support",
+                (
+                    FieldPopulation("products", "expiration_date", 100, 95),
+                    FieldPopulation("transactions", "is_fraud", 100, 100),
+                ),
+                150,
+            ),
+            _gates(
+                "disputes",
+                "Transaction-dispute intake",
+                (
+                    FieldPopulation("transactions", "fraud_score", 100, 80),
+                    FieldPopulation("complaints", "claimed_amount", 5, 3),
+                ),
+                5,
+                ("complaints.transaction_id",),
+            ),
+        ),
+        complaints_reference=("customers", "products"),
+    )
