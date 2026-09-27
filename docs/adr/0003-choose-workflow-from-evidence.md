@@ -6,6 +6,8 @@ Proposed (2026-09-27). This revision fixes the rule before any gate has been com
 
 The table-level [data quality profile](../analysis/profiling.md) ran before this revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with; the rows F1 reads come from the dictionary's own scopes, not from those rates.
 
+The gates ran on 2026-09-27, and no candidate passed all four (see the [selection report](../analysis/selection.md)). A third revision, written with every gate result in view, revisits them as the rule requires (see [Revisit](#revisit)); it was committed before `make analysis` ran again. It also corrects two sentences that called `fraud_score` the bank's existing model.
+
 ## Context
 
 The system serves one focused workflow (SCP-01). The brief names four examples: account or payment inquiries, card-service support, transaction-dispute intake, and credit-product information and eligibility. They aren't tracks, and building more than one earns nothing. The choice has to come from the supplied data, in an analysis anyone can rerun (PRB-01 to PRB-05).
@@ -56,7 +58,7 @@ Fields and states, taken from the data dictionary before looking at the data:
 | Transaction-dispute intake | `transactions`: `transaction_date`, `amount`, `currency`, `transaction_status`, `merchant_name`, `is_fraud`, `fraud_score`; `complaints`: `case_type`, `claimed_amount`, `status` | An approved purchase in the 60 days before the business date |
 | Credit information and eligibility | `customers`: `credit_score`, `estimated_monthly_income`, `segment`, `customer_status`; `products`: `product_type`, `credit_limit`, `interest_rate`, `days_past_due` | An active customer with `credit_score` and `estimated_monthly_income` populated |
 
-Labels for E2, also from the dictionary. The features never include `fraud_score`, `response_code` or `transaction_status`, which may already encode the answer (the last two record the bank's own authorization decision); `fraud_score` is kept as the bank's existing model, the baseline a later evaluation compares against.
+Labels for E2, also from the dictionary. The features never include `fraud_score`, `response_code` or `transaction_status`, which may already encode the answer: the last two record the bank's own authorization decision, and `fraud_score` is drawn from `is_fraud` itself (see [Revisit](#revisit)), so it is no model and no baseline either.
 
 | Candidate | Label | What the learned component would do |
 |---|---|---|
@@ -121,7 +123,7 @@ Because complaints carry no transaction reference, the transaction a dispute is 
 - **Split:** a customer is held out when the MD5 of their `customer_id`, read as an integer, is divisible by 5 (about a fifth of customers), so all of a customer's rows fall on one side.
 - **Model:** logistic regression with an L2 penalty (C = 1) on numbers standardized over the training rows, without tuning: E2 asks whether the label carries signal, not how much a tuned model finds.
 - **Interval:** a 95% percentile bootstrap of the held-out ROC AUC over 1,000 resamples of held-out customers, not rows, since a customer's rows move together; the seed is fixed and reported. E2 passes when the interval's lower end is above 0.5.
-- **Reported alongside:** the point estimate; rows, customers, and positives on each side; and, for `is_fraud`, the held-out ROC AUC of `fraud_score` where it is populated, as context on the bank's own model, outside the gate.
+- **Reported alongside:** the point estimate; rows, customers, and positives on each side; and, for `is_fraud`, the held-out ROC AUC of `fraud_score` where it is populated, as context on how closely it tracks the label, outside the gate.
 
 ### Judgment
 
@@ -142,6 +144,28 @@ Among the candidates that pass, the choice follows these criteria in this order.
    Complaints without a subcategory follow their category. The contact-center baseline per reason category (handle time, resolution, escalation, CSAT) is reported as context for PRB-07 and EVL-14 but doesn't enter the choice.
 4. **Demo fit.** Whether the three paths and Portuguese come up naturally, and whether a judge can exercise the workflow in a few minutes.
 
+### Revisit
+
+No candidate passed all four gates on the pinned snapshot: only card support passed F1, all four passed F2 and E1, and all four failed E2. The gates are revisited here, before anything is recomputed. Every result was known when this was written, so the revisit follows one principle, stated before what it picks:
+
+> A gate that no candidate can pass on this snapshot, for a reason in the data rather than in any workflow, can't tell the candidates apart. It is set aside, and its results stay in the report as evidence. Every gate that told the candidates apart stays as committed.
+
+E2 is that gate. The dictionary holds no label for account and payment inquiries, and neither of the labels it does hold carries signal on the fields recorded with the event: every held-out ROC AUC interval contains 0.5 (card support 0.493 [0.462, 0.523], dispute intake 0.506 [0.469, 0.543], credit 0.508 [0.498, 0.519]). The one field that tracks `is_fraud` is `fraud_score`, and it is drawn from the label: no legitimate transaction, on any product, scores above 30, while fraudulent ones spread evenly from 0 to 100. `fraud_score` is therefore a noisy copy of `is_fraud`, not a model, and no evaluation uses it as a baseline.
+
+F1 told the candidates apart, and its failures describe the workflows, not gaps the data has everywhere (see [Alternatives considered](#alternatives-considered)). It stays, as do F2 and E1.
+
+With E2 set aside, card support is the only candidate that passes, so it wins under the rule above. It is also our working hypothesis (see [Context](#context)): the revisit lands where a rule bent towards it would have. The principle, and the other revisits with what each would have chosen, are the guard:
+
+| Revisit | Candidates that pass | Chosen |
+|---|---|---|
+| Set E2 aside (this revision) | Card support | Card support |
+| Also drop F1's rule that a field with no rows fails | Card support; account and payment inquiries | Account and payment inquiries, on evaluation depth (3 of 4 situations covered, against 2 of 4) |
+| Also count fields under 90% as material for missing-data cases (EVL-02) instead of F1 failures | All four | Credit information and eligibility, on evaluation depth (4 of 4) |
+
+`make analysis` counts a situation as covered when at least 100 customers back it. That threshold, taken from F2, was set in code after the gates ran; nothing above fixed it. Card support's unsupported-request case sits just under it, at 96 customers.
+
+Setting E2 aside leaves DML-07 without a learned component, so the component moves to the evaluation ADR, with labels we write: a classifier of the customer's request, in Spanish and Portuguese, that routes it to a supported request, an unsupported one, or a human (CTL-01, CTL-03). Its labels come from the workflow policy's list of requests, written before the requests it is tested on, and it is compared with a keyword router on held-out requests; the evaluation ADR fixes the model, the baseline, and the split, and justifies them (DML-10, DML-11). The weakness named under counting labels we write towards E2 stands: the component's case for DML-07 and DML-08 rests on our labels, not on the bank's records.
+
 ## Alternatives considered
 
 **Rank by the agent time and customer pain of each workflow's contacts** (the first draft). It would have been the strongest evidence of need, but it depends on attributing contacts to workflows, which this snapshot can't do.
@@ -156,6 +180,12 @@ Among the candidates that pass, the choice follows these criteria in this order.
 
 **Build the working hypothesis and justify it afterwards.** Fastest, but PRB-05 asks for a choice justified by reproducible analysis, and an untested hypothesis would carry the whole build.
 
+**At the revisit, also drop F1's rule that a field with no rows fails.** Account and payment inquiries would pass beside card support and win on evaluation depth. The rule was fixed before any gate ran, so that no field could leave the committed lists, and the empty rows are a fact about the workflow: account products carry only transfers, withdrawals, deposits, and payments, every purchase (debit ones included) sits on a card product, and no account movement names a merchant. Its lead on depth is also thinner than the count: its unsupported-request case, a movement the customer asks about that isn't there, is backed by every account holder by construction.
+
+**At the revisit, also count fields under 90% as material for missing-data cases instead of F1 failures.** All four would pass, and credit would win on evaluation depth. F1 asks whether the normal path can run on the fields its tools read, and for two candidates it measured that it can't: 40,803 active customers lack a field the eligibility rule reads, against 86,897 who have both, so about a third of credit requests would go to review on the first turn; and dispute intake finds `claimed_amount` on a third of its complaints. Counting those gaps as test material would turn the reason a candidate failed into a reason to choose it.
+
+**At the revisit, leave DML-07 to the LLM judge.** A judge validated against human grading is needed under EVL-10 whatever the learned component is; as the only one, it would measure how we grade, not how the workflow decides.
+
 ## Consequences
 
 Positive:
@@ -163,10 +193,13 @@ Positive:
 - The git history shows the rule, including how each gate is measured and the order of the judgment criteria, before any gate ran.
 - The limits of the contact-center data are reported as findings (PRB-03, SCP-07) instead of being hidden behind a ranking.
 - The same run produces the human baseline per reason category (PRB-07) and the evidence for PRB-01 to PRB-04.
+- That no supplied label carries signal, and that `fraud_score` is drawn from `is_fraud`, is reported as a data limitation (PRB-03, SCP-07) instead of hidden behind a model that learned the leak.
 
 Negative:
 - The choice rests on feasibility and judgment, not on measured demand; the ADR can't claim that customers need the chosen workflow most.
 - Our favorite can still win on judgment; the fixed order and the written arguments are the only guard.
+- The revisit was written with every gate result in view, and it chose our working hypothesis; its principle, and the other revisits with what each would have chosen, are the only guard.
+- No component learns from a label the bank recorded: DML-07 and DML-08 rest on labels we write.
 - Requiring data labels can reject a workflow that would work well with labels we write.
 - Attributable demand is lopsided: only complaints can be attributed, and only to disputes.
 - E2 is indirect for two candidates: the dispute label isn't tied to any dispute, and credit's features and label come from one snapshot with no history.
