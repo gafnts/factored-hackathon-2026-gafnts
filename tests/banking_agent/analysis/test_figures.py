@@ -7,8 +7,8 @@ from pathlib import Path
 import polars as pl
 
 from banking_agent.analysis.figures import (
-    BANK,
     MODEL,
+    SCORE,
     field_populations,
     learned_signals,
     save,
@@ -35,7 +35,7 @@ def test_a_rerun_writes_the_same_svg(selection: Selection, tmp_path: Path) -> No
     assert b"<dc:date>" not in first
 
 
-def test_draws_each_auc_beside_the_banks_own_score(selection: Selection) -> None:
+def test_draws_each_auc_beside_fraud_score(selection: Selection) -> None:
     data = learned_signals(selection).data
     assert isinstance(data, pl.DataFrame)
     drawn = {
@@ -45,6 +45,6 @@ def test_draws_each_auc_beside_the_banks_own_score(selection: Selection) -> None
 
     assert drawn == {
         ("Card support", MODEL): 0.71,
-        ("Card support", BANK): 0.84,
+        ("Card support", SCORE): 0.84,
         ("Transaction-dispute intake", MODEL): 0.505,
     }

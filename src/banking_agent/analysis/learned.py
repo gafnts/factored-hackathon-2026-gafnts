@@ -18,6 +18,7 @@ from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from banking_agent.analysis.candidates import Label
+from banking_agent.analysis.source import one
 
 CHANCE = 0.5
 HELD_OUT_EVERY = 5
@@ -26,7 +27,7 @@ RESAMPLES = 1_000
 LEVEL = 0.95
 SEED = 20260927
 MISSING = "(missing)"
-SCORE_BAND = 20
+SCORE_BAND = 10
 DAYS_PER_YEAR = 365.25
 DAYS_PER_MONTH = DAYS_PER_YEAR / 12
 
@@ -53,7 +54,7 @@ class Signal:
     training: Side
     held_out: Side
     auc: Auc | None
-    # The bank's own fraud_score on the held-out rows where it is populated: context, outside the gate.
+    # fraud_score, drawn from the label, on the held-out rows where it is populated: context, outside the gate.
     fraud_score: Auc | None
     fraud_score_rows: int
 
@@ -64,7 +65,7 @@ class Signal:
 
 @dataclass(frozen=True)
 class ScoreBand:
-    # None for transactions the bank's model left unscored.
+    # None for unscored transactions.
     low: int | None
     transactions: int
     fraud: int
@@ -156,6 +157,13 @@ def fraud_by_score(con: duckdb.DuckDBPyConnection, rows: str) -> tuple[ScoreBand
             "group by 1 order by 1 nulls last"
         ).fetchall()
     )
+
+
+def top_legitimate_score(con: duckdb.DuckDBPyConnection, rows: str) -> float | None:
+    top = one(
+        con, f"select max(fraud_score) from transactions where {rows} and not is_fraud"
+    )[0]
+    return None if top is None else float(top)
 
 
 def held_out(customer_id: str) -> bool:

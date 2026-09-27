@@ -33,8 +33,14 @@ def test_names_the_gate_and_the_number_behind_each_verdict(
     assert "| fails: ROC AUC 0.505 [0.470, 0.540] |" in markdown
     assert "| fails: no label in the dictionary |" in markdown
     assert "0.840 [0.800, 0.880] on 800 rows" in markdown
-    assert "| 40 to 60 | 50 | 50 (100.00%) |" in markdown
+    assert (
+        "No legitimate card transaction scores above 30.00, so every one scored higher "
+        "is fraud:"
+    ) in markdown
+    assert "| 40 to 50 | 50 | 50 (100.00%) |" in markdown
     assert "| not scored | 200 | 0 |" in markdown
+    unscored = to_markdown(replace(selection, top_legitimate_score=None))
+    assert "`fraud_score`, the field E2 leaves out:" in unscored
 
 
 def test_names_what_the_rule_does_when_none_or_several_pass(

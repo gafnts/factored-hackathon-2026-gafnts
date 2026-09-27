@@ -159,6 +159,16 @@ def _result(selection: Selection) -> str:
     )
 
 
+def _score_lead(top: float | None) -> str:
+    lead = "`is_fraud` on card transactions by `fraud_score`, the field E2 leaves out"
+    if top is None:
+        return f"{lead}:"
+    return (
+        f"{lead}. No legitimate card transaction scores above {top:.2f}, so every one "
+        "scored higher is fraud:"
+    )
+
+
 def _band(b: ScoreBand) -> str:
     return "not scored" if b.low is None else f"{b.low} to {b.low + SCORE_BAND}"
 
@@ -421,7 +431,7 @@ def to_markdown(selection: Selection) -> str:
             ),
         ),
         "",
-        "`is_fraud` on card transactions by the bank's `fraud_score`, the field E2 leaves out:",
+        _score_lead(selection.top_legitimate_score),
         "",
         *markdown_table(
             ["`fraud_score`", "Card transactions", "Marked `is_fraud`"],

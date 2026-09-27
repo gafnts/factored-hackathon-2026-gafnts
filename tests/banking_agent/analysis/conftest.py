@@ -307,6 +307,7 @@ def selection() -> Selection:
             ScoreBand(40, 50, 50),
             ScoreBand(None, 200, 0),
         ),
+        top_legitimate_score=30.0,
         evidence=Evidence(
             depth=(
                 Depth(

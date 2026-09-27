@@ -110,7 +110,7 @@ def field_populations(selection: Selection) -> ggplot:
 
 
 MODEL = "Logistic regression on the event's fields"
-BANK = "fraud_score, the bank's own model (context)"
+SCORE = "fraud_score, drawn from the label (context)"
 
 
 def learned_signals(selection: Selection) -> ggplot:
@@ -118,7 +118,7 @@ def learned_signals(selection: Selection) -> ggplot:
         (c.name, series, auc.estimate, auc.low, auc.high)
         for c in selection.candidates
         if c.signal
-        for series, auc in ((MODEL, c.signal.auc), (BANK, c.signal.fraud_score))
+        for series, auc in ((MODEL, c.signal.auc), (SCORE, c.signal.fraud_score))
         if auc
     ]
     names = [c.name for c in selection.candidates if c.signal]
@@ -126,7 +126,7 @@ def learned_signals(selection: Selection) -> ggplot:
         rows, schema=["candidate", "series", "auc", "low", "high"], orient="row"
     ).with_columns(
         pl.col("candidate").cast(pl.Enum(names[::-1])),
-        pl.col("series").cast(pl.Enum([MODEL, BANK])),
+        pl.col("series").cast(pl.Enum([MODEL, SCORE])),
     )
     floor = min([CHANCE - 0.1, *(r[3] for r in rows)])
     plot: ggplot = (

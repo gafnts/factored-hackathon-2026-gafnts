@@ -184,6 +184,7 @@ def test_selects_as_of_the_instant_it_is_given(bank: tuple[Lock, Path]) -> None:
         (0, 1, 0),
         (None, 1, 1),
     ]
+    assert result.top_legitimate_score == 1.2
 
 
 def test_needs_the_tables_it_stages(bank: tuple[Lock, Path]) -> None:
