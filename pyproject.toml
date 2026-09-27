@@ -54,6 +54,7 @@ overrides = [
   { module = "tests.*", disallow_untyped_defs = false },
   { module = "sklearn.*", ignore_missing_imports = true },
   { module = [
+    "banking_agent.analysis.cards_figures",
     "banking_agent.analysis.figures",
     "banking_agent.analysis.plotting",
   ], disallow_untyped_calls = false },

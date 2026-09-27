@@ -13,7 +13,7 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from banking_agent.analysis.cards import prepare, split
+from banking_agent.analysis.cards import CardSupport, card_support, prepare, split
 from banking_agent.analysis.catalog import (
     CALL_CENTER_INTERACTIONS,
     COMPLAINTS,
@@ -338,6 +338,14 @@ def card_staged(card_bank: tuple[Lock, Path]) -> Iterator[duckdb.DuckDBPyConnect
     prepare(con, date(2026, 6, 17))
     yield con
     con.close()
+
+
+@pytest.fixture
+def card_result(card_bank: tuple[Lock, Path]) -> CardSupport:
+    lock, root = card_bank
+    return card_support(
+        lock, root, CARD_TABLES, date(2026, 6, 17), BANK_AS_OF, log=lambda _: None
+    )
 
 
 def _gates(

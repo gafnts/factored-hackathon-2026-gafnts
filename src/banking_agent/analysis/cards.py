@@ -35,6 +35,14 @@ from banking_agent.analysis.source import AnalysisError, connect, one, table_key
 from banking_agent.dataset.lock import Lock
 
 CREDIT, DEBIT = CARDS
+# The ISO 8583 meanings ADR-0003's rule reads the decline codes with.
+MEANINGS = dict(
+    zip(
+        DECLINE_REASONS,
+        ("do not honor", "invalid card number", "insufficient funds", "expired card"),
+        strict=True,
+    )
+)
 WINDOWS = (30, 90, 365)
 RECENCY = (7, 30, 90, 365)
 VOLUME_WINDOWS = (30, 90)
