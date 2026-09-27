@@ -2,9 +2,9 @@
 
 ## Status
 
-Proposed (2026-09-27). This revision fixes the rule before any gate has been computed for any workflow; the evidence and the choice are added when the ADR is accepted.
+Proposed (2026-09-27). This revision fixes the rule before any gate has been computed for any workflow; the evidence and the choice are added when the ADR is accepted. A second revision, also before any gate ran, fixed how each gate is measured (see Measurement); for it we read the distinct values of `product_type` and `response_code`, never their counts.
 
-The table-level [data quality profile](../analysis/profiling.md) ran before this revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with.
+The table-level [data quality profile](../analysis/profiling.md) ran before this revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with; the rows F1 reads come from the dictionary's own scopes, not from those rates.
 
 ## Context
 
@@ -32,7 +32,9 @@ The four workflows the brief names. A candidate may end by handing off to anothe
 
 ### Dates
 
-The business date is the last day for which every daily table can be expected to hold at least 99% of its rows, given how late rows arrived over the rest of the history. Each processing day runs past midnight, to a fixed cutoff the next morning, so "the 30 days before the business date" counts events by their own timestamp, never by `process_date`.
+The business date is the last day for which every daily table can be expected to hold at least 99% of its rows, given how late rows arrived over the rest of the history. Each processing day runs past midnight, to a fixed cutoff the next morning.
+
+Everything is read as of one instant: the end of the business date's processing day, taken as the earliest of the daily tables' cutoffs on the following morning (06:00 in the profile, set by transactions and campaign sends). Every table then shows the bank at the same moment; rows and fields dated after it are ignored. A window such as "the 30 days before the business date" is the 30 × 24 hours ending at the as-of instant, counted by each event's own timestamp, never by `process_date`.
 
 ### Gates
 
@@ -41,7 +43,7 @@ A candidate must pass all four.
 | Gate | Passes when |
 |---|---|
 | F1: fields | The fields its core tools read (table below) are at least 90% populated in the rows those tools would read |
-| F2: state | At least 100 customers are, at the business date, in the state its normal path needs (table below) |
+| F2: state | At least 100 customers are, at the as-of instant, in the state its normal path needs (table below) |
 | E1: reference outcomes | Its expected outcomes can be written as deterministic rules over the frozen state; the ADR sketches three such rules and the fields they read |
 | E2: learned component | A label that comes from the supplied data, never one we write, shows signal on held-out customers (DML-07 to DML-09): a logistic regression on fields recorded with the event reaches a held-out ROC AUC whose 95% bootstrap interval lies above 0.5, with training and held-out customers kept apart |
 
@@ -54,16 +56,72 @@ Fields and states, taken from the data dictionary before looking at the data:
 | Transaction-dispute intake | `transactions`: `transaction_date`, `amount`, `currency`, `transaction_status`, `merchant_name`, `is_fraud`, `fraud_score`; `complaints`: `case_type`, `claimed_amount`, `status` | An approved purchase in the 60 days before the business date |
 | Credit information and eligibility | `customers`: `credit_score`, `estimated_monthly_income`, `segment`, `customer_status`; `products`: `product_type`, `credit_limit`, `interest_rate`, `days_past_due` | An active customer with `credit_score` and `estimated_monthly_income` populated |
 
-Labels for E2, also from the dictionary. The features never include `fraud_score` or `response_code`, which may already encode the answer; `fraud_score` is kept as the bank's existing model, the baseline a later evaluation compares against.
+Labels for E2, also from the dictionary. The features never include `fraud_score`, `response_code` or `transaction_status`, which may already encode the answer (the last two record the bank's own authorization decision); `fraud_score` is kept as the bank's existing model, the baseline a later evaluation compares against.
 
 | Candidate | Label | What the learned component would do |
 |---|---|---|
 | Account and payment inquiries | None in the dictionary | Nothing, so the candidate fails E2 |
 | Card support | `is_fraud` on card transactions | Score a transaction as suspicious, to offer a card block or hand off |
-| Transaction-dispute intake | `is_fraud` on the disputed transaction | Triage a dispute as likely fraud or a merchant disagreement |
+| Transaction-dispute intake | `is_fraud` on the transactions a customer could dispute | Triage a dispute as likely fraud or a merchant disagreement |
 | Credit information and eligibility | `days_past_due` of 30 or more on credit products | Estimate repayment risk, kept apart from eligibility policy (CRD-01) |
 
 If exactly one candidate passes, it wins. If none does, the gates are revisited in writing before anything else.
+
+### Measurement
+
+Fixed before any gate ran, so that no choice of rows, features, or split is made while looking at a result.
+
+**Terms.** The snapshot names products in Spanish: checking and savings accounts are `Cuenta Corriente` and `Cuenta Ahorro`, credit and debit cards `Tarjeta Crédito` and `Tarjeta Débito`, and the credit products are `Tarjeta Crédito`, `Préstamo Personal`, and `Préstamo Hipotecario`. Active means a `product_status` or `customer_status` of `Active`. An approved purchase is a `Purchase` whose `transaction_status` is `Approved`. A dispute complaint is one in a category the judgment's mapping assigns to dispute intake (Transactions and Fees). Only rows that exist at the as-of instant count: products opened, customers registered, transactions made, and complaints created by then.
+
+**F1** measures each core field on its own, over the rows its tools would read:
+
+| Candidate | Rows |
+|---|---|
+| Account and payment inquiries | Checking and savings accounts, and their transactions in the 30 days before the as-of instant |
+| Card support | Credit and debit cards, and their transactions in the 30 days before the as-of instant |
+| Transaction-dispute intake | Approved purchases in the 60 days before the as-of instant, and dispute complaints |
+| Credit information and eligibility | Customers, and credit products |
+
+Within those rows, a field the dictionary documents for some rows only is measured on those: `credit_limit` "for credit products" (credit cards, for card support), `days_past_due` "for credits", and `merchant_name` "for purchases". `claimed_amount`, documented "if applicable", applies to every dispute complaint, since each disputes a charge. The dictionary documents `expiration_date` "for term products", but card support reads it on cards, so it is measured on cards: no field leaves the committed lists. A field with no rows to measure fails.
+
+**F2** counts each customer once, however many qualifying products or transactions they hold.
+
+**E1** passes when three rules can be written that read only fields the snapshot holds, through references it holds, and give one expected outcome for any state of those fields. The sketches cover the normal path, a request the workflow must decline or can't confirm, and a handoff. Their thresholds and wording become the team-written policy, labeled synthetic (SEC-02), for the workflow that wins.
+
+| Candidate | Rule | Reads |
+|---|---|---|
+| Account and payment inquiries | A checking or savings account of the signed-in customer is reported with its `current_balance` in its `currency`, and with its transactions of the 30 days before the as-of instant, newest first | `products`: `customer_id`, `product_type`, `current_balance`, `currency`; `transactions`: `product_id`, `transaction_date`, `amount`, `transaction_type`, `transaction_status`, `merchant_name`, `channel` |
+| | A movement the customer describes by amount and date that matches no transaction on the account in that window is reported as not found; none is inferred | `transactions`: `amount`, `transaction_date` |
+| | A `Payment` the customer says went through, but whose `transaction_status` is `Declined` or `Reversed`, is handed off with its recorded fields as verified facts; a `Pending` one is reported as not yet posted | `transactions`: `transaction_type`, `transaction_status` |
+| Card support | A card of the signed-in customer is reported with its `product_status`; a credit card also with its `credit_limit` minus its `current_balance` as available credit | `products`: `customer_id`, `product_type`, `product_status`, `credit_limit`, `current_balance` |
+| | A `Declined` card transaction is explained by its `response_code`, read with its ISO 8583 meaning (05 do not honor, 14 invalid card number, 51 insufficient funds, 54 expired card); a missing or unlisted code gets no explanation, and the answer says so | `transactions`: `transaction_status`, `response_code` |
+| | A card is blocked only if it is `Active`, belongs to the signed-in customer, and the customer confirms; the sandbox then shows it `Blocked`. A block over a transaction marked `is_fraud` also hands off to dispute intake with that transaction | `products`: `product_status`; `transactions`: `is_fraud`, `merchant_name`, `channel`, `transaction_country` |
+| Transaction-dispute intake | A transaction can be disputed only if it belongs to the signed-in customer, is an approved purchase, and falls in the 60 days before the as-of instant; otherwise no case is opened, and the answer names the condition that failed | `transactions`: `customer_id`, `transaction_type`, `transaction_status`, `transaction_date` |
+| | A case records the transaction's `transaction_date`, `amount`, `currency`, and `merchant_name` as read from the transaction, never from the conversation; an amount the customer states differently goes into the handoff as an unresolved question | `transactions`: `transaction_id`, `transaction_date`, `amount`, `currency`, `merchant_name` |
+| | A disputed transaction marked `is_fraud` takes the fraud route (card block offered, human review); any other takes the merchant-dispute route | `transactions`: `is_fraud` |
+| Credit information and eligibility | A credit product of the signed-in customer is reported with its `credit_limit`, `interest_rate`, and `days_past_due` as recorded; no rate or limit is quoted for a product the customer doesn't hold | `products`: `customer_id`, `product_type`, `credit_limit`, `interest_rate`, `days_past_due` |
+| | A simulated eligibility outcome is positive only if `customer_status` is `Active`, `credit_score` and `estimated_monthly_income` meet the policy's thresholds for the customer's `segment`, and no credit product has `days_past_due` of 30 or more; a negative outcome names the condition that failed (CRD-02) | `customers`: `customer_status`, `segment`, `credit_score`, `estimated_monthly_income`; `products`: `days_past_due` |
+| | A missing `credit_score` or `estimated_monthly_income`, or a score within the policy's margin of its threshold, gets no outcome and goes to human review (CRD-04) | `customers`: `credit_score`, `estimated_monthly_income` |
+
+A rule that finds an earlier dispute of the same transaction can't be written: complaints carry no transaction reference.
+
+**E2** fits one model per candidate with a label:
+
+| Candidate | One row per | Label |
+|---|---|---|
+| Card support | Card transaction | `is_fraud` |
+| Transaction-dispute intake | Approved purchase | `is_fraud` |
+| Credit information and eligibility | Credit product with `days_past_due` populated | `days_past_due` of 30 or more |
+
+Because complaints carry no transaction reference, the transaction a dispute is about can't be identified. The dispute label is therefore `is_fraud` on the transactions a customer could dispute, rows that overlap card support's.
+
+- **Transaction features:** `transaction_type`, `transaction_category`, `channel`, `merchant_category`, `currency`, the logarithm of `amount`, whether `transaction_country` differs from the customer's `country`, the hour and weekday of `transaction_date`, and the `product_type` it was made on.
+- **Credit features:** the customer's `segment`, `country`, `credit_score`, the logarithm of `estimated_monthly_income`, and age and months since registration at the business date; the product's `product_type`, `interest_rate`, the logarithm of `credit_limit`, and months since `opening_date`. Never `current_balance`, `product_status`, `last_transaction_date`, or `last_updated`, which a missed payment can change. Customers and products carry no history, so every feature is read as the snapshot holds it, and `credit_score` may already reflect the delinquency it is asked to predict; the report says so.
+- **Missing values:** a missing category is a value of its own; a missing number takes the training median plus a flag.
+- **Split:** a customer is held out when the MD5 of their `customer_id`, read as an integer, is divisible by 5 (about a fifth of customers), so all of a customer's rows fall on one side.
+- **Model:** logistic regression with an L2 penalty (C = 1) on numbers standardized over the training rows, without tuning: E2 asks whether the label carries signal, not how much a tuned model finds.
+- **Interval:** a 95% percentile bootstrap of the held-out ROC AUC over 1,000 resamples of held-out customers, not rows, since a customer's rows move together; the seed is fixed and reported. E2 passes when the interval's lower end is above 0.5.
+- **Reported alongside:** the point estimate; rows, customers, and positives on each side; and, for `is_fraud`, the held-out ROC AUC of `fraud_score` where it is populated, as context on the bank's own model, outside the gate.
 
 ### Judgment
 
@@ -102,7 +160,7 @@ Among the candidates that pass, the choice follows these criteria in this order.
 
 Positive:
 - Anyone can rerun the gates, and the evidence that contacts can't be attributed, with `make analysis` on the pinned snapshot.
-- The git history shows the rule, including the order of the judgment criteria, before any gate ran.
+- The git history shows the rule, including how each gate is measured and the order of the judgment criteria, before any gate ran.
 - The limits of the contact-center data are reported as findings (PRB-03, SCP-07) instead of being hidden behind a ranking.
 - The same run produces the human baseline per reason category (PRB-07) and the evidence for PRB-01 to PRB-04.
 
@@ -111,4 +169,6 @@ Negative:
 - Our favorite can still win on judgment; the fixed order and the written arguments are the only guard.
 - Requiring data labels can reject a workflow that would work well with labels we write.
 - Attributable demand is lopsided: only complaints can be attributed, and only to disputes.
-- The thresholds (99%, 90%, 100 customers, 30 and 60 days, 30 days past due, the 95% interval) are conventions, not derived values.
+- E2 is indirect for two candidates: the dispute label isn't tied to any dispute, and credit's features and label come from one snapshot with no history.
+- Card support can fail F1 on `expiration_date`, which the dictionary documents for term products while its tools read it on cards.
+- The thresholds (99%, 90%, 100 customers, 30 and 60 days, 30 days past due, the 95% interval) and the measurement settings (the feature lists, the held-out fifth, C = 1, 1,000 resamples) are conventions, not derived values.
