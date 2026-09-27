@@ -24,6 +24,8 @@ Snapshot `b3b8b248f604ef9a`, profiled by `make analysis` with DuckDB 1.5.5. Row 
 
 **2026-06-17**: the last day every daily table can be expected to hold at least 99% of its rows, given how late its rows arrived over the rest of the history (ADR-0003). `call_transcripts` has no date of its own and is dated by its interaction.
 
+Everything downstream reads the snapshot as of **2026-06-18 06:00:00**: the end of the business date's processing day, at the earliest of the cutoffs below.
+
 | Table | Partitions | Missing | Filed under another date | Undated | Events | Next-day events until | 99% arrive within | Last complete day |
 |---|---|---|---|---|---|---|---|---|
 | `transactions` | 2023-06-17 to 2026-06-17 | 0 | 0 | 0 | 2023-06-17 to 2026-06-18 | 06:00:00 | 0 days | 2026-06-17 |
