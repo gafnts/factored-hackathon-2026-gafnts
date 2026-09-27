@@ -56,6 +56,15 @@ class Rule:
 
 
 @dataclass(frozen=True)
+class Label:
+    description: str
+    # Which of ADR-0003's feature lists the rows carry: "transaction" or "credit".
+    kind: str
+    # Selects customer_id, label, and the fields the features come from, one row per example.
+    rows: str
+
+
+@dataclass(frozen=True)
 class Candidate:
     key: str
     name: str
@@ -64,6 +73,19 @@ class Candidate:
     # Selects the customer_id of every customer in the normal-path state (F2).
     state: str
     rules: tuple[Rule, ...]
+    # None when the dictionary holds no label for the candidate, which then fails E2.
+    label: Label | None = None
+
+
+def _transaction_rows(where: str) -> str:
+    return (
+        "select t.customer_id, t.is_fraud as label, t.fraud_score, t.transaction_type, "
+        "t.transaction_category, t.channel, t.merchant_category, t.currency, t.amount, "
+        "t.transaction_country, c.country as customer_country, t.transaction_date, "
+        "t.product_type from transactions t "
+        f"left join customers c on c.customer_id = t.customer_id where {where} "
+        "order by t.transaction_id"
+    )
 
 
 def _active_with_recent(kind: str) -> str:
@@ -197,6 +219,9 @@ CARD_SUPPORT = Candidate(
             ("products.customer_id", "transactions.product_id"),
         ),
     ),
+    label=Label(
+        "`is_fraud` on card transactions", "transaction", _transaction_rows(IS_CARD)
+    ),
 )
 
 DISPUTE_INTAKE = Candidate(
@@ -253,6 +278,11 @@ DISPUTE_INTAKE = Candidate(
             ("transactions.customer_id",),
         ),
     ),
+    label=Label(
+        "`is_fraud` on the transactions a customer could dispute (approved purchases)",
+        "transaction",
+        _transaction_rows(IS_APPROVED_PURCHASE),
+    ),
 )
 
 CREDIT_ELIGIBILITY = Candidate(
@@ -304,6 +334,15 @@ CREDIT_ELIGIBILITY = Candidate(
             "Review path",
             _reads("customers", "credit_score", "estimated_monthly_income"),
         ),
+    ),
+    label=Label(
+        "`days_past_due` of 30 or more on credit products",
+        "credit",
+        "select p.customer_id, p.days_past_due >= 30 as label, c.segment, c.country, "
+        "c.credit_score, c.estimated_monthly_income, c.date_of_birth, c.registration_date, "
+        "p.product_type, p.interest_rate, p.credit_limit, p.opening_date from products p "
+        f"left join customers c on c.customer_id = p.customer_id where {IS_CREDIT} "
+        "and p.days_past_due is not null order by p.product_id",
     ),
 )
 

@@ -192,13 +192,19 @@ def test_selects_as_of_the_instant_it_is_given(snapshot: tuple[Lock, Path]) -> N
         "disputes",
         "credit",
     ]
-    assert [(c.f1, c.f2, c.e1) for c in result.candidates] == [
-        (False, False, True),
-        (False, False, True),
-        (False, False, True),
-        (False, False, True),
+    assert [(c.f1, c.f2, c.e1, c.e2) for c in result.candidates] == [
+        (False, False, True, False),
+        (False, False, True, False),
+        (False, False, True, False),
+        (False, False, True, False),
     ]
+    assert result.candidates[0].signal is None
     assert "transactions" not in result.complaints_reference
+    # T3 is past the as-of instant, so only T1 (scored 1.20) and T2 (unscored, fraud) count.
+    assert [(b.low, b.transactions, b.fraud) for b in result.fraud_by_score] == [
+        (0, 1, 0),
+        (None, 1, 1),
+    ]
 
 
 def test_needs_the_tables_it_stages(snapshot: tuple[Lock, Path]) -> None:

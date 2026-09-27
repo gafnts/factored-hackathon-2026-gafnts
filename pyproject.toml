@@ -36,6 +36,7 @@ eda = [
   "plotnine>=0.15.8",
   "polars>=1.44.2",
   "pyarrow>=25.0.1",
+  "scikit-learn>=1.9.1",
 ]
 
 [tool.uv]
@@ -51,6 +52,7 @@ files = [ "src", "tests" ]
 strict = true
 overrides = [
   { module = "tests.*", disallow_untyped_defs = false },
+  { module = "sklearn.*", ignore_missing_imports = true },
   { module = "banking_agent.analysis.figures", disallow_untyped_calls = false },
 ]
 

@@ -66,6 +66,7 @@ def test_select_writes_the_profile_and_the_selection(
         "selection.md",
         "selection.json",
         "selection-f1-fields.svg",
+        "selection-e2-learned.svg",
     }
 
 

@@ -9,8 +9,9 @@ from pathlib import Path
 
 import duckdb
 
-from banking_agent.analysis.candidates import CANDIDATES, Candidate, Scope
+from banking_agent.analysis.candidates import CANDIDATES, IS_CARD, Candidate, Scope
 from banking_agent.analysis.catalog import Column, Table
+from banking_agent.analysis.learned import ScoreBand, Signal, fraud_by_score, measure
 from banking_agent.analysis.source import AnalysisError, connect, one, table_keys
 from banking_agent.dataset.lock import Lock
 
@@ -108,6 +109,8 @@ class CandidateGates:
     fields: tuple[FieldPopulation, ...]
     customers_in_state: int
     rules: RuleCheck
+    # None when the dictionary holds no label for the candidate.
+    signal: Signal | None
 
     @property
     def f1(self) -> bool:
@@ -121,6 +124,14 @@ class CandidateGates:
     def e1(self) -> bool:
         return self.rules.passes
 
+    @property
+    def e2(self) -> bool:
+        return self.signal is not None and self.signal.passes
+
+    @property
+    def passes(self) -> bool:
+        return self.f1 and self.f2 and self.e1 and self.e2
+
 
 @dataclass(frozen=True)
 class Selection:
@@ -131,6 +142,8 @@ class Selection:
     candidates: tuple[CandidateGates, ...]
     # Tables some complaint column references; ADR-0003 notes that none is transactions.
     complaints_reference: tuple[str, ...]
+    # How is_fraud on card transactions varies with the bank's fraud_score, the field E2 leaves out.
+    fraud_by_score: tuple[ScoreBand, ...]
 
 
 def stage(con: duckdb.DuckDBPyConnection, as_of: datetime) -> None:
@@ -190,6 +203,15 @@ def _column(catalog: Mapping[str, Table], name: str) -> Column | None:
         return None
 
 
+def _signal(
+    con: duckdb.DuckDBPyConnection, candidate: Candidate, business_date: date, log: Log
+) -> Signal | None:
+    if candidate.label is None:
+        return None
+    log(f"Fitting the E2 model for {candidate.name.lower()}")
+    return measure(con, candidate.label, business_date)
+
+
 def select(
     lock: Lock,
     root: Path,
@@ -208,6 +230,7 @@ def select(
     try:
         log(f"Staging the tables as of {as_of}")
         stage(con, as_of)
+        bands = fraud_by_score(con, IS_CARD)
         results = []
         for c in candidates:
             log(f"Computing the gates for {c.name.lower()}")
@@ -221,6 +244,7 @@ def select(
                     ),
                     customers_in_state=customers_in_state(con, c),
                     rules=check_rules(c, catalog),
+                    signal=_signal(con, c, business_date, log),
                 )
             )
     finally:
@@ -236,4 +260,5 @@ def select(
                 {c.references for c in catalog["complaints"].columns if c.references}
             )
         ),
+        fraud_by_score=bands,
     )

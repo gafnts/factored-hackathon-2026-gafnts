@@ -9,22 +9,29 @@ import matplotlib
 import polars as pl
 from plotnine import (
     aes,
+    coord_flip,
     element_blank,
     element_line,
     element_rect,
     element_text,
     facet_wrap,
+    geom_hline,
     geom_point,
+    geom_pointrange,
     geom_text,
     geom_vline,
     ggplot,
     labs,
+    position_dodge,
+    scale_color_manual,
     scale_x_continuous,
+    scale_y_continuous,
     scale_y_discrete,
     theme,
     theme_minimal,
 )
 
+from banking_agent.analysis.learned import CHANCE
 from banking_agent.analysis.selection import FIELD_SHARE, Selection
 
 SURFACE = "#fcfcfb"
@@ -98,6 +105,40 @@ def field_populations(selection: Selection) -> ggplot:
         + scale_y_discrete(labels=_after_key)
         + labs(x="Share populated in the rows the tools read", y="")
         + _theme()
+    )
+    return plot
+
+
+MODEL = "Logistic regression on the event's fields"
+BANK = "fraud_score, the bank's own model (context)"
+
+
+def learned_signals(selection: Selection) -> ggplot:
+    rows = [
+        (c.name, series, auc.estimate, auc.low, auc.high)
+        for c in selection.candidates
+        if c.signal
+        for series, auc in ((MODEL, c.signal.auc), (BANK, c.signal.fraud_score))
+        if auc
+    ]
+    names = [c.name for c in selection.candidates if c.signal]
+    data = pl.DataFrame(
+        rows, schema=["candidate", "series", "auc", "low", "high"], orient="row"
+    ).with_columns(
+        pl.col("candidate").cast(pl.Enum(names[::-1])),
+        pl.col("series").cast(pl.Enum([MODEL, BANK])),
+    )
+    floor = min([CHANCE - 0.1, *(r[3] for r in rows)])
+    plot: ggplot = (
+        ggplot(data, aes("candidate", "auc", ymin="low", ymax="high", color="series"))
+        + geom_hline(yintercept=CHANCE, color=MUTED, size=0.5)
+        + geom_pointrange(position=position_dodge(width=0.5), size=0.6, fatten=3)
+        + coord_flip()
+        + scale_color_manual(values=list(SERIES), drop=False)
+        + scale_y_continuous(limits=(floor, 1), breaks=[CHANCE, 0.6, 0.7, 0.8, 0.9, 1])
+        + labs(x="", y="Held-out ROC AUC, with its 95% interval over customers")
+        + _theme()
+        + theme(legend_direction="vertical")
     )
     return plot
 

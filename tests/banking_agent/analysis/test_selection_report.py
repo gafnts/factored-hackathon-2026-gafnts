@@ -28,6 +28,26 @@ def test_names_the_gate_and_the_number_behind_each_verdict(
     assert "**fails**: <10 customers" in markdown
     assert "not in the dictionary: `complaints.transaction_id`" in markdown
     assert "never `transactions`" in markdown
+    assert "**One candidate passes all four gates: Card support.**" in markdown
+    assert "passes: ROC AUC 0.710 [0.620, 0.800]" in markdown
+    assert "**fails**: ROC AUC 0.505 [0.470, 0.540]" in markdown
+    assert "**fails**: no label in the dictionary" in markdown
+    assert "0.840 [0.800, 0.880] on 800 rows" in markdown
+    assert "| 40 to 60 | 50 | 50 (100.00%) |" in markdown
+    assert "| not scored | 200 | 0 |" in markdown
+
+
+def test_names_what_the_rule_does_when_none_or_several_pass(
+    selection: Selection,
+) -> None:
+    card = selection.candidates[1]
+    none = replace(selection, candidates=selection.candidates[::2])
+    two = replace(
+        selection, candidates=(card, replace(card, name="Card support again"))
+    )
+
+    assert "revisited in writing" in to_markdown(none)
+    assert "the written judgment chooses among them" in to_markdown(two)
 
 
 def test_json_suppresses_row_counts_but_not_thresholds(selection: Selection) -> None:
@@ -38,19 +58,28 @@ def test_json_suppresses_row_counts_but_not_thresholds(selection: Selection) -> 
     assert disputes["customers_in_state"] == "<10"
     assert disputes["fields"][1]["populated"] == "<10"
     assert data["thresholds"]["state_customers"] == 100
-    assert data["gates"]["card_support"] == {"f1": True, "f2": True, "e1": True}
+    assert data["gates"]["card_support"] == {
+        "f1": True,
+        "f2": True,
+        "e1": True,
+        "e2": True,
+        "passes": True,
+    }
     assert data["gates"]["disputes"]["e1"] is False
+    assert data["candidates"][1]["signal"]["held_out"]["positives"] == "<10"
+    assert data["fraud_by_score"][0] == {"low": 0, "transactions": 900, "fraud": "<10"}
 
 
 def test_writes_the_report_its_data_and_its_figure(
     selection: Selection, tmp_path: Path
 ) -> None:
-    markdown, data, figure = write(selection, tmp_path / "analysis")
+    markdown, data, *figures = write(selection, tmp_path / "analysis")
 
     assert markdown.read_text().startswith("# Workflow selection")
     assert json.loads(data.read_text())["snapshot_id"] == selection.snapshot_id
-    assert figure.suffix == ".svg"
-    assert f"figures/{figure.name}" in markdown.read_text()
+    assert [f.suffix for f in figures] == [".svg", ".svg"]
+    for figure in figures:
+        assert f"figures/{figure.name}" in markdown.read_text()
 
 
 def test_says_so_when_complaints_reference_transactions(selection: Selection) -> None:

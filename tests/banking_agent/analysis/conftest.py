@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from banking_agent.analysis.catalog import EventDate, Table, table
+from banking_agent.analysis.learned import Auc, ScoreBand, Side, Signal
 from banking_agent.analysis.selection import (
     CandidateGates,
     FieldPopulation,
@@ -146,6 +147,7 @@ def _gates(
     fields: tuple[FieldPopulation, ...],
     customers: int,
     unknown: tuple[str, ...] = (),
+    signal: Signal | None = None,
 ) -> CandidateGates:
     return CandidateGates(
         key=key,
@@ -154,6 +156,18 @@ def _gates(
         fields=fields,
         customers_in_state=customers,
         rules=RuleCheck(("One", "Two", "Three"), 11, unknown, ()),
+        signal=signal,
+    )
+
+
+def _signal(auc: Auc | None, fraud_score: Auc | None = None) -> Signal:
+    return Signal(
+        label="`is_fraud` on test rows",
+        training=Side(rows=4_000, customers=800, positives=40),
+        held_out=Side(rows=1_000, customers=200, positives=8),
+        auc=auc,
+        fraud_score=fraud_score,
+        fraud_score_rows=800 if fraud_score else 0,
     )
 
 
@@ -179,6 +193,7 @@ def selection() -> Selection:
                     FieldPopulation("transactions", "is_fraud", 100, 100),
                 ),
                 150,
+                signal=_signal(Auc(0.71, 0.62, 0.80), Auc(0.84, 0.80, 0.88)),
             ),
             _gates(
                 "disputes",
@@ -189,7 +204,13 @@ def selection() -> Selection:
                 ),
                 5,
                 ("complaints.transaction_id",),
+                signal=_signal(Auc(0.505, 0.47, 0.54)),
             ),
         ),
         complaints_reference=("customers", "products"),
+        fraud_by_score=(
+            ScoreBand(0, 900, 3),
+            ScoreBand(40, 50, 50),
+            ScoreBand(None, 200, 0),
+        ),
     )

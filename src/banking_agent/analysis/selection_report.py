@@ -7,10 +7,22 @@ from dataclasses import asdict
 from pathlib import Path
 
 from banking_agent.analysis import figures
+from banking_agent.analysis.learned import (
+    CHANCE,
+    HELD_OUT_EVERY,
+    LEVEL,
+    PENALTY_C,
+    RESAMPLES,
+    SCORE_BAND,
+    SEED,
+    Auc,
+    ScoreBand,
+)
 from banking_agent.analysis.report import (
     SUPPRESS_BELOW,
     count,
     markdown_table,
+    share,
     suppress,
 )
 from banking_agent.analysis.selection import (
@@ -25,8 +37,20 @@ from banking_agent.analysis.selection import (
 ADR = "../adr/0003-choose-workflow-from-evidence.md"
 FIGURES = "figures"
 F1_FIGURE = "selection-f1-fields.svg"
+E2_FIGURE = "selection-e2-learned.svg"
 
-ROW_COUNTS = frozenset({"rows", "populated", "customers_in_state"})
+ROW_COUNTS = frozenset(
+    {
+        "rows",
+        "populated",
+        "customers_in_state",
+        "customers",
+        "positives",
+        "fraud_score_rows",
+        "transactions",
+        "fraud",
+    }
+)
 
 
 def to_json(selection: Selection) -> str:
@@ -37,9 +61,18 @@ def to_json(selection: Selection) -> str:
             "field_share": FIELD_SHARE,
             "state_customers": STATE_CUSTOMERS,
             "rules": RULES,
+            "auc_interval_above": CHANCE,
+        },
+        "e2": {
+            "held_out_every": HELD_OUT_EVERY,
+            "penalty_c": PENALTY_C,
+            "resamples": RESAMPLES,
+            "level": LEVEL,
+            "seed": SEED,
         },
         "gates": {
-            c.key: {"f1": c.f1, "f2": c.f2, "e1": c.e1} for c in selection.candidates
+            c.key: {"f1": c.f1, "f2": c.f2, "e1": c.e1, "e2": c.e2, "passes": c.passes}
+            for c in selection.candidates
         },
     }
     return json.dumps(suppress(data, ROW_COUNTS), indent=2, ensure_ascii=False) + "\n"
@@ -76,6 +109,42 @@ def _e1_cell(c: CandidateGates) -> str:
     return _verdict(c.e1, detail)
 
 
+def _auc(auc: Auc | None) -> str:
+    if auc is None:
+        return "n/a"
+    return f"{auc.estimate:.3f} [{auc.low:.3f}, {auc.high:.3f}]"
+
+
+def _e2_cell(c: CandidateGates) -> str:
+    if c.signal is None:
+        return _verdict(False, "no label in the dictionary")
+    if c.signal.auc is None:
+        return _verdict(False, "no estimate: a side holds one class")
+    return _verdict(c.e2, f"ROC AUC {_auc(c.signal.auc)}")
+
+
+def _result(selection: Selection) -> str:
+    passing = [c.name for c in selection.candidates if c.passes]
+    if not passing:
+        return (
+            "**No candidate passes all four gates.** Under ADR-0003, the gates are revisited "
+            "in writing before anything else."
+        )
+    if len(passing) == 1:
+        return (
+            f"**One candidate passes all four gates: {passing[0]}.** Under ADR-0003, a single "
+            "passing candidate wins."
+        )
+    return (
+        f"**{len(passing)} candidates pass all four gates:** {', '.join(passing)}. Under "
+        "ADR-0003, the written judgment chooses among them."
+    )
+
+
+def _band(b: ScoreBand) -> str:
+    return "not scored" if b.low is None else f"{b.low} to {b.low + SCORE_BAND}"
+
+
 def to_markdown(selection: Selection) -> str:
     lines = [
         "# Workflow selection",
@@ -88,10 +157,18 @@ def to_markdown(selection: Selection) -> str:
         "",
         "## Gates",
         "",
+        _result(selection),
+        "",
         *markdown_table(
-            ["Candidate", "F1: fields", "F2: state", "E1: reference outcomes"],
+            [
+                "Candidate",
+                "F1: fields",
+                "F2: state",
+                "E1: reference outcomes",
+                "E2: learned component",
+            ],
             (
-                [c.name, _f1_cell(c), _f2_cell(c), _e1_cell(c)]
+                [c.name, _f1_cell(c), _f2_cell(c), _e1_cell(c), _e2_cell(c)]
                 for c in selection.candidates
             ),
         ),
@@ -160,6 +237,55 @@ def to_markdown(selection: Selection) -> str:
         ),
         "",
         _complaints_note(selection.complaints_reference),
+        "",
+        "## E2: learned component",
+        "",
+        f"A logistic regression (L2, C = {PENALTY_C:g}, no tuning) on the fields recorded with each "
+        "event, fitted on every customer outside the held-out fifth (the MD5 of `customer_id` "
+        f"divisible by {HELD_OUT_EVERY}) and scored on that fifth. E2 passes when the {LEVEL:.0%} "
+        f"percentile interval of the held-out ROC AUC, over {RESAMPLES:,} resamples of held-out "
+        f"customers (seed {SEED}), lies above {CHANCE}. The features are ADR-0003's; "
+        "`fraud_score`, `response_code`, and `transaction_status` are never among them.",
+        "",
+        f"![Held-out ROC AUC by candidate, against fraud_score]({FIGURES}/{E2_FIGURE})",
+        "",
+        *markdown_table(
+            [
+                "Candidate",
+                "Label",
+                "Training rows (positives)",
+                "Held-out rows (positives)",
+                "Held-out customers",
+                "ROC AUC [95% interval]",
+                "`fraud_score` ROC AUC",
+            ],
+            (
+                [
+                    c.name,
+                    s.label,
+                    f"{count(s.training.rows)} ({count(s.training.positives)})",
+                    f"{count(s.held_out.rows)} ({count(s.held_out.positives)})",
+                    count(s.held_out.customers),
+                    _auc(s.auc),
+                    f"{_auc(s.fraud_score)} on {count(s.fraud_score_rows)} rows"
+                    if s.fraud_score
+                    else "n/a",
+                ]
+                if (s := c.signal)
+                else [c.name, "none in the dictionary", *["n/a"] * 5]
+                for c in selection.candidates
+            ),
+        ),
+        "",
+        "`is_fraud` on card transactions by the bank's `fraud_score`, the field E2 leaves out:",
+        "",
+        *markdown_table(
+            ["`fraud_score`", "Card transactions", "Marked `is_fraud`"],
+            (
+                [_band(b), count(b.transactions), share(b.fraud, b.transactions)]
+                for b in selection.fraud_by_score
+            ),
+        ),
     ]
     return "\n".join(lines) + "\n"
 
@@ -187,4 +313,10 @@ def write(selection: Selection, out: Path) -> tuple[Path, ...]:
         width=7,
         height=1.2 + 0.2 * fields,
     )
-    return markdown, data, figure
+    learned = figures.save(
+        figures.learned_signals(selection),
+        out / FIGURES / E2_FIGURE,
+        width=7,
+        height=1.6 + 0.6 * sum(1 for c in selection.candidates if c.signal),
+    )
+    return markdown, data, figure, learned
