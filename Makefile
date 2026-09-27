@@ -18,7 +18,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 	check lint format type tf-format \
 	test integration \
 	bootstrap backend doctor provision teardown \
-	data snapshot \
+	data snapshot analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
 	init plan apply destroy lock \
@@ -103,6 +103,11 @@ data: ## Download the pinned dataset snapshot into data/ and verify it (ADOPT=1 
 
 snapshot: data ## Copy the pinned snapshot into this account's data bucket
 	uv run python -m banking_agent.dataset upload
+
+##@ Analysis
+
+analysis: ## Profile the pinned snapshot in data/ and write the reports to docs/analysis/
+	uv run python -m banking_agent.analysis profile
 
 ##@ IAM module
 
