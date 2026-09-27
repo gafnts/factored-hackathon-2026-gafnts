@@ -14,11 +14,13 @@
 
 ## Status
 
-Proposed (2026-09-27). This revision fixes the rule before any gate has been computed for any workflow; the evidence and the choice are added when the ADR is accepted. A second revision, also before any gate ran, fixed how each gate is measured (see Measurement); for it we read the distinct values of `product_type` and `response_code`, never their counts.
+Accepted (2026-09-27): card support (see [Result](#result)).
 
-The table-level [data quality profile](../analysis/profiling.md) ran before this revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with; the rows F1 reads come from the dictionary's own scopes, not from those rates.
+The first revision fixed the rule before any gate had been computed for any workflow. A second, also before any gate ran, fixed how each gate is measured (see Measurement); for it we read the distinct values of `product_type` and `response_code`, never their counts.
 
-The gates ran on 2026-09-27, and no candidate passed all four (see the [selection report](../analysis/selection.md)). A third revision, written with every gate result in view, revisits them as the rule requires (see [Revisit](#revisit)); it was committed before `make analysis` ran again. It also corrects two sentences that called `fraud_score` the bank's existing model.
+The table-level [data quality profile](../analysis/profiling.md) ran before the first revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with; the rows F1 reads come from the dictionary's own scopes, not from those rates.
+
+The gates ran on 2026-09-27, and no candidate passed all four (see the [selection report](../analysis/selection.md)). A third revision, written with every gate result in view, revisits them as the rule requires (see [Revisit](#revisit)); it was committed before `make analysis` ran again. It also corrects two sentences that called `fraud_score` the bank's existing model. Acceptance adds the result and its consequences for the evaluation; the rule is unchanged since the revisit.
 
 ## Context
 
@@ -178,6 +180,19 @@ With E2 set aside, card support is the only candidate that passes, so it wins un
 
 Setting E2 aside leaves DML-07 without a learned component, so the component moves to the evaluation ADR, with labels we write: a classifier of the customer's request, in Spanish and Portuguese, that routes it to a supported request, an unsupported one, or a human (CTL-01, CTL-03). Its labels come from the workflow policy's list of requests, written before the requests it is tested on, and it is compared with a keyword router on held-out requests; the evaluation ADR fixes the model, the baseline, and the split, and justifies them (DML-10, DML-11). The weakness named under counting labels we write towards E2 stands: the component's case for DML-07 and DML-08 rests on our labels, not on the bank's records.
 
+### Result
+
+On snapshot `b3b8b248f604ef9a`, as of 2026-06-18 06:00 (business date 2026-06-17), from the [selection report](../analysis/selection.md):
+
+| Candidate | F1: fields | F2: state | E1: reference outcomes | E2 (set aside) |
+|---|---|---|---|---|
+| Account and payment inquiries | fails: `merchant_name` has no rows | passes: 48,477 customers | passes | no label |
+| Card support | passes: lowest 94.95% | passes: 32,588 customers | passes | ROC AUC 0.493 [0.462, 0.523] |
+| Transaction-dispute intake | fails: `fraud_score` 80.19%, `claimed_amount` 33.01% | passes: 38,598 customers | passes | ROC AUC 0.506 [0.469, 0.543] |
+| Credit information and eligibility | fails: `credit_score` 85.01%, `estimated_monthly_income` 79.98% | passes: 86,897 customers | passes | ROC AUC 0.508 [0.498, 0.519] |
+
+**We choose card support.** It is the only candidate that passes the gates, so the judgment's criteria don't run. Its normal path serves the signed-in customer's active credit or debit cards: their status and available credit, declines explained by their response codes, and a block on the customer's confirmation, verified in the sandbox. A charge the customer doesn't recognize goes to review, marked `is_fraud` or not, and hands off to dispute intake with a structured payload (CTL-05), without doing its steps.
+
 ## Alternatives considered
 
 **Rank by the agent time and customer pain of each workflow's contacts** (the first draft). It would have been the strongest evidence of need, but it depends on attributing contacts to workflows, which this snapshot can't do.
@@ -206,6 +221,7 @@ Positive:
 - The limits of the contact-center data are reported as findings (PRB-03, SCP-07) instead of being hidden behind a ranking.
 - The same run produces the human baseline per reason category (PRB-07) and the evidence for PRB-01 to PRB-04.
 - That no supplied label carries signal, and that `fraud_score` is drawn from `is_fraud`, is reported as a data limitation (PRB-03, SCP-07) instead of hidden behind a model that learned the leak.
+- Card support's normal path runs the whole loop the brief asks for: explain verified facts, act on confirmation, verify the result, and hand off (CTL-02, AI-05, CTL-05).
 
 Negative:
 - The choice rests on feasibility and judgment, not on measured demand; the ADR can't claim that customers need the chosen workflow most.
@@ -215,5 +231,12 @@ Negative:
 - Requiring data labels can reject a workflow that would work well with labels we write.
 - Attributable demand is lopsided: only complaints can be attributed, and only to disputes.
 - E2 is indirect for two candidates: the dispute label isn't tied to any dispute, and credit's features and label come from one snapshot with no history.
-- Card support can fail F1 on `expiration_date`, which the dictionary documents for term products while its tools read it on cards.
+- F1 measures whether a field is populated, not whether it is right. Card support passed it on `expiration_date` (95.09%), yet about half of all cards, in every status, are past their expiration date, and active ones keep transacting after it.
 - The thresholds (99%, 90%, 100 customers, 30 and 60 days, 30 days past due, the 95% interval) and the measurement settings (the feature lists, the held-out fifth, C = 1, 1,000 resamples) are conventions, not derived values.
+
+For the evaluation:
+- Two of card support's situations are thin in natural records: in the 30 days before the as-of instant, 96 customers have a decline with a missing `response_code` and 34 have a transaction marked `is_fraud` on an active card (289 and 117 over 90 days, before the held-out fifth is taken). The evaluation ADR sizes the held-out cases against held-out customers, with a longer window and built cases.
+- Declines carry only the four codes the rule explains, in equal shares, plus about 5% missing; the rule's branch for an unlisted code never occurs, so its cases are built. Every card transaction sits on an active card, so cases with a blocked or closed card and recent activity are built too.
+- Core fields miss about 5% of values at random, independently of each other: material for missing-data cases (EVL-02), reported as injected rather than realistic (SCP-07).
+- An active card past its expiration date is a conflict the tools surface, not a fact they report or resolve; the policy says what the agent does with it, and the held-out cases include it.
+- `is_fraud` is flat, so no expected outcome treats it as the truth of a customer's claim; it stands only for the bank's own flag.
