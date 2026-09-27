@@ -1,7 +1,8 @@
 """
 Snapshots written by the team: three tables with one instance of each problem the profile looks for,
-a small bank with one instance of each case the selection measures, and a selection with one instance
-of each verdict the report writes.
+a small bank with one instance of each case the selection measures, a selection with one instance
+of each verdict the report writes, and a small card bank with one instance of each case the card
+support analysis measures.
 """
 
 import hashlib
@@ -12,10 +13,12 @@ from pathlib import Path
 import duckdb
 import pytest
 
+from banking_agent.analysis.cards import prepare, split
 from banking_agent.analysis.catalog import (
     CALL_CENTER_INTERACTIONS,
     COMPLAINTS,
     CUSTOMERS,
+    DAILY_EXCHANGE_RATES,
     PRODUCTS,
     SATISFACTION_SURVEYS,
     TRANSACTIONS,
@@ -235,6 +238,104 @@ def staged(bank: tuple[Lock, Path]) -> Iterator[duckdb.DuckDBPyConnection]:
     lock, root = bank
     con = connect(root, BANK_TABLES, {t.name: table_keys(lock, t) for t in BANK_TABLES})
     stage(con, BANK_AS_OF)
+    yield con
+    con.close()
+
+
+CARD_TABLES = (*BANK_TABLES, DAILY_EXCHANGE_RATES)
+
+# A3, A4, and A5 are development customers; A1 is held out (the MD5 of its ID is divisible by 5), so
+# none of its records may count. A6 registers after the as-of instant.
+CARD_FILES = {
+    "customers.csv": "customer_id,country,segment,customer_status,credit_score,"
+    "estimated_monthly_income,date_of_birth,registration_date\n"
+    "A3,México,Basic,Active,700,1000.00,1990-01-01,2020-01-01 10:00:00\n"
+    "A4,Colombia,Plus,Active,650,2000.00,1985-01-01,2020-01-01 10:00:00\n"
+    "A5,Argentina,Premium,Closed,,3000.00,1980-01-01,2020-01-01 10:00:00\n"
+    "A1,México,Basic,Active,700,1000.00,1990-01-01,2020-01-01 10:00:00\n"
+    "A6,México,Student,Active,,,2000-01-01,2026-06-18 07:00:00\n",
+    # K1 and K2 end in the same four digits; K1 is over its limit, expired, and updated after the
+    # as-of instant. K2 opens after its first transaction, K4 has no limit, K5's balance equals the
+    # savings account S1, and K7 opens after the as-of instant.
+    "products.csv": "product_id,customer_id,product_type,product_number,product_status,currency,"
+    "current_balance,credit_limit,interest_rate,expiration_date,days_past_due,opening_date,"
+    "last_transaction_date,last_updated\n"
+    "K1,A3,Tarjeta Crédito,4000000000000002,Active,USD,600.00,500.00,30.00,2026-01-01,0,"
+    "2021-01-01,2026-06-01 10:00:00,2027-01-01 00:00:00\n"
+    "K2,A3,Tarjeta Crédito,4111111111110002,Active,USD,100.00,1000.00,25.00,2029-01-01,0,"
+    "2026-06-15,,2026-06-15 12:00:00\n"
+    "K3,A3,Tarjeta Débito,4000000000000010,Blocked,USD,0.00,,,,,2022-01-01,"
+    "2025-01-01 10:00:00,2025-01-01 10:00:00\n"
+    "K4,A4,Tarjeta Crédito,4222222222222222,Active,COP,0.00,,24.00,2030-01-01,0,2020-01-01,"
+    "2026-03-01 12:00:00,2026-03-01 12:00:00\n"
+    "K5,A5,Tarjeta Débito,4333333333333333,Active,ARS,50.00,,,2028-01-01,,2020-01-01,"
+    "2026-01-01 12:00:00,2026-01-01 12:00:00\n"
+    "K6,A1,Tarjeta Crédito,4444444444444444,Active,USD,10.00,100.00,20.00,2030-01-01,0,"
+    "2020-01-01,,2026-01-01 00:00:00\n"
+    "K7,A4,Tarjeta Crédito,4555555555555555,Active,COP,999.00,1000.00,20.00,2027-01-01,0,"
+    "2026-06-19,,2026-06-19 00:00:00\n"
+    "S1,A5,Cuenta Ahorro,1000000001,Active,ARS,50.00,,,,,2020-01-01,,2020-01-01 00:00:00\n",
+    # T2 is a decline abroad with no code; T3 is marked fraud before K2 opened; T4 is pending with a
+    # decline code. T6 is held out, T7 is past the as-of instant, and T8 isn't on a card.
+    "transactions/year=2026/month=06/day=17/transactions_20260617.csv": "transaction_id,"
+    "transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,"
+    "amount,amount_usd,currency,channel,merchant_name,merchant_category,transaction_country,"
+    "transaction_status,response_code,is_fraud,fraud_score\n"
+    "T1,2026-06-17 10:00:00,2026-06-17,K1,A3,Purchase,Food,20.00,,USD,POS,Shop,Food,México,"
+    "Approved,00,False,1.00\n"
+    "T2,2026-06-18 05:59:00,2026-06-17,K1,A3,Purchase,Food,30.00,,USD,Web,Shop,Food,USA,"
+    "Declined,,False,2.00\n"
+    "T3,2026-06-10 09:00:00,2026-06-10,K2,A3,Purchase,,40.00,,USD,POS,,,México,"
+    "Declined,51,True,\n"
+    "T4,2026-03-01 12:00:00,2026-03-01,K4,A4,Withdrawal,,400000.00,100.00,COP,ATM,,,Colombia,"
+    "Pending,05,False,5.00\n"
+    "T5,2025-01-01 12:00:00,2025-01-01,K5,A5,Payment,Services,3500.00,10.00,ARS,App,,,Argentina,"
+    "Approved,00,False,3.00\n"
+    "T6,2026-06-17 11:00:00,2026-06-17,K6,A1,Purchase,Food,10.00,,USD,POS,Shop,Food,México,"
+    "Declined,,True,90.00\n"
+    "T7,2026-06-18 07:00:00,2026-06-17,K1,A3,Purchase,Food,5.00,,USD,POS,Shop,Food,México,"
+    "Approved,00,False,1.00\n"
+    "T8,2026-06-17 09:00:00,2026-06-17,S1,A5,Deposit,,100.00,0.29,ARS,Branch,,,Argentina,"
+    "Approved,00,False,0.10\n",
+    "complaints/year=2026/month=06/day=17/complaints_20260617.csv": "complaint_id,creation_date,"
+    "process_date,customer_id,case_type,category,subcategory,affected_product_id,claimed_amount,status\n"
+    "Q1,2026-06-01 10:00:00,2026-06-01,A3,Claim,Transactions,Cargo no reconocido,K1,20.00,Open\n"
+    "Q2,2025-01-01 10:00:00,2025-01-01,A4,Complaint,Fees,,,,Resolved\n"
+    "Q3,2026-06-01 10:00:00,2026-06-01,A1,Complaint,Service,,K6,,Open\n"
+    "Q4,2026-06-02 10:00:00,2026-06-02,A5,Complaint,Fees,,S1,,Open\n",
+    "call_center_interactions/year=2026/month=06/day=17/call_center_interactions_20260617.csv": "interaction_id,"
+    "interaction_date,process_date,customer_id,reason_category,duration_seconds,was_resolved,was_escalated\n"
+    "I1,2026-06-01 10:00:00,2026-06-01,A3,Producto,100,True,False\n"
+    "I2,2026-06-01 11:00:00,2026-06-01,A1,Queja,100,True,False\n"
+    "I3,2024-01-01 10:00:00,2024-01-01,A4,Queja,100,True,False\n",
+    "satisfaction_surveys/year=2026/month=06/day=17/satisfaction_surveys_20260617.csv": "survey_id,"
+    "survey_date,process_date,interaction_id,customer_id,survey_type,main_score\n"
+    "V1,2026-06-02 10:00:00,2026-06-02,I1,A3,CSAT,4\n",
+    # The last rate is dated after the business date, and the one from COP isn't from USD.
+    "daily_exchange_rates.csv": "date,source_currency,target_currency,exchange_rate,buy_rate,"
+    "sell_rate,source\n"
+    "2026-06-16,USD,COP,3900.000000,,,\n"
+    "2026-06-17,USD,COP,4100.000000,,,\n"
+    "2026-06-17,USD,ARS,350.000000,,,\n"
+    "2026-06-17,COP,USD,0.000250,,,\n"
+    "2026-06-18,USD,COP,9999.000000,,,\n",
+}
+
+
+@pytest.fixture
+def card_bank(
+    snapshot_of: Callable[[dict[str, str]], tuple[Lock, Path]],
+) -> tuple[Lock, Path]:
+    return snapshot_of(CARD_FILES)
+
+
+@pytest.fixture
+def card_staged(card_bank: tuple[Lock, Path]) -> Iterator[duckdb.DuckDBPyConnection]:
+    lock, root = card_bank
+    con = connect(root, CARD_TABLES, {t.name: table_keys(lock, t) for t in CARD_TABLES})
+    stage(con, BANK_AS_OF)
+    split(con)
+    prepare(con, date(2026, 6, 17))
     yield con
     con.close()
 
