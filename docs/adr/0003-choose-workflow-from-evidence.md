@@ -1,5 +1,17 @@
 # ADR-0003: Choose the workflow from evidence
 
+> [!IMPORTANT]
+> **The snapshot looks like a bank but doesn't behave like one.** Its tables fit together (purchases sit on cards, handle time varies with the contact reason), but the values that would carry a bank's behavior were generated without regard to the rest of the record:
+>
+> - `is_fraud` and `days_past_due` are independent of every field E2 reads, and `fraud_score` is drawn from `is_fraud`: a copy of the label, not a model.
+> - Contacts can't be tied to a workflow: six coarse reasons, transcripts templated independently of the reason, product mentions that point at random products.
+> - Records conflict: about half of all cards, active ones included, are past their expiration date, and the active ones still transact.
+> - Missing values, about 5% of each core field, are injected at random.
+>
+> **So:** the workflow is chosen on feasibility, not on demand or learnable signal. Nothing learns from the bank's labels; the learned component is a router of customer requests, with labels from our policy. Expected outcomes come from our policy applied to the frozen state. `is_fraud` is read as the bank's own flag, never as the truth of a customer's claim, so a charge the customer doesn't recognize goes to review either way. Tools surface conflicting records instead of resolving them, and every gap is reported as a limitation (SCP-07).
+>
+> **The choice is card support.** With E2 set aside (no candidate can pass it on this data), it is the only candidate that passes F1, F2, and E1: its core fields are at least 94.95% populated, and 32,588 customers are in its normal-path state. That shows card support is feasible, not that the others are infeasible or that customers need it most, and it was our working hypothesis (see [Revisit](#revisit)). Its normal path also runs the whole loop the brief asks for: explain verified facts, act on confirmation (a card block in the sandbox), verify the result, and hand off with evidence.
+
 ## Status
 
 Proposed (2026-09-27). This revision fixes the rule before any gate has been computed for any workflow; the evidence and the choice are added when the ADR is accepted. A second revision, also before any gate ran, fixed how each gate is measured (see Measurement); for it we read the distinct values of `product_type` and `response_code`, never their counts.
