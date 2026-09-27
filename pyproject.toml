@@ -14,7 +14,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-  "boto3>=1.43.103",
+  "boto3[crt]>=1.43.103",
 ]
 
 [dependency-groups]
