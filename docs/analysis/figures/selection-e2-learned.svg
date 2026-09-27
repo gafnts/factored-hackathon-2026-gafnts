@@ -221,52 +221,52 @@ L 413.881751 79.690845
    <text style="font-size: 8px; font-family: 'DejaVu Sans', sans-serif; text-anchor: start; fill: #52514e" x="204.660625" y="237.838125" transform="rotate(-0 204.660625 237.838125)">Held-out ROC AUC, with its 95% interval over customers</text>
   </g>
   <g id="line2d_10">
-   <path d="M 218.646875 13.96 
-L 234.486875 13.96 
-" clip-path="url(#pc79dba1c06)" style="fill: none; stroke: #2a78d6; stroke-width: 1.063472"/>
+   <path d="M 220.9575 13.96 
+L 236.7975 13.96 
+" clip-path="url(#pa260f4e822)" style="fill: none; stroke: #2a78d6; stroke-width: 1.063472"/>
   </g>
   <g id="line2d_11">
-   <path d="M 226.566875 13.96 
-" clip-path="url(#pc79dba1c06)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"/>
-   <g clip-path="url(#pc79dba1c06)">
-    <use xlink:href="#ma02746507f" x="226.566875" y="13.96" style="fill: #2a78d6; stroke: #2a78d6; stroke-width: 0.886227"/>
+   <path d="M 228.8775 13.96 
+" clip-path="url(#pa260f4e822)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"/>
+   <g clip-path="url(#pa260f4e822)">
+    <use xlink:href="#ma02746507f" x="228.8775" y="13.96" style="fill: #2a78d6; stroke: #2a78d6; stroke-width: 0.886227"/>
    </g>
   </g>
   <g id="text_11">
-   <text style="font-size: 8px; font-family: 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #52514e" x="317.09625" y="16.038438" transform="rotate(-0 317.09625 16.038438)">Logistic regression on the event's fields</text>
+   <text style="font-size: 8px; font-family: 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #52514e" x="319.406875" y="16.038438" transform="rotate(-0 319.406875 16.038438)">Logistic regression on the event's fields</text>
   </g>
   <g id="line2d_12">
-   <path d="M 218.646875 31.8 
-L 234.486875 31.8 
-" clip-path="url(#p0638b080f1)" style="fill: none; stroke: #eb6834; stroke-width: 1.063472"/>
+   <path d="M 220.9575 31.8 
+L 236.7975 31.8 
+" clip-path="url(#p35a4f6a91d)" style="fill: none; stroke: #eb6834; stroke-width: 1.063472"/>
   </g>
   <g id="line2d_13">
-   <path d="M 226.566875 31.8 
-" clip-path="url(#p0638b080f1)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"/>
-   <g clip-path="url(#p0638b080f1)">
-    <use xlink:href="#mb7708c082d" x="226.566875" y="31.8" style="fill: #eb6834; stroke: #eb6834; stroke-width: 0.886227"/>
+   <path d="M 228.8775 31.8 
+" clip-path="url(#p35a4f6a91d)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"/>
+   <g clip-path="url(#p35a4f6a91d)">
+    <use xlink:href="#mb7708c082d" x="228.8775" y="31.8" style="fill: #eb6834; stroke: #eb6834; stroke-width: 0.886227"/>
    </g>
   </g>
   <g id="text_12">
-   <text style="font-size: 8px; font-family: 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #52514e" x="327.2975" y="33.878438" transform="rotate(-0 327.2975 33.878438)">fraud_score, the bank's own model (context)</text>
+   <text style="font-size: 8px; font-family: 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #52514e" x="327.2975" y="33.878438" transform="rotate(-0 327.2975 33.878438)">fraud_score, drawn from the label (context)</text>
   </g>
  </g>
  <defs>
   <clipPath id="pde6cfc2f06">
    <rect x="136.435" y="55.84" width="362.525" height="160.679375"/>
   </clipPath>
-  <clipPath id="pc79dba1c06">
-   <path d="M 218.646875 21.88 
-L 218.646875 6.04 
-L 234.486875 6.04 
-L 234.486875 21.88 
+  <clipPath id="pa260f4e822">
+   <path d="M 220.9575 21.88 
+L 220.9575 6.04 
+L 236.7975 6.04 
+L 236.7975 21.88 
 "/>
   </clipPath>
-  <clipPath id="p0638b080f1">
-   <path d="M 218.646875 39.72 
-L 218.646875 23.88 
-L 234.486875 23.88 
-L 234.486875 39.72 
+  <clipPath id="p35a4f6a91d">
+   <path d="M 220.9575 39.72 
+L 220.9575 23.88 
+L 236.7975 23.88 
+L 236.7975 39.72 
 "/>
   </clipPath>
  </defs>

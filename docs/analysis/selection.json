@@ -390,28 +390,53 @@
   "fraud_by_score": [
     {
       "low": 0,
-      "transactions": 824801,
-      "fraud": 241
+      "transactions": 412698,
+      "fraud": 111
+    },
+    {
+      "low": 10,
+      "transactions": 412103,
+      "fraud": 130
     },
     {
       "low": 20,
-      "transactions": 412171,
-      "fraud": 247
+      "transactions": 411838,
+      "fraud": 129
+    },
+    {
+      "low": 30,
+      "transactions": 333,
+      "fraud": 118
     },
     {
       "low": 40,
-      "transactions": 239,
-      "fraud": 239
+      "transactions": 111,
+      "fraud": 111
+    },
+    {
+      "low": 50,
+      "transactions": 128,
+      "fraud": 128
     },
     {
       "low": 60,
-      "transactions": 239,
-      "fraud": 239
+      "transactions": 124,
+      "fraud": 124
+    },
+    {
+      "low": 70,
+      "transactions": 115,
+      "fraud": 115
     },
     {
       "low": 80,
-      "transactions": 250,
-      "fraud": 250
+      "transactions": 127,
+      "fraud": 127
+    },
+    {
+      "low": 90,
+      "transactions": 123,
+      "fraud": 123
     },
     {
       "low": null,
@@ -419,6 +444,7 @@
       "fraud": 332
     }
   ],
+  "top_legitimate_score": 30.0,
   "evidence": {
     "depth": [
       {
@@ -680,6 +706,9 @@
     "level": 0.95,
     "seed": 20260927
   },
+  "set_aside": [
+    "e2"
+  ],
   "gates": {
     "account_inquiries": {
       "f1": false,
@@ -693,7 +722,7 @@
       "f2": true,
       "e1": true,
       "e2": false,
-      "passes": false
+      "passes": true
     },
     "disputes": {
       "f1": false,

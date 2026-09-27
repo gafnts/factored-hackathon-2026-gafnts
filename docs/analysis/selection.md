@@ -4,14 +4,16 @@ Snapshot `b3b8b248f604ef9a`, as of **2026-06-18 06:00:00** (business date 2026-0
 
 ## Gates
 
-**No candidate passes all four gates.** Under ADR-0003, the gates are revisited in writing before anything else.
+**One candidate passes the gates: Card support.** Under ADR-0003, a single passing candidate wins.
 
-| Candidate | F1: fields | F2: state | E1: reference outcomes | E2: learned component |
+The gates are F1, F2, and E1. ADR-0003's [revisit](../adr/0003-choose-workflow-from-evidence.md#revisit) sets E2 aside, since no candidate can pass it on this snapshot; its results stay in the report as evidence.
+
+| Candidate | F1: fields | F2: state | E1: reference outcomes | E2: learned component (set aside) |
 |---|---|---|---|---|
-| Account and payment inquiries | **fails**: `transactions.merchant_name` no rows | passes: 48,477 customers | passes: 3 rules over 11 fields | **fails**: no label in the dictionary |
-| Card support | passes: lowest 94.95% | passes: 32,588 customers | passes: 3 rules over 11 fields | **fails**: ROC AUC 0.493 [0.462, 0.523] |
-| Transaction-dispute intake | **fails**: `transactions.fraud_score` 80.19%, `complaints.claimed_amount` 33.01% | passes: 38,598 customers | passes: 3 rules over 9 fields | **fails**: ROC AUC 0.506 [0.469, 0.543] |
-| Credit information and eligibility | **fails**: `customers.credit_score` 85.01%, `customers.estimated_monthly_income` 79.98% | passes: 86,897 customers | passes: 3 rules over 9 fields | **fails**: ROC AUC 0.508 [0.498, 0.519] |
+| Account and payment inquiries | **fails**: `transactions.merchant_name` no rows | passes: 48,477 customers | passes: 3 rules over 11 fields | fails: no label in the dictionary |
+| Card support | passes: lowest 94.95% | passes: 32,588 customers | passes: 3 rules over 11 fields | fails: ROC AUC 0.493 [0.462, 0.523] |
+| Transaction-dispute intake | **fails**: `transactions.fraud_score` 80.19%, `complaints.claimed_amount` 33.01% | passes: 38,598 customers | passes: 3 rules over 9 fields | fails: ROC AUC 0.506 [0.469, 0.543] |
+| Credit information and eligibility | **fails**: `customers.credit_score` 85.01%, `customers.estimated_monthly_income` 79.98% | passes: 86,897 customers | passes: 3 rules over 9 fields | fails: ROC AUC 0.508 [0.498, 0.519] |
 
 ## F1: fields
 
@@ -104,7 +106,7 @@ Complaints reference `branches`, `call_center_interactions`, `customers`, `produ
 
 ## E2: learned component
 
-A logistic regression (L2, C = 1, no tuning) on the fields recorded with each event, fitted on every customer outside the held-out fifth (the MD5 of `customer_id` divisible by 5) and scored on that fifth. E2 passes when the 95% percentile interval of the held-out ROC AUC, over 1,000 resamples of held-out customers (seed 20260927), lies above 0.5. The features are ADR-0003's; `fraud_score`, `response_code`, and `transaction_status` are never among them.
+A logistic regression (L2, C = 1, no tuning) on the fields recorded with each event, fitted on every customer outside the held-out fifth (the MD5 of `customer_id` divisible by 5) and scored on that fifth. E2 passes when the 95% percentile interval of the held-out ROC AUC, over 1,000 resamples of held-out customers (seed 20260927), lies above 0.5. The features are ADR-0003's; `fraud_score`, `response_code`, and `transaction_status` are never among them. ADR-0003's revisit sets E2 aside, so these results are evidence, not a gate.
 
 ![Held-out ROC AUC by candidate, against fraud_score](figures/selection-e2-learned.svg)
 
@@ -115,15 +117,20 @@ A logistic regression (L2, C = 1, no tuning) on the fields recorded with each ev
 | Transaction-dispute intake | `is_fraud` on the transactions a customer could dispute (approved purchases) | 798,318 (805) | 197,850 (201) | 16,339 | 0.506 [0.469, 0.543] | 0.847 [0.801, 0.894] on 158,115 rows |
 | Credit information and eligibility | `days_past_due` of 30 or more on credit products | 100,645 (12,567) | 24,705 (3,084) | 16,811 | 0.508 [0.498, 0.519] | n/a |
 
-`is_fraud` on card transactions by the bank's `fraud_score`, the field E2 leaves out:
+`is_fraud` on card transactions by `fraud_score`, the field E2 leaves out. No legitimate card transaction scores above 30.00, so every one scored higher is fraud:
 
 | `fraud_score` | Card transactions | Marked `is_fraud` |
 |---|---|---|
-| 0 to 20 | 824,801 | 241 (0.03%) |
-| 20 to 40 | 412,171 | 247 (0.06%) |
-| 40 to 60 | 239 | 239 (100.00%) |
-| 60 to 80 | 239 | 239 (100.00%) |
-| 80 to 100 | 250 | 250 (100.00%) |
+| 0 to 10 | 412,698 | 111 (0.03%) |
+| 10 to 20 | 412,103 | 130 (0.03%) |
+| 20 to 30 | 411,838 | 129 (0.03%) |
+| 30 to 40 | 333 | 118 (35.44%) |
+| 40 to 50 | 111 | 111 (100.00%) |
+| 50 to 60 | 128 | 128 (100.00%) |
+| 60 to 70 | 124 | 124 (100.00%) |
+| 70 to 80 | 115 | 115 (100.00%) |
+| 80 to 90 | 127 | 127 (100.00%) |
+| 90 to 100 | 123 | 123 (100.00%) |
 | not scored | 309,732 | 332 (0.11%) |
 
 ## Judgment evidence
