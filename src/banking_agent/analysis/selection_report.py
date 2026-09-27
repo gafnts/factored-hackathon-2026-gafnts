@@ -19,6 +19,7 @@ from banking_agent.analysis.learned import (
     Auc,
     ScoreBand,
 )
+from banking_agent.analysis.plotting import save
 from banking_agent.analysis.report import (
     SUPPRESS_BELOW,
     count,
@@ -462,13 +463,13 @@ def write(selection: Selection, out: Path) -> tuple[Path, ...]:
     markdown.write_text(to_markdown(selection))
     data.write_text(to_json(selection))
     fields = sum(len(c.fields) for c in selection.candidates)
-    figure = figures.save(
+    figure = save(
         figures.field_populations(selection),
         out / FIGURES / F1_FIGURE,
         width=7,
         height=1.2 + 0.2 * fields,
     )
-    learned = figures.save(
+    learned = save(
         figures.learned_signals(selection),
         out / FIGURES / E2_FIGURE,
         width=7,
