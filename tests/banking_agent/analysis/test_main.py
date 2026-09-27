@@ -3,11 +3,13 @@ The command line behind make analysis (PRB-05, OPS-07).
 """
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from banking_agent.analysis import __main__ as cli
 from banking_agent.analysis import profile as profiling
+from banking_agent.analysis.cards import CardSupport
 from banking_agent.analysis.catalog import Table
 from banking_agent.analysis.selection import Selection
 from banking_agent.dataset.lock import Lock, write_lock
@@ -68,6 +70,82 @@ def test_select_writes_the_profile_and_the_selection(
         "selection-f1-fields.svg",
         "selection-e2-learned.svg",
     }
+
+
+CARD_SUPPORT_FILES = {
+    "card-support.md",
+    "card-support.json",
+    "card-support-daily.svg",
+    "card-support-declines.svg",
+    "card-support-utilization.svg",
+    "card-support-dates.svg",
+}
+
+
+@pytest.mark.filterwarnings("ignore::plotnine.exceptions.PlotnineWarning")
+def test_cards_writes_the_profile_and_the_card_support_analysis(
+    locked: None,
+    root: Path,
+    tmp_path: Path,
+    card_result: CardSupport,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(cli, "card_support", lambda *args, **kwargs: card_result)
+
+    assert cli.main([*options(tmp_path), "cards"]) == 0
+    written = {p.name for p in (tmp_path / "analysis").rglob("*") if p.is_file()}
+    assert written == {"profiling.md", "profiling.json", *CARD_SUPPORT_FILES}
+
+
+@pytest.mark.filterwarnings("ignore::plotnine.exceptions.PlotnineWarning")
+def test_all_profiles_once_and_writes_every_report(
+    locked: None,
+    root: Path,
+    tmp_path: Path,
+    selection: Selection,
+    card_result: CardSupport,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profiles = []
+
+    def counted(*args: Any, **kwargs: Any) -> profiling.Profile:
+        profiles.append(args)
+        return profiling.profile(*args, **kwargs)
+
+    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(cli, "profile", counted)
+    monkeypatch.setattr(cli, "select", lambda *args, **kwargs: selection)
+    monkeypatch.setattr(cli, "card_support", lambda *args, **kwargs: card_result)
+
+    assert cli.main([*options(tmp_path), "all"]) == 0
+    written = {p.name for p in (tmp_path / "analysis").rglob("*") if p.is_file()}
+    assert len(profiles) == 1
+    assert written == {
+        "profiling.md",
+        "profiling.json",
+        "selection.md",
+        "selection.json",
+        "selection-f1-fields.svg",
+        "selection-e2-learned.svg",
+        *CARD_SUPPORT_FILES,
+    }
+
+
+def test_cards_needs_the_tables_it_reads(
+    locked: None,
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+
+    assert cli.main([*options(tmp_path), "cards"]) == 1
+    assert (
+        "the card support analysis needs call_center_interactions"
+        in capsys.readouterr().err
+    )
 
 
 def test_select_needs_the_tables_it_stages(

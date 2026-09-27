@@ -148,7 +148,7 @@ With the snapshot in place, analyze it:
 make analysis
 ```
 
-It reads exactly the files in the lock, with no AWS access, and writes two reports to [docs/analysis/](docs/analysis/), stamped with the snapshot ID: the data quality profile, and the workflow selection that [ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md) rules on, read as of the instant the profile dates. Each is a Markdown report with the same numbers as JSON; the selection adds SVG figures. The reports publish aggregates only, with row counts under 10 suppressed. A rerun on the same snapshot writes the same bytes, and takes a few minutes.
+It reads exactly the files in the lock, with no AWS access, and writes three reports to [docs/analysis/](docs/analysis/), stamped with the snapshot ID: the data quality profile; the workflow selection that [ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md) rules on; and the card support analysis the card support policy cites, which reads development customers only. The last two read the snapshot as of the instant the profile dates. Each is a Markdown report with the same numbers as JSON; the selection and the card support analysis add SVG figures. The reports publish aggregates only, with row counts under 10 suppressed. A rerun on the same snapshot writes the same bytes, and takes a few minutes. To write fewer reports, run `uv run python -m banking_agent.analysis` with `profile`, `select`, or `cards` instead of `all`.
 
 ### 3. Deploy your own copy
 

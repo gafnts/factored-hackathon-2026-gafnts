@@ -6,7 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from banking_agent.analysis import selection_report
+from banking_agent.analysis import cards_report, selection_report
+from banking_agent.analysis.cards import card_support
 from banking_agent.analysis.catalog import TABLES
 from banking_agent.analysis.profile import profile
 from banking_agent.analysis.report import write
@@ -32,6 +33,15 @@ def main(argv: list[str] | None = None) -> int:
         "select",
         help="Profile the snapshot, then compute ADR-0003's gates into selection.md and selection.json",
     )
+    commands.add_parser(
+        "cards",
+        help="Profile the snapshot, then analyze the development customers' cards into card-support.md "
+        "and card-support.json",
+    )
+    commands.add_parser(
+        "all",
+        help="Profile the snapshot once, then write the selection and the card support analysis",
+    )
     args = parser.parse_args(argv)
 
     def log(line: str) -> None:
@@ -43,15 +53,21 @@ def main(argv: list[str] | None = None) -> int:
         check_local(lock, root)
         profiled = profile(lock, root, TABLES, log=log)
         written: tuple[Path, ...] = write(profiled, args.out)
-        if args.command == "select":
+        if args.command != "profile":
             business_date, as_of = profiled.business_date, profiled.as_of
             if business_date is None or as_of is None:
                 raise AnalysisError(
-                    "the profile found no business date to select as of"
+                    "the profile found no business date to read the snapshot as of"
                 )
-            written += selection_report.write(
-                select(lock, root, TABLES, business_date, as_of, log=log), args.out
-            )
+            if args.command in ("select", "all"):
+                written += selection_report.write(
+                    select(lock, root, TABLES, business_date, as_of, log=log), args.out
+                )
+            if args.command in ("cards", "all"):
+                written += cards_report.write(
+                    card_support(lock, root, TABLES, business_date, as_of, log=log),
+                    args.out,
+                )
     except (AnalysisError, LockError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
