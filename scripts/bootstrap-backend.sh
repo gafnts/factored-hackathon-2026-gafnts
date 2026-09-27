@@ -29,3 +29,4 @@ for ENV in "${ENVS[@]}"; do
 done
 
 write_backend "./infra/iam/backend.tfbackend" "service/iam/terraform.tfstate"
+write_backend "./infra/dataset/backend.tfbackend" "service/dataset/terraform.tfstate"
