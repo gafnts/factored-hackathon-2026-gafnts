@@ -6,9 +6,9 @@ This directory records the significant architectural decisions made in this proj
 
 | Element | Rule |
 |---|---|
-| File name | `NNNN-kebab-case-title.md` |
+| File name | `NNNN-short-slug.md`: a few words from the title in kebab case, without articles, e.g. `0004-agent-architecture-on-agentcore.md` |
 | Number | 4-digit zero-padded integer, assigned sequentially (`0001`, `0002`, …) |
-| Title | Short imperative phrase describing the decision (verb + noun), e.g. `use-event-driven-pipeline` |
+| Title | A formal phrase that names the decision itself (what is chosen, and for what), as a noun phrase or an imperative, e.g. `Offline scenario evaluation against an independent policy oracle` or `Choose the workflow from evidence` |
 | Status | `Proposed` → `Accepted` → `Deprecated` / `Superseded by ADR-NNNN` |
 
 > [!NOTE]
