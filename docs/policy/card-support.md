@@ -114,7 +114,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 ## Handoff
 
 - **POL-45** A handoff is required where a rule says the agent hands off, and offered where it says one is offered; an offered handoff is made only if the customer accepts. The reply says a person will follow up and gives the handoff's reference, promising no outcome or time. (CTL-03, CTL-05)
-- **POL-46** The payload follows the handoff schema: the request, verified facts each tied to the tool call that read it, actions with their verified outcome, the customer's own statements kept apart from verified facts, unresolved questions, the language, the reason code, and the rules that led to it. It carries no transcript. Its free text is written in Spanish, the bank's working language, and its `language` field tells the person which language to answer the customer in. (CTL-05, SEC-03)
+- **POL-46** The payload follows [the handoff schema](../../src/banking_agent/policy/handoff.schema.json): the request, verified facts each tied to the tool call that read it, actions with their verified outcome, the customer's own statements kept apart from verified facts, unresolved questions, the language, the reason code, and the rules that led to it. It carries no transcript. Its free text is written in Spanish, the bank's working language, and its `language` field tells the person which language to answer the customer in. (CTL-05, SEC-03)
 - **POL-47** An unrecognized charge goes to `dispute_intake` and every other handoff to `customer_service`. A handoff is `urgent` when the customer reported a card lost or stolen, or a charge they don't recognize, and that card isn't verified blocked; every other handoff is `normal`. (CTL-05)
 
 ### Handoff reasons
@@ -133,6 +133,56 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 | `record_conflict` | Offered | POL-31 | `customer_service` |
 | `missing_data` | Offered | POL-24, POL-32 | `customer_service` |
 | `tool_failure` | Offered | POL-48 | `customer_service` |
+
+### Example
+
+A Portuguese-speaking customer doesn't recognize a purchase and confirms a block, which the sandbox verifies. Every identifier and value is made up.
+
+```json
+{
+  "schema_version": 1,
+  "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50",
+  "created_at": "2026-10-02T15:42:08Z",
+  "session_id": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+  "customer_id": "CLI-EXAMPLE00001",
+  "versions": {"policy": 1, "snapshot": "b3b8b248f604ef9a"},
+  "business_date": "2026-06-17",
+  "language": "pt",
+  "queue": "dispute_intake",
+  "priority": "normal",
+  "trigger": "required",
+  "reason_code": "unrecognized_charge",
+  "rules": ["POL-39"],
+  "request": {
+    "label": "unrecognized_charge",
+    "summary": "El cliente no reconoce una compra del 14 de junio en su tarjeta de crédito terminada en 4821 y aceptó bloquearla."
+  },
+  "verified_facts": [
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "product_id", "value": "PRD-EXAMPLE00002", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "transaction_date", "value": "2026-06-14 21:07:33", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "transaction_type", "value": "Purchase", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "transaction_status", "value": "Approved", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "merchant_name", "value": "Comercio Ejemplo", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "amount", "value": 189.9, "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "currency", "value": "USD", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "transaction_country", "value": "USA", "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "is_fraud", "value": false, "evidence": "call-1"},
+    {"subject": "card", "id": "PRD-EXAMPLE00002", "field": "product_type", "value": "Tarjeta Crédito", "evidence": "call-3"},
+    {"subject": "card", "id": "PRD-EXAMPLE00002", "field": "last_four", "value": "4821", "evidence": "call-3"},
+    {"subject": "card", "id": "PRD-EXAMPLE00002", "field": "product_status", "value": "Blocked", "evidence": "call-3"}
+  ],
+  "actions": [
+    {"action": "block_card", "card_id": "PRD-EXAMPLE00002", "reason": "unrecognized_charge", "outcome": "verified", "confirmed_at": "2026-10-02T15:41:37Z", "evidence": ["call-2", "call-3"]}
+  ],
+  "evidence": [
+    {"call_id": "call-1", "tool": "find_transactions", "called_at": "2026-10-02T15:40:51Z", "outcome": "ok"},
+    {"call_id": "call-2", "tool": "block_card", "called_at": "2026-10-02T15:41:39Z", "outcome": "ok"},
+    {"call_id": "call-3", "tool": "get_card", "called_at": "2026-10-02T15:41:40Z", "outcome": "ok"}
+  ],
+  "customer_statements": ["Dice que tiene la tarjeta consigo y que no hizo esa compra."],
+  "unresolved_questions": ["Si el cliente autorizó la compra."]
+}
+```
 
 ## Failures
 
