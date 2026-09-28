@@ -52,3 +52,4 @@ Negative:
 | [0002](0002-mirror-dataset-into-pinned-snapshots.md) | Mirror the organizer dataset into pinned snapshots | Accepted |
 | [0003](0003-choose-workflow-from-evidence.md) | Choose the workflow from evidence | Accepted |
 | [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph agent on AgentCore, with policy enforced in Gateway tools and Cedar | Proposed |
+| [0005](0005-offline-scenario-evaluation.md) | Offline scenario evaluation against an independent policy oracle | Proposed |
