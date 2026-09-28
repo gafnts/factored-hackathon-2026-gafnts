@@ -1,6 +1,6 @@
 """
-The handoff schema (CTL-05) holds what the policy says a handoff may carry (POL-11, POL-32, POL-37, POL-46,
-POL-47), and stays in step with the policy's labels and reason codes.
+The handoff schema (CTL-05) holds what the policy says a handoff may carry (POL-11, POL-32, POL-36, POL-37,
+POL-46, POL-47), and stays in step with the policy's labels and reason codes.
 """
 
 import json
@@ -84,6 +84,8 @@ def test_every_rule_the_policy_cites_is_defined_once() -> None:
         (("reason_code",), "complaint"),
         (("actions", 0, "confirmed_at"), None),
         (("actions", 0, "evidence"), []),
+        (("actions", 0, "confirmation_id"), "confirmation-1"),
+        (("actions", 0, "outcome"), "confirmed_by_text"),
         (("language",), "en"),
         (("rules", 0), "POL-1"),
         (("rules",), []),
@@ -99,6 +101,8 @@ def test_every_rule_the_policy_cites_is_defined_once() -> None:
         "another reason in dispute intake",
         "a verified block without a confirmation",
         "a verified block without evidence",
+        "a confirmation ID that isn't one",
+        "a block outcome the policy doesn't define",
         "an unsupported language",
         "a malformed rule ID",
         "no rule",
@@ -144,11 +148,21 @@ def test_a_field_the_record_doesnt_hold_is_a_null_fact() -> None:
     assert validator().is_valid(payload)
 
 
-def test_a_block_the_customer_declined_has_no_confirmation() -> None:
+@pytest.mark.parametrize("outcome", ["declined_by_customer", "lapsed"])
+def test_a_block_never_confirmed_has_no_confirmation_time(outcome: str) -> None:
     payload = example()
     action = payload["actions"][0]
-    action.update(outcome="declined_by_customer", confirmed_at=None, evidence=[])
+    action.update(outcome=outcome, confirmed_at=None, evidence=[])
     assert validator().is_valid(payload)
 
     action["confirmed_at"] = "2026-10-02T15:41:37Z"
+    assert not validator().is_valid(payload)
+
+
+def test_every_offered_block_names_its_confirmation() -> None:
+    payload = example()
+    action = payload["actions"][0]
+    action.update(outcome="lapsed", confirmed_at=None, evidence=[])
+    del action["confirmation_id"]
+
     assert not validator().is_valid(payload)

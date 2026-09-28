@@ -109,7 +109,7 @@
       "items": { "$ref": "#/$defs/fact" }
     },
     "actions": {
-      "description": "Actions taken, and blocks offered that the customer didn't confirm.",
+      "description": "Actions taken, and blocks offered that the customer didn't confirm (POL-36).",
       "type": "array",
       "maxItems": 10,
       "items": { "$ref": "#/$defs/action" }
@@ -237,14 +237,19 @@
     "action": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["action", "card_id", "reason", "outcome", "confirmed_at", "evidence"],
+      "required": ["action", "card_id", "reason", "confirmation_id", "outcome", "confirmed_at", "evidence"],
       "properties": {
         "action": { "const": "block_card" },
         "card_id": { "$ref": "#/$defs/product_id" },
         "reason": { "enum": ["lost", "stolen", "unrecognized_charge", "customer_request"] },
+        "confirmation_id": {
+          "description": "The confirmation the server created when it showed the confirm control, used or not (POL-36).",
+          "type": "string",
+          "format": "uuid"
+        },
         "outcome": {
-          "description": "verified: the sandbox read back Blocked. not_verified: it didn't, so the card's state is unknown (POL-37). declined_by_customer: offered, never confirmed.",
-          "enum": ["verified", "not_verified", "declined_by_customer"]
+          "description": "verified: the sandbox read back Blocked. not_verified: it didn't, so the card's state is unknown (POL-37). declined_by_customer: the customer cancelled with the confirm control. lapsed: the confirmation ended unused otherwise, on a new request, its time limit, or the session's end (POL-36).",
+          "enum": ["verified", "not_verified", "declined_by_customer", "lapsed"]
         },
         "confirmed_at": { "type": ["string", "null"], "format": "date-time" },
         "evidence": {
@@ -253,7 +258,7 @@
           "items": { "$ref": "#/$defs/call_id" }
         }
       },
-      "if": { "properties": { "outcome": { "const": "declined_by_customer" } } },
+      "if": { "properties": { "outcome": { "enum": ["declined_by_customer", "lapsed"] } } },
       "then": { "properties": { "confirmed_at": { "type": "null" } } },
       "else": {
         "properties": {
