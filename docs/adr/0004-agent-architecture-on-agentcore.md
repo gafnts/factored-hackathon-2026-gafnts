@@ -8,11 +8,12 @@ Some decisions are still open. Each is marked **Open** where it arises and liste
 
 ## Context
 
-The [card support policy](../policy/card-support.md) says what the agent does (POL-01 to POL-51). This record says what runs where, so that every rule is enforced in code, outside the model's prose (CTL-04). Seven forces shape it:
+The [card support policy](../policy/card-support.md) says what the agent does (POL-01 to POL-51). This record says what runs where, so that every rule is enforced in code, outside the model's prose (CTL-04). Eight forces shape it:
 
 - **The judges will attack the deployed tool.** Prompt injection, impersonation with a customer number, reading another customer's records, and reusing an expired session are the obvious tries ([Reading between the lines](../hackathon-requirements.md#reading-between-the-lines)). Identity (SEC-04), record isolation (SEC-05), and confirmation (CTL-02) must hold even when the model is fully compromised.
 - **The model is the least trusted part we run.** It reads text written by the customer and by the bank's records (a merchant name, for example), and either can carry instructions (POL-10).
 - **The bank is frozen.** The snapshot is the bank at business date 2026-06-17, read as of 2026-06-18 06:00 ([ADR-0003](0003-choose-workflow-from-evidence.md)); sessions, tokens, and logs live on the wall clock.
+- **The bank's systems are simulated.** Mock banking tools are allowed only with documented contracts and limitations (SEC-06), money never moves (SEC-07), and the submission must give an honest account of what production would take (SCP-08, OPS-11). The tools' data and the sandbox stand in for the bank's systems of record, so what they mock and where they fall short must be written down, and replacing them must not reach past the tools.
 - **Frontier models are reachable only through their providers here.** Bedrock blocks them on this account (S1), so the agent calls the Anthropic, OpenAI, and Google APIs. That is acceptable only because the dataset is synthetic (SEC-02, SEC-03). A bank wouldn't send customer data to third-party APIs; a real deployment would reach the same models through the bank's own cloud accounts (Bedrock, in-region).
 - **A fork must stand up without us** (OPS-07): Terraform only, nothing tied to our own accounts. The pinned AWS provider (6.66.0) covers every AgentCore resource used here.
 - **The load is a prototype's:** a few judges at a time and evaluation runs of a few hundred cases. Capacity limits are explained, not engineered away (OPS-08).
@@ -316,6 +317,36 @@ DynamoDB tables, on demand (**Open**, decisions 1 to 3). The sandbox is keyed by
 
 The tools' data holds, per customer, the customer's status and country, the cards with their last four digits, and the card transactions of the 90-day window with their conflict flags: only what the tools read. The overlay also carries the evaluation's fixtures (a built transaction, an unlisted code, an injected merchant name) and fault plans (a tool that fails N times); only the harness's role can write them, and tools honor them only in the sign-in they were written for (ADR-0005).
 
+### The tools as the seam to the bank's systems
+
+The tools' data and the sandbox overlay are a mock of the bank's systems of record (SEC-06): the card management system for cards, their status, limits, and transactions; core banking for the customer's status; and the contact center's case system for handoffs. The pipeline fills the mock from the frozen snapshot. Nothing above the tools knows it: the graph, Cedar, and the confirmation see only the tools' contracts (names, inputs, outputs, and errors), so a real deployment would replace what each Lambda calls and keep its contract.
+
+**Reads would come from the systems of record, not from a data lake.** A bank's analytical layers lag its systems by at least a batch, so a card blocked a minute ago, or credit an authorization used a second ago, wouldn't show there. The tools would call the systems' APIs, or read an operational store fed from them by change data capture with a stated lag, and the analytical pipeline would feed analysis, evaluation, and models, never a reply. In the prototype the two coincide only because the bank is frozen.
+
+**Writes would go to the system of record, and it would decide.** Each piece of the prototype and what it stands for:
+
+| In the prototype | In a bank |
+|---|---|
+| Read tools answer from the tools' data, stamped with the snapshot | They call the card system and core banking through the bank's integration layer; the "as of" in a reply (POL-19) becomes the time of the read |
+| `block_card` writes `Blocked` to the sign-in's overlay | It calls the card system's status change with the reason; the card system records it, and authorizations are declined from then on |
+| The confirmation is used once, in one transaction with the write | `confirmation_id` becomes the call's idempotency key, so a retry, or a crash between the write and the record, can't block twice or lose the outcome |
+| The read-back reads the overlay with a strongly consistent read | It reads the card system; a change accepted but applied later reads as not yet `Blocked`, which POL-37 already treats as unverified and hands off (`action_not_verified`) |
+| The Gateway validates the customer's token and Cedar checks the customer; the Lambda gets only the tool's input, never the token | The bank's API checks the customer too. A Lambda target never receives the caller's token, so a Gateway request interceptor, which can read it, would exchange it for a credential the bank accepts (OAuth token exchange) and add it to the call it forwards; Cedar stays as the first check |
+| `file_handoff` writes to the handoffs table, which our console reads | It opens a case in the bank's case system with the payload attached, and the reference the customer hears is that system's |
+| The execution record is the only audit | The card system keeps its own audit of the change, and the execution record stores its reference, so the two can be joined |
+| Nothing flows back: the overlay is never merged, and the snapshot stays frozen | The change reaches the bank's analytical layers through their own feeds, where evaluation and monitoring read it |
+
+**What the mock can't show** (SEC-06), stated with the tools' contracts:
+
+- The bank never moves: no authorization arrives, no balance changes, and "today" is always the business date.
+- A write is seen only by the sign-in that made it and disappears after 24 hours; nothing reacts to a block (no declined authorization, no notification, no replacement card).
+- No real system's latency or outages: failures exist only as the evaluation's fault plans, which make a tool fail and recover, never write late or in part.
+- Master records carry their values as delivered, flagged when updated after the as-of instant ([State](#state-a-frozen-master-snapshot-with-an-event-cutoff)).
+- Handoffs reach our console, not a case system, and no one works them.
+- No tool moves money or unblocks a card (SEC-07, POL-41), and none would in production without its own policy and confirmation.
+
+**The contracts** (**Open**, decision 16): each tool's input and output as a JSON Schema, kept beside the handoff schema, declared as the Gateway target's tool schemas, and tested against the Lambdas' responses, with each tool's errors listed (not found, refused, denied by Cedar, failed). They and the limitations above are the documentation SEC-06 asks for, and the table above is the core of the production write-up (SCP-08).
+
 ### Operations
 
 **Tracing (OPS-01).** The execution record ties each turn to the Runtime's request and session IDs and each tool call to the Gateway's, and it is what the evaluation grades. AgentCore Observability adds OpenTelemetry spans in CloudWatch once CloudWatch Transaction Search is enabled for the account (a one-time setting, made in Terraform) and the agent is instrumented; no spike tried it, so step 9 proves it or falls back to the execution record and structured logs. The SDK's logs are JSON with request and session IDs (S2), and they carry masked text only. LangSmith stays off unless `LANGSMITH_TRACING` is set.
@@ -357,6 +388,7 @@ We settle these before accepting this record. Each names the option we lean towa
 13. **The state contract.** Lean: "a frozen master snapshot with an event cutoff", with rows updated after the as-of instant flagged. With it: whether ADR-0003 gains a one-line pointer to this correction when this record is accepted.
 14. **The Gateway's `exception_level`.** Lean: off in `prototype`; the agent handles `-32002` the same either way.
 15. **Frontend hosting.** Lean: S3 and CloudFront on a subdomain of `gabriel.com.gt` ([ADR-0001](0001-deploy-to-us-east-1.md)), the custom domain optional so a fork works without it.
+16. **The tools' contracts.** Lean: a JSON Schema per tool for its input and output, declared on the Gateway target and tested against the Lambdas, with its errors listed, as decision 9 does for the handoff. Alternative: Pydantic models as the source, with the schemas generated from them.
 
 ## Alternatives considered
 
@@ -385,11 +417,13 @@ Positive:
 - Every rule has a named place in code, which tests and evaluation cases cite.
 - Another customer's thread or runtime session ID gets nothing, and a regression test keeps it that way.
 - Everything is Terraform on one provider version, and a fork stands up without our accounts.
+- Replacing the mock with a bank's systems changes what the tools call, not the graph, Cedar, or the confirmation, and the confirmation already serves as the idempotency key a real write needs.
 - The execution record, not a vendor's trace, is the evaluation's source, so the evaluation runs without LangSmith.
 
 Negative:
 - More code than a prebuilt agent: an entrypoint around `ag-ui-langgraph`, an explicit graph, and a confirmation record with a lifecycle of its own. `ag-ui-langgraph` is at 0.0.x, and the entrypoint depends on how it handles interrupts.
 - The model providers receive the conversation, which only synthetic data makes acceptable.
+- The mock can't show what a real system adds: latency, outages, late or partial writes, and what follows a block. The fault plans simulate only a tool's failures.
 - The guarantee that a block was confirmed rests on the Runtime's code, not on IAM.
 - If decision 8 holds, the customer waits for a whole reply instead of watching it stream.
 - A sign-out takes up to 15 minutes to take effect at the Runtime and the Gateway, if revoked tokens keep validating as expected.
