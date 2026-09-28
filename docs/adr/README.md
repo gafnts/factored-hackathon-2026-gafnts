@@ -51,3 +51,4 @@ Negative:
 | [0001](0001-deploy-to-us-east-1.md) | Deploy to us-east-1 | Accepted |
 | [0002](0002-mirror-dataset-into-pinned-snapshots.md) | Mirror the organizer dataset into pinned snapshots | Accepted |
 | [0003](0003-choose-workflow-from-evidence.md) | Choose the workflow from evidence | Accepted |
+| [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph agent on AgentCore, with policy enforced in Gateway tools and Cedar | Proposed |
