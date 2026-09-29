@@ -1,0 +1,856 @@
+[
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0000",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 0,
+    "at": "2026-10-02T15:41:02.118Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "turn_opened",
+    "sub": "a41c9e27-6b3d-4f58-9e12-7c0d8b5a3f64",
+    "customer_id": "CLI-EXAMPLE00001",
+    "role": "customer",
+    "thread_key": "11111111-2222-5333-8444-555555555555",
+    "client_thread_id": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "client_run_id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "runtime_session_id": "rs-9f2c4e7a1b3d5f6e8a0c2b4d6f8e1a3c5b7d",
+    "request_id": "b8c9d0e1-f2a3-4b4c-8d5e-6f7a8b9c0d1e",
+    "input": {
+      "kind": "message",
+      "text": "Perdi meu cartão de crédito final 4821, quero bloquear."
+    },
+    "language": "pt",
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "versions": {
+      "app": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+      "policy": 1,
+      "prompts": {
+        "route": "a1b2c3d4e5f60718",
+        "resolve_card": "b2c3d4e5f6071829",
+        "find_transaction": "c3d4e5f60718293a",
+        "reply": "d4e5f60718293a4b",
+        "handoff": "e5f60718293a4b5c"
+      },
+      "schemas": {
+        "chat": 1,
+        "execution-record": 1,
+        "handoff": 1,
+        "tools": 1,
+        "tools-data": 1
+      },
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0001",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 1,
+    "at": "2026-10-02T15:41:03.402Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "model_call",
+    "node": "route",
+    "purpose": "route",
+    "provider": "anthropic",
+    "model_requested": "claude-haiku-4-5-20251001",
+    "model_returned": null,
+    "prompt_version": "a1b2c3d4e5f60718",
+    "settings": {
+      "reasoning": null,
+      "max_tokens": 2048,
+      "temperature": 0
+    },
+    "attempt": 1,
+    "outcome": "rate_limited",
+    "latency_ms": 212,
+    "usage": {
+      "input_tokens": null,
+      "output_tokens": null,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "cost_usd": 0
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0002",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 2,
+    "at": "2026-10-02T15:41:04.690Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "model_call",
+    "node": "route",
+    "purpose": "route",
+    "provider": "anthropic",
+    "model_requested": "claude-haiku-4-5-20251001",
+    "model_returned": "claude-haiku-4-5-20251001",
+    "prompt_version": "a1b2c3d4e5f60718",
+    "settings": {
+      "reasoning": null,
+      "max_tokens": 2048,
+      "temperature": 0
+    },
+    "attempt": 2,
+    "outcome": "ok",
+    "latency_ms": 1188,
+    "usage": {
+      "input_tokens": 1830,
+      "output_tokens": 41,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "cost_usd": 0.0021,
+    "output": {
+      "requests": [
+        "block_card"
+      ],
+      "has_request": true
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0003",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 3,
+    "at": "2026-10-02T15:41:04.931Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "tool_call",
+    "call_id": "6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d",
+    "tool": "list_cards",
+    "via": "gateway",
+    "attempt": 1,
+    "called_at": "2026-10-02T15:41:04.702Z",
+    "latency_ms": 229,
+    "request_id": "gw-4f5e6d7c8b9a",
+    "input": {
+      "customer_id": "CLI-EXAMPLE00001",
+      "origin_jti": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68"
+    },
+    "outcome": "ok",
+    "result": {
+      "outcome": "ok",
+      "stamp": {
+        "snapshot": "b3b8b248f604ef9a",
+        "pipeline_version": "5e1a9c3b7d2f4a68"
+      },
+      "clock": {
+        "business_date": "2026-06-17",
+        "as_of": "2026-06-18 06:00:00"
+      },
+      "customer": {
+        "served_in_full": true,
+        "country": "México"
+      },
+      "cards": [
+        {
+          "card_id": "PRD-EXAMPLE00002",
+          "product_type": "Tarjeta Crédito",
+          "last_four": "4821",
+          "product_status": "Active",
+          "past_expiration": true,
+          "updated_after_as_of": false
+        },
+        {
+          "card_id": "PRD-EXAMPLE00007",
+          "product_type": "Tarjeta Crédito",
+          "last_four": "9034",
+          "product_status": "Closed",
+          "past_expiration": true,
+          "updated_after_as_of": false
+        },
+        {
+          "card_id": "PRD-EXAMPLE00005",
+          "product_type": "Tarjeta Débito",
+          "last_four": "1177",
+          "product_status": "Active",
+          "past_expiration": false,
+          "updated_after_as_of": true
+        }
+      ]
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0004",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 4,
+    "at": "2026-10-02T15:41:05.873Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "model_call",
+    "node": "resolve_card",
+    "purpose": "extract",
+    "provider": "anthropic",
+    "model_requested": "claude-haiku-4-5-20251001",
+    "model_returned": "claude-haiku-4-5-20251001",
+    "prompt_version": "b2c3d4e5f6071829",
+    "settings": {
+      "reasoning": null,
+      "max_tokens": 2048,
+      "temperature": 0
+    },
+    "attempt": 1,
+    "outcome": "ok",
+    "latency_ms": 941,
+    "usage": {
+      "input_tokens": 1512,
+      "output_tokens": 38,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "cost_usd": 0.0017,
+    "output": {
+      "extracted": {
+        "card_type": "credit",
+        "last_four": "4821",
+        "block_reason": "lost"
+      }
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0005",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 5,
+    "at": "2026-10-02T15:41:05.910Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "confirmation",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "card_id": "PRD-EXAMPLE00002",
+    "reason": "lost",
+    "from": null,
+    "to": "pending",
+    "cause": "created"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0006",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 6,
+    "at": "2026-10-02T15:41:07.035Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "model_call",
+    "node": "reply",
+    "purpose": "reply",
+    "provider": "anthropic",
+    "model_requested": "claude-haiku-4-5-20251001",
+    "model_returned": "claude-haiku-4-5-20251001",
+    "prompt_version": "d4e5f60718293a4b",
+    "settings": {
+      "reasoning": null,
+      "max_tokens": 2048,
+      "temperature": 0
+    },
+    "attempt": 1,
+    "outcome": "ok",
+    "latency_ms": 1102,
+    "usage": {
+      "input_tokens": 2210,
+      "output_tokens": 64,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "cost_usd": 0.0026
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0007",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 7,
+    "at": "2026-10-02T15:41:07.036Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "reply_check",
+    "passed": true,
+    "failures": [],
+    "fell_back": false
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0008",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 8,
+    "at": "2026-10-02T15:41:07.037Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "reply",
+    "message_id": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f",
+    "text": "Para bloquear o seu cartão de crédito final 4821 por perda, confirme no botão abaixo.",
+    "language": "pt",
+    "fixed_texts": []
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0009",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 9,
+    "at": "2026-10-02T15:41:07.039Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "interrupt",
+    "interrupt_id": "d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6",
+    "controls": [
+      {
+        "kind": "block_confirmation",
+        "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+      }
+    ]
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0010",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 10,
+    "at": "2026-10-02T15:41:07.040Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "decision",
+    "request_label": "block_card",
+    "pending_labels": [],
+    "outcome_class": "block",
+    "awaiting": "confirm_control",
+    "rules": [
+      "POL-13",
+      "POL-35",
+      "POL-36"
+    ],
+    "language": "pt"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:02.118Z#3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01#0011",
+    "turn_id": "3d2b8f6a-1c4e-4a9b-8e7d-5f6a7b8c9d01",
+    "seq": 11,
+    "at": "2026-10-02T15:41:07.052Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "turn_closed",
+    "outcome": "interrupted",
+    "latency_ms": 4934,
+    "totals": {
+      "model_calls": 4,
+      "tool_calls": 1,
+      "input_tokens": 5552,
+      "output_tokens": 143,
+      "cost_usd": 0.0064
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0000",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 0,
+    "at": "2026-10-02T15:41:36.904Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "turn_opened",
+    "sub": "a41c9e27-6b3d-4f58-9e12-7c0d8b5a3f64",
+    "customer_id": "CLI-EXAMPLE00001",
+    "role": "customer",
+    "thread_key": "11111111-2222-5333-8444-555555555555",
+    "client_thread_id": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "client_run_id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+    "runtime_session_id": "rs-9f2c4e7a1b3d5f6e8a0c2b4d6f8e1a3c5b7d",
+    "request_id": "b8c9d0e1-f2a3-4b4c-8d5e-6f7a8b9c0d1e",
+    "input": {
+      "kind": "resume",
+      "resume": {
+        "kind": "confirm",
+        "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+      }
+    },
+    "language": "pt",
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "versions": {
+      "app": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+      "policy": 1,
+      "prompts": {
+        "route": "a1b2c3d4e5f60718",
+        "resolve_card": "b2c3d4e5f6071829",
+        "find_transaction": "c3d4e5f60718293a",
+        "reply": "d4e5f60718293a4b",
+        "handoff": "e5f60718293a4b5c"
+      },
+      "schemas": {
+        "chat": 1,
+        "execution-record": 1,
+        "handoff": 1,
+        "tools": 1,
+        "tools-data": 1
+      },
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0001",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 1,
+    "at": "2026-10-02T15:41:36.951Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "resume",
+    "resume_kind": "confirm",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "accepted": true
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0002",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 2,
+    "at": "2026-10-02T15:41:36.978Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "confirmation",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "card_id": "PRD-EXAMPLE00002",
+    "reason": "lost",
+    "from": "pending",
+    "to": "confirmed",
+    "cause": "control"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0003",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 3,
+    "at": "2026-10-02T15:41:37.412Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "tool_call",
+    "call_id": "7b8c9d0e-1f2a-4b3c-9d4e-5f6a7b8c9d0e",
+    "tool": "block_card",
+    "via": "gateway",
+    "attempt": 1,
+    "called_at": "2026-10-02T15:41:37.003Z",
+    "latency_ms": 409,
+    "request_id": "gw-5a6b7c8d9e0f",
+    "input": {
+      "customer_id": "CLI-EXAMPLE00001",
+      "origin_jti": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+      "card_id": "PRD-EXAMPLE00002",
+      "reason": "lost",
+      "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+    },
+    "outcome": "ok",
+    "result": {
+      "outcome": "ok",
+      "block_outcome": "verified",
+      "attempts": 1
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0004",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 4,
+    "at": "2026-10-02T15:41:37.413Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "confirmation",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "card_id": "PRD-EXAMPLE00002",
+    "reason": "lost",
+    "from": "confirmed",
+    "to": "consumed",
+    "cause": "block",
+    "attempts": 1,
+    "block_outcome": "verified"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0005",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 5,
+    "at": "2026-10-02T15:41:37.655Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "tool_call",
+    "call_id": "8c9d0e1f-2a3b-4c4d-8e5f-6a7b8c9d0e1f",
+    "tool": "get_card",
+    "via": "gateway",
+    "attempt": 1,
+    "called_at": "2026-10-02T15:41:37.420Z",
+    "latency_ms": 235,
+    "request_id": "gw-6b7c8d9e0f1a",
+    "input": {
+      "customer_id": "CLI-EXAMPLE00001",
+      "origin_jti": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+      "card_id": "PRD-EXAMPLE00002"
+    },
+    "outcome": "ok",
+    "result": {
+      "outcome": "ok",
+      "stamp": {
+        "snapshot": "b3b8b248f604ef9a",
+        "pipeline_version": "5e1a9c3b7d2f4a68"
+      },
+      "clock": {
+        "business_date": "2026-06-17",
+        "as_of": "2026-06-18 06:00:00"
+      },
+      "card": {
+        "card_id": "PRD-EXAMPLE00002",
+        "product_type": "Tarjeta Crédito",
+        "last_four": "4821",
+        "product_status": "Blocked",
+        "opening_date": "2023-02-14",
+        "expiration_date": "2026-02-13",
+        "past_expiration": true,
+        "updated_after_as_of": false
+      }
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0006",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 6,
+    "at": "2026-10-02T15:41:38.702Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "model_call",
+    "node": "reply",
+    "purpose": "reply",
+    "provider": "anthropic",
+    "model_requested": "claude-haiku-4-5-20251001",
+    "model_returned": "claude-haiku-4-5-20251001",
+    "prompt_version": "d4e5f60718293a4b",
+    "settings": {
+      "reasoning": null,
+      "max_tokens": 2048,
+      "temperature": 0
+    },
+    "attempt": 1,
+    "outcome": "ok",
+    "latency_ms": 1041,
+    "usage": {
+      "input_tokens": 2388,
+      "output_tokens": 71,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "cost_usd": 0.0028
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0007",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 7,
+    "at": "2026-10-02T15:41:38.703Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "reply_check",
+    "passed": true,
+    "failures": [],
+    "fell_back": false
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0008",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 8,
+    "at": "2026-10-02T15:41:38.704Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "reply",
+    "message_id": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f80",
+    "text": "Pronto: o seu cartão de crédito final 4821 está bloqueado. A reposição do cartão é feita por uma pessoa da nossa equipe; se quiser, posso passar o seu caso para ela.",
+    "language": "pt",
+    "fixed_texts": [
+      "block_verified",
+      "replacement_by_person"
+    ]
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0009",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 9,
+    "at": "2026-10-02T15:41:38.706Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "interrupt",
+    "interrupt_id": "e2f3a4b5-c6d7-4e8f-90a1-b2c3d4e5f6a7",
+    "controls": [
+      {
+        "kind": "handoff_offer",
+        "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83",
+        "reason_code": "unsupported_request"
+      }
+    ]
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0010",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 10,
+    "at": "2026-10-02T15:41:38.707Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "decision",
+    "request_label": "block_card",
+    "pending_labels": [],
+    "outcome_class": "block",
+    "awaiting": "handoff_control",
+    "rules": [
+      "POL-36",
+      "POL-37",
+      "POL-38"
+    ],
+    "language": "pt"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:41:36.904Z#4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12#0011",
+    "turn_id": "4e3c9a7b-2d5f-4b0c-9f8e-6a7b8c9d0e12",
+    "seq": 11,
+    "at": "2026-10-02T15:41:38.719Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "turn_closed",
+    "outcome": "interrupted",
+    "latency_ms": 1815,
+    "totals": {
+      "model_calls": 1,
+      "tool_calls": 2,
+      "input_tokens": 2388,
+      "output_tokens": 71,
+      "cost_usd": 0.0028
+    }
+  },
+  {
+    "sign_in": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "entry_key": "2026-10-02T15:41:40.221Z#5f4dab8c-3e6a-4c1d-8a9f-7b8c9d0e1f23#0000",
+    "turn_id": "5f4dab8c-3e6a-4c1d-8a9f-7b8c9d0e1f23",
+    "seq": 0,
+    "at": "2026-10-02T15:41:40.221Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "request_refused",
+    "code": "session_refused",
+    "sub": "f0e1d2c3-b4a5-4968-8776-5a4b3c2d1e0f",
+    "runtime_session_id": "rs-9f2c4e7a1b3d5f6e8a0c2b4d6f8e1a3c5b7d",
+    "client_thread_id": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0000",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 0,
+    "at": "2026-10-02T15:42:05.310Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "turn_opened",
+    "sub": "a41c9e27-6b3d-4f58-9e12-7c0d8b5a3f64",
+    "customer_id": "CLI-EXAMPLE00001",
+    "role": "customer",
+    "thread_key": "11111111-2222-5333-8444-555555555555",
+    "client_thread_id": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "client_run_id": "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+    "runtime_session_id": "rs-9f2c4e7a1b3d5f6e8a0c2b4d6f8e1a3c5b7d",
+    "request_id": "b8c9d0e1-f2a3-4b4c-8d5e-6f7a8b9c0d1e",
+    "input": {
+      "kind": "resume",
+      "resume": {
+        "kind": "accept",
+        "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83"
+      }
+    },
+    "language": "pt",
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "versions": {
+      "app": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+      "policy": 1,
+      "prompts": {
+        "route": "a1b2c3d4e5f60718",
+        "resolve_card": "b2c3d4e5f6071829",
+        "find_transaction": "c3d4e5f60718293a",
+        "reply": "d4e5f60718293a4b",
+        "handoff": "e5f60718293a4b5c"
+      },
+      "schemas": {
+        "chat": 1,
+        "execution-record": 1,
+        "handoff": 1,
+        "tools": 1,
+        "tools-data": 1
+      },
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0001",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 1,
+    "at": "2026-10-02T15:42:05.344Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "resume",
+    "resume_kind": "accept",
+    "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83",
+    "accepted": true
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0002",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 2,
+    "at": "2026-10-02T15:42:07.018Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "model_call",
+    "node": "handoff",
+    "purpose": "handoff_text",
+    "provider": "anthropic",
+    "model_requested": "claude-haiku-4-5-20251001",
+    "model_returned": "claude-haiku-4-5-20251001",
+    "prompt_version": "e5f60718293a4b5c",
+    "settings": {
+      "reasoning": null,
+      "max_tokens": 2048,
+      "temperature": 0
+    },
+    "attempt": 1,
+    "outcome": "ok",
+    "latency_ms": 1650,
+    "usage": {
+      "input_tokens": 2904,
+      "output_tokens": 132,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "cost_usd": 0.0036
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0003",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 3,
+    "at": "2026-10-02T15:42:07.402Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "tool_call",
+    "call_id": "9d0e1f2a-3b4c-4d5e-9f6a-7b8c9d0e1f2a",
+    "tool": "file_handoff",
+    "via": "direct",
+    "attempt": 1,
+    "called_at": "2026-10-02T15:42:07.030Z",
+    "latency_ms": 372,
+    "request_id": "3e4f5a6b-7c8d-4e9f-8a0b-1c2d3e4f5a6b",
+    "input": {
+      "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50"
+    },
+    "outcome": "ok",
+    "result": {
+      "outcome": "ok",
+      "reference": "7K2M-9QXA",
+      "added_facts": []
+    }
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0004",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 4,
+    "at": "2026-10-02T15:42:07.405Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "handoff",
+    "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50",
+    "reference": "7K2M-9QXA",
+    "reason_code": "unsupported_request",
+    "trigger": "accepted_offer",
+    "queue": "customer_service",
+    "priority": "normal",
+    "status": "filed",
+    "flagged": false
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0005",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 5,
+    "at": "2026-10-02T15:42:07.407Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "reply_check",
+    "passed": true,
+    "failures": [],
+    "fell_back": false
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0006",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 6,
+    "at": "2026-10-02T15:42:07.408Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "reply",
+    "message_id": "6e7f8a9b-0c1d-4e2f-9a3b-4c5d6e7f8a9b",
+    "text": "Passei o seu caso para uma pessoa da nossa equipe, que vai entrar em contato. A referência do seu caso é 7K2M-9QXA.",
+    "language": "pt",
+    "fixed_texts": [
+      "handoff_reference"
+    ]
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0007",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 7,
+    "at": "2026-10-02T15:42:07.409Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "decision",
+    "request_label": "block_card",
+    "pending_labels": [],
+    "outcome_class": "hand_off",
+    "awaiting": "none",
+    "rules": [
+      "POL-38",
+      "POL-45"
+    ],
+    "language": "pt"
+  },
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "entry_key": "2026-10-02T15:42:05.310Z#6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34#0008",
+    "turn_id": "6a5ebc9d-4f7b-4d2e-9b0a-8c9d0e1f2a34",
+    "seq": 8,
+    "at": "2026-10-02T15:42:07.421Z",
+    "source": "demo",
+    "expires_at": 1767109262,
+    "kind": "turn_closed",
+    "outcome": "finished",
+    "latency_ms": 2111,
+    "totals": {
+      "model_calls": 1,
+      "tool_calls": 1,
+      "input_tokens": 2904,
+      "output_tokens": 132,
+      "cost_usd": 0.0036
+    }
+  }
+]

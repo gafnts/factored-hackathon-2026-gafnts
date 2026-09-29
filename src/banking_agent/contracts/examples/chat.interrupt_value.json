@@ -1,0 +1,50 @@
+[
+  {
+    "reason": "controls",
+    "language": "pt",
+    "controls": [
+      {
+        "kind": "block_confirmation",
+        "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+        "card": {
+          "type": "Tarjeta Crédito",
+          "last_four": "4821"
+        },
+        "reason": "lost",
+        "expires_at": "2026-10-02T15:46:04Z"
+      }
+    ]
+  },
+  {
+    "reason": "controls",
+    "language": "pt",
+    "controls": [
+      {
+        "kind": "handoff_offer",
+        "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83",
+        "reason_code": "unsupported_request"
+      }
+    ]
+  },
+  {
+    "reason": "controls",
+    "language": "es",
+    "controls": [
+      {
+        "kind": "block_confirmation",
+        "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+        "card": {
+          "type": "Tarjeta Crédito",
+          "last_four": "4821"
+        },
+        "reason": "lost",
+        "expires_at": "2026-10-02T15:46:04Z"
+      },
+      {
+        "kind": "handoff_offer",
+        "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83",
+        "reason_code": "clarification_failed"
+      }
+    ]
+  }
+]

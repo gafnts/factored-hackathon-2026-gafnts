@@ -1,0 +1,34 @@
+[
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card": {
+      "card_id": "PRD-EXAMPLE00002",
+      "product_type": "Tarjeta Crédito",
+      "last_four": "4821",
+      "product_status": "Blocked",
+      "opening_date": "2023-02-14",
+      "expiration_date": "2026-02-13",
+      "past_expiration": true,
+      "updated_after_as_of": false
+    }
+  },
+  {
+    "outcome": "not_found",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    }
+  }
+]

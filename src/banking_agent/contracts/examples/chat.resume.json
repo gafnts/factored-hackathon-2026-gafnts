@@ -1,0 +1,22 @@
+[
+  {
+    "kind": "confirm",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+  },
+  {
+    "kind": "cancel",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+  },
+  {
+    "kind": "accept",
+    "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83"
+  },
+  {
+    "kind": "decline",
+    "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83"
+  },
+  {
+    "kind": "message",
+    "text": "Sim, pode bloquear o ****4821."
+  }
+]

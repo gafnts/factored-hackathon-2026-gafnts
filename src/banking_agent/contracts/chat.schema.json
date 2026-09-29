@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:banking-agent:card-support:chat:1",
+  "title": "Card support chat",
+  "description": "What passes between the chat and the Runtime over AG-UI (ADR-0004: A turn, end to end; The confirmation; What the chat receives). The chat's request is read, not trusted: the entrypoint builds the run the wrapper sees from the fields below and drops the rest, since ag-ui-langgraph 0.0.45 would otherwise write a client's state, forwarded props, and earlier messages into the graph. Every event the chat receives is rebuilt by the entrypoint to one of the shapes under event, so no field the wrapper adds reaches the browser. AG-UI's own fields are camelCase; this contract's payloads are snake_case.",
+  "$defs": {
+    "product_id": { "type": "string", "pattern": "^PRD-[A-Z0-9]{12}$" },
+    "language": {
+      "description": "The conversation's language (POL-50).",
+      "enum": ["es", "pt"]
+    },
+    "product_type": { "enum": ["Tarjeta Crédito", "Tarjeta Débito"] },
+    "block_reason": { "enum": ["lost", "stolen", "unrecognized_charge", "customer_request"] },
+    "offered_reason_code": {
+      "description": "The handoff reasons the policy offers rather than requires (POL-45).",
+      "enum": ["unsupported_request", "clarification_failed", "record_conflict", "missing_data", "tool_failure"]
+    },
+    "id": {
+      "description": "An identifier the chat draws, such as a thread, run, or message ID.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,64}$"
+    },
+    "request": {
+      "description": "The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12).",
+      "type": "object",
+      "required": ["threadId", "runId", "messages"],
+      "properties": {
+        "threadId": { "$ref": "#/$defs/id" },
+        "runId": { "$ref": "#/$defs/id" },
+        "messages": {
+          "type": "array",
+          "maxItems": 500,
+          "items": { "type": "object", "required": ["id", "role"] }
+        },
+        "resume": {
+          "description": "An answer to the thread's pending interrupt, from the confirm or the handoff control.",
+          "type": "array",
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/ag_ui_resume" }
+        },
+        "forwardedProps": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "warmup": {
+              "description": "Opens the runtime session at sign-in: the entrypoint binds it to the token's sub and ends the run without running the graph (decision 20).",
+              "const": true
+            }
+          }
+        },
+        "state": {
+          "description": "Never read; a client that sends state gets invalid_request.",
+          "anyOf": [{ "type": "null" }, { "type": "object", "maxProperties": 0 }]
+        },
+        "tools": { "type": "array", "maxItems": 0 },
+        "context": { "type": "array", "maxItems": 0 }
+      }
+    },
+    "user_message": {
+      "description": "A customer's message. The entrypoint masks any run of 13 or more digits to its last four before anything stores it (POL-11), and the masked text is what the snapshot sends back.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "content"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "role": { "const": "user" },
+        "content": { "type": "string", "minLength": 1, "maxLength": 2000 }
+      }
+    },
+    "ag_ui_resume": {
+      "description": "AG-UI's ResumeEntry, always resolved: a cancel is an answer from the control, not AG-UI's cancelled status.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["interruptId", "status", "payload"],
+      "properties": {
+        "interruptId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "const": "resolved" },
+        "payload": { "$ref": "#/$defs/control_answer" }
+      }
+    },
+    "control_answer": {
+      "description": "What a control sends. The graph accepts it only when the ID is the thread's pending one and the request comes from the sign-in that saw it, and a confirm only before its time limit (POL-09, POL-36, POL-45).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "confirmation_id"],
+          "properties": {
+            "kind": { "enum": ["confirm", "cancel"] },
+            "confirmation_id": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "offer_id"],
+          "properties": {
+            "kind": { "enum": ["accept", "decline"] },
+            "offer_id": { "type": "string", "format": "uuid" }
+          }
+        }
+      ]
+    },
+    "resume": {
+      "description": "What the graph's confirm and offer nodes receive: a control's answer, or a message typed while a control was pending, which the entrypoint turns into a resume, masked, since the wrapper would otherwise drop it (POL-06). Typed text can end a confirmation or an offer and never grants either.",
+      "oneOf": [
+        { "$ref": "#/$defs/control_answer" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "text"],
+          "properties": {
+            "kind": { "const": "message" },
+            "text": { "type": "string", "minLength": 1, "maxLength": 2000 }
+          }
+        }
+      ]
+    },
+    "block_confirmation": {
+      "description": "The confirm control, created with its confirmation record (POL-36). The chat names the card and the reason, and says that only a person can undo a block, in fixed text in the interrupt's language.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "confirmation_id", "card", "reason", "expires_at"],
+      "properties": {
+        "kind": { "const": "block_confirmation" },
+        "confirmation_id": { "type": "string", "format": "uuid" },
+        "card": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "last_four"],
+          "properties": {
+            "type": { "$ref": "#/$defs/product_type" },
+            "last_four": { "type": "string", "pattern": "^[0-9]{4}$" }
+          }
+        },
+        "reason": { "$ref": "#/$defs/block_reason" },
+        "expires_at": {
+          "description": "Wall clock, five minutes after creation (decision 10). The chat disables the control then; the server decides.",
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "handoff_offer": {
+      "description": "The handoff control, shown after the reply that offers the handoff (POL-45).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "offer_id", "reason_code"],
+      "properties": {
+        "kind": { "const": "handoff_offer" },
+        "offer_id": { "type": "string", "format": "uuid" },
+        "reason_code": { "$ref": "#/$defs/offered_reason_code" }
+      }
+    },
+    "controls": {
+      "description": "One control, or both, never two of a kind.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "oneOf": [{ "$ref": "#/$defs/block_confirmation" }, { "$ref": "#/$defs/handoff_offer" }]
+      },
+      "allOf": [
+        { "not": { "minItems": 2, "items": { "properties": { "kind": { "const": "block_confirmation" } } } } },
+        { "not": { "minItems": 2, "items": { "properties": { "kind": { "const": "handoff_offer" } } } } }
+      ]
+    },
+    "interrupt_value": {
+      "description": "What confirm and offer pass to LangGraph's interrupt(). One interrupt carries both controls when POL-36 offers a handoff while its confirmation is pending; accepting the handoff then ends the confirmation unused.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "language", "controls"],
+      "properties": {
+        "reason": { "const": "controls" },
+        "language": { "$ref": "#/$defs/language" },
+        "controls": { "$ref": "#/$defs/controls" }
+      }
+    },
+    "timestamp": {
+      "description": "Milliseconds since the Unix epoch, wall clock.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "event": {
+      "description": "Every event the chat can receive. Anything else the wrapper emits (state snapshots and deltas, steps, tool calls, reasoning, custom and raw events) is dropped, and an event type added by a later version of the wrapper is dropped too. Replies arrive whole, once checked: one TEXT_MESSAGE_CONTENT per reply, never token by token (decision 8).",
+      "oneOf": [
+        { "$ref": "#/$defs/run_started" },
+        { "$ref": "#/$defs/run_finished" },
+        { "$ref": "#/$defs/run_error" },
+        { "$ref": "#/$defs/text_message_start" },
+        { "$ref": "#/$defs/text_message_content" },
+        { "$ref": "#/$defs/text_message_end" },
+        { "$ref": "#/$defs/messages_snapshot" }
+      ]
+    },
+    "run_started": {
+      "description": "Without the input echo AG-UI allows.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "threadId", "runId"],
+      "properties": {
+        "type": { "const": "RUN_STARTED" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "threadId": { "$ref": "#/$defs/id" },
+        "runId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "run_finished": {
+      "description": "A run that ends waiting on a control carries one interrupt, whose ID the control's resume entry names. Without the run's token usage.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "threadId", "runId"],
+      "properties": {
+        "type": { "const": "RUN_FINISHED" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "threadId": { "$ref": "#/$defs/id" },
+        "runId": { "$ref": "#/$defs/id" },
+        "outcome": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type"],
+              "properties": { "type": { "const": "success" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "interrupts"],
+              "properties": {
+                "type": { "const": "interrupt" },
+                "interrupts": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": { "$ref": "#/$defs/interrupt" }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "interrupt": {
+      "description": "AG-UI's Interrupt, with the controls under metadata and nothing of LangGraph's (its namespace names the graph's nodes).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reason", "metadata"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "reason": { "const": "controls" },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["language", "controls"],
+          "properties": {
+            "language": { "$ref": "#/$defs/language" },
+            "controls": { "$ref": "#/$defs/controls" }
+          }
+        }
+      }
+    },
+    "run_error": {
+      "description": "A run the entrypoint refused or that failed. The chat shows fixed text per code in its own language; message is for logs, a fixed sentence per code with no detail. A missing, expired, or foreign token is turned away by the Runtime's authorizer before this contract applies, with HTTP 401, and the chat asks the customer to sign in again (POL-09).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "message", "code"],
+      "properties": {
+        "type": { "const": "RUN_ERROR" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "message": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "code": {
+          "description": "invalid_request: the request failed this contract. session_refused: the runtime session belongs to another user. no_customer: the token carries no customer_id (POL-07). rate_limited, daily_limit: decision 21's limits. internal: anything else, recorded.",
+          "enum": ["invalid_request", "session_refused", "no_customer", "rate_limited", "daily_limit", "internal"]
+        }
+      }
+    },
+    "text_message_start": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "messageId", "role"],
+      "properties": {
+        "type": { "const": "TEXT_MESSAGE_START" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "messageId": { "$ref": "#/$defs/id" },
+        "role": { "const": "assistant" }
+      }
+    },
+    "text_message_content": {
+      "description": "The whole checked reply, with its facts and outcomes filled in by code.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "messageId", "delta"],
+      "properties": {
+        "type": { "const": "TEXT_MESSAGE_CONTENT" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "messageId": { "$ref": "#/$defs/id" },
+        "delta": { "type": "string", "minLength": 1, "maxLength": 4000 }
+      }
+    },
+    "text_message_end": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "messageId"],
+      "properties": {
+        "type": { "const": "TEXT_MESSAGE_END" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "messageId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "messages_snapshot": {
+      "description": "The graph's public state (ADR-0004, What the chat receives): the customer's masked messages and the agent's checked replies, and nothing else. A reply keeps the ID its TEXT_MESSAGE events carried.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "messages"],
+      "properties": {
+        "type": { "const": "MESSAGES_SNAPSHOT" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "messages": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "role", "content"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "role": { "enum": ["user", "assistant"] },
+              "content": { "type": "string", "minLength": 1, "maxLength": 4000 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

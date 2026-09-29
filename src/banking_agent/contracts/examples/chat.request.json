@@ -1,0 +1,51 @@
+[
+  {
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "0f1e2d3c-4b5a-4968-8776-655443322110",
+    "messages": [],
+    "forwardedProps": {
+      "warmup": true
+    }
+  },
+  {
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "messages": [
+      {
+        "id": "8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d",
+        "role": "user",
+        "content": "Perdi meu cartão de crédito final 4821, quero bloquear."
+      }
+    ],
+    "state": {},
+    "tools": [],
+    "context": [],
+    "forwardedProps": {}
+  },
+  {
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+    "messages": [
+      {
+        "id": "8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d",
+        "role": "user",
+        "content": "Perdi meu cartão de crédito final 4821, quero bloquear."
+      },
+      {
+        "id": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f",
+        "role": "assistant",
+        "content": "Confirme o bloqueio no botão abaixo."
+      }
+    ],
+    "resume": [
+      {
+        "interruptId": "d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6",
+        "status": "resolved",
+        "payload": {
+          "kind": "confirm",
+          "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+        }
+      }
+    ]
+  }
+]
