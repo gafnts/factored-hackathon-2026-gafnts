@@ -17,6 +17,18 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
+variable "tools_data_export" {
+  description = "The gold export the tools' data is created from; only a reviewed change sets it (ADR-0006, decision 1)"
+  type = object({
+    snapshot         = string
+    pipeline_version = string
+  })
+  validation {
+    condition     = can(regex("^[0-9a-f]{16}$", var.tools_data_export.snapshot)) && can(regex("^[0-9a-f]{16}$", var.tools_data_export.pipeline_version))
+    error_message = "snapshot and pipeline_version are 16 hexadecimal digits each."
+  }
+}
+
 variable "log_retention_days" {
   description = "Retention of every log group the stack creates (ADR-0004, Data retention)"
   type        = number

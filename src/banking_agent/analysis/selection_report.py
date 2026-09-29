@@ -10,7 +10,6 @@ from banking_agent.analysis import figures
 from banking_agent.analysis.evidence import COVERED, Evidence, ReasonBaseline
 from banking_agent.analysis.learned import (
     CHANCE,
-    HELD_OUT_EVERY,
     LEVEL,
     PENALTY_C,
     RESAMPLES,
@@ -36,6 +35,7 @@ from banking_agent.analysis.selection import (
     FieldPopulation,
     Selection,
 )
+from banking_agent.split import HELD_OUT_EVERY
 
 ADR = "../adr/0003-choose-workflow-from-evidence.md"
 FIGURES = "figures"

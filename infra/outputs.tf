@@ -37,6 +37,16 @@ output "gateway_target" {
   value = module.gateway.target
 }
 
+output "tools_data" {
+  description = "The tools' data table and the export it was created from"
+  value = {
+    table = module.tools_data.table_name
+    stamp = module.tools_data.stamp
+    clock = module.tools_data.clock
+    items = module.tools_data.items
+  }
+}
+
 output "runtime_arn" {
   value = module.runtime.runtime_arn
 }

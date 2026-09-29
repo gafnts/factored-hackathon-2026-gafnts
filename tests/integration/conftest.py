@@ -1,6 +1,8 @@
 """
 Throwaway users in the deployed stack's pool, signed in through IAM and deleted afterwards. The stack comes from the
-Terraform outputs that make integration writes; passwords and tokens stay in memory and are never printed.
+Terraform outputs that make integration writes; passwords and tokens stay in memory and are never printed. The two
+customers are the development personas (make personas), so their cards are in the tools' data; their IDs come from
+data/personas/ and are never printed either.
 """
 
 import base64
@@ -20,6 +22,11 @@ import pytest
 from botocore.exceptions import ClientError
 from mypy_boto3_cognito_idp import CognitoIdentityProviderClient
 from mypy_boto3_cognito_idp.type_defs import AttributeTypeTypeDef
+
+from banking_agent import personas
+from banking_agent.dataset.lock import read_lock
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -55,15 +62,28 @@ def cognito() -> CognitoIdentityProviderClient:
 
 
 @pytest.fixture(scope="session")
+def persona_ids() -> dict[str, str]:
+    snapshot = read_lock(ROOT / "dataset.lock").snapshot_id
+    try:
+        return personas.read(personas.path_for(ROOT / "data", snapshot), snapshot)
+    except personas.PersonaError as error:
+        pytest.fail(str(error))
+
+
+@pytest.fixture(scope="session")
 def users(
-    outputs: dict[str, Any], cognito: CognitoIdentityProviderClient
+    outputs: dict[str, Any],
+    cognito: CognitoIdentityProviderClient,
+    persona_ids: dict[str, str],
 ) -> Iterator[dict[str, User]]:
     pool = outputs["user_pool_id"]
     run = uuid.uuid4().hex[:8]
     alphabet = string.ascii_letters + string.digits
     wanted = {
-        "customer": (["customer"], "CLI-ITEST0000001"),
-        "other_customer": (["customer"], "CLI-ITEST0000002"),
+        "customer": (["customer"], persona_ids["es"]),
+        "other_customer": (["customer"], persona_ids["pt"]),
+        # Not in the tools' data.
+        "unknown_customer": (["customer"], "CLI-ITEST0000001"),
         "staff": (["human_agent"], None),
         "no_group": ([], "CLI-ITEST0000003"),
         "no_claim": (["customer"], None),

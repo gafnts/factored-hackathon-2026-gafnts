@@ -2,7 +2,6 @@
 E2 finds signal only where the label has some, on customers the model never saw (DML-07 to DML-10).
 """
 
-import hashlib
 from collections.abc import Iterator
 from datetime import date
 
@@ -14,8 +13,6 @@ from sklearn.metrics import roc_auc_score
 from banking_agent.analysis.candidates import Label
 from banking_agent.analysis.learned import (
     FEATURES,
-    HELD_OUT_EVERY,
-    held_out,
     measure,
     roc_auc,
 )
@@ -42,16 +39,6 @@ def con() -> Iterator[duckdb.DuckDBPyConnection]:
     con = duckdb.connect()
     yield con
     con.close()
-
-
-def test_holds_out_a_fifth_of_customers_by_their_md5() -> None:
-    ids = [f"CUS{i:06d}" for i in range(10_000)]
-    share = sum(held_out(c) for c in ids) / len(ids)
-
-    assert 0.18 < share < 0.22
-    for c in ids[:50]:
-        digest = hashlib.md5(c.encode(), usedforsecurity=False).hexdigest()
-        assert held_out(c) == (int(digest, 16) % HELD_OUT_EVERY == 0)
 
 
 def test_the_estimate_matches_the_usual_roc_auc_with_ties() -> None:

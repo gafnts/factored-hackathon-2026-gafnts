@@ -18,7 +18,6 @@ from banking_agent.analysis.capacity import (
 )
 from banking_agent.analysis.cards import YEAR
 from banking_agent.analysis.cards_report import WEEKDAYS
-from banking_agent.analysis.learned import HELD_OUT_EVERY
 from banking_agent.analysis.plotting import save
 from banking_agent.analysis.report import (
     SUPPRESS_BELOW,
@@ -43,6 +42,7 @@ from banking_agent.analysis.traffic import (
     Traffic,
     Volume,
 )
+from banking_agent.split import HELD_OUT_EVERY
 
 ADR_0003 = "../adr/0003-choose-workflow-from-evidence.md"
 ADR_0004 = "../adr/0004-agent-architecture-on-agentcore.md"

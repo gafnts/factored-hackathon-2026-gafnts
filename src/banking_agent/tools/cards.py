@@ -1,0 +1,71 @@
+"""
+list_cards and get_card (ADR-0004, Tools; POL-08, POL-12, POL-13 to POL-16, POL-21, POL-30). Every key is built from the
+input's customer_id, which Cedar has matched to the token, so a customer reads their own partition only and another
+customer's card reads as not found. There is no sandbox overlay until block_card (M2), so a card's status is the tools'
+data's; origin_jti, which will choose the overlay, is validated and not yet read.
+"""
+
+from typing import Any
+
+from banking_agent.tools.store import Record, ToolsData
+
+# Closed and Suspended customers may only block a card; their status is never returned (POL-12).
+SERVED_IN_FULL = ("Active", "Inactive")
+
+SUMMARY = (
+    "card_id",
+    "product_type",
+    "last_four",
+    "product_status",
+    "past_expiration",
+    "updated_after_as_of",
+)
+DETAIL = (*SUMMARY[:4], "opening_date", "expiration_date", *SUMMARY[4:])
+
+
+class CustomerMissingError(RuntimeError):
+    """
+    The token names a customer the tools' data doesn't hold: a user created for a customer the export lacks, which is a
+    fault in the deployment, not an outcome the contract has.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "the tools' data holds no customer with the token's customer_id"
+        )
+
+
+def _stamped(data: ToolsData) -> dict[str, Any]:
+    metadata = data.metadata()
+    return {"stamp": metadata["stamp"], "clock": metadata["clock"]}
+
+
+def _only(record: Record, names: tuple[str, ...]) -> dict[str, Any]:
+    return {name: record[name] for name in names}
+
+
+def list_cards(data: ToolsData, arguments: dict[str, Any]) -> dict[str, Any]:
+    customer_id = arguments["customer_id"]
+    customer = data.customer(customer_id)
+    if customer is None:
+        raise CustomerMissingError()
+    cards = sorted(
+        data.cards(customer_id),
+        key=lambda card: (card["product_type"], card["last_four"], card["card_id"]),
+    )
+    return {
+        "outcome": "ok",
+        **_stamped(data),
+        "customer": {
+            "served_in_full": customer["customer_status"] in SERVED_IN_FULL,
+            "country": customer["country"],
+        },
+        "cards": [_only(card, SUMMARY) for card in cards],
+    }
+
+
+def get_card(data: ToolsData, arguments: dict[str, Any]) -> dict[str, Any]:
+    card = data.card(arguments["customer_id"], arguments["card_id"])
+    if card is None:
+        return {"outcome": "not_found", **_stamped(data)}
+    return {"outcome": "ok", **_stamped(data), "card": _only(card, DETAIL)}

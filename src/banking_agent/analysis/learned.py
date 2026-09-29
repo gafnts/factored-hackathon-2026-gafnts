@@ -2,7 +2,6 @@
 Gate E2 of ADR-0003: whether a label the bank recorded carries signal for customers the model never saw.
 """
 
-import hashlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -19,9 +18,9 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from banking_agent.analysis.candidates import Label
 from banking_agent.analysis.source import one
+from banking_agent.split import held_out
 
 CHANCE = 0.5
-HELD_OUT_EVERY = 5
 PENALTY_C = 1.0
 RESAMPLES = 1_000
 LEVEL = 0.95
@@ -164,11 +163,6 @@ def top_legitimate_score(con: duckdb.DuckDBPyConnection, rows: str) -> float | N
         con, f"select max(fraud_score) from transactions where {rows} and not is_fraud"
     )[0]
     return None if top is None else float(top)
-
-
-def held_out(customer_id: str) -> bool:
-    digest = hashlib.md5(customer_id.encode(), usedforsecurity=False).hexdigest()
-    return int(digest, 16) % HELD_OUT_EVERY == 0
 
 
 def model(features: Features) -> Pipeline:

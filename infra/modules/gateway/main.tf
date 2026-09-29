@@ -118,15 +118,30 @@ resource "aws_iam_role" "reads" {
   permissions_boundary = var.permissions_boundary_arn
 }
 
+# Every read names its attributes, and is_fraud isn't among those allowed (ADR-0004's amendment of 2026-09-29).
 data "aws_iam_policy_document" "reads" {
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
     resources = ["${aws_cloudwatch_log_group.reads.arn}:*"]
   }
+  statement {
+    actions   = ["dynamodb:GetItem", "dynamodb:Query"]
+    resources = [var.tools_data_table_arn]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = var.tools_data_attributes
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:Select"
+      values   = ["SPECIFIC_ATTRIBUTES"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "reads" {
-  name   = "logs"
+  name   = "reads"
   role   = aws_iam_role.reads.id
   policy = data.aws_iam_policy_document.reads.json
 }
@@ -147,6 +162,12 @@ resource "aws_lambda_function" "reads" {
   logging_config {
     log_format = "JSON"
     log_group  = aws_cloudwatch_log_group.reads.name
+  }
+
+  environment {
+    variables = {
+      TOOLS_DATA_TABLE = var.tools_data_table
+    }
   }
 
   depends_on = [aws_iam_role_policy.reads]
@@ -218,7 +239,9 @@ resource "aws_bedrockagentcore_policy" "own_customer" {
         )
         when {
           principal.hasTag("customer_id") &&
-          principal.getTag("customer_id") == context.input.customer_id
+          principal.getTag("customer_id") == context.input.customer_id &&
+          principal.hasTag("origin_jti") &&
+          principal.getTag("origin_jti") == context.input.origin_jti
         };
       EOT
     }

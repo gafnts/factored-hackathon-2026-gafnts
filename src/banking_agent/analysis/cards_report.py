@@ -30,7 +30,6 @@ from banking_agent.analysis.cards import (
     Spread,
     Window,
 )
-from banking_agent.analysis.learned import HELD_OUT_EVERY
 from banking_agent.analysis.plotting import save
 from banking_agent.analysis.report import (
     SUPPRESS_BELOW,
@@ -39,6 +38,7 @@ from banking_agent.analysis.report import (
     share,
     suppress,
 )
+from banking_agent.split import HELD_OUT_EVERY
 
 ADR = "../adr/0003-choose-workflow-from-evidence.md"
 FIGURES = "figures"

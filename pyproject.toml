@@ -22,8 +22,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-  "boto3-stubs[cognito-idp,logs,s3,secretsmanager,sts]>=1.43.103",
-  "moto[s3]>=5.2.3",
+  "boto3-stubs[cognito-idp,dynamodb,logs,s3,secretsmanager,sts]>=1.43.103",
+  "moto[dynamodb,s3]>=5.2.3",
   "mypy>=2.3.1",
   "pre-commit>=4.6.2",
   "pyproject-fmt>=2.29.4",
@@ -53,6 +53,7 @@ eda = [
   "scikit-learn>=1.9.1",
 ]
 tools = [
+  "boto3>=1.43.103",
   "jsonschema>=4.26",
   "rfc3339-validator>=0.1.4",
 ]
