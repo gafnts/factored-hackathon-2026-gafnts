@@ -11,7 +11,7 @@ Some decisions are still open. Each is marked **Open** where it arises and liste
 [ADR-0004](0004-agent-architecture-on-agentcore.md) puts the customer chat and two consoles on one static site, gives each role a Cognito group, and leaves the hosting open (its decision 15). This record says how the site is served, how each role signs in and what it sees, and what a human agent does with a handoff. Seven forces shape it:
 
 - **Three roles use the site, and only one talks to the agent.** A customer chats with the agent, a human agent receives its handoffs, and the AI team watches the system. The Runtime serves customers only (ADR-0004), so the consoles need an API of their own. The consoles are also what makes the prototype a customer-service system rather than a chatbot (SCP-02).
-- **The judges reach the system only through the submitted link** (OPS-12, SUB-02). They have no access to the AWS account, so what they should see, the monitoring included, has to be in the site. A frontend is scored; a dashboard earns nothing by itself ([Reading between the lines](../hackathon-requirements.md#reading-between-the-lines)).
+- **The judges reach the system only through the submitted link** (OPS-12, SUB-02). They have no access to the AWS account, so what they should see has to be in the site. A frontend is scored; a dashboard earns nothing by itself ([Reading between the lines](../hackathon-requirements.md#reading-between-the-lines)).
 - **A handoff is asynchronous by policy.** Code decides whether a handoff is required or offered, the customer accepts an offered one, and the reply says that a person will follow up, promising no outcome or time (POL-45). No person stands between the customer and a block (POL-36, POL-39), so the human agent's side is a queue of cases, not a gate.
 - **The payload is a first-class artifact** (CTL-05). The demo should show it arriving in a person's queue, structured, with each fact next to the tool call that read it.
 - **The judges will attack the site as well as the agent.** Text a customer wrote reaches an employee's browser through the payload, text the model wrote reaches the customer's browser as Markdown, and a customer's token must not open a console (SEC-05, CTL-04).
@@ -20,7 +20,7 @@ Some decisions are still open. Each is marked **Open** where it arises and liste
 
 ## Decision
 
-Serve one single-page app from S3 through CloudFront, on a subdomain of `gabriel.com.gt` once its name is chosen, with a route per role. Each browser tab signs in on its own, through one Cognito app client for customers and one for staff. Staff use a small console API, which the consoles poll. A handoff is a case that a human agent claims and resolves; no one approves or rejects it.
+Serve one single-page app from S3 through CloudFront, on a subdomain of `gabriel.com.gt` once its name is chosen, with a route per role. Each browser tab signs in on its own, through one Cognito app client for customers and one for staff. Human agents use a small console API, which their console polls; the AI team's page shows the evaluation report. A handoff is a case that a human agent claims and resolves; no one approves or rejects it.
 
 ```mermaid
 flowchart LR
@@ -32,19 +32,16 @@ flowchart LR
   RT["AgentCore Runtime (ADR-0004)"]
   API["Console API: API Gateway and Lambda"]
   DB[("DynamoDB: handoff cases, execution records")]
-  CW["CloudWatch: alarms and metrics"]
   CF -.->|"serves"| CUST
   CF -.-> AGT
-  CF -.-> OPS
+  CF -.->|"with the evaluation report"| OPS
   CUST -->|"customers' client"| COG
   AGT -->|"staff client"| COG
   OPS -->|"staff client"| COG
   CUST -->|"AG-UI, customer token"| RT
   AGT -->|"polls, staff token"| API
-  OPS -->|"polls, staff token"| API
   RT -->|"files handoffs, writes records"| DB
   API --> DB
-  API --> CW
 ```
 
 ### Routes
@@ -53,7 +50,7 @@ flowchart LR
 |---|---|---|---|---|
 | `/chat` | Customers (the `customer` group) | The customers' app client | The Runtime, over AG-UI | The chat in Spanish or Portuguese, the confirm control, a handoff's reference, and the persona's card with suggested prompts |
 | `/agent` | Human agents (`human_agent`) | The staff app client | The console API | The queues, each case's payload with every verified fact next to the tool call that read it, and the controls to claim and resolve a case |
-| `/ops` | The AI team (`ai_team`) | The staff app client | The console API | Alarm states, the monitoring metrics, recent turns without personal data, and the evaluation report |
+| `/ops` | The AI team (`ai_team`) | The staff app client | Nothing: the report ships with the site | The evaluation report, labeled as an offline measurement |
 
 A route only decides what the browser draws. What a token can reach is decided on the server: the Runtime accepts the customers' app client and the customer group only (ADR-0004), and the console API accepts the staff app client only and checks each route's group. A customer who opens `/agent` meets a sign-in form their credentials can't pass.
 
@@ -88,10 +85,8 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 | `GET /cases/{reference}` | `human_agent` | One case: its status, its payload, and the recorded tool calls its evidence names |
 | `POST /cases/{reference}/claim` | `human_agent` | Moves a `filed` case to `claimed`, by the caller |
 | `POST /cases/{reference}/resolve` | `human_agent` | Moves a case the caller claimed to `resolved`, with a resolution |
-| `GET /ops/metrics` | `ai_team` | The alarms' states and the monitoring metrics over the last day |
-| `GET /ops/turns` | `ai_team` | Recent turns, without personal data |
 
-- **IAM, per Lambda, under the deploy boundary.** The reading Lambdas read their tables only. The Lambda behind claim and resolve may call `UpdateItem` on the cases table for the status attributes alone (a condition on `dynamodb:Attributes`), so even a bug in it can't change a payload (**Open**, decision 3). The metrics Lambda may call `cloudwatch:DescribeAlarms` on the project's alarms and `cloudwatch:GetMetricData`, which can't be scoped to our metrics.
+- **IAM, per Lambda, under the deploy boundary.** The reading Lambdas read their tables only. The Lambda behind claim and resolve may call `UpdateItem` on the cases table for the status attributes alone (a condition on `dynamodb:Attributes`), so even a bug in it can't change a payload (**Open**, decision 3). No console Lambda reads CloudWatch.
 - **Nothing in the console API acts on the bank.** No route blocks, unblocks, or changes a card, and none writes the tools' data, the sandbox overlay, or the confirmations.
 - **A stage rate limit,** well above what the polling below needs, caps a runaway tab or script.
 
@@ -126,19 +121,15 @@ The payload's schema stays at version 1. A status isn't a fact about the handoff
 
 ### Freshness: the consoles poll
 
-- `/agent` asks for its queue every 3 seconds while its tab is visible, and `/ops` every 30 seconds; a hidden tab stops asking. A case appears in the queue within 3 seconds of being filed, and each console says when it last refreshed. It is a poll, not a push, and we call it one (**Open**, decision 4).
+- `/agent` asks for its queue every 3 seconds while its tab is visible; a hidden tab stops asking. A case appears in the queue within 3 seconds of being filed, and the console says when it last refreshed. It is a poll, not a push, and we call it one (**Open**, decision 4).
 - A few open staff tabs make a few requests a second at most, which Lambda and DynamoDB on demand absorb without notice; the stage's rate limit caps anything more.
 - Push is the production path: a DynamoDB stream on the cases table feeding AppSync Events, which the pinned provider supports ([Alternatives considered](#alternatives-considered)).
 
-### The AI team's view
+### The AI team's page
 
-Read-only and built last (**Open**, decision 6). It shows three things, kept apart:
+`/ops` shows ADR-0005's committed evaluation report, bundled with the site when it is built, labeled as an offline measurement on held-out cases (EVL-13) (**Open**, decision 6). It calls no API, so it holds no live number that could be read as a production result.
 
-- **Live monitoring.** The alarms' states and the metrics ADR-0004's monitoring names, over the last day, read from CloudWatch through the console API, so the view and the alarms show the same numbers: turn latency (p50, p95), Runtime and tool errors, authorizer rejections and Cedar denials, provider errors and throttling, failed reply checks, handoffs by reason, tokens and cost per conversation, and turns per user against the daily cap. The view says whose traffic it is: this deployment's, mostly judges and demos.
-- **Recent turns,** newest first, from the execution records through their index by day and time: when, the source (demo or evaluation), the language, the label, the outcome, latency, tokens, cost, the model and prompt versions, and the reply check's result. No message text and no customer ID: each sign-in shows as a pseudonym, so the AI team can follow one conversation without knowing whose it is (ADR-0004: the AI team reads masked records only).
-- **The evaluation,** ADR-0005's committed report, labeled as an offline measurement on held-out cases and never plotted with the live numbers (EVL-13).
-
-If time runs out, `/ops` shows the evaluation report alone, and the monitoring stays as ADR-0004 describes it (OPS-03).
+The live monitoring stays in the account, as ADR-0004 describes it (OPS-03): alarms and metrics defined in Terraform, which the judges can't reach and the site doesn't show. A live view (the alarms' states and the metrics over the last day, and recent turns with no message text and a pseudonym per sign-in, read through the console API) is production work; in a bank it belongs to the observability stack ([In a bank](#in-a-bank-ops-11)).
 
 ### Rendering what others wrote
 
@@ -152,7 +143,7 @@ If time runs out, `/ops` shows the evaluation report alone, and the monitoring s
 - **Credentials per role** reach the judges privately with the submission, never the repository (ADR-0004): several customer personas from development customers (ADR-0005), one human agent, and one member of the AI team, each with a long random password the admin script sets. The note that carries them says that a sign-in lasts an hour, and the README says that the credentials went to the organizers and that anyone else can deploy a fork (OPS-07).
 - **Persona cards.** After sign-in, the chat shows the persona's card: a description and suggested prompts in both languages that reach each path, answered, clarified or declined, and handed off (SCP-03 to SCP-06). The admin script labels each persona user with an attribute only admins write, and the site holds one card per label, written in general terms ("a credit card and a debit card, and a declined purchase this week") with no identifier or value from the records, so the public site holds no customer data (SEC-03).
 - **Many judges, one persona.** Each sign-in gets its own sandbox (ADR-0004), so two judges signed in as the same persona don't see each other's blocks. They share the persona's daily cap, set well above a day of grading, and one human agent's queue, where the reference in their chat finds their case.
-- **A credential that leaks** is bounded, visible, and reversible. The daily cap per user (ADR-0004's decision 21) and the providers' spend limits bound what it can spend; turns per user show in the AI team's view, with an alarm near the cap; and the admin script resets its password and signs it out everywhere, which takes effect at the Runtime and the console API within the 15-minute access token.
+- **A credential that leaks** is bounded, visible, and reversible. The daily cap per user (ADR-0004's decision 21) and the providers' spend limits bound what it can spend; an alarm fires near the cap; and the admin script resets its password and signs it out everywhere, which takes effect at the Runtime and the console API within the 15-minute access token.
 - **After judging,** the admin script disables the judges' users, or `make destroy` removes the stack.
 - **The demo** runs two tabs side by side. A customer reports a charge they don't recognize, in Portuguese, confirms the block with the control, and gets a reference; within a poll, the case is in `dispute_intake` as `normal`, since the card is verified blocked (POL-47), with the verified block among its actions and each fact next to the tool call that read it. Cancelling the block instead files the case as `urgent`.
 
@@ -166,7 +157,7 @@ If time runs out, `/ops` shows the evaluation report alone, and the monitoring s
 | Our cases table, with claim and resolve | The bank's case or contact center system routes and assigns cases, tracks service levels, contacts the customer, and lets them follow the case |
 | The consoles poll | The case system pushes updates, or AppSync Events fed by the table's stream |
 | No person can join the chat | A live transfer to a person in the same conversation, through the contact center's chat, which needs a channel into the customer's conversation outside the agent's run |
-| The AI team's view | The bank's observability stack, with dashboards, alerting, and on-call |
+| The AI team's page, with the evaluation report; alarms in the account | The bank's observability stack, with dashboards, alerting, and on-call |
 
 ### Open decisions
 
@@ -174,10 +165,10 @@ We settle these before accepting this record. Each names the option we lean towa
 
 1. **The hostname.** Lean: the product's name as a subdomain of `gabriel.com.gt`, chosen with its branding, with `tarjetas` (the workflow, in the bank's language) as the fallback; until then the site runs on its CloudFront domain, and the name only has to exist by the time the link is submitted (SUB-02). Other options: `soporte` (nearly the same word in Portuguese), `agente` (the same word in both languages, but it also names the human agent), and `banco` (reads as the bank's own site). Names with accents are out, since they become punycode.
 2. **Sign-in.** Lean: our own form, with SRP through Amplify's auth library and tokens in the tab's `sessionStorage`. Alternative: Cognito's managed login with PKCE, sending `prompt=login` so each tab signs in on its own.
-3. **Claim and resolve.** Lean: built once the read-only queue works, before the AI team's view. Alternative: a read-only queue, with the lifecycle described as production work; ADR-0004's IAM line and the mock's limitations would then say the consoles only read.
-4. **Freshness.** Lean: polling, every 3 seconds for the queue and every 30 for the AI team's view. Alternative: push through AppSync Events.
+3. **Claim and resolve.** Lean: built once the read-only queue works. Alternative: a read-only queue, with the lifecycle described as production work; ADR-0004's IAM line and the mock's limitations would then say the consoles only read.
+4. **Freshness.** Lean: polling the queue every 3 seconds. Alternative: push through AppSync Events.
 5. **The case record.** Lean: a record with its own schema that wraps the payload, which stays at version 1. Alternative: a `status` in the payload's schema, at version 2, which would put state that changes after filing into the artifact the policy validates.
-6. **The AI team's view.** Lean: alarms and metrics from CloudWatch, recent turns with no text and a pseudonym per sign-in, and the evaluation report, built last. Alternative: the evaluation report alone, with the monitoring described in ADR-0004 only.
+6. **The AI team's page.** Lean: the evaluation report alone, bundled with the site, with the monitoring defined in Terraform and described in ADR-0004. Alternative: a live view beside the report, with alarms and metrics from CloudWatch and recent turns with no text and a pseudonym per sign-in, read through the console API; it adds two routes, a Lambda that reads every metric in the account (`GetMetricData` can't be scoped), and an index on the execution records.
 
 ## Alternatives considered
 
@@ -199,7 +190,7 @@ We settle these before accepting this record. Each names the option we lean towa
 
 **A password in front of the site** (HTTP Basic Auth in a CloudFront Function). It would guard only the site's static files: the browser calls Cognito, the Runtime, and the console API on their own AWS hostnames, which the wall doesn't cover, and those already need a sign-in. The judges would get a second password, in a browser dialog before ours.
 
-**Sharing a CloudWatch dashboard with the judges.** It is set up by hand in the console, which a fork can't reproduce from Terraform, and a public link lets anyone who has it call `GetMetricData` over every metric in the account. The AI team's view shows the same metrics, to the AI team's group only.
+**Sharing a CloudWatch dashboard with the judges.** It is set up by hand in the console, which a fork can't reproduce from Terraform, and a public link lets anyone who has it call `GetMetricData` over every metric in the account. The judges see the evaluation report instead, and the monitoring is described.
 
 ## Consequences
 
@@ -210,16 +201,15 @@ Positive:
 - The payload stays the validated artifact CTL-05 asks for; its case's status lives beside it, and IAM keeps the console from editing it.
 - A human agent reads each verified fact next to the tool call that read it.
 - Evaluation runs file their handoffs apart, so a human agent's queue holds only the cases customers filed in the chat.
-- The judges see the monitoring without access to the account, and live numbers and offline measurements are never shown as one.
+- Live numbers and offline measurements are never shown as one: the site shows the evaluation report only, labeled offline.
 - No console acts on the bank.
 
 Negative:
 - Customers and staff share an origin, which a bank wouldn't do; the server's checks, not the origin, separate them.
 - Tokens in `sessionStorage` can be read by any script the page runs, so the content security policy and the rendering rules carry what an `HttpOnly` cookie would; each new tab signs in again.
 - The sign-in form is ours to get right, errors and accessibility included, where managed login would have given us Cognito's.
-- A case reaches the queue up to 3 seconds after filing, and every open console makes a request every 3 or 30 seconds whether anything changed or not.
+- A case reaches the queue up to 3 seconds after filing, and every open queue makes a request every 3 seconds whether anything changed or not.
 - Claiming and resolving change nothing at the bank, and no one tells the customer: the console shows a workflow, not a service.
-- The live numbers come mostly from judges and demos; they show that the system runs, not how it would perform in production.
-- `GetMetricData` can't be scoped, so the metrics Lambda can read every metric in the account, read-only.
+- The judges see no live monitoring: it is described and defined in Terraform, not shown.
 - The first apply with the custom domain waits for a record we add by hand in Netlify.
 - Nothing technical stops a judge from sharing credentials; the caps make that a bounded cost, not an open one.
