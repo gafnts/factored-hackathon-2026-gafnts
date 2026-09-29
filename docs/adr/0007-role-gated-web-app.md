@@ -117,6 +117,8 @@ The payload's schema stays at version 1. A status isn't a fact about the handoff
 
 **Indexes:** one by source, queue, and status, sorted by filing time, from which the queue reads the demo's cases only, and one by reference.
 
+**Types from the schemas.** The console's types, reason codes included, are generated from the payload's and the case record's schemas (ADR-0004's decision 9), so a reason code the payload's schema adds, such as `block_lapsed`, fails the console's build until the console names it.
+
 **What the customer sees:** the reference, and that a person will follow up (POL-45); never the case's status. In a bank, the case system tells the customer ([In a bank](#in-a-bank-ops-11)).
 
 ### Freshness: the consoles poll

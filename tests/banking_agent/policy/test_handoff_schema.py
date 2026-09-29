@@ -1,6 +1,6 @@
 """
 The handoff schema (CTL-05) holds what the policy says a handoff may carry (POL-11, POL-32, POL-36, POL-37,
-POL-46, POL-47), and stays in step with the policy's labels and reason codes.
+POL-38, POL-46, POL-47), and stays in step with the policy's labels and reason codes.
 """
 
 import json
@@ -156,6 +156,24 @@ def test_a_block_never_confirmed_has_no_confirmation_time(outcome: str) -> None:
     assert validator().is_valid(payload)
 
     action["confirmed_at"] = "2026-10-02T15:41:37Z"
+    assert not validator().is_valid(payload)
+
+
+def test_a_lost_card_left_unblocked_goes_to_customer_service() -> None:
+    payload = example()
+    payload.update(
+        reason_code="block_lapsed",
+        queue="customer_service",
+        priority="urgent",
+        rules=["POL-38"],
+    )
+    payload["request"]["label"] = "block_card"
+    payload["actions"][0].update(
+        reason="lost", outcome="lapsed", confirmed_at=None, evidence=[]
+    )
+    assert validator().is_valid(payload)
+
+    payload["queue"] = "dispute_intake"
     assert not validator().is_valid(payload)
 
 

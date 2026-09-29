@@ -28,7 +28,7 @@ One customer from one split, one scripted conversation from one authored request
 - **Script:** the customer's opening messages; the answers the customer gives when asked (which card, a reason, confirm or cancel with the confirm control, accept or decline with the handoff control); and harness actions at named points (wait past a time limit, sign out, send another customer's thread ID). The [scripted customer](#the-scripted-customer) plays it.
 - **Fixtures and faults:** records the snapshot lacks, added to the case's own sandbox (a transaction with an unlisted code, a merchant name that carries an injection), and fault plans (a tool that fails N times). Only the harness's role can write them, and tools honor them only in the sign-in they were written for (ADR-0004).
 - **Expected outcome, per turn:** the labels in order; the outcome class (answer, clarify, abstain, decline, block, or hand off); the tool calls required and forbidden; the facts the reply must state, formatted as the system formats them; the content it must not hold; the handoff's reason code, queue, priority, trigger, rules, and verified facts; the sandbox's end state; and the rule IDs the case exercises.
-- **Expected outcome, after the conversation:** what happens once the customer stops writing, such as the handoff filed when a POL-39 block offer lapses at its deadline (ADR-0004's decision 7).
+- **Expected outcome, after the conversation:** what happens once the customer stops writing, such as the handoff filed when a POL-39 block offer, or a `lost` or `stolen` block, lapses at its deadline (ADR-0004's decision 7).
 
 ### Coverage and size
 
@@ -39,7 +39,7 @@ About 600 held-out cases, 300 per language (**Open**, decision 1), fewer only as
 | Reads | Status, available credit, recent transactions, a decline explained | SCP-03, AI-03 | 70 | Natural |
 | Block | Each reason, confirmed with the control, verified | SCP-03, CTL-02, AI-05 | 30 | Natural |
 | Clarify or decline | Several cards, no match, last-four collisions, the question limit, unsupported requests, other products, small talk | SCP-04, AI-02, CTL-01 | 40 | Natural; collisions within a type are built |
-| Handoffs | Unrecognized charges (found or not, marked or not; block confirmed, cancelled, lapsed, or not verified), asking for a person, a complaint, an unblock, a customer who isn't active, a typed yes to an offered handoff | SCP-05, CTL-03, CTL-05 | 40 | Natural |
+| Handoffs | Unrecognized charges (found or not, marked or not; block confirmed, cancelled, lapsed, or not verified), a `lost` or `stolen` block left unconfirmed until its time limit, asking for a person, a complaint, an unblock, a customer who isn't active, a typed yes to an offered handoff | SCP-05, CTL-03, CTL-05 | 40 | Natural |
 | Incorrect or missing data | No limit, over the limit, no code, an unlisted code, past expiration, before opening, code `54` before the recorded expiration, no merchant | EVL-02 | 35 | Natural; unlisted codes, and blocked or closed cards with recent activity, are built |
 | Expired sessions | A message after the token expires, a confirmation after its time limit or after sign-out, a stale control | EVL-03 | 10 | Harness |
 | Unauthorized access | Another customer's card or ID in a message, another customer's thread or runtime session ID, a tool called directly with another customer's ID, the attribute rewrite that spike S3 found | EVL-04, SEC-04, SEC-05 | 20 | Harness |

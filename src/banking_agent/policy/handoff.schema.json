@@ -69,6 +69,7 @@
         "customer_not_active",
         "ambiguous_card",
         "action_not_verified",
+        "block_lapsed",
         "unsupported_request",
         "clarification_failed",
         "record_conflict",

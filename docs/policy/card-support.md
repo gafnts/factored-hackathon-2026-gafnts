@@ -17,6 +17,7 @@ Revised before acceptance, so the version stays 1:
   - POL-36 offers no handoff when POL-39 already requires one.
   - An unrecognized charge gets one handoff, which records a failed block or read (POL-39).
   - POL-13 finds the card the customer named before checking whether the request applies to it.
+  - A `lost` or `stolen` block left unconfirmed when the customer leaves is handed off (POL-38, `block_lapsed`).
 
 Once accepted, a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
 
@@ -108,7 +109,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 - **POL-35** A block carries a reason: `lost`, `stolen`, `unrecognized_charge`, or `customer_request`. The agent asks for one when the customer hasn't given it, and records `customer_request` when the customer would rather not say. (CTL-02)
 - **POL-36** Before blocking, the agent shows the confirm control, which names the card (type and last four digits) and the reason and says that only a person can undo a block. Only the control confirms; typed text never does, whatever it says. A confirmation covers that card and that reason in the current session, and one block uses it up. It ends unused when the customer cancels it with the control, when a message names another card or reason or makes a new request, when its time limit passes, or when the session ends (POL-09), and the agent's next reply says the card wasn't blocked. Any other message, a typed yes included, leaves it pending, and the agent points to the control; once it has done so twice, it also offers a handoff (`clarification_failed`), since a person can block the card, unless the confirmation's end already requires a handoff (POL-39); accepting that handoff ends the confirmation unused. (CTL-02, CTL-04)
 - **POL-37** After the write, the tool reads the sandbox back, and the reply says the card is blocked only when that read shows `Blocked`. When it doesn't, the block is retried up to two more times under the same confirmation, each only after a read shows it wasn't applied. If it still isn't, the reply says the block couldn't be confirmed, and the agent hands off (`action_not_verified`) without asking for another confirmation. (AI-05, OPS-04, OPS-05)
-- **POL-38** After a block for `lost` or `stolen`, the reply says a person handles a replacement and offers a handoff (`unsupported_request`). (CTL-03)
+- **POL-38** After a block for `lost` or `stolen`, the reply says a person handles a replacement and offers a handoff (`unsupported_request`). When the confirmation for such a block lapses unused at its time limit or with the session, the case is handed off (`block_lapsed`): the customer reported the card missing and left without blocking it. A cancel with the control, or a new request, ends the confirmation without a handoff, since the customer is still there to decide. (CTL-03)
 
 ## Charges the customer doesn't recognize
 
@@ -139,6 +140,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 | `customer_not_active` | Required | POL-12 | `customer_service` |
 | `ambiguous_card` | Required | POL-15 | `customer_service` |
 | `action_not_verified` | Required | POL-37 | `customer_service` |
+| `block_lapsed` | Required | POL-38 | `customer_service` |
 | `unsupported_request` | Offered | POL-38, POL-42 | `customer_service` |
 | `clarification_failed` | Offered | POL-17, POL-36 | `customer_service` |
 | `record_conflict` | Offered | POL-31 | `customer_service` |
