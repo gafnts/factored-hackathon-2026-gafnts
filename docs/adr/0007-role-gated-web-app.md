@@ -84,7 +84,7 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 
 | Route | Group | Does |
 |---|---|---|
-| `GET /cases` | `human_agent` | Lists the cases of one queue and status, newest first |
+| `GET /cases` | `human_agent` | Lists the demo's cases of one queue and status, newest first |
 | `GET /cases/{reference}` | `human_agent` | One case: its status, its payload, and the recorded tool calls its evidence names |
 | `POST /cases/{reference}/claim` | `human_agent` | Moves a `filed` case to `claimed`, by the caller |
 | `POST /cases/{reference}/resolve` | `human_agent` | Moves a case the caller claimed to `resolved`, with a resolution |
@@ -107,6 +107,7 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 | `reference` | Eight characters from Crockford's base32 alphabet (no `I`, `L`, `O`, or `U`), drawn at random, unique by a conditional put, and shown in two groups of four (`7K2M-9QXA`): what the reply gives the customer (POL-45), and what a human agent searches by |
 | `payload` | The payload as filed, never changed afterwards |
 | `queue`, `priority`, `reason_code`, `language` | Copied from the payload, for the indexes and the queue's list |
+| `source` | `demo` or `evaluation`, set by the graph from the token's groups as the execution record's is (ADR-0004), so an evaluation run's cases never reach a human agent's queue ([ADR-0005](0005-offline-scenario-evaluation.md)) |
 | `status` | `filed`, `claimed`, or `resolved` |
 | `filed_at`, `claimed_at`, `resolved_at` | Wall clock |
 | `claimed_by` | The human agent's `sub` and user name |
@@ -119,7 +120,7 @@ The payload's schema stays at version 1. A status isn't a fact about the handoff
 
 **The lifecycle.** A case moves from `filed` to `claimed` to `resolved`, and never back. Each move is a conditional update on the current status, and a resolve also on `claimed_by` being the caller, so two people can't claim one case, only its claimer resolves it, and a stale screen changes nothing. Within a queue, the console lists `urgent` cases first. If ADR-0004's decision 7 keeps the draft handoff, the draft is a case in status `draft`, which the queue doesn't show and the deadline Lambda files.
 
-**Indexes:** one by queue and status, sorted by filing time, which the queue reads, and one by reference.
+**Indexes:** one by source, queue, and status, sorted by filing time, from which the queue reads the demo's cases only, and one by reference.
 
 **What the customer sees:** the reference, and that a person will follow up (POL-45); never the case's status. In a bank, the case system tells the customer ([In a bank](#in-a-bank-ops-11)).
 
@@ -208,6 +209,7 @@ Positive:
 - Customer and staff tokens are told apart by app client before our code runs, at the Runtime and at the console API, and staff roles by group in every console route.
 - The payload stays the validated artifact CTL-05 asks for; its case's status lives beside it, and IAM keeps the console from editing it.
 - A human agent reads each verified fact next to the tool call that read it.
+- Evaluation runs file their handoffs apart, so a human agent's queue holds only the cases customers filed in the chat.
 - The judges see the monitoring without access to the account, and live numbers and offline measurements are never shown as one.
 - No console acts on the bank.
 
