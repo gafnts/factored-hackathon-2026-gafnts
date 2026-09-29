@@ -63,7 +63,7 @@ flowchart LR
   DL --> DB
   RT --> DB
   API --> DB
-  PIPE -->|"publish"| DB
+  PIPE -->|"export, imported"| DB
   RT -->|"keys from AgentCore Identity"| LLM
 ```
 
@@ -258,7 +258,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-30 | Pipeline, tool | Conflict flags computed in the pipeline travel with the record, and the tools return both facts |
 | POL-31 | Graph | `record_conflict` is offered only when the customer asks |
 | POL-32 | Tool, graph | A missing field comes back as not recorded; the graph abstains and offers `missing_data` |
-| POL-33 | Tool, pipeline | `block_card` writes only the overlay; only the publish step can write the tools' data |
+| POL-33 | Tool, pipeline | `block_card` writes only the overlay; the tools' data is written only by Terraform's import of a gold export, into a new table |
 | POL-34 | Tool | `block_card` reads the status, overlay over data, before writing |
 | POL-35 | Tool, graph | The reason is an enum on the tool and the confirmation; the graph asks for it |
 | POL-36 | Graph, entrypoint, tool, frontend | The confirmation record and interrupt; typed text as a `message` resume; the tool requires and uses the record; the chat renders the control from the payload |
@@ -354,7 +354,7 @@ DynamoDB tables, on demand (**Open**, decisions 1 to 3). The sandbox is keyed by
 
 | Table | Keyed by | Written by | Kept |
 |---|---|---|---|
-| Tools' data | Customer, then record | The publish step only | Until the next publish |
+| Tools' data | Customer, then record | Terraform's import of a gold export, only | Until the import of a newer export replaces the table |
 | Sandbox overlay | Sign-in, then card or fixture | `block_card`; the evaluation harness, for fixtures and faults only | 24 hours |
 | Confirmations | Confirmation | The graph; `block_card`; the deadline Lambda, to lapse one; the evaluation harness, for ADR-0005's naive agent only | 24 hours; the outcome is copied into the execution record |
 | Session bindings | Runtime session | The entrypoint | 8 hours, the Runtime's longest session |
