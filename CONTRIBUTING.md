@@ -319,7 +319,7 @@ make format       # Apply ruff lint fixes and formatting to src and tests
 make lint         # Run ruff check on src and tests
 make type         # Run mypy on src and tests
 make test         # Run pytest with coverage
-make integration  # Run integration-marked tests (needs credentials; deselected by default)
+make integration  # Test ENV's deployed stack (needs credentials and the model key; deselected by default)
 make tf-format    # Format all Terraform files
 ```
 
@@ -333,6 +333,7 @@ With `AWS_PROFILE=banking-agent-local` active (direnv sets it when you enter the
 make init                # Initialize the local backend (safe to re-run)
 make plan                # Build, preview changes, and save the plan to build/local.tfplan
 make apply               # Apply the saved plan
+make integration         # Test the deployed stack with throwaway users
 make destroy ENV=local   # Tear down your local resources
 ```
 
@@ -420,7 +421,7 @@ Run `make help` for every target.
 | `ENV` | `local` | The Terraform targets (`local` or `prototype`) |
 | `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, `iam-destroy`, and `dataset-destroy` |
 | `ADOPT` | Unset | Set to `1` to let `make data` adopt a changed source and rewrite `dataset.lock` |
-| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make model-key`, `make snapshot`, and ad hoc AWS CLI calls |
+| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make model-key`, `make integration`, `make snapshot`, and ad hoc AWS CLI calls |
 | `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` and `dataset-*` targets, `make teardown`, `make doctor` |
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor`, `make data` |
 | `ANTHROPIC_API_KEY` | Unset; set it in `.env`, not the shell | `make model-key` |
@@ -449,7 +450,7 @@ The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbacken
 Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
-- `build/`: the zips `make build` writes, and the plan `make plan` saves
+- `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make integration` reads
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables

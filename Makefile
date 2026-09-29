@@ -5,6 +5,7 @@ TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
 PLAN    := build/$(ENV).tfplan
+OUTPUTS := build/$(ENV).outputs.json
 
 # The pinned AWS provider can't assume a role on top of an `aws login` sign-in, so Terraform
 # gets the CLI's credentials for AWS_PROFILE; a failed export stops it before another profile can.
@@ -27,7 +28,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 	data snapshot analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
-	init model-key plan apply destroy lock \
+	init model-key plan apply destroy outputs lock \
 	_check-backend
 
 # Targets tagged `## ...` are listed under the nearest `##@ Section` header.
@@ -76,8 +77,8 @@ tf-format: ## Format all Terraform files
 test: ## Run pytest with branch coverage
 	uv run pytest --cov --cov-report=term-missing
 
-integration: ## Run integration-marked tests (requires credentials and network access)
-	uv run pytest -m integration -v
+integration: outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m integration -v
 
 
 ##@ Build
@@ -183,6 +184,10 @@ destroy: _check-backend build ## Destroy all infrastructure for ENV (requires ex
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy prototype. Re-run with I_KNOW=1."; exit 1; fi
 	$(TF_AWS) destroy $(VARS)
+
+outputs: _check-backend ## Write ENV's Terraform outputs to build/ENV.outputs.json
+	@mkdir -p build
+	$(TF_AWS) output -json > $(OUTPUTS)
 
 
 ##@ Maintenance
