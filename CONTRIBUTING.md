@@ -86,7 +86,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` and `dataset-destroy` need `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
-| The model key reaching state, plans, or CI | The IAM root creates each environment's secret empty, `make model-key` stores the key from your `.env`, and the stack only looks the secret up by name ([step 3.6](#36-verify-and-deploy-local)) |
+| The model key reaching state, plans, or CI | The IAM root creates each environment's secret empty, `make model-key` stores the key from your `.env`, and the stack only looks the secret up by name ([step 3.7](#37-verify-and-deploy-local)) |
 | The dataset changing under an evaluation | `make data` stops when the organizers' bucket drifts from `dataset.lock`, and the data bucket rejects any write that would overwrite a snapshot |
 
 ---
@@ -200,7 +200,7 @@ This applies `infra/iam/`, then `infra/dataset/` (Terraform asks you to confirm 
 | `banking-agent-prototype-deploy` | The apply job, only from the `prototype` GitHub Environment | Write, scoped to `prototype` |
 | `banking-agent-prototype-plan` | The plan job on PRs into `main` | Read-only |
 
-`make iam-output` prints their ARNs whenever you need them. The IAM root also creates an empty secret for each environment's model key, `banking-agent-<env>-anthropic-api-key`, which you fill in [step 3.6](#36-verify-and-deploy-local). The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots ([step 3.7](#37-copy-the-dataset-snapshot)). It lives outside the environment stacks, so destroying one never deletes the data.
+`make iam-output` prints their ARNs whenever you need them. The IAM root also creates an empty secret for each environment's model key, `banking-agent-<env>-anthropic-api-key`, which you fill in [step 3.7](#37-verify-and-deploy-local). The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots and the exports of the tools' data ([step 3.6](#36-copy-the-dataset-snapshot-and-the-tools-data)), and the log group DynamoDB's imports write to. It lives outside the environment stacks, so destroying one never deletes the data.
 
 #### 3.4 Configure your local deploy profile
 
@@ -228,14 +228,33 @@ The deploy workflow needs a `prototype` environment and two repository variables
 
    Or add them under **Settings → Secrets and variables → Actions → Variables**.
 
-The apply job runs on merges to `main` that touch `infra/`. Store `prototype`'s model key before its first deploy ([step 3.6](#36-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
+The apply job runs on merges to `main` that touch `infra/`. Store `prototype`'s model key before its first deploy ([step 3.7](#37-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
 
-#### 3.6 Verify and deploy `local`
+#### 3.6 Copy the dataset snapshot and the tools' data
+
+With the dataset profile from [step 2](#2-connect-to-the-dataset) configured and `AWS_PROFILE=banking-agent-local` active:
+
+```bash
+make snapshot
+```
+
+This runs `make data`, then uploads the verified copy to `snapshots/<snapshot-id>/` in the data bucket. S3 checks each file's SHA-256 on arrival and rejects any write that would overwrite an object, and the lock goes up last, so a snapshot in the bucket is complete once `make doctor` sees it. Pipelines and the prototype read this copy with the project's own roles, never the organizers' bucket.
+
+The stack's plan reads an export of the tools' data from the same bucket ([ADR-0006](docs/adr/0006-batch-medallion-pipeline.md)), so upload one before the first deploy. Until the pipeline exists, that export is a tiny one for the development personas:
+
+```bash
+make personas      # Choose one development customer per language into data/personas/
+make tiny-export   # Build their items into data/exports/ and upload them under gold/ in the data bucket
+```
+
+Both read the snapshot in `data/` and print counts, never a customer's ID or values; what they write under `data/` stays out of git. `make tiny-export` prints the export's snapshot and pipeline version, which `tools_data_export` in `infra/envs/<env>.tfvars` must name. The version is a hash of the code that shapes the export, so the same code gives the same version on every machine, and the committed value works in your fork once your bucket holds the export. The first import in an account logs to `/aws-dynamodb/imports`, which [step 3.3](#33-create-the-deploy-roles) created with a retention.
+
+#### 3.7 Verify and deploy `local`
 
 The agent calls Anthropic's API with a key that Terraform never sees. [Step 3.3](#33-create-the-deploy-roles) created an empty secret for it, and you store the key there from a `.env` file that git ignores, before the first apply: AgentCore reads the key when the apply creates the stack's key provider.
 
 ```bash
-make doctor            # Every line but the model keys' and the dataset snapshot's should read ok
+make doctor            # Every line but the model keys' should read ok
 cp .env.example .env   # Then set ANTHROPIC_API_KEY in .env
 make model-key         # Store it in banking-agent-local-anthropic-api-key
 make plan              # Build the zips, preview the local stack, and save the plan
@@ -245,16 +264,6 @@ make apply             # Apply the saved plan
 `make model-key` sends the key straight to Secrets Manager, without printing it or putting it on a command line. Store `prototype`'s key the same way before its first deploy, with `AWS_PROFILE=default make model-key ENV=prototype`, since the local deploy role can't reach its secret; `make doctor` reports both. The secrets outlive `make destroy`, so the key is stored once per environment; `make iam-destroy` deletes them.
 
 From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
-
-#### 3.7 Copy the dataset snapshot
-
-With the dataset profile from [step 2](#2-connect-to-the-dataset) configured and `AWS_PROFILE=banking-agent-local` active:
-
-```bash
-make snapshot
-```
-
-This runs `make data`, then uploads the verified copy to `snapshots/<snapshot-id>/` in the data bucket. S3 checks each file's SHA-256 on arrival and rejects any write that would overwrite an object, and the lock goes up last, so a snapshot in the bucket is complete once `make doctor` sees it. Pipelines and the prototype read this copy with the project's own roles, never the organizers' bucket.
 
 A fully configured machine looks like this:
 
@@ -320,7 +329,7 @@ make format       # Apply ruff lint fixes and formatting to src and tests
 make lint         # Run ruff check on src and tests
 make type         # Run mypy on src and tests
 make test         # Run pytest with coverage
-make integration  # Test ENV's deployed stack (needs credentials and the model key; deselected by default)
+make integration  # Test ENV's deployed stack (needs credentials, the model key, and make personas; deselected by default)
 make tf-format    # Format all Terraform files
 ```
 
@@ -341,6 +350,8 @@ make destroy ENV=local   # Tear down your local resources
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
 
 `make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+
+The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`src/banking_agent/export/`, `src/banking_agent/personas.py`, or the tools' data contract) gives it a new version: run `make tiny-export`, which uploads it and prints the value, and set it in both files. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
 
 Add infrastructure as per-concern modules under `infra/modules/`, wired into `infra/main.tf`. The deploy roles have `PowerUserAccess`, which covers almost any AWS service. IAM is the exception: a deploy role can only manage roles named `banking-agent-<env>-*` that carry the environment's permissions boundary, so name Lambda and task execution roles accordingly and set `permissions_boundary = local.permissions_boundary_arn` on each (pass it into modules as a variable). The boundary allows everything except IAM and other environments' resources.
 
@@ -388,9 +399,10 @@ Run `make doctor` first; most setup problems show up there.
 | `make data` deleted files that didn't match | A download was corrupted or a local file was edited. Run `make data` again; it downloads only the deleted files. |
 | `make plan` stops at `aws configure export-credentials` | Your sign-in session ended, or `AWS_PROFILE` names a profile that doesn't exist. Run `aws login`, or finish [step 3.4](#34-configure-your-local-deploy-profile). |
 | `make apply` says there is no saved plan | Run `make plan` first; `make apply` applies only what it saved. |
-| `make plan` can't find the secret `banking-agent-<env>-anthropic-api-key` | The IAM root predates it. Run `make iam-apply`, then `make model-key` ([step 3.6](#36-verify-and-deploy-local)). |
+| `make plan` fails reading `gold/<snapshot>/<version>/manifest.json` | The export that `tools_data_export` names isn't in the data bucket. Run `make tiny-export` ([step 3.6](#36-copy-the-dataset-snapshot-and-the-tools-data)) and check that it printed the same version. |
+| `make plan` can't find the secret `banking-agent-<env>-anthropic-api-key` | The IAM root predates it. Run `make iam-apply`, then `make model-key` ([step 3.7](#37-verify-and-deploy-local)). |
 | `make apply` fails creating the API key credential provider: `can't find the specified secret value for staging label: AWSCURRENT` | The model key isn't stored. Run `make model-key`, then `make plan` and `make apply` again. |
-| The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.6](#36-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
+| The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.7](#37-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
 | A test says `infra/modules/gateway/tools.json` is stale | The tools' contract changed. Run `make build` and commit the file. |
 
 ---
@@ -456,5 +468,5 @@ Gitignored files worth knowing about:
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables
-- `data/`: the dataset snapshots `make data` downloads, which must never be committed
+- `data/`: the dataset snapshots `make data` downloads, the personas `make personas` chooses, and the exports `make tiny-export` builds, none of which may ever be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys

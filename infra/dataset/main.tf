@@ -83,3 +83,11 @@ resource "aws_s3_bucket_policy" "data" {
 
   depends_on = [aws_s3_bucket_public_access_block.data]
 }
+
+# DynamoDB logs every import in the account here, and creates the group without a retention if it doesn't exist. No
+# Environment tag, so both environments' imports write to it; entries name objects and lines, never items.
+#trivy:ignore:AVD-AWS-0017
+resource "aws_cloudwatch_log_group" "imports" {
+  name              = "/aws-dynamodb/imports"
+  retention_in_days = var.log_retention_days
+}
