@@ -1,8 +1,8 @@
 """
 Snapshots written by the team: three tables with one instance of each problem the profile looks for,
 a small bank with one instance of each case the selection measures, a selection with one instance
-of each verdict the report writes, and a small card bank with one instance of each case the card
-support analysis measures.
+of each verdict the report writes, a small card bank with one instance of each case the card
+support analysis measures, and a small bank with one instance of each case the traffic analysis measures.
 """
 
 import hashlib
@@ -19,6 +19,7 @@ from banking_agent.analysis.catalog import (
     COMPLAINTS,
     CUSTOMERS,
     DAILY_EXCHANGE_RATES,
+    DIGITAL_EVENTS,
     PRODUCTS,
     SATISFACTION_SURVEYS,
     TRANSACTIONS,
@@ -42,6 +43,7 @@ from banking_agent.analysis.selection import (
     stage,
 )
 from banking_agent.analysis.source import connect, table_keys
+from banking_agent.analysis.traffic import Traffic, traffic
 from banking_agent.dataset.lock import Lock, LockedFile, make_lock
 from banking_agent.dataset.snapshot import snapshot_dir
 
@@ -446,4 +448,80 @@ def selection() -> Selection:
             ),
             csat_range=(1, 4),
         ),
+    )
+
+
+TRAFFIC_TABLES = (*BANK_TABLES, DIGITAL_EVENTS)
+
+# A3 and A4 are development customers and A1 is held out, as in the card bank.
+TRAFFIC_FILES = {
+    "customers.csv": "customer_id,country,segment,customer_status,credit_score,"
+    "estimated_monthly_income,date_of_birth,registration_date\n"
+    "A3,México,Basic,Active,700,1000.00,1990-01-01,2020-01-01 10:00:00\n"
+    "A4,Colombia,Plus,Active,650,2000.00,1985-01-01,2020-01-01 10:00:00\n"
+    "A1,México,Basic,Active,700,1000.00,1990-01-01,2020-01-01 10:00:00\n",
+    "products.csv": "product_id,customer_id,product_type,product_number,product_status,currency,"
+    "current_balance,credit_limit,interest_rate,expiration_date,days_past_due,opening_date,"
+    "last_transaction_date,last_updated\n"
+    "K1,A3,Tarjeta Crédito,4000000000000002,Active,USD,100.00,500.00,30.00,2029-01-01,0,"
+    "2021-01-01,,2021-01-01 00:00:00\n"
+    "K6,A1,Tarjeta Crédito,4444444444444444,Active,USD,10.00,100.00,20.00,2030-01-01,0,"
+    "2020-01-01,,2020-01-01 00:00:00\n"
+    "S1,A4,Cuenta Ahorro,1000000001,Active,COP,50.00,,,,,2020-01-01,,2020-01-01 00:00:00\n",
+    # T2 is held out and T3 isn't on a card.
+    "transactions/year=2026/month=06/day=17/transactions_20260617.csv": "transaction_id,"
+    "transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,"
+    "amount,amount_usd,currency,channel,merchant_name,merchant_category,transaction_country,"
+    "transaction_status,response_code,is_fraud,fraud_score\n"
+    "T1,2026-06-17 10:00:00,2026-06-17,K1,A3,Purchase,Food,20.00,,USD,POS,Shop,Food,México,"
+    "Approved,00,False,1.00\n"
+    "T2,2026-06-17 11:00:00,2026-06-17,K6,A1,Purchase,Food,10.00,,USD,POS,Shop,Food,México,"
+    "Approved,00,False,1.00\n"
+    "T3,2026-06-17 12:00:00,2026-06-17,S1,A4,Deposit,,100.00,0.03,COP,Branch,,,Colombia,"
+    "Approved,00,False,0.10\n",
+    "complaints/year=2026/month=06/day=17/complaints_20260617.csv": "complaint_id,creation_date,"
+    "process_date,customer_id,case_type,category,subcategory,affected_product_id,claimed_amount,status\n"
+    "Q1,2026-06-10 10:00:00,2026-06-10,A3,Complaint,Fees,,K1,,Open\n"
+    "Q2,2026-06-10 11:00:00,2026-06-10,A1,Complaint,Fees,,K6,,Open\n",
+    # I3 falls on the as-of instant itself, I4 is held out, I5 is older than a year, and I6 comes after the
+    # as-of instant. The chat records no handle time, as in the snapshot.
+    "call_center_interactions/year=2026/month=06/day=17/call_center_interactions_20260617.csv": "interaction_id,"
+    "interaction_date,process_date,customer_id,channel,interaction_type,reason_category,duration_seconds,"
+    "wait_time_seconds,was_resolved,was_escalated\n"
+    "I1,2026-06-17 10:00:00,2026-06-17,A3,Phone,Inbound Call,Transaccional,300.0,60.0,True,False\n"
+    "I2,2026-06-17 10:30:00,2026-06-17,A4,WhatsApp,Chat,Producto,,,True,False\n"
+    "I3,2026-06-18 06:00:00,2026-06-17,A3,Phone,Inbound Call,Queja,200.0,,True,False\n"
+    "I4,2026-06-17 11:00:00,2026-06-17,A1,Phone,Inbound Call,Queja,100.0,30.0,True,False\n"
+    "I5,2025-01-01 10:00:00,2025-01-01,A4,Phone,Outbound Call,Queja,100.0,,True,False\n"
+    "I6,2026-06-18 07:00:00,2026-06-17,A3,Phone,Inbound Call,Queja,100.0,,True,False\n",
+    "satisfaction_surveys/year=2026/month=06/day=17/satisfaction_surveys_20260617.csv": "survey_id,"
+    "survey_date,process_date,interaction_id,customer_id,survey_type,main_score\n"
+    "V1,2026-06-17 12:00:00,2026-06-17,I1,A3,CSAT,4\n",
+    # Session W1 names A3, lends its customer to E2, and also names A4; W2 names no one; W3 is held out;
+    # E8 comes after the as-of instant.
+    "digital_events/year=2026/month=06/day=17/digital_events_20260617.csv": "event_id,event_date,"
+    "process_date,customer_id,session_id\n"
+    "E1,2026-06-17 10:00:00,2026-06-17,A3,W1\n"
+    "E2,2026-06-17 10:02:00,2026-06-17,,W1\n"
+    "E3,2026-06-17 10:05:00,2026-06-17,A4,W1\n"
+    "E4,2026-06-17 11:00:00,2026-06-17,,W2\n"
+    "E5,2026-06-17 12:00:00,2026-06-17,A1,W3\n"
+    "E6,2026-06-17 12:01:00,2026-06-17,,W3\n"
+    "E7,2026-06-17 09:00:00,2026-06-17,A4,W4\n"
+    "E8,2026-06-18 07:00:00,2026-06-17,A3,W5\n",
+}
+
+
+@pytest.fixture
+def traffic_bank(
+    snapshot_of: Callable[[dict[str, str]], tuple[Lock, Path]],
+) -> tuple[Lock, Path]:
+    return snapshot_of(TRAFFIC_FILES)
+
+
+@pytest.fixture
+def traffic_result(traffic_bank: tuple[Lock, Path]) -> Traffic:
+    lock, root = traffic_bank
+    return traffic(
+        lock, root, TRAFFIC_TABLES, date(2026, 6, 17), BANK_AS_OF, log=lambda _: None
     )
