@@ -302,3 +302,20 @@ resource "aws_iam_role_policy" "prototype_plan_deny_other_envs" {
   role   = aws_iam_role.prototype_plan.id
   policy = data.aws_iam_policy_document.deny_other_envs["prototype"].json
 }
+
+# Each environment's model key, stored by make model-key. It lives outside the environments' stacks because AgentCore
+# reads the key when an apply creates the key provider (ADR-0004), and a destroy of the stack keeps it. AWS's own key
+# encrypts it.
+#trivy:ignore:AVD-AWS-0098
+resource "aws_secretsmanager_secret" "model_key" {
+  for_each = toset(local.envs)
+
+  name        = "${var.project_name}-${each.key}-anthropic-api-key"
+  description = "Anthropic API key for the agent, stored as {\"api_key\": \"...\"}"
+  # Deleted at once on destroy, so the next apply can take the name again.
+  recovery_window_in_days = 0
+
+  tags = {
+    Environment = each.key
+  }
+}

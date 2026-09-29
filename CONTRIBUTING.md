@@ -76,6 +76,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Risk | What stops it |
 |---|---|
 | Applying or destroying `prototype` from a laptop | `make` refuses without `I_KNOW=1`; CI owns `prototype` |
+| A `local` target running as your admin profile | `make` refuses the targets that deploy or test `local` while `AWS_PROFILE` is unset, instead of falling back to the default profile |
 | `make destroy` hitting the wrong environment | It requires an explicit `ENV`, and refuses when Terraform is initialized for a different one |
 | Unfinished work reaching the prototype | A workflow fails any PR into `main` that doesn't come from `develop` |
 | Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
@@ -85,6 +86,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` and `dataset-destroy` need `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
+| The model key reaching state, plans, or CI | The IAM root creates each environment's secret empty, `make model-key` stores the key from your `.env`, and the stack only looks the secret up by name ([step 3.6](#36-verify-and-deploy-local)) |
 | The dataset changing under an evaluation | `make data` stops when the organizers' bucket drifts from `dataset.lock`, and the data bucket rejects any write that would overwrite a snapshot |
 
 ---
@@ -198,7 +200,7 @@ This applies `infra/iam/`, then `infra/dataset/` (Terraform asks you to confirm 
 | `banking-agent-prototype-deploy` | The apply job, only from the `prototype` GitHub Environment | Write, scoped to `prototype` |
 | `banking-agent-prototype-plan` | The plan job on PRs into `main` | Read-only |
 
-`make iam-output` prints their ARNs whenever you need them. The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots ([step 3.7](#37-copy-the-dataset-snapshot)). It lives outside the environment stacks, so destroying one never deletes the data.
+`make iam-output` prints their ARNs whenever you need them. The IAM root also creates an empty secret for each environment's model key, `banking-agent-<env>-anthropic-api-key`, which you fill in [step 3.6](#36-verify-and-deploy-local). The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots ([step 3.7](#37-copy-the-dataset-snapshot)). It lives outside the environment stacks, so destroying one never deletes the data.
 
 #### 3.4 Configure your local deploy profile
 
@@ -226,15 +228,21 @@ The deploy workflow needs a `prototype` environment and two repository variables
 
    Or add them under **Settings → Secrets and variables → Actions → Variables**.
 
-The apply job runs on merges to `main` that touch `infra/`. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
+The apply job runs on merges to `main` that touch `infra/`. Store `prototype`'s model key before its first deploy ([step 3.6](#36-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
 
 #### 3.6 Verify and deploy `local`
 
+The agent calls Anthropic's API with a key that Terraform never sees. [Step 3.3](#33-create-the-deploy-roles) created an empty secret for it, and you store the key there from a `.env` file that git ignores, before the first apply: AgentCore reads the key when the apply creates the stack's key provider.
+
 ```bash
-make doctor   # Every line but the dataset snapshot's should read ok
-make plan     # Preview the local stack
-make apply
+make doctor            # Every line but the model keys' and the dataset snapshot's should read ok
+cp .env.example .env   # Then set ANTHROPIC_API_KEY in .env
+make model-key         # Store it in banking-agent-local-anthropic-api-key
+make plan              # Build the zips, preview the local stack, and save the plan
+make apply             # Apply the saved plan
 ```
+
+`make model-key` sends the key straight to Secrets Manager, without printing it or putting it on a command line. Store `prototype`'s key the same way before its first deploy, with `AWS_PROFILE=default make model-key ENV=prototype`, since the local deploy role can't reach its secret; `make doctor` reports both. The secrets outlive `make destroy`, so the key is stored once per environment; `make iam-destroy` deletes them.
 
 From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
 
@@ -312,7 +320,7 @@ make format       # Apply ruff lint fixes and formatting to src and tests
 make lint         # Run ruff check on src and tests
 make type         # Run mypy on src and tests
 make test         # Run pytest with coverage
-make integration  # Run integration-marked tests (needs credentials; deselected by default)
+make integration  # Test ENV's deployed stack (needs credentials and the model key; deselected by default)
 make tf-format    # Format all Terraform files
 ```
 
@@ -324,12 +332,15 @@ With `AWS_PROFILE=banking-agent-local` active (direnv sets it when you enter the
 
 ```bash
 make init                # Initialize the local backend (safe to re-run)
-make plan                # Preview changes
-make apply               # Apply changes
+make plan                # Build, preview changes, and save the plan to build/local.tfplan
+make apply               # Apply the saved plan
+make integration         # Test the deployed stack with throwaway users
 make destroy ENV=local   # Tear down your local resources
 ```
 
-`ENV` defaults to `local`.
+`ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
+
+`make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
 
 Add infrastructure as per-concern modules under `infra/modules/`, wired into `infra/main.tf`. The deploy roles have `PowerUserAccess`, which covers almost any AWS service. IAM is the exception: a deploy role can only manage roles named `banking-agent-<env>-*` that carry the environment's permissions boundary, so name Lambda and task execution roles accordingly and set `permissions_boundary = local.permissions_boundary_arn` on each (pass it into modules as a variable). The boundary allows everything except IAM and other environments' resources.
 
@@ -364,6 +375,7 @@ Run `make doctor` first; most setup problems show up there.
 |---|---|
 | `make doctor` says the admin profile is the organizers' dataset reader | The dataset dictionary's `aws configure set` commands overwrote `default`. Sign in again (`aws login`) and move their keys to their own profile ([step 2](#2-connect-to-the-dataset)). |
 | The AWS CLI or Terraform can't find the `banking-agent-local` profile | `.envrc` is active before the profile exists. Finish [step 3.4](#34-configure-your-local-deploy-profile), or run `direnv deny` until then. |
+| `AWS_PROFILE is unset, so this would run as your default profile` | direnv isn't active in this shell. Run `direnv status` and `direnv allow` in the repository, or `export AWS_PROFILE=banking-agent-local`. |
 | `Backend mismatch: configured key is ...` | Terraform is initialized for another environment. Run `make init ENV=<env>`. |
 | `Terraform not initialized` | Run `make init ENV=<env>`. |
 | Expired credentials | Your sign-in session ended. Run `aws login` again. |
@@ -374,6 +386,12 @@ Run `make doctor` first; most setup problems show up there.
 | A hook passes on commit but fails in CI | Commit hooks only see changed files. Run `make check`, which runs both stages on every file, as CI does. |
 | `make data` says the source no longer matches `dataset.lock` | The organizers added, removed, or replaced files; the message lists them by table. Adopt the change deliberately with `make data ADOPT=1`, which writes a new snapshot and lock, then commit the lock in a PR of its own and run `make snapshot`. |
 | `make data` deleted files that didn't match | A download was corrupted or a local file was edited. Run `make data` again; it downloads only the deleted files. |
+| `make plan` stops at `aws configure export-credentials` | Your sign-in session ended, or `AWS_PROFILE` names a profile that doesn't exist. Run `aws login`, or finish [step 3.4](#34-configure-your-local-deploy-profile). |
+| `make apply` says there is no saved plan | Run `make plan` first; `make apply` applies only what it saved. |
+| `make plan` can't find the secret `banking-agent-<env>-anthropic-api-key` | The IAM root predates it. Run `make iam-apply`, then `make model-key` ([step 3.6](#36-verify-and-deploy-local)). |
+| `make apply` fails creating the API key credential provider: `can't find the specified secret value for staging label: AWSCURRENT` | The model key isn't stored. Run `make model-key`, then `make plan` and `make apply` again. |
+| The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.6](#36-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
+| A test says `infra/modules/gateway/tools.json` is stale | The tools' contract changed. Run `make build` and commit the file. |
 
 ---
 
@@ -390,7 +408,7 @@ make dataset-destroy I_KNOW=1
 make teardown
 ```
 
-Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` and `dataset-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it. `make dataset-destroy` deletes the data bucket with every dataset snapshot in it; the local copy under `data/` stays until you delete it.
+Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` and `dataset-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it. `make iam-destroy` also deletes both environments' model key secrets, at once. `make dataset-destroy` deletes the data bucket with every dataset snapshot in it; the local copy under `data/` stays until you delete it.
 
 ---
 
@@ -405,9 +423,10 @@ Run `make help` for every target.
 | `ENV` | `local` | The Terraform targets (`local` or `prototype`) |
 | `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, `iam-destroy`, and `dataset-destroy` |
 | `ADOPT` | Unset | Set to `1` to let `make data` adopt a changed source and rewrite `dataset.lock` |
-| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make snapshot`, and ad hoc AWS CLI calls |
+| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make model-key`, `make integration`, `make snapshot`, and ad hoc AWS CLI calls; the `local` targets refuse to run without it |
 | `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` and `dataset-*` targets, `make teardown`, `make doctor` |
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor`, `make data` |
+| `ANTHROPIC_API_KEY` | Unset; set it in `.env`, not the shell | `make model-key` |
 | `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
 
 ### What's pinned
@@ -418,7 +437,8 @@ Run `make help` for every target.
 | Python dependencies | `uv.lock` |
 | Dataset snapshot | `dataset.lock` |
 | Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
-| AWS provider | `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
+| AWS provider | Exactly 6.66.0 in `infra/terraform.tf`, and `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
+| What the Runtime and the Lambdas run | The `agent` and `tools` dependency groups in `uv.lock`, built for Linux arm64 by `make build` |
 | Hook versions | `rev` entries in `.pre-commit-config.yaml` |
 | GitHub Actions | Commit SHAs in `.github/workflows/`, with the release in a trailing comment |
 | CI tool versions | `env` blocks in `.github/workflows/` |
@@ -427,13 +447,14 @@ Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR
 
 ### Files
 
-The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
+The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, and `infra/modules/gateway/tools.json` by `make build`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
 
 Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
+- `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make integration` reads
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
-- `.env`, `.env.*`: local secrets such as LLM API keys; if you add one, document its variables in a tracked `.env.example`
+- `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables
 - `data/`: the dataset snapshots `make data` downloads, which must never be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys

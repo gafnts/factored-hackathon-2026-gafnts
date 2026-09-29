@@ -134,6 +134,33 @@ else
   fi
 fi
 
+# "<env> <profile> <command that stores it>"; the key must be stored before the env's first apply.
+model_key() {
+  local secret="${PROJECT}-$1-anthropic-api-key" stages
+  if ! stages=$(aws secretsmanager describe-secret --secret-id "${secret}" \
+    --query VersionIdsToStages --output json \
+    --profile "$2" --region "${AWS_REGION}" 2>/dev/null); then
+    todo "${secret} not found; run 'make iam-apply'"
+  elif [[ "${stages}" == *AWSCURRENT* ]]; then
+    ok "${secret} holds a key"
+  else
+    todo "${secret} is empty; set ANTHROPIC_API_KEY in .env, then run '$3'"
+  fi
+}
+
+echo ""
+echo "Model keys (make model-key stores them from .env, before each env's first apply)"
+if has_profile "${LOCAL_PROFILE}"; then
+  model_key local "${LOCAL_PROFILE}" "make model-key"
+else
+  todo "local's can't be checked until the local deploy profile works"
+fi
+if [ -n "${OWN_ACCOUNT_ID}" ]; then
+  model_key prototype "${ADMIN_PROFILE}" "AWS_PROFILE=${ADMIN_PROFILE} make model-key ENV=prototype"
+else
+  todo "prototype's can't be checked until the admin profile works"
+fi
+
 LOCK=dataset.lock
 echo ""
 echo "Dataset snapshot: ${LOCK} (make data, make snapshot)"
