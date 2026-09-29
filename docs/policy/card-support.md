@@ -7,7 +7,7 @@ It says what the agent answers, what it does, when it asks, abstains, or decline
 
 ## Status
 
-Proposed (2026-09-27). Version 1.
+Accepted (2026-09-29). Version 1.
 
 Revised before acceptance, so the version stays 1:
 
