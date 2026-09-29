@@ -107,7 +107,7 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 | `filed_at`, `claimed_at`, `resolved_at` | Wall clock |
 | `claimed_by` | The human agent's `sub` and user name |
 | `resolution` | `handled`, `duplicate`, or `not_actionable`, and a note in Spanish of up to 500 characters, under the payload's rule against runs of 13 or more digits (POL-11) |
-| `flagged`, `validation_errors` | Set when the payload still failed validation after the fallback, so the console shows it as such (ADR-0004) |
+| `flagged`, `validation_errors` | Set when parts of the payload failed validation after the fallback and were left out: each failing field's path and the rule it broke, never its value, so the console shows the case as flagged (ADR-0004) |
 | `record` | The keys of the turn's execution record, from which the console reads the tool calls the evidence names |
 | `expires_at` | 90 days after filing, or after saving for a draft, enforced with time to live (ADR-0004, OPS-10) |
 

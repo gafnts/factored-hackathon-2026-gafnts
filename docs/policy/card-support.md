@@ -18,6 +18,7 @@ Revised before acceptance, so the version stays 1:
   - An unrecognized charge gets one handoff, which records a failed block or read (POL-39).
   - POL-13 finds the card the customer named before checking whether the request applies to it.
   - A `lost` or `stolen` block left unconfirmed when the customer leaves is handed off (POL-38, `block_lapsed`).
+  - POL-48 covers model calls as well as reads.
 
 Once accepted, a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
 
@@ -199,7 +200,7 @@ A Portuguese-speaking customer doesn't recognize a purchase and confirms a block
 
 ## Failures
 
-- **POL-48** A read that fails is retried up to two more times. If it still fails, the agent says it can't get that information now and offers a handoff (`tool_failure`). A block retries under POL-37. (OPS-04, OPS-05, OPS-06, EVL-06)
+- **POL-48** A read or a model call that fails is retried up to two more times. If it still fails, the agent says it can't help with that now and offers a handoff (`tool_failure`). A block retries under POL-37. (OPS-04, OPS-05, OPS-06, EVL-06)
 - **POL-49** A call the access policy denies is never retried, and is answered as a refusal under POL-08, not as a failure. (SEC-05, OPS-06)
 
 ## Language
