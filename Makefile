@@ -27,7 +27,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 	data snapshot analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
-	init plan apply destroy lock \
+	init model-key plan apply destroy lock \
 	_check-backend
 
 # Targets tagged `## ...` are listed under the nearest `##@ Section` header.
@@ -162,6 +162,9 @@ dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (require
 
 init: ## Initialize Terraform backend for ENV
 	$(TF_AWS) init -reconfigure $(BACKEND)
+
+model-key: ## Store ANTHROPIC_API_KEY from .env in ENV's secret (prototype needs AWS_PROFILE=default)
+	uv run python -m banking_agent.model_key --env $(ENV)
 
 plan: build ## Build, then preview infrastructure changes for ENV and save them to build/ENV.tfplan
 	$(TF_AWS) plan $(VARS) -out=../$(PLAN)

@@ -226,15 +226,21 @@ The deploy workflow needs a `prototype` environment and two repository variables
 
    Or add them under **Settings → Secrets and variables → Actions → Variables**.
 
-The apply job runs on merges to `main` that touch `infra/`. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
+The apply job runs on merges to `main` that touch `infra/`. Store `prototype`'s model key before its first deploy ([step 3.6](#36-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
 
 #### 3.6 Verify and deploy `local`
 
+The agent calls Anthropic's API with a key that Terraform never sees. [Step 3.3](#33-create-the-deploy-roles) created an empty secret for it, and you store the key there from a `.env` file that git ignores, before the first apply: AgentCore reads the key when the apply creates the stack's key provider.
+
 ```bash
-make doctor   # Every line but the dataset snapshot's should read ok
-make plan     # Build the zips, preview the local stack, and save the plan
-make apply    # Apply the saved plan
+make doctor            # Every line but the model keys' and the dataset snapshot's should read ok
+cp .env.example .env   # Then set ANTHROPIC_API_KEY in .env
+make model-key         # Store it in banking-agent-local-anthropic-api-key
+make plan              # Build the zips, preview the local stack, and save the plan
+make apply             # Apply the saved plan
 ```
+
+`make model-key` sends the key straight to Secrets Manager, without printing it or putting it on a command line. Store `prototype`'s key the same way before its first deploy, with `AWS_PROFILE=default make model-key ENV=prototype`, since the local deploy role can't reach its secret; `make doctor` reports both. The secrets outlive `make destroy`, so the key is stored once per environment; `make iam-destroy` deletes them.
 
 From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
 
@@ -410,9 +416,10 @@ Run `make help` for every target.
 | `ENV` | `local` | The Terraform targets (`local` or `prototype`) |
 | `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, `iam-destroy`, and `dataset-destroy` |
 | `ADOPT` | Unset | Set to `1` to let `make data` adopt a changed source and rewrite `dataset.lock` |
-| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make snapshot`, and ad hoc AWS CLI calls |
+| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make model-key`, `make snapshot`, and ad hoc AWS CLI calls |
 | `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` and `dataset-*` targets, `make teardown`, `make doctor` |
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor`, `make data` |
+| `ANTHROPIC_API_KEY` | Unset; set it in `.env`, not the shell | `make model-key` |
 | `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
 
 ### What's pinned
@@ -441,6 +448,6 @@ Gitignored files worth knowing about:
 - `build/`: the zips `make build` writes, and the plan `make plan` saves
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
-- `.env`, `.env.*`: local secrets such as LLM API keys; if you add one, document its variables in a tracked `.env.example`
+- `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables
 - `data/`: the dataset snapshots `make data` downloads, which must never be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys
