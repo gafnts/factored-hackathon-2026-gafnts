@@ -152,7 +152,7 @@ flowchart TD
 | `block` | Tool | Uses the confirmation: writes, reads back, retries | POL-33, POL-34, POL-37 |
 | `verify` | Tool | Reads the card again for the reply's and the handoff's evidence | POL-37 |
 | `handoff` | Code, model, tool | Builds, validates, and files the payload | POL-45 to POL-47 |
-| `reply` | Model, code | Writes the reply, then checks it | POL-11, POL-18, POL-20 |
+| `reply` | Model, code | Writes the reply with placeholders, fills them, adds the outcomes' fixed text, and checks it | POL-11, POL-18, POL-20, POL-37, POL-45 |
 
 Offered handoffs (POL-24, POL-31, POL-32, POL-38, POL-42, POL-48) are remembered in state, so the customer's answer returns to the step that offered (POL-06).
 
@@ -171,7 +171,11 @@ Offered handoffs (POL-24, POL-31, POL-32, POL-38, POL-42, POL-48) are remembered
 
 **Retries and denials.** Read nodes retry a failed call up to two more times (a node retry policy of three attempts), then offer `tool_failure` (POL-48). A Cedar denial arrives as HTTP 200 carrying JSON-RPC error `-32002` (spike S3). It isn't a failure: it is never retried and becomes a refusal (POL-49).
 
-**The reply check.** Code formats every fact for the conversation's language and the customer's country before the model sees it, and the model is asked to use those strings. Before a reply leaves the graph, code checks it: every number in it must come from those formatted facts (which include the window, the page size, and a handoff's reference), and it must hold no run of 13 or more digits, no `is_fraud` or `fraud_score` value, and no customer status the policy withholds. A reply that fails is replaced by a fixed one built from the same facts (OPS-05), and the failure is recorded. The check needs the whole reply, so replies are sent once written rather than token by token (**Open**, decision 8).
+**Facts and outcomes in replies.** The model writes a reply's words, never its figures or its account of an action (**Open**, decision 8):
+
+- **Facts as placeholders.** Code formats every fact for the conversation's language and the customer's country, and the model sees each under a name (`{credit.available}`, `{card.expiration}`), never its value. It writes the names, and code fills them in. A figure can then appear only beside the fact that holds it, which a check over numbers alone can't ensure: the right amount stated for the wrong card would pass it (POL-18, AI-03).
+- **Outcomes in fixed text.** Whether a card was blocked, whether the block was verified, and a handoff's reference reach the customer in fixed sentences in the conversation's language, which code chooses from the tool's result and the confirmation record; the model's words never report an action (AI-05, POL-37, POL-45).
+- **The reply check.** Before a reply leaves the graph, code checks it: every placeholder names one of the turn's facts, no number stands outside a filled placeholder (the window, the page size, and counts are facts too), and the reply holds no run of 13 or more digits, no `is_fraud` or `fraud_score` value, and no customer status the policy withholds. A reply that fails is replaced by a fixed one built from the same facts (OPS-05), and the failure is recorded. How often replies fall back is monitored and reported by the evaluation, since a strict check trades wording for safety. The check needs the whole reply, so replies are sent once written rather than token by token.
 
 ### The confirmation
 
@@ -219,7 +223,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-15 | Graph | Code compares the types of cards that share the last four digits |
 | POL-16 | Graph | Code lists the customer's cards |
 | POL-17 | Graph | A question counter in state |
-| POL-18 | Tool, graph | Tools compute every figure; the reply check accepts only numbers from the turn's formatted facts |
+| POL-18 | Tool, graph | Tools compute every figure; the model writes placeholders that code fills, and the reply check accepts no other number |
 | POL-19 | Tool, graph | The business clock comes from the published data, never the system clock; code resolves the extracted date phrase against it |
 | POL-20 | Pipeline, tool | `amount_usd` isn't published; every amount carries its currency code |
 | POL-21 | Tool | `get_card` returns these fields |
@@ -246,7 +250,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-42 | Graph | Declines with the reason and offers the handoff |
 | POL-43 | Graph, tool | Declines; no tool reads accounts or loans |
 | POL-44 | Graph | Hands off at once |
-| POL-45 | Graph | Required or offered, from a table in code; the reply gives the handoff's reference |
+| POL-45 | Graph | Required or offered, from a table in code; the reply gives the handoff's reference in fixed text |
 | POL-46 | Graph, tool | Code builds the payload; the graph and `file_handoff` validate it against the schema |
 | POL-47 | Graph, tool | Code sets the queue and priority; the schema ties the queue to the reason code |
 | POL-48 | Graph | Three attempts per read, then `tool_failure` offered |
@@ -374,7 +378,7 @@ The tools' data and the sandbox overlay are a mock of the bank's systems of reco
 
 **Tracing (OPS-01).** The execution record ties each turn to the Runtime's request and session IDs and each tool call to the Gateway's, and it is what the evaluation grades. AgentCore Observability adds OpenTelemetry spans in CloudWatch once CloudWatch Transaction Search is enabled for the account (a one-time setting, made in Terraform) and the agent is instrumented; no spike tried it, so step 9 proves it or falls back to the execution record and structured logs. The SDK's logs are JSON with request and session IDs (S2), and they carry masked text only. LangSmith stays off unless `LANGSMITH_TRACING` is set.
 
-**Monitoring (OPS-03).** CloudWatch metrics and alarms, described rather than built into a dashboard: Runtime errors and turn latency (p50, p95); active runtime sessions and model tokens a minute against their quotas; Gateway authorizer rejections and Cedar denials (a rise may mean probing); tool errors and retries; any `action_not_verified` and any handoff that needed the fallback (an alarm on each); provider errors and rate limiting; tokens and cost per conversation, from the execution record; turns per user a day, with an alarm near the cap of decision 21; and failures of the deadline Lambda, if decision 7 adopts it. Every metric is split by source (demo or evaluation), so evaluation runs never pass for live traffic (EVL-13). The judges have no access to the account, so the AI team's view in the site ([ADR-0007](0007-role-gated-web-app.md)) shows these alarms' states and metrics to the AI team's group; no dashboard is shared.
+**Monitoring (OPS-03).** CloudWatch metrics and alarms, described rather than built into a dashboard: Runtime errors and turn latency (p50, p95); active runtime sessions and model tokens a minute against their quotas; Gateway authorizer rejections and Cedar denials (a rise may mean probing); tool errors and retries; any `action_not_verified` and any handoff that needed the fallback (an alarm on each); the share of replies that fell back to fixed text (decision 8); provider errors and rate limiting; tokens and cost per conversation, from the execution record; turns per user a day, with an alarm near the cap of decision 21; and failures of the deadline Lambda, if decision 7 adopts it. Every metric is split by source (demo or evaluation), so evaluation runs never pass for live traffic (EVL-13). The judges have no access to the account, so the AI team's view in the site ([ADR-0007](0007-role-gated-web-app.md)) shows these alarms' states and metrics to the AI team's group; no dashboard is shared.
 
 **Capacity (OPS-08).** The [traffic analysis](../analysis/traffic.md) measures the bank's traffic among development customers and projects this design's load from it, under the assumptions it lists (turns per conversation, model calls per turn, tokens per call). Every load figure below is that projection, not a measurement (EVL-13).
 
@@ -419,7 +423,7 @@ We settle these before accepting this record. Each names the option we lean towa
 5. **Jev.** Lean: outside the runtime path unless it wins its comparison as router or judge (S5's recommendation; ADR-0005 runs it).
 6. **Card numbers in the tools' data.** Lean: last four digits only.
 7. **A required handoff after a wait.** Lean: a draft handoff and a delayed SQS message that files it at the deadline; POL-44 hands off without its optional question. Alternatives: hand off before offering the block (POL-39's order changes, and the payload can't show the block's outcome), or report the gap as a limitation (OPS-11).
-8. **The reply check.** Lean: check every reply before it is sent, and give up token-by-token streaming for it. Alternative: stream and check afterwards, which can't take back what the customer already read. Load doesn't move the lean: the check is code and adds no model call, and what the customer waits for is the model's generation, longer when a provider throttles.
+8. **Facts and outcomes in replies.** Lean: facts as placeholders that code fills, action outcomes and a handoff's reference in fixed text that code chooses, and a check of every reply before it is sent, giving up token-by-token streaming for it; how often replies fall back is recorded and reported. Alternatives: a check over numbers alone, which can't tell a right figure stated for the wrong fact; or streaming and checking afterwards, which can't take back what the customer already read. Load doesn't move the lean: the check is code and adds no model call, and what the customer waits for is the model's generation, longer when a provider throttles.
 9. **The handoff's source of truth.** Lean: the JSON Schema, with the Pydantic models tested against it and the console's TypeScript types generated from it. The case record that wraps the payload has a schema of its own, used the same way, so the payload's schema stays at version 1.
 10. **Timings.** Lean: a confirmation lasts 5 minutes; access tokens 15 minutes and refresh tokens 60 minutes.
 11. **Masking.** Lean: our own detector in the entrypoint, for card numbers. Alternative for wider personal data: Bedrock's `ApplyGuardrail`, which works with any model (sensitive-information filters plus custom patterns) at one extra call per message.
