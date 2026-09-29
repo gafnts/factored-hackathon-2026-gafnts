@@ -16,6 +16,8 @@
 
 Accepted (2026-09-27): card support (see [Result](#result)).
 
+Amended (2026-09-29) by [ADR-0004](0004-agent-architecture-on-agentcore.md#state-a-frozen-master-snapshot-with-an-event-cutoff): the sentence in [Dates](#dates) that every table then shows the bank at the same moment holds for event tables only. Customers and products carry no history, so they show their values as delivered, flagged when updated after the as-of instant.
+
 The first revision fixed the rule before any gate had been computed for any workflow. A second, also before any gate ran, fixed how each gate is measured (see Measurement); for it we read the distinct values of `product_type` and `response_code`, never their counts.
 
 The table-level [data quality profile](../analysis/profiling.md) ran before the first revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with; the rows F1 reads come from the dictionary's own scopes, not from those rates.
