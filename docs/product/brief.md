@@ -33,19 +33,19 @@ A card is declined at the till, goes missing, or shows a charge its holder didn'
 
 What the data shows about that moment:
 
-- **Declines are routine.** 62,242 card transactions (5.02%) are declined over the snapshot, each with a response code the bank can explain ([card support analysis](analysis/card-support.md#3-declines)).
-- **Unrecognized charges end up as complaints.** In the 12 months before the as-of instant, 4,175 complaints (18.57%) were about a charge the customer didn't recognize ([selection report](analysis/selection.md#attributable-demand)). They belong to dispute intake, which is where Faro hands them.
+- **Declines are routine.** 62,242 card transactions (5.02%) are declined over the snapshot, each with a response code the bank can explain ([card support analysis](../analysis/card-support.md#3-declines)).
+- **Unrecognized charges end up as complaints.** In the 12 months before the as-of instant, 4,175 complaints (18.57%) were about a charge the customer didn't recognize ([selection report](../analysis/selection.md#attributable-demand)). They belong to dispute intake, which is where Faro hands them.
 - **Customers hold several cards.** 13,420 of the 65,796 development customers with an active card hold two or more active credit cards, so "block my card" often needs "which one?" first (POL-14).
 - **The records are imperfect.** 47.69% of active cards are past their expiration date and still transact, and about 5% of each core field is missing at random. Grounded answers say what the record says, conflicts and gaps included (POL-30 to POL-32).
-- **A contact with a person takes minutes.** It takes 5:22 on average, after a 2:00 wait, across every contact reason ([traffic analysis](analysis/traffic.md#7-handle-and-wait-times)). That's the human baseline for the ROI, not a case-by-case comparison ([ADR-0005](adr/0005-offline-scenario-evaluation.md#baselines)).
+- **A contact with a person takes minutes.** It takes 5:22 on average, after a 2:00 wait, across every contact reason ([traffic analysis](../analysis/traffic.md#7-handle-and-wait-times)). That's the human baseline for the ROI, not a case-by-case comparison ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#baselines)).
 
-And what it can't show: **how many contacts are about cards.** The snapshot's contacts can't be tied to a workflow: they carry six coarse reasons and templated transcripts ([ADR-0003](adr/0003-choose-workflow-from-evidence.md)). We chose card support because it's the only workflow the data supports end to end, not because it's the largest.
+And what it can't show: **how many contacts are about cards.** The snapshot's contacts can't be tied to a workflow: they carry six coarse reasons and templated transcripts ([ADR-0003](../adr/0003-choose-workflow-from-evidence.md)). We chose card support because it's the only workflow the data supports end to end, not because it's the largest.
 
 ---
 
 ## Who it's for
 
-Three kinds of people use Faro's site. Only the cardholder talks to Faro ([ADR-0007](adr/0007-role-gated-web-app.md#routes)).
+Three kinds of people use Faro's site. Only the cardholder talks to Faro ([ADR-0007](../adr/0007-role-gated-web-app.md#routes)).
 
 | Who | Their moment | What they get | Where |
 |---|---|---|---|
@@ -53,7 +53,7 @@ Three kinds of people use Faro's site. Only the cardholder talks to Faro ([ADR-0
 | **The human agent** | A case lands in their queue | A case file: the request, each verified fact next to the tool call that read it, the actions with their verified outcomes, the customer's own words kept apart, and the open questions. No transcript to read back | `/agent` |
 | **The AI team** | Deciding whether Faro is safe to keep running | The evaluation report, failures and denominators included, labeled as an offline measurement | `/ops` |
 
-**The cardholder** is a LATAM Bank customer in Mexico, Colombia, or Argentina who holds a credit or debit card and has signed in to the bank's chat. Spanish is the bank's language, and Portuguese is the customer's choice in the session ([policy](policy/card-support.md#language)). No customer in the data writes Portuguese: every transcript is in Spanish. So our Portuguese rests on messages we wrote, and results are reported per language to show whether it holds up (SCP-07, EVL-12).
+**The cardholder** is a LATAM Bank customer in Mexico, Colombia, or Argentina who holds a credit or debit card and has signed in to the bank's chat. Spanish is the bank's language, and Portuguese is the customer's choice in the session ([policy](../policy/card-support.md#language)). No customer in the data writes Portuguese: every transcript is in Spanish. So our Portuguese rests on messages we wrote, and results are reported per language to show whether it holds up (SCP-07, EVL-12).
 
 **The human agent** works in dispute intake or customer service, and takes what Faro shouldn't do: disputes, unblocks, replacements, and anything a record can't settle.
 
@@ -61,7 +61,7 @@ Three kinds of people use Faro's site. Only the cardholder talks to Faro ([ADR-0
 
 ## What Faro does
 
-The brief asks for a system that understands, decides, acts, verifies, and escalates (`SL 11`). Faro recognizes [eight kinds of request](policy/card-support.md#requests), all about cards, and takes one action: a block, written to a sandbox over the frozen bank. Every request ends on one of the brief's three paths:
+The brief asks for a system that understands, decides, acts, verifies, and escalates (`SL 11`). Faro recognizes [eight kinds of request](../policy/card-support.md#requests), all about cards, and takes one action: a block, written to a sandbox over the frozen bank. Every request ends on one of the brief's three paths:
 
 | Path | The customer says | Faro |
 |---|---|---|
@@ -88,16 +88,16 @@ Knowing when not to act is half the product (CTL-03):
 ## What sets it apart
 
 1. **A lighthouse doesn't steer the ship.** Faro shows the customer what the records say and proposes the one thing it can do. The customer's button decides; the model never confirms anything on the customer's behalf.
-2. **Judgment in code, not in the prompt.** The model classifies, extracts, and writes. Code decides each step, and the tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed ([ADR-0004](adr/0004-agent-architecture-on-agentcore.md)). The evaluation states this as a hypothesis before it runs: unauthorized disclosures and actions stay at zero in every model configuration, and one counterexample refutes it ([ADR-0005](adr/0005-offline-scenario-evaluation.md#reporting)).
+2. **Judgment in code, not in the prompt.** The model classifies, extracts, and writes. Code decides each step, and the tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)). The evaluation states this as a hypothesis before it runs: unauthorized disclosures and actions stay at zero in every model configuration, and one counterexample refutes it ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#reporting)).
 3. **Done means verified.** After a block, the tool reads the card back. Faro says the card is blocked only when that read shows it, and hands the case to a person when it doesn't (POL-37, AI-05).
 4. **A handoff is a case file.** Each fact sits next to the tool call that read it, and the customer's words are kept apart from verified facts. The case is urgent when the customer reported a card lost or stolen, or a charge they don't recognize, and that card isn't verified blocked (POL-46, POL-47). Whoever picks it up doesn't start over.
-5. **Graded by an oracle that shares no code with it.** Expected outcomes come from the policy applied to the frozen bank, in SQL written apart from the tools, so a bug in Faro's data shows up as a disagreement instead of agreeing with itself ([ADR-0005](adr/0005-offline-scenario-evaluation.md#the-oracle)).
+5. **Graded by an oracle that shares no code with it.** Expected outcomes come from the policy applied to the frozen bank, in SQL written apart from the tools, so a bug in Faro's data shows up as a disagreement instead of agreeing with itself ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#the-oracle)).
 
 ---
 
 ## Intended outcomes
 
-The intended customer is the cardholder above; these are the outcomes we intend for them and for the bank (PRB-06). The right column is how we will know whether the prototype meets each one: offline, on held-out cases, as [ADR-0005](adr/0005-offline-scenario-evaluation.md) defines the metrics.
+The intended customer is the cardholder above; these are the outcomes we intend for them and for the bank (PRB-06). The right column is how we will know whether the prototype meets each one: offline, on held-out cases, as [ADR-0005](../adr/0005-offline-scenario-evaluation.md) defines the metrics.
 
 | For | We intend | Measured by |
 |---|---|---|
@@ -114,9 +114,9 @@ What we don't claim: that cards drive most of the bank's contacts, which the dat
 
 ## Out of scope
 
-- **Other workflows.** Faro hands a disputed charge to dispute intake with a payload and performs none of that workflow's steps (SCP-01, [ADR-0003](adr/0003-choose-workflow-from-evidence.md)).
-- **A person joining the chat.** Handoffs are asynchronous: a case in a queue, not a live transfer ([ADR-0007](adr/0007-role-gated-web-app.md#in-a-bank-ops-11)).
-- **The bank's real systems.** The tools read a frozen snapshot of the bank and write to a sandbox. What they stand in for, and what replacing them would take, is in [ADR-0004](adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems).
+- **Other workflows.** Faro hands a disputed charge to dispute intake with a payload and performs none of that workflow's steps (SCP-01, [ADR-0003](../adr/0003-choose-workflow-from-evidence.md)).
+- **A person joining the chat.** Handoffs are asynchronous: a case in a queue, not a live transfer ([ADR-0007](../adr/0007-role-gated-web-app.md#in-a-bank-ops-11)).
+- **The bank's real systems.** The tools read a frozen snapshot of the bank and write to a sandbox. What they stand in for, and what replacing them would take, is in [ADR-0004](../adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems).
 
 ---
 
@@ -124,10 +124,10 @@ What we don't claim: that cards drive most of the bank's contacts, which the dat
 
 | Question | Where |
 |---|---|
-| Why card support | [ADR-0003](adr/0003-choose-workflow-from-evidence.md) and the [selection report](analysis/selection.md) |
-| What Faro answers, does, and refuses | The [card support policy](policy/card-support.md) |
-| What runs where, and what enforces each rule | [ADR-0004](adr/0004-agent-architecture-on-agentcore.md) |
-| How we know it works | [ADR-0005](adr/0005-offline-scenario-evaluation.md) |
-| How the data reaches the tools | [ADR-0006](adr/0006-batch-medallion-pipeline.md) |
-| The web app and the human agent's console | [ADR-0007](adr/0007-role-gated-web-app.md) |
+| Why card support | [ADR-0003](../adr/0003-choose-workflow-from-evidence.md) and the [selection report](../analysis/selection.md) |
+| What Faro answers, does, and refuses | The [card support policy](../policy/card-support.md) |
+| What runs where, and what enforces each rule | [ADR-0004](../adr/0004-agent-architecture-on-agentcore.md) |
+| How we know it works | [ADR-0005](../adr/0005-offline-scenario-evaluation.md) |
+| How the data reaches the tools | [ADR-0006](../adr/0006-batch-medallion-pipeline.md) |
+| The web app and the human agent's console | [ADR-0007](../adr/0007-role-gated-web-app.md) |
 | How Faro sounds and looks | The [identity guide](identity.md) |

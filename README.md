@@ -16,9 +16,9 @@
 
 - [The story](#the-story)
 - [What sets Faro apart](#what-sets-faro-apart)
+- [Documentation](#documentation)
 - [Quick start](#quick-start)
 - [Repository layout](#repository-layout)
-- [Documentation](#documentation)
 
 ---
 
@@ -43,7 +43,25 @@ In another tab, a human agent sees the case arrive within seconds: the request, 
 - **Candid about its records.** A missing field is reported as not recorded, and conflicting records are stated side by side, never reconciled.
 - **Graded by an independent oracle.** Expected outcomes come from the policy applied to the frozen bank, in code that shares nothing with Faro's tools, and held-out results are reported against a deterministic baseline, failures included.
 
-The [product brief](docs/product.md) says who Faro serves, what it refuses to do, and the outcomes we intend; the [card support policy](docs/policy/card-support.md) holds the rules it follows.
+---
+
+## Documentation
+
+### Product
+
+- [brief.md](docs/product/brief.md): the problem, who Faro serves, what it refuses to do, and the outcomes we intend
+- [identity.md](docs/product/identity.md): Faro's name, voice, and look
+
+### Design
+
+- [hackathon-requirements.md](docs/hackathon-requirements.md): what the organizers evaluate, with the IDs every document cites
+- [card-support.md](docs/policy/card-support.md): the policy Faro follows (synthetic), one ID per rule
+- [docs/adr/](docs/adr/README.md): the architecture decision records, from the workflow choice to the web app
+
+### Data
+
+- [docs/analysis/](docs/analysis/): the profiling, traffic, workflow selection, and card support reports, rebuilt by `make analysis`
+- [dataset.lock](dataset.lock): the pinned dataset snapshot every run reads
 
 ---
 
@@ -71,23 +89,7 @@ make check
 | Path | Contents |
 |---|---|
 | [src/banking_agent/](src/banking_agent/) | The Python package |
-| [tests/](tests/) | Pytest suite (integration tests are marked and deselected by default) |
-| [infra/](infra/) | Terraform service stack, one state file per environment (`local` and `prototype`) |
-| [infra/iam/](infra/iam/) | One-time IAM bootstrap: the deploy roles for each environment |
-| [infra/dataset/](infra/dataset/) | The bucket holding the pinned dataset snapshots, outside every environment |
-| [scripts/](scripts/) | Account bootstrap, teardown, and setup checks, run through `make` |
-| [docs/](docs/) | Requirements catalogue, product brief and identity guide, architecture decision records, the card support policy, and the dataset analysis reports |
-| [.github/workflows/](.github/workflows/) | Quality gates and the `prototype` deploy pipeline |
-| [dataset.lock](dataset.lock) | The pinned dataset snapshot every run reads ([ADR-0002](docs/adr/0002-mirror-dataset-into-pinned-snapshots.md)) |
-| [Makefile](Makefile) | Every setup, quality, and deploy command (`make help` lists them) |
-
----
-
-## Documentation
-
-- [product.md](docs/product.md): the product brief, covering the problem, who Faro serves, what it does and refuses to do, and the outcomes we intend
-- [identity.md](docs/identity.md): Faro's name, personality, voice in Spanish and Portuguese, and visual identity
-- [CONTRIBUTING.md](CONTRIBUTING.md): setup paths by goal, environments and guardrails, day-to-day workflow, troubleshooting, and teardown
-- [hackathon-requirements.md](docs/hackathon-requirements.md): every point the organizers evaluate, with stable requirement IDs that code, tests, and PRs cite
-- [docs/adr/](docs/adr/README.md): architecture decision records, from the deployment region to the agent's architecture, its evaluation, the data pipeline, and the web app
-- [card-support.md](docs/policy/card-support.md): the card support policy (synthetic), whose rule IDs tests, evaluation cases, and handoffs cite
+| [tests/](tests/) | Pytest suite |
+| [infra/](infra/) | Terraform: the service stack per environment, the IAM bootstrap, and the dataset bucket |
+| [scripts/](scripts/) | Account bootstrap, teardown, and setup checks |
+| [Makefile](Makefile) | Every command; `make help` lists them |

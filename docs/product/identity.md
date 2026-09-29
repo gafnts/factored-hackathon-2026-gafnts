@@ -1,6 +1,6 @@
 # Identity
 
-How Faro sounds and looks. The [product brief](product.md) says what Faro is; this guide is what the prompts, the web app, the slides, and the video draw on, so that they read as one product. It never overrides the [policy](policy/card-support.md): where the two touch, the policy's rule is cited, and it wins.
+How Faro sounds and looks. The [product brief](brief.md) says what Faro is; this guide is what the prompts, the web app, the slides, and the video draw on, so that they read as one product. It never overrides the [policy](../policy/card-support.md): where the two touch, the policy's rule is cited, and it wins.
 
 ## Contents
 
@@ -27,9 +27,9 @@ How Faro sounds and looks. The [product brief](product.md) says what Faro is; th
 Both halves describe the design:
 
 - **Guidance.** A lighthouse doesn't steer the ship: it shows where the rocks are, and the captain decides. Faro explains what the bank's records say and proposes the one action it can take; only the customer's confirm control carries it out (POL-36).
-- **Judgment.** Faro's nose is for when not to act: a charge the customer doesn't recognize, a request about someone else's card, an instruction hidden in a merchant's name. That judgment isn't the model's instinct. It is the policy, enforced in code outside the model (CTL-04, [ADR-0004](adr/0004-agent-architecture-on-agentcore.md)).
+- **Judgment.** Faro's nose is for when not to act: a charge the customer doesn't recognize, a request about someone else's card, an instruction hidden in a merchant's name. That judgment isn't the model's instinct. It is the policy, enforced in code outside the model (CTL-04, [ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)).
 
-The name has no accent and reads the same in both languages, so it also becomes the site's hostname, `faro.gabriel.com.gt` ([ADR-0007](adr/0007-role-gated-web-app.md#settled-at-acceptance), decision 1); a fork runs on its own CloudFront domain.
+The name has no accent and reads the same in both languages, so it also becomes the site's hostname, `faro.gabriel.com.gt` ([ADR-0007](../adr/0007-role-gated-web-app.md#settled-at-acceptance), decision 1); a fork runs on its own CloudFront domain.
 
 ---
 
@@ -67,7 +67,7 @@ And what Faro is not:
 
 ## Voice
 
-Faro writes *usted* in Spanish and *você* in Portuguese, in the language of the customer's latest message that is clearly one of the two (POL-50). Numbers in a reply are filled by code from the turn's facts, never by the model ([ADR-0004](adr/0004-agent-architecture-on-agentcore.md), the reply check), so the voice is in the words around them.
+Faro writes *usted* in Spanish and *você* in Portuguese, in the language of the customer's latest message that is clearly one of the two (POL-50). Numbers in a reply are filled by code from the turn's facts, never by the model ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md), the reply check), so the voice is in the words around them.
 
 ### In practice
 
@@ -152,7 +152,7 @@ Color never carries a status alone: *verified* and *urgent* are always written o
 - **Geist** for display and text. Headlines are bold and tightly set (−0.02 em); chat text is at least 16 px.
 - **Geist Mono** for what is read character by character, or is a label: references (`7K2M-9QXA`), last four digits, rule IDs, reason codes, and tool calls in the console. Labels are set in capitals, tracked +0.08 em.
 
-Both are under the SIL Open Font License, and cover the accents and punctuation of Spanish and Portuguese (*ñ*, *ç*, *ã*, *õ*, *¿*, *¡*). The site serves them itself rather than from a font CDN, in keeping with [ADR-0007](adr/0007-role-gated-web-app.md#rendering-what-others-wrote)'s content security policy.
+Both are under the SIL Open Font License, and cover the accents and punctuation of Spanish and Portuguese (*ñ*, *ç*, *ã*, *õ*, *¿*, *¡*). The site serves them itself rather than from a font CDN, in keeping with [ADR-0007](../adr/0007-role-gated-web-app.md#rendering-what-others-wrote)'s content security policy.
 
 ### The mark
 
@@ -168,9 +168,9 @@ The mark isn't drawn yet; until it is, the wordmark stands alone.
 
 ### Motifs
 
-- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the brief's three paths (SCP-03 to SCP-05). They order the slides, the [product brief](product.md#what-faro-does), and the suggested prompts on the persona cards.
+- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the brief's three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), and the suggested prompts on the persona cards.
 - **The grid.** A hairline grid with a few cells lit in `sea`, behind Night surfaces. On Paper it goes unlit and lays out the console's queue.
-- **The sweep.** Faro's only motion: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
+- **The sweep.** Faro's only motion: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
 
 ### Surfaces
 
@@ -182,4 +182,4 @@ The mark isn't drawn yet; until it is, the wordmark stands alone.
 | `/ops` | Paper | The evaluation report, labeled as an offline measurement in its header (EVL-13) |
 | Slides and video | Night covers and titles, Paper content | The three numbered paths, and the demo in the chat's own colors |
 
-LATAM Bank's name is set in Geist Medium, in `ink` or `bone`, with no mark: the bank is the organizers' fiction, and we don't invent a brand for it. Every page says it is a prototype over synthetic data (SEC-02, [ADR-0007](adr/0007-role-gated-web-app.md#routes)).
+LATAM Bank's name is set in Geist Medium, in `ink` or `bone`, with no mark: the bank is the organizers' fiction, and we don't invent a brand for it. Every page says it is a prototype over synthetic data (SEC-02, [ADR-0007](../adr/0007-role-gated-web-app.md#routes)).
