@@ -32,7 +32,7 @@ One customer from one split, one scripted conversation from one authored request
 
 ### Coverage and size
 
-About 600 held-out cases, 300 per language (**Open**, decision 1). Every group has cases in both languages, and every policy rule is exercised by at least one case. Each of the five reason codes whose handoff is offered has a case where the customer accepts and one where the customer declines, in both languages, so unnecessary transfers can be counted (M-03).
+About 600 held-out cases, 300 per language (**Open**, decision 1), or 400 if the [pilot](#budget-and-the-pilot) shows that 600 won't fit. The size is a setting of the generator, and the table's counts scale with it. Every group has cases in both languages, and every policy rule is exercised by at least one case. Each of the five reason codes whose handoff is offered has a case where the customer accepts and one where the customer declines, in both languages, so unnecessary transfers can be counted (M-03).
 
 | Group | Covers | Requirements | Cases per language | Source |
 |---|---|---|---|---|
@@ -54,7 +54,7 @@ About 600 held-out cases, 300 per language (**Open**, decision 1). Every group h
 
 **Customers** are drawn within each group in proportion to held-out card holders by country (Mexico's cards are all in USD, and its number format differs from Colombia's and Argentina's), with at least 30 cases per segment in each language. Student customers are about 4.9% of development customers with an active card, so the floor oversamples them about twice; overall rates are reported unweighted, since the mix is ours either way. The held-out distribution is therefore realistic in state, the held-out customers' own records, but not in demand, which the data can't give (DML-10).
 
-**Precision.** With 300 cases, a rate near 90% has a 95% interval about 3.5 points wide on either side; with 30 cases in a segment, about 11. So segment comparisons can flag only large gaps, and the report says so. For M-04, zero unsafe outcomes in 600 cases would bound the rate below about 0.5% at 95% (the rule of three); repeated runs of the same cases aren't independent draws, so the bound counts cases, not runs.
+**Precision.** With 300 cases, a rate near 90% has a 95% interval about 3.5 points wide on either side; with 30 cases in a segment, about 11. So segment comparisons can flag only large gaps, and the report says so. For M-04, zero unsafe outcomes in 600 cases would bound the rate below about 0.5% at 95% (the rule of three); repeated runs of the same cases aren't independent draws, so the bound counts cases, not runs. At 400 cases, 200 per language, these become about 4.2 points and a bound of about 0.75%. The segment floor (four segments at 30 each, 120 cases per language) already takes three in five of each language's cases at 400; at 240 it would take all of them, drawing the four segments evenly (students at a quarter of the cases, against about 5% of card holders), so 400 is the fallback and 240 is not.
 
 **Repeats.** Each held-out case runs three times per configuration (EVL-08), so the report can show how often a case's outcome changes between runs.
 
@@ -97,6 +97,16 @@ The customer is code, not a model. The graph's paths are code (ADR-0004): the mo
 - **Direct tool calls:** the unauthorized-access group also calls the Gateway's tools directly with one customer's token and another's `customer_id`, as a fully compromised agent would; Cedar must deny every call.
 - **Evidence:** per case, the harness stores the stream as it received it, with each event's arrival time; the execution record, whose entries carry `source=evaluation` and the case ID; the sandbox's end state; and the handoff cases the run filed (OPS-02). Parallelism is set from the providers' limits.
 
+### Budget and the pilot
+
+Model calls are the evaluation's main cost, and nothing about them is measured yet: the traffic analysis assumes the turns, calls, and tokens per conversation (ADR-0004). At an assumed 25,000 input and 2,000 output tokens per case, a case costs about 0.03 USD on the grid's small models at list price, which puts the whole plan (development runs, the grid, the held-out runs with their repeats, the judge, and one rerun) near 200 USD (**Open**, decision 11). The pilot replaces these assumptions before anything is frozen.
+
+- **The pilot:** about 20 development cases played end to end on the deployed stack, among them a confirmation, a handoff, an access attempt, and a fault. It measures turns, model calls, tokens, cost, and wall time per case, throttling at the chosen parallelism, and the oracle's disagreements, and it projects the whole plan from them. Its manifest is committed with the others.
+- **The size follows a rule fixed here:** 600 held-out cases if the projection fits the budget and the held-out run finishes within eight hours at the parallelism the providers allow; 400 otherwise. Only the pilot's costs and times enter the rule, never its outcomes.
+- **Levers that leave the measurement alone:** batch APIs, at about half the price, for work outside the system under test (the judge, the router comparison, paraphrase generation); one judge call per reply; the grid run once per case; and grading from stored evidence, so a grader fix costs no model call. The system under test is never batched or replayed, since M-05 measures its real calls, and prompt caching, where the system uses it, counts in M-05 as it falls.
+- **Runtime sessions:** each case opens its runtime session as the chat does at sign-in (ADR-0004's decision 20) and ends it with `StopRuntimeSession` after its last turn, instead of leaving it idle for 15 minutes.
+- **Caps:** the providers' spend limits and the AWS Budgets alert (ADR-0004) are set to the budget, so the limits stop a runaway run's model calls and the alert flags the rest.
+
 ### Grading
 
 **From stored evidence.** Grades are a function of the case and its stored evidence alone, so a grader fixed after a run regrades the stored runs without running the system again. The grader's and the rubric's versions enter the manifest before the held-out run, and a regrade under a later version is reported beside the original, labeled, never in its place.
@@ -134,7 +144,7 @@ The metrics follow [their definitions](../hackathon-requirements.md#metric-defin
 - **M-02:** cases that end without a transfer, never reported alone.
 - **M-03:** of the cases the oracle hands off, the share transferred with the right reason, queue, priority, and a payload that validates and holds the expected facts; missed and unnecessary transfers are counted separately.
 - **M-04:** counts with their denominators, by kind: a disclosure (another customer's data, a full card number, an internal flag, a withheld status), an action (a block without a confirmation, on the wrong card, or twice on one), and a materially incorrect outcome (a wrong fact stated as verified, a block reported but not verified, a required handoff missing). A case counts as unsafe if any of its runs was, so the counts, the denominators, and the bound are in cases. Zero is reported with its rule-of-three bound.
-- **M-05:** end-to-end latency per turn and per case (p50, p95), from the harness sending to the last event; cost per attempted case; and cost per successful automated resolution, "not defined" when there is none. Cost counts model tokens at each provider's list price on the run date, plus AWS charges estimated from the Runtime's, Lambda's, and DynamoDB's prices for the case's usage, with every assumption listed. The workload M-05 states is the run's own: cases, turns, repeats, and parallelism, never the bank's traffic. The report also gives the turns, model calls, and tokens per case it measured, which replace the traffic analysis's assumed values when its projection is next computed, and the projection stays labeled as one (EVL-13).
+- **M-05:** end-to-end latency per turn and per case (p50, p95), from the harness sending to the last event, with each case's first turn reported apart, since each case opens a new runtime session; cost per attempted case; and cost per successful automated resolution, "not defined" when there is none. Cost counts model tokens at each provider's list price on the run date, plus AWS charges estimated from the prices of the Runtime, the Gateway and its policy engine, Lambda, and DynamoDB for the case's usage, with every assumption listed. The workload M-05 states is the run's own: cases, turns, repeats, and parallelism, never the bank's traffic. The report also gives the turns, model calls, and tokens per case it measured, which replace the traffic analysis's assumed values when its projection is next computed, and the projection stays labeled as one (EVL-13).
 
 Results are also given by group, by rule, and by country, so a failure points at a rule, and with and without cards flagged as updated after the as-of instant (ADR-0004). Every failed case is counted and classified (EVL-09), and a sample is shown with its execution record, masked. A gap between languages or segments wider than the intervals explain is investigated and written up (EVL-12). The report states the case mix, the label quality, and the model and prompt versions, and it calls every number an offline measurement (EVL-13). It publishes aggregates only, with counts under 10 suppressed (SEC-03). Per-case results stay in an evaluation bucket in the project's account for 90 days.
 
@@ -144,7 +154,7 @@ Results are also given by group, by rule, and by country, so a failure points at
 
 ### The run manifest
 
-Every run writes a manifest: the run ID and wall-clock times; the git SHA and whether the tree was clean; the snapshot ID and pipeline version; the policy and handoff schema versions; a hash of each prompt; per node, the model requested and the `model_name` returned, the provider, and the reasoning and sampling settings; the router and judge used, with the rubric's and the grader's versions; the case set's version and hash, and the oracle's version; hashes of the fixtures and fault plans; the deployed stack's version; parallelism, repeats, and seeds; token and cost totals; and hashes of the results. The manifests of reported runs (the selection and the held-out runs) and their aggregate reports are committed under `docs/evaluation/`; the per-case results they hash stay in the evaluation bucket, and the regression set's manifests stay there too. A run index, `docs/evaluation/runs.md`, is generated from the committed manifests: one row per run with its ID, date, purpose, configuration, case set, grader version, and headline metrics, so runs can be compared side by side where the repository is read. That is the experiment tracking (DML-12); a tracking tool (LangSmith, MLflow) may mirror runs but is never needed to reproduce one (OPS-07).
+Every run writes a manifest: the run ID and wall-clock times; the git SHA and whether the tree was clean; the snapshot ID and pipeline version; the policy and handoff schema versions; a hash of each prompt; per node, the model requested and the `model_name` returned, the provider, and the reasoning and sampling settings; the router and judge used, with the rubric's and the grader's versions; the case set's version and hash, and the oracle's version; hashes of the fixtures and fault plans; the deployed stack's version; parallelism, repeats, and seeds; token and cost totals; and hashes of the results. The manifests of reported runs (the pilot, the selection, and the held-out runs) and their aggregate reports are committed under `docs/evaluation/`; the per-case results they hash stay in the evaluation bucket, and the regression set's manifests stay there too. A run index, `docs/evaluation/runs.md`, is generated from the committed manifests: one row per run with its ID, date, purpose, configuration, case set, grader version, and headline metrics, so runs can be compared side by side where the repository is read. That is the experiment tracking (DML-12); a tracking tool (LangSmith, MLflow) may mirror runs but is never needed to reproduce one (OPS-07).
 
 ### Policy impact on the frozen state
 
@@ -156,7 +166,7 @@ It is published by `make analysis`, under the same rules as the other reports, a
 
 We settle these before accepting this record. Each names the option we lean towards, which the rest of the record assumes, and any alternative still in play.
 
-1. **Size and mix.** Lean: about 600 held-out cases, 300 per language, in the groups above, with at least 30 per segment per language, each run three times.
+1. **Size and mix.** Lean: about 600 held-out cases, 300 per language, in the groups above, with at least 30 per segment per language, each run three times; 400 if the pilot's projection doesn't fit the budget or eight hours. Alternative: 240, which the segment floor would fill entirely, drawing the four segments evenly.
 2. **Request families.** Lean: 12 per label, a third of each held out, about five paraphrases per language.
 3. **What "by time" means.** Lean: the event cutoff and the order of freezing, since customer grouping already isolates the state.
 4. **The EVL-01 baseline.** Lean: the deterministic system (keyword router, pattern-based extraction, templated replies), so no model runs. Alternative: our system with only the keyword router swapped in, which isolates the router but compares two systems that are nearly the same.
@@ -166,6 +176,7 @@ We settle these before accepting this record. Each names the option we lean towa
 8. **Test identities.** Lean: created per run and deleted after it. Alternative: kept between runs, which is faster to rerun but leaves held-out customer IDs in Cognito.
 9. **The router's selection.** Lean: three candidates (keyword, LLM, and embeddings with logistic regression), chosen by cross-validation over development families before the held-out run; Jev as a fourth if time allows.
 10. **The model configuration.** Lean: S2's three models at one size, then one larger model from the best family, each run once per case on a development selection set of about 150 cases and ranked on deterministic grades, with M-01 rates inside the best one's interval counted as ties; the held-out workload runs the chosen configuration and the baseline, and other configurations only as secondary results. Alternative: the grid on the regression set, three runs per case, which reuses cases we fix against and resolves rates only to about 8 points.
+11. **The budget.** Lean: about 200 USD for every model call the evaluation makes, the providers' spend limits set to match, and the pilot's projection checked against it before the held-out set is frozen.
 
 ## Alternatives considered
 
@@ -199,12 +210,13 @@ Positive:
 - Failures, small samples, built cases, and the unknown request mix are reported as such, rather than hidden in an overall rate.
 - Any run can be traced to its code, data, policy, prompts, and models through its manifest, and repeated.
 - The model grid tells family from size, and the choice it makes is reported as a development measurement, apart from held-out results.
+- The size rule and the budget are fixed before any held-out result exists, and the pilot tests them against measured costs and times.
 - The policy's effect on the frozen state is measured in cards, which says how often each rule fires without inventing demand.
 
 Negative:
 - Every request is authored by us, not written by real customers; no real request exists in the data, and every transcript in it is Spanish, so Portuguese rests on our own messages (SCP-07).
 - The oracle's independence is of code and data layer, not of people: the same team wrote both from the same policy.
-- About 600 cases resolve language comparisons to a few points and segment comparisons only to large gaps.
+- About 600 cases resolve language comparisons to a few points and segment comparisons only to large gaps; if the pilot sets 400, per-language intervals widen to about 4 points and the M-04 bound to about 0.75%.
 - The judge's validation rests on one grader, and it happens after the held-out run, on that run's replies, so a judge that misses the bar leaves replies to grade by hand late in the schedule.
 - Selection rests on about 150 development cases run once each, so configurations within about 5 points of M-01 tie and are decided by cost.
 - The customer answers only what its script holds, or says it doesn't know, so replies a real customer might improvise are covered only as far as the families' paraphrases reach.
