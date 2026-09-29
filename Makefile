@@ -25,7 +25,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 	test integration \
 	build \
 	bootstrap backend doctor provision teardown \
-	data snapshot analysis \
+	data snapshot personas tiny-export analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
 	init model-key plan apply destroy outputs lock \
@@ -117,6 +117,14 @@ data: ## Download the pinned dataset snapshot into data/ and verify it (ADOPT=1 
 
 snapshot: _check-profile data ## Copy the pinned snapshot into this account's data bucket
 	uv run python -m banking_agent.dataset upload
+
+##@ Tools' data
+
+personas: ## Choose the development personas from the pinned snapshot into data/personas/ (prints counts, never IDs)
+	uv run python -m banking_agent.export personas
+
+tiny-export: _check-profile ## Build the personas' tiny export and upload it to the data bucket (ADR-0006's amendment)
+	uv run python -m banking_agent.export tiny --upload
 
 ##@ Analysis
 

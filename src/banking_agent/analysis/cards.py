@@ -23,7 +23,6 @@ from banking_agent.analysis.candidates import (
     sql_list,
 )
 from banking_agent.analysis.catalog import Table
-from banking_agent.analysis.learned import held_out
 from banking_agent.analysis.selection import (
     STAGED,
     FieldPopulation,
@@ -33,6 +32,7 @@ from banking_agent.analysis.selection import (
 )
 from banking_agent.analysis.source import AnalysisError, connect, one, table_keys
 from banking_agent.dataset.lock import Lock
+from banking_agent.split import held_out
 
 CREDIT, DEBIT = CARDS
 # The ISO 8583 meanings ADR-0003's rule reads the decline codes with.
