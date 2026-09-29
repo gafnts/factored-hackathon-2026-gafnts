@@ -13,19 +13,37 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.13",
 ]
-dependencies = []
+dependencies = [
+  "boto3[crt]>=1.43.103",
+  "duckdb>=1.5.5",
+]
 
 [dependency-groups]
 dev = [
+  "boto3-stubs[s3,sts]>=1.43.103",
+  "jsonschema>=4.26",
+  "moto[s3]>=5.2.3",
   "mypy>=2.3.1",
   "pre-commit>=4.6.2",
   "pyproject-fmt>=2.29.4",
   "pytest>=9.1.1",
   "pytest-cov>=7.1",
   "pytest-timeout>=2.4",
+  "rfc3339-validator>=0.1.4",
   "ruff>=0.16.9",
   "shellcheck-py>=0.11.0.1",
+  "types-jsonschema>=4.26.0.20260518",
 ]
+eda = [
+  "matplotlib>=3.11.2",
+  "plotnine>=0.15.8",
+  "polars>=1.44.2",
+  "pyarrow>=25.0.1",
+  "scikit-learn>=1.9.1",
+]
+
+[tool.uv]
+default-groups = [ "dev", "eda" ]
 
 [tool.ruff]
 src = [ "src" ]
@@ -37,6 +55,13 @@ files = [ "src", "tests" ]
 strict = true
 overrides = [
   { module = "tests.*", disallow_untyped_defs = false },
+  { module = "sklearn.*", ignore_missing_imports = true },
+  { module = [
+    "banking_agent.analysis.cards_figures",
+    "banking_agent.analysis.figures",
+    "banking_agent.analysis.plotting",
+    "banking_agent.analysis.traffic_figures",
+  ], disallow_untyped_calls = false },
 ]
 
 [tool.pytest]

@@ -81,10 +81,11 @@ The operations that can hurt are hard to trigger by mistake:
 | Deploying from an unreviewed branch | The prototype deploy role only trusts jobs in the `prototype` GitHub Environment, which only `main` can use |
 | Write credentials on pull requests | PR plans run under a read-only role, without taking the state lock |
 | CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials; the deploy roles are denied IAM changes to themselves, and every role they create must carry a permissions boundary that excludes IAM |
-| One environment touching another's state | Each role is denied every other prefix in the state bucket, and any change to the bucket itself; the roles they create are denied the bucket entirely |
+| One environment touching another's state | Each role is denied every other prefix in the state bucket (including the IAM and dataset roots'), and any change to the bucket itself; the roles they create are denied the bucket entirely |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
-| Deleting shared state | `iam-destroy` needs `I_KNOW=1`, and `make teardown` makes you type the bucket name |
+| Deleting shared state | `iam-destroy` and `dataset-destroy` need `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
+| The dataset changing under an evaluation | `make data` stops when the organizers' bucket drifts from `dataset.lock`, and the data bucket rejects any write that would overwrite a snapshot |
 
 ---
 
@@ -133,9 +134,25 @@ aws configure set region us-east-2 --profile factored-hackathon
 
 Check it with `make doctor`: under "Dataset profile" it should report that it can read `s3://factored-datathon-2026-s3-157725502942-us-east-2-an/data/`. To use a different profile name, set `DATASET_SOURCE_PROFILE`.
 
+Then download the pinned snapshot into `data/`:
+
+```bash
+make data
+```
+
+[`dataset.lock`](dataset.lock) lists every file of the snapshot the code is pinned to, with its size, the organizers' ETag, and a SHA-256 ([ADR-0002](docs/adr/0002-mirror-dataset-into-pinned-snapshots.md)). `make data` downloads the organizers' `data/` prefix (5.35 GB) into `data/snapshots/<snapshot-id>/` and checks every file against both, so a rerun downloads only what's missing, and your copy holds exactly the bytes the evaluation reports were computed from. If the organizers' bucket no longer matches the lock, it stops and lists the difference (see [Troubleshooting](#troubleshooting)).
+
+With the snapshot in place, analyze it:
+
+```bash
+make analysis
+```
+
+It reads exactly the files in the lock, with no AWS access, and writes four reports to [docs/analysis/](docs/analysis/), stamped with the snapshot ID: the data quality profile; the workflow selection that [ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md) rules on; the card support analysis the card support policy cites; and the traffic analysis behind [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md)'s capacity limits, which measures traffic by day and hour and, in a section of its own, projects the agent's load from assumptions kept in code. The card support and traffic analyses read development customers only. The last three read the snapshot as of the instant the profile dates. Each is a Markdown report with the same numbers as JSON; all but the profile add SVG figures. The reports publish aggregates only, with row counts under 10 suppressed. A rerun on the same snapshot writes the same bytes, and takes about five minutes. To write fewer reports, run `uv run python -m banking_agent.analysis` with `profile`, `select`, `cards`, or `traffic` instead of `all`.
+
 ### 3. Deploy your own copy
 
-This stands up the full stack in an AWS account you control: a Terraform state bucket, three deploy roles, the `local` environment, and CI deployments of `prototype`. It happens once per account, with admin credentials.
+This stands up the full stack in an AWS account you control: a Terraform state bucket, three deploy roles, the dataset bucket, the `local` environment, and CI deployments of `prototype`. It happens once per account, with admin credentials.
 
 #### 3.1 Before you start
 
@@ -173,7 +190,7 @@ The OIDC subject prefix is what the CI roles trust. The script reads it from Git
 make provision
 ```
 
-This applies `infra/iam/` (Terraform asks you to confirm) and initializes the `local` stack. It creates:
+This applies `infra/iam/`, then `infra/dataset/` (Terraform asks you to confirm each), and initializes the `local` stack. The first creates the deploy roles:
 
 | Role | Assumed by | Permissions |
 |---|---|---|
@@ -181,7 +198,7 @@ This applies `infra/iam/` (Terraform asks you to confirm) and initializes the `l
 | `banking-agent-prototype-deploy` | The apply job, only from the `prototype` GitHub Environment | Write, scoped to `prototype` |
 | `banking-agent-prototype-plan` | The plan job on PRs into `main` | Read-only |
 
-`make iam-output` prints their ARNs whenever you need them.
+`make iam-output` prints their ARNs whenever you need them. The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots ([step 3.7](#37-copy-the-dataset-snapshot)). It lives outside the environment stacks, so destroying one never deletes the data.
 
 #### 3.4 Configure your local deploy profile
 
@@ -214,10 +231,22 @@ The apply job runs on merges to `main` that touch `infra/`. If `main` already ha
 #### 3.6 Verify and deploy `local`
 
 ```bash
-make doctor   # Every line should read ok
+make doctor   # Every line but the dataset snapshot's should read ok
 make plan     # Preview the local stack
 make apply
 ```
+
+From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
+
+#### 3.7 Copy the dataset snapshot
+
+With the dataset profile from [step 2](#2-connect-to-the-dataset) configured and `AWS_PROFILE=banking-agent-local` active:
+
+```bash
+make snapshot
+```
+
+This runs `make data`, then uploads the verified copy to `snapshots/<snapshot-id>/` in the data bucket. S3 checks each file's SHA-256 on arrival and rejects any write that would overwrite an object, and the lock goes up last, so a snapshot in the bucket is complete once `make doctor` sees it. Pipelines and the prototype read this copy with the project's own roles, never the organizers' bucket.
 
 A fully configured machine looks like this:
 
@@ -228,6 +257,7 @@ Admin profile: default (bootstrap, IAM roles, teardown)
   ok    infra/envs/local.backend.tfbackend points at it
   ok    infra/envs/prototype.backend.tfbackend points at it
   ok    infra/iam/backend.tfbackend points at it
+  ok    infra/dataset/backend.tfbackend points at it
 
 GitHub repository: <owner>/<repo> (CI runs here; the CI roles trust it)
   ok    OIDC subject repo:<owner>@<owner-id>/<repo>@<repo-id>
@@ -239,12 +269,15 @@ Dataset profile: factored-hackathon (organizers' read-only keys)
 Local deploy profile: banking-agent-local (make plan/apply)
   ok    arn:aws:sts::<account-id>:assumed-role/banking-agent-local-deploy/<session>
 
+Dataset snapshot: dataset.lock (make data, make snapshot)
+  ok    dataset.lock pins snapshot <snapshot-id> (7671 files)
+  ok    data/snapshots/<snapshot-id> holds every file (make data re-verifies them)
+  ok    s3://banking-agent-data-<account-id>-us-east-1-an/snapshots/<snapshot-id>/ is complete
+
 AWS_PROFILE in this shell: banking-agent-local
 
 No failures.
 ```
-
-From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
 
 ---
 
@@ -266,6 +299,7 @@ A few habits keep PRs quick to review:
 
 - Write commit subjects in the imperative mood, as the history does ("Add IAM bootstrap module for deploy roles").
 - Cite the requirement IDs from [docs/hackathon-requirements.md](docs/hackathon-requirements.md) (for example `SEC-05`) in the PR description and in the tests that cover them, so every change traces back to what the organizers score.
+- Mirror the package in `tests/`: the tests for `src/banking_agent/<path>/<module>.py` live in `tests/banking_agent/<path>/test_<module>.py`, and fixtures shared by a folder go in its `conftest.py`.
 - Add an ADR when the change makes a decision someone could reasonably question later (see [Record decisions](#record-decisions)).
 
 ### Run the quality gates
@@ -307,14 +341,14 @@ make lock
 
 ### Promote to prototype
 
-When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`. Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
+When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/` and `infra/dataset/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`. Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
 
 To redeploy `main` without an infrastructure change, run the workflow by hand: **Actions → Deploy · Prototype → Run workflow**.
 
 > [!NOTE]
 > The apply runs `terraform apply` against current state at merge time; the PR plan is informational, not the artifact applied, and there is no manual approval gate. A plan-bound, approval-gated production pipeline is remaining deployment work, not something this prototype operates.
 
-Changes under `infra/iam/` never deploy from CI. Apply them by hand with admin credentials (`make iam-plan`, then `make iam-apply`).
+Changes under `infra/iam/` and `infra/dataset/` never deploy from CI. Apply them by hand with admin credentials (`make iam-plan`, then `make iam-apply`; or `make dataset-plan`, then `make dataset-apply`).
 
 ### Record decisions
 
@@ -338,6 +372,8 @@ Run `make doctor` first; most setup problems show up there.
 | CI fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The roles trust another repository's OIDC subject. `make doctor` compares `iam.tfvars` with your repository; fix the value, then `make iam-apply`. |
 | CI's `terraform init` fails on provider checksums | The lock files lack hashes for linux/amd64. Run `make lock` and commit them. |
 | A hook passes on commit but fails in CI | Commit hooks only see changed files. Run `make check`, which runs both stages on every file, as CI does. |
+| `make data` says the source no longer matches `dataset.lock` | The organizers added, removed, or replaced files; the message lists them by table. Adopt the change deliberately with `make data ADOPT=1`, which writes a new snapshot and lock, then commit the lock in a PR of its own and run `make snapshot`. |
+| `make data` deleted files that didn't match | A download was corrupted or a local file was edited. Run `make data` again; it downloads only the deleted files. |
 
 ---
 
@@ -350,10 +386,11 @@ make destroy ENV=local
 AWS_PROFILE=default make init ENV=prototype
 AWS_PROFILE=default make destroy ENV=prototype I_KNOW=1
 make iam-destroy I_KNOW=1
+make dataset-destroy I_KNOW=1
 make teardown
 ```
 
-Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it.
+Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` and `dataset-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it. `make dataset-destroy` deletes the data bucket with every dataset snapshot in it; the local copy under `data/` stays until you delete it.
 
 ---
 
@@ -366,10 +403,11 @@ Run `make help` for every target.
 | Variable | Default | Used by |
 |---|---|---|
 | `ENV` | `local` | The Terraform targets (`local` or `prototype`) |
-| `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, and `iam-destroy` |
-| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, and ad hoc AWS CLI calls |
-| `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` targets, `make teardown`, `make doctor` |
-| `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor` |
+| `I_KNOW` | Unset | Set to `1` to allow `prototype` apply or destroy, `iam-destroy`, and `dataset-destroy` |
+| `ADOPT` | Unset | Set to `1` to let `make data` adopt a changed source and rewrite `dataset.lock` |
+| `AWS_PROFILE` | `banking-agent-local` (from `.envrc`) | Terraform for `local`, `make snapshot`, and ad hoc AWS CLI calls |
+| `AWS_ADMIN_PROFILE` | `default` | `make bootstrap`, the `iam-*` and `dataset-*` targets, `make teardown`, `make doctor` |
+| `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor`, `make data` |
 | `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
 
 ### What's pinned
@@ -378,6 +416,7 @@ Run `make help` for every target.
 |---|---|
 | Python 3.13 | `.python-version`, and `requires-python` in `pyproject.toml` |
 | Python dependencies | `uv.lock` |
+| Dataset snapshot | `dataset.lock` |
 | Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
 | AWS provider | `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
 | Hook versions | `rev` entries in `.pre-commit-config.yaml` |
@@ -388,7 +427,7 @@ Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR
 
 ### Files
 
-The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
+The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
 
 Gitignored files worth knowing about:
 
@@ -396,5 +435,5 @@ Gitignored files worth knowing about:
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets such as LLM API keys; if you add one, document its variables in a tracked `.env.example`
-- `data/`: the organizer-provided dataset, which must never be committed
+- `data/`: the dataset snapshots `make data` downloads, which must never be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys

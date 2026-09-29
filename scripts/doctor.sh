@@ -14,6 +14,7 @@ BACKEND_FILES=(
   infra/envs/local.backend.tfbackend
   infra/envs/prototype.backend.tfbackend
   infra/iam/backend.tfbackend
+  infra/dataset/backend.tfbackend
 )
 
 # The profile .envrc sets may not exist yet, so every call passes --profile.
@@ -21,6 +22,7 @@ ACTIVE_PROFILE="${AWS_PROFILE:-}"
 unset AWS_PROFILE
 
 FAILED=0
+OWN_ACCOUNT_ID=""
 ok() { echo "  ok    $*"; }
 todo() { echo "  todo  $*"; }
 fail() {
@@ -49,6 +51,7 @@ else
     fail "${ARN} is the organizers' dataset reader, not your account"
   else
     ok "${ARN}"
+    OWN_ACCOUNT_ID="${ACCOUNT_ID}"
     BUCKET=$(state_bucket_name "${ACCOUNT_ID}")
     if aws s3api head-bucket --bucket "${BUCKET}" --profile "${ADMIN_PROFILE}" >/dev/null 2>&1; then
       ok "state bucket ${BUCKET} exists"
@@ -128,6 +131,37 @@ else
     ok "${ARN}"
   else
     fail "resolves to ${ARN}, expected the ${LOCAL_PROFILE}-deploy role"
+  fi
+fi
+
+LOCK=dataset.lock
+echo ""
+echo "Dataset snapshot: ${LOCK} (make data, make snapshot)"
+if [ ! -f "${LOCK}" ]; then
+  todo "${LOCK} not found; run 'make data'"
+else
+  SNAPSHOT=$(sed -n 's/^# snapshot: //p' "${LOCK}")
+  FILES=$(grep -vc '^#' "${LOCK}")
+  ok "${LOCK} pins snapshot ${SNAPSHOT} (${FILES} files)"
+  LOCAL_DIR="data/snapshots/${SNAPSHOT}"
+  if [ -d "${LOCAL_DIR}" ] && [ "$(find "${LOCAL_DIR}" -type f | wc -l | tr -d ' ')" = "${FILES}" ]; then
+    ok "${LOCAL_DIR} holds every file (make data re-verifies them)"
+  else
+    todo "${LOCAL_DIR} is incomplete; run 'make data'"
+  fi
+  if [ -z "${OWN_ACCOUNT_ID}" ] || ! has_profile "${LOCAL_PROFILE}"; then
+    todo "the data bucket can't be checked until the admin and local deploy profiles work"
+  else
+    SNAPSHOT_BUCKET=$(data_bucket_name "${OWN_ACCOUNT_ID}")
+    if ! aws s3api head-bucket --bucket "${SNAPSHOT_BUCKET}" \
+      --profile "${LOCAL_PROFILE}" --region "${AWS_REGION}" >/dev/null 2>&1; then
+      todo "data bucket ${SNAPSHOT_BUCKET} not found; run 'make dataset-apply'"
+    elif aws s3api head-object --bucket "${SNAPSHOT_BUCKET}" --key "snapshots/${SNAPSHOT}/dataset.lock" \
+      --profile "${LOCAL_PROFILE}" --region "${AWS_REGION}" >/dev/null 2>&1; then
+      ok "s3://${SNAPSHOT_BUCKET}/snapshots/${SNAPSHOT}/ is complete"
+    else
+      todo "s3://${SNAPSHOT_BUCKET}/snapshots/${SNAPSHOT}/ is missing or incomplete; run 'make snapshot'"
+    fi
   fi
 fi
 

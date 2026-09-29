@@ -6,9 +6,12 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+        exclude: ^docs/analysis/figures/.*\.svg$
       - id: check-yaml
       - id: check-merge-conflict
       - id: check-added-large-files
+        # One line per dataset file, about 1.5 MB.
+        exclude: ^dataset\.lock$
       - id: detect-private-key
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform

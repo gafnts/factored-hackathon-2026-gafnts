@@ -6,12 +6,14 @@ on:
     paths:
       - "infra/**"
       - "!infra/iam/**"
+      - "!infra/dataset/**"
       - ".github/workflows/deploy-prototype.yml"
   pull_request:
     branches: [main]
     paths:
       - "infra/**"
       - "!infra/iam/**"
+      - "!infra/dataset/**"
       - ".github/workflows/deploy-prototype.yml"
   workflow_dispatch:
 

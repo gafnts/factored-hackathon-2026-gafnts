@@ -1,0 +1,5 @@
+bucket       = "banking-agent-tfstate-009160074575-us-east-1-an"
+key          = "service/dataset/terraform.tfstate"
+region       = "us-east-1"
+use_lockfile = true
+encrypt      = true

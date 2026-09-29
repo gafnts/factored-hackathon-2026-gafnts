@@ -5,18 +5,22 @@ TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
 
-# The IAM bootstrap module is admin-only, so it ignores the scoped AWS_PROFILE
-# that .envrc sets (that profile can't exist until this module has run).
+# The IAM and dataset roots are admin-only, so they ignore the scoped AWS_PROFILE
+# that .envrc sets (that profile can't exist until the IAM root has run).
 AWS_ADMIN_PROFILE ?= default
 IAM_TF      := AWS_PROFILE=$(AWS_ADMIN_PROFILE) terraform -chdir=infra/iam
 IAM_VARS    := -var-file=iam.tfvars
 IAM_BACKEND := -backend-config=backend.tfbackend
+DATASET_TF      := AWS_PROFILE=$(AWS_ADMIN_PROFILE) terraform -chdir=infra/dataset
+DATASET_BACKEND := -backend-config=backend.tfbackend
 
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration \
 	bootstrap backend doctor provision teardown \
+	data snapshot analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
+	dataset-init dataset-plan dataset-apply dataset-destroy \
 	init plan apply destroy lock \
 	_check-backend
 
@@ -26,7 +30,7 @@ help:
 	awk -v t="$$t" -v h="$$h" -v r="$$r" 'BEGIN {FS = ":.*## "} \
 		NR == 1 {printf "Usage: make %s<target>%s [ENV=local]\n", t, r} \
 		/^##@ / {printf "\n%s%s%s\n", h, substr($$0, 5), r} \
-		/^[a-zA-Z_-]+:.*## / {printf "  %s%-13s%s %s\n", t, $$1, r, $$2}' $(MAKEFILE_LIST)
+		/^[a-zA-Z_-]+:.*## / {printf "  %s%-15s%s %s\n", t, $$1, r, $$2}' $(MAKEFILE_LIST)
 
 
 ##@ Setup
@@ -75,9 +79,11 @@ integration: ## Run integration-marked tests (requires credentials and network a
 bootstrap: ## Create state bucket and write backend files for all environments (admin profile)
 	@bash scripts/bootstrap.sh
 
-provision: ## One-time: create IAM roles and initialize Terraform for ENV=local
+provision: ## One-time: create IAM roles and the dataset bucket, and initialize Terraform for ENV=local
 	$(MAKE) iam-init
 	$(MAKE) iam-apply
+	$(MAKE) dataset-init
+	$(MAKE) dataset-apply
 	$(MAKE) init ENV=local
 
 
@@ -89,6 +95,19 @@ backend: ## Write backend files for all environments (used by CI; one STS call f
 
 teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
 	@bash scripts/teardown.sh
+
+##@ Dataset snapshot
+
+data: ## Download the pinned dataset snapshot into data/ and verify it (ADOPT=1 accepts a changed source)
+	uv run python -m banking_agent.dataset download $(if $(filter 1,$(ADOPT)),--adopt)
+
+snapshot: data ## Copy the pinned snapshot into this account's data bucket
+	uv run python -m banking_agent.dataset upload
+
+##@ Analysis
+
+analysis: ## Profile the pinned snapshot, compute the workflow selection (ADR-0003), and analyze card support and traffic into docs/analysis/
+	uv run python -m banking_agent.analysis all
 
 ##@ IAM module
 
@@ -108,6 +127,23 @@ iam-destroy: ## Destroy the IAM bootstrap module (removes every deploy role; req
 	@if [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy the deploy roles for every env. Re-run with I_KNOW=1."; exit 1; fi
 	$(IAM_TF) destroy $(IAM_VARS)
+
+
+##@ Dataset bucket
+
+dataset-init: ## Initialize Terraform backend for the dataset bucket
+	$(DATASET_TF) init -reconfigure $(DATASET_BACKEND)
+
+dataset-plan: ## Preview changes to the dataset bucket
+	$(DATASET_TF) plan
+
+dataset-apply: ## Apply the dataset bucket (holds the pinned snapshots)
+	$(DATASET_TF) apply
+
+dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (requires I_KNOW=1)
+	@if [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to delete every dataset snapshot. Re-run with I_KNOW=1."; exit 1; fi
+	$(DATASET_TF) destroy
 
 
 ##@ Terraform (per ENV)

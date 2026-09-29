@@ -1,0 +1,742 @@
+{
+  "snapshot_id": "b3b8b248f604ef9a",
+  "duckdb_version": "1.5.5",
+  "business_date": "2026-06-17",
+  "as_of": "2026-06-18 06:00:00",
+  "candidates": [
+    {
+      "key": "account_inquiries",
+      "name": "Account and payment inquiries",
+      "normal_path": "An active checking or savings account with a transaction in the 30 days before the business date",
+      "fields": [
+        {
+          "table": "products",
+          "name": "product_type",
+          "rows": 220182,
+          "populated": 220182
+        },
+        {
+          "table": "products",
+          "name": "product_status",
+          "rows": 220182,
+          "populated": 220182
+        },
+        {
+          "table": "products",
+          "name": "current_balance",
+          "rows": 220182,
+          "populated": 220182
+        },
+        {
+          "table": "products",
+          "name": "currency",
+          "rows": 220182,
+          "populated": 220182
+        },
+        {
+          "table": "transactions",
+          "name": "transaction_date",
+          "rows": 70215,
+          "populated": 70215
+        },
+        {
+          "table": "transactions",
+          "name": "amount",
+          "rows": 70215,
+          "populated": 70215
+        },
+        {
+          "table": "transactions",
+          "name": "transaction_type",
+          "rows": 70215,
+          "populated": 70215
+        },
+        {
+          "table": "transactions",
+          "name": "transaction_status",
+          "rows": 70215,
+          "populated": 70215
+        },
+        {
+          "table": "transactions",
+          "name": "merchant_name",
+          "rows": 0,
+          "populated": 0
+        },
+        {
+          "table": "transactions",
+          "name": "channel",
+          "rows": 70215,
+          "populated": 70215
+        }
+      ],
+      "customers_in_state": 48477,
+      "rules": {
+        "rules": [
+          "Balance and recent movements",
+          "Movement not found",
+          "Failed payment handed off"
+        ],
+        "fields": 11,
+        "unknown_fields": [],
+        "unknown_references": []
+      },
+      "signal": null
+    },
+    {
+      "key": "card_support",
+      "name": "Card support",
+      "normal_path": "An active credit or debit card with a transaction in the 30 days before the business date",
+      "fields": [
+        {
+          "table": "products",
+          "name": "product_type",
+          "rows": 140040,
+          "populated": 140040
+        },
+        {
+          "table": "products",
+          "name": "product_status",
+          "rows": 140040,
+          "populated": 140040
+        },
+        {
+          "table": "products",
+          "name": "credit_limit",
+          "rows": 100102,
+          "populated": 95043
+        },
+        {
+          "table": "products",
+          "name": "current_balance",
+          "rows": 140040,
+          "populated": 140040
+        },
+        {
+          "table": "products",
+          "name": "expiration_date",
+          "rows": 140040,
+          "populated": 133161
+        },
+        {
+          "table": "transactions",
+          "name": "transaction_status",
+          "rows": 44003,
+          "populated": 44003
+        },
+        {
+          "table": "transactions",
+          "name": "response_code",
+          "rows": 44003,
+          "populated": 41840
+        },
+        {
+          "table": "transactions",
+          "name": "is_fraud",
+          "rows": 44003,
+          "populated": 44003
+        },
+        {
+          "table": "transactions",
+          "name": "merchant_name",
+          "rows": 30543,
+          "populated": 29032
+        },
+        {
+          "table": "transactions",
+          "name": "channel",
+          "rows": 44003,
+          "populated": 44003
+        },
+        {
+          "table": "transactions",
+          "name": "transaction_country",
+          "rows": 44003,
+          "populated": 44003
+        }
+      ],
+      "customers_in_state": 32588,
+      "rules": {
+        "rules": [
+          "Card status and available credit",
+          "Declined transaction explained",
+          "Card block, handed off over fraud"
+        ],
+        "fields": 11,
+        "unknown_fields": [],
+        "unknown_references": []
+      },
+      "signal": {
+        "label": "`is_fraud` on card transactions",
+        "training": {
+          "rows": 1239966,
+          "customers": 65796,
+          "positives": 1238
+        },
+        "held_out": {
+          "rows": 307466,
+          "customers": 16342,
+          "positives": 310
+        },
+        "auc": {
+          "estimate": 0.49250735887490604,
+          "low": 0.462119171624615,
+          "high": 0.5230436230773153
+        },
+        "fraud_score": {
+          "estimate": 0.840674541746273,
+          "low": 0.803218820049504,
+          "high": 0.8751095938409404
+        },
+        "fraud_score_rows": 245719
+      }
+    },
+    {
+      "key": "disputes",
+      "name": "Transaction-dispute intake",
+      "normal_path": "An approved purchase in the 60 days before the business date",
+      "fields": [
+        {
+          "table": "transactions",
+          "name": "transaction_date",
+          "rows": 55595,
+          "populated": 55595
+        },
+        {
+          "table": "transactions",
+          "name": "amount",
+          "rows": 55595,
+          "populated": 55595
+        },
+        {
+          "table": "transactions",
+          "name": "currency",
+          "rows": 55595,
+          "populated": 55595
+        },
+        {
+          "table": "transactions",
+          "name": "transaction_status",
+          "rows": 55595,
+          "populated": 55595
+        },
+        {
+          "table": "transactions",
+          "name": "merchant_name",
+          "rows": 55595,
+          "populated": 52822
+        },
+        {
+          "table": "transactions",
+          "name": "is_fraud",
+          "rows": 55595,
+          "populated": 55595
+        },
+        {
+          "table": "transactions",
+          "name": "fraud_score",
+          "rows": 55595,
+          "populated": 44582
+        },
+        {
+          "table": "complaints",
+          "name": "case_type",
+          "rows": 27131,
+          "populated": 27131
+        },
+        {
+          "table": "complaints",
+          "name": "claimed_amount",
+          "rows": 27131,
+          "populated": 8957
+        },
+        {
+          "table": "complaints",
+          "name": "status",
+          "rows": 27131,
+          "populated": 27131
+        }
+      ],
+      "customers_in_state": 38598,
+      "rules": {
+        "rules": [
+          "Eligibility to dispute",
+          "Case facts from the transaction",
+          "Fraud or merchant route"
+        ],
+        "fields": 9,
+        "unknown_fields": [],
+        "unknown_references": []
+      },
+      "signal": {
+        "label": "`is_fraud` on the transactions a customer could dispute (approved purchases)",
+        "training": {
+          "rows": 798318,
+          "customers": 65791,
+          "positives": 805
+        },
+        "held_out": {
+          "rows": 197850,
+          "customers": 16339,
+          "positives": 201
+        },
+        "auc": {
+          "estimate": 0.5055315029162833,
+          "low": 0.46854808544024196,
+          "high": 0.543441775605744
+        },
+        "fraud_score": {
+          "estimate": 0.8469957635650436,
+          "low": 0.8007500343016006,
+          "high": 0.8935531772583096
+        },
+        "fraud_score_rows": 158115
+      }
+    },
+    {
+      "key": "credit",
+      "name": "Credit information and eligibility",
+      "normal_path": "An active customer with `credit_score` and `estimated_monthly_income` populated",
+      "fields": [
+        {
+          "table": "customers",
+          "name": "credit_score",
+          "rows": 150000,
+          "populated": 127508
+        },
+        {
+          "table": "customers",
+          "name": "estimated_monthly_income",
+          "rows": 150000,
+          "populated": 119967
+        },
+        {
+          "table": "customers",
+          "name": "segment",
+          "rows": 150000,
+          "populated": 150000
+        },
+        {
+          "table": "customers",
+          "name": "customer_status",
+          "rows": 150000,
+          "populated": 150000
+        },
+        {
+          "table": "products",
+          "name": "product_type",
+          "rows": 131972,
+          "populated": 131972
+        },
+        {
+          "table": "products",
+          "name": "credit_limit",
+          "rows": 131972,
+          "populated": 125317
+        },
+        {
+          "table": "products",
+          "name": "interest_rate",
+          "rows": 131972,
+          "populated": 118775
+        },
+        {
+          "table": "products",
+          "name": "days_past_due",
+          "rows": 131972,
+          "populated": 125350
+        }
+      ],
+      "customers_in_state": 86897,
+      "rules": {
+        "rules": [
+          "Held credit products",
+          "Simulated eligibility",
+          "Review path"
+        ],
+        "fields": 9,
+        "unknown_fields": [],
+        "unknown_references": []
+      },
+      "signal": {
+        "label": "`days_past_due` of 30 or more on credit products",
+        "training": {
+          "rows": 100645,
+          "customers": 68115,
+          "positives": 12567
+        },
+        "held_out": {
+          "rows": 24705,
+          "customers": 16811,
+          "positives": 3084
+        },
+        "auc": {
+          "estimate": 0.5084708770493883,
+          "low": 0.497965046236827,
+          "high": 0.5188021866616581
+        },
+        "fraud_score": null,
+        "fraud_score_rows": 0
+      }
+    }
+  ],
+  "complaints_reference": [
+    "branches",
+    "call_center_interactions",
+    "customers",
+    "products",
+    "service_agents"
+  ],
+  "fraud_by_score": [
+    {
+      "low": 0,
+      "transactions": 412698,
+      "fraud": 111
+    },
+    {
+      "low": 10,
+      "transactions": 412103,
+      "fraud": 130
+    },
+    {
+      "low": 20,
+      "transactions": 411838,
+      "fraud": 129
+    },
+    {
+      "low": 30,
+      "transactions": 333,
+      "fraud": 118
+    },
+    {
+      "low": 40,
+      "transactions": 111,
+      "fraud": 111
+    },
+    {
+      "low": 50,
+      "transactions": 128,
+      "fraud": 128
+    },
+    {
+      "low": 60,
+      "transactions": 124,
+      "fraud": 124
+    },
+    {
+      "low": 70,
+      "transactions": 115,
+      "fraud": 115
+    },
+    {
+      "low": 80,
+      "transactions": 127,
+      "fraud": 127
+    },
+    {
+      "low": 90,
+      "transactions": 123,
+      "fraud": 123
+    },
+    {
+      "low": null,
+      "transactions": 309732,
+      "fraud": 332
+    }
+  ],
+  "top_legitimate_score": 30.0,
+  "evidence": {
+    "depth": [
+      {
+        "key": "account_inquiries",
+        "name": "Account and payment inquiries",
+        "coverage": [
+          {
+            "situation": "SCP-03",
+            "description": "Normal path: an active checking or savings account with a transaction in the 30 days before the business date",
+            "customers": 48477
+          },
+          {
+            "situation": "SCP-04",
+            "description": "Movement not found: any account holder can ask about a movement that isn't there",
+            "customers": 115313
+          },
+          {
+            "situation": "SCP-05",
+            "description": "Failed payment handed off: a declined or reversed payment in the last 30 days",
+            "customers": 453
+          },
+          {
+            "situation": "EVL-02",
+            "description": "Incorrect or missing data: a core field missing in the rows the tools read",
+            "customers": 0
+          }
+        ]
+      },
+      {
+        "key": "card_support",
+        "name": "Card support",
+        "coverage": [
+          {
+            "situation": "SCP-03",
+            "description": "Normal path: an active credit or debit card with a transaction in the 30 days before the business date",
+            "customers": 32588
+          },
+          {
+            "situation": "SCP-04",
+            "description": "Declined transaction explained: a decline in the last 30 days with a missing or unlisted `response_code`",
+            "customers": 96
+          },
+          {
+            "situation": "SCP-05",
+            "description": "Card block, handed off over fraud: a transaction marked `is_fraud` in the last 30 days on an active card",
+            "customers": 34
+          },
+          {
+            "situation": "EVL-02",
+            "description": "Incorrect or missing data: a core field missing in the rows the tools read",
+            "customers": 14232
+          }
+        ]
+      },
+      {
+        "key": "disputes",
+        "name": "Transaction-dispute intake",
+        "coverage": [
+          {
+            "situation": "SCP-03",
+            "description": "Normal path: an approved purchase in the 60 days before the business date",
+            "customers": 38598
+          },
+          {
+            "situation": "SCP-04",
+            "description": "Eligibility to dispute: a transaction in the last 60 days that isn't an approved purchase",
+            "customers": 91772
+          },
+          {
+            "situation": "SCP-05",
+            "description": "Fraud or merchant route: an approved purchase in the last 60 days marked `is_fraud`, routed to human review",
+            "customers": 51
+          },
+          {
+            "situation": "EVL-02",
+            "description": "Incorrect or missing data: a core field missing in the rows the tools read",
+            "customers": 27753
+          }
+        ]
+      },
+      {
+        "key": "credit",
+        "name": "Credit information and eligibility",
+        "coverage": [
+          {
+            "situation": "SCP-03",
+            "description": "Normal path: an active customer with `credit_score` and `estimated_monthly_income` populated",
+            "customers": 86897
+          },
+          {
+            "situation": "SCP-04",
+            "description": "Simulated eligibility, negative: an active, scored customer with a credit product 30 or more days past due",
+            "customers": 8684
+          },
+          {
+            "situation": "SCP-05",
+            "description": "Review path: an active customer missing `credit_score` or `estimated_monthly_income`",
+            "customers": 40803
+          },
+          {
+            "situation": "EVL-02",
+            "description": "Incorrect or missing data: a core field missing in the rows the tools read",
+            "customers": 63689
+          }
+        ]
+      }
+    ],
+    "complaints": [
+      {
+        "category": "Branch",
+        "subcategory": "Atención en sucursal",
+        "candidate": null,
+        "complaints": 3986
+      },
+      {
+        "category": "Branch",
+        "subcategory": null,
+        "candidate": null,
+        "complaints": 506
+      },
+      {
+        "category": "Fees",
+        "subcategory": "Cobro indebido",
+        "candidate": "disputes",
+        "complaints": 3995
+      },
+      {
+        "category": "Fees",
+        "subcategory": null,
+        "candidate": "disputes",
+        "complaints": 429
+      },
+      {
+        "category": "Service",
+        "subcategory": "Calidad de servicio",
+        "candidate": null,
+        "complaints": 4100
+      },
+      {
+        "category": "Service",
+        "subcategory": null,
+        "candidate": null,
+        "complaints": 431
+      },
+      {
+        "category": "Technical",
+        "subcategory": "Problema con app",
+        "candidate": null,
+        "complaints": 4041
+      },
+      {
+        "category": "Technical",
+        "subcategory": null,
+        "candidate": null,
+        "complaints": 396
+      },
+      {
+        "category": "Transactions",
+        "subcategory": "Cargo no reconocido",
+        "candidate": "disputes",
+        "complaints": 4175
+      },
+      {
+        "category": "Transactions",
+        "subcategory": null,
+        "candidate": "disputes",
+        "complaints": 418
+      }
+    ],
+    "contacts": [
+      {
+        "reason": "Comercial",
+        "contacts": 18495,
+        "timed": 15783,
+        "median_seconds": 541.0,
+        "p90_seconds": 748.0,
+        "resolution_known": 18495,
+        "resolved": 12102,
+        "escalated": 1805,
+        "csat_responses": 3432,
+        "csat_mean": 2.6812354312354314
+      },
+      {
+        "reason": "Producto",
+        "contacts": 50481,
+        "timed": 43381,
+        "median_seconds": 262.0,
+        "p90_seconds": 378.0,
+        "resolution_known": 50481,
+        "resolved": 45288,
+        "escalated": 5075,
+        "csat_responses": 9352,
+        "csat_mean": 2.897775876817793
+      },
+      {
+        "reason": "Queja",
+        "contacts": 39195,
+        "timed": 33737,
+        "median_seconds": 431.0,
+        "p90_seconds": 607.0,
+        "resolution_known": 39195,
+        "resolved": 17101,
+        "escalated": 3924,
+        "csat_responses": 7211,
+        "csat_mean": 2.43627790875052
+      },
+      {
+        "reason": "Retención",
+        "contacts": 6869,
+        "timed": 5868,
+        "median_seconds": 479.0,
+        "p90_seconds": 664.3000000000002,
+        "resolution_known": 6869,
+        "resolved": 4131,
+        "escalated": 640,
+        "csat_responses": 1240,
+        "csat_mean": 2.5798387096774196
+      },
+      {
+        "reason": "Transaccional",
+        "contacts": 80030,
+        "timed": 68834,
+        "median_seconds": 204.0,
+        "p90_seconds": 332.0,
+        "resolution_known": 80030,
+        "resolved": 73342,
+        "escalated": 7989,
+        "csat_responses": 14866,
+        "csat_mean": 2.915377371182564
+      },
+      {
+        "reason": "Técnico",
+        "contacts": 34513,
+        "timed": 29666,
+        "median_seconds": 360.0,
+        "p90_seconds": 499.0,
+        "resolution_known": 34513,
+        "resolved": 24040,
+        "escalated": 3540,
+        "csat_responses": 6339,
+        "csat_mean": 2.6928537624230953
+      }
+    ],
+    "csat_range": [
+      1,
+      4
+    ]
+  },
+  "thresholds": {
+    "field_share": 0.9,
+    "state_customers": 100,
+    "rules": 3,
+    "auc_interval_above": 0.5
+  },
+  "e2": {
+    "held_out_every": 5,
+    "penalty_c": 1.0,
+    "resamples": 1000,
+    "level": 0.95,
+    "seed": 20260927
+  },
+  "set_aside": [
+    "e2"
+  ],
+  "gates": {
+    "account_inquiries": {
+      "f1": false,
+      "f2": true,
+      "e1": true,
+      "e2": false,
+      "passes": false
+    },
+    "card_support": {
+      "f1": true,
+      "f2": true,
+      "e1": true,
+      "e2": false,
+      "passes": true
+    },
+    "disputes": {
+      "f1": false,
+      "f2": true,
+      "e1": true,
+      "e2": false,
+      "passes": false
+    },
+    "credit": {
+      "f1": false,
+      "f2": true,
+      "e1": true,
+      "e2": false,
+      "passes": false
+    }
+  }
+}
