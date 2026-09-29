@@ -42,6 +42,8 @@ def test_suppresses_small_counts(traffic_result: Traffic) -> None:
 
     assert "| Contacts | <10 |" in text
     assert contacts["rows"] == "<10"
+    assert contacts["daily"]["first"] == "2025-01-01"
+    assert set(contacts["daily"]["rows"]) == {0, "<10"}
     assert contacts["year"]["most"] == "<10"
     timing = data["measurements"]["contacts"]["overall"]["handle"]
     assert (timing["rows"], timing["mean"], timing["quantiles"]) == ("<10", None, None)

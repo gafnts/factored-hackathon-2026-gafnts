@@ -115,9 +115,20 @@ def _hide_small(value: object) -> object:
     return value
 
 
+def _daily(stream: Stream) -> dict[str, object]:
+    # One count per day from the first, rather than an object per day, keeps the file small enough to commit.
+    groups = stream.daily.groups
+    return {
+        "first": str(groups[0].values[0]) if groups else None,
+        "rows": [g.rows for g in groups],
+    }
+
+
 def to_json(result: Traffic, projection: Projection) -> str:
+    streams = [{**asdict(s), "daily": _daily(s)} for s in result.streams]
     measurements = {
         **asdict(result),
+        "streams": streams,
         "as_of": result.as_of.isoformat(sep=" "),
         "bank_factor": result.bank_factor,
         "settings": {
