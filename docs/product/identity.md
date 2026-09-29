@@ -164,7 +164,7 @@ A lighthouse drawn as horizontal stripes that narrow toward the top, with a ligh
 - The wordmark is FARO in Geist Bold capitals, beside the mark at the tower's height. In running text the name is Faro.
 - Clear space around the mark is the light's height on every side.
 
-The mark isn't drawn yet; until it is, the wordmark stands alone.
+The mark isn't drawn yet; until it is, the wordmark stands alone. The prototype is built in Paper only, the sign-in page included; Night comes with the mark.
 
 ### Motifs
 
