@@ -1,4 +1,4 @@
-# ADR-0004: Explicit LangGraph agent on AgentCore, with policy enforced in Gateway tools and Cedar
+# ADR-0004: Explicit LangGraph workflow on AgentCore, with policy enforced in Gateway tools and Cedar
 
 ## Status
 
@@ -84,7 +84,11 @@ The execution record holds every model call (model, prompt version, tokens, late
 
 ### The graph
 
-An explicit `StateGraph`, with no prebuilt agent loop. The model never chooses a tool: code chooses it from the label, and the model fills only the fields a node asks for, through structured output. It is used in four places:
+**A workflow with model steps.** In the engineering sense the graph is a workflow, not an agent: code decides the control flow, and the model never picks the next step, a tool, or when to stop. The model classifies, extracts among the values a step allows, and writes. We still call the system an agent in the product sense: a customer service agent that holds a conversation over several turns, keeps its state, and acts on the bank by blocking a card. The agency left to the model is the router's label and the extraction's choice among allowed values.
+
+We chose code over an open loop because the policy is explicit and the requests fit eight labels (DSN-03, DSN-05); a loop would add flexibility only where the policy declines. The graph buys conversation rules that tests cite (CTL-04), an injection that can at worst mislabel or misextract within typed outputs, outcomes that are correct and not only safe (M-01, M-03), evaluation and model comparison per node, and a bounded cost and latency per turn (M-05). It doesn't buy access or the block: Cedar and the tools hold those whatever runs above them, so a loop over the same tools would keep customers apart too ([Alternatives considered](#alternatives-considered)). ADR-0005's [naive agent](0005-offline-scenario-evaluation.md#the-naive-agent) measures the difference.
+
+An explicit `StateGraph`, with no prebuilt agent loop: code chooses each tool from the label, and the model fills only the fields a node asks for, through structured output. It is used in four places:
 
 - **Routing** a new request to the eight labels (POL-04 to POL-06). The router returns every supported request it finds, plus a separate yes or no on whether the message holds one at all, because a choice over labels alone picks the least bad label even for a greeting (S5). Code applies POL-05's order and queues the rest.
 - **Extraction:** card hints (type, last four digits), a block reason, a date phrase, and which listed transaction the customer means, each constrained to the values the step allows (a transaction ID from the tool's result, "none", or "several").
@@ -430,7 +434,7 @@ We settle these before accepting this record. Each names the option we lean towa
 
 ## Alternatives considered
 
-**A prebuilt agent loop** (`create_agent`, a ReAct loop). The model would choose the tools and their arguments, so the policy would live in the prompt and in tool descriptions (CTL-04). The explicit graph costs more code, and gives up flexibility only on requests outside the eight labels, which the policy declines anyway.
+**A prebuilt agent loop** (`create_agent`, a ReAct loop). The model would choose the tools, their arguments, and when to stop. Cedar and the tools' own checks would still hold, so access and the block would stay as safe; what would move into the prompt and the tool descriptions is the conversation policy (which request comes first, when to ask and how often, when to hand off), which tests could then only sample (CTL-04). The explicit graph costs more code, and gives up flexibility only on requests outside the eight labels, which the policy declines anyway. ADR-0005's naive agent is this alternative, measured.
 
 **The model reads the customer's yes** (the policy's first draft). A misread "sí", or a message claiming that the customer had confirmed, could block a card, and nothing outside the model could tell. We chose a control and a record the server owns instead.
 
