@@ -1,6 +1,6 @@
 """
 The deployed stack holds its boundaries: each user signs in through their side's client only, a customer can't rewrite
-their customer_id, the Gateway and Cedar serve a customer their own ID only, the read tools answer from the
+their customer_id, the Gateway and Cedar serve a customer their own ID and sign-in only, the read tools answer from the
 customer's own partition of the tools' data and nothing more, the Runtime accepts customers' access tokens only, and
 every log group keeps a retention (ADR-0004, To verify on the first deploy; ADR-0006, To verify on the first deploy;
 ADR-0007, Sign-in; POL-07, POL-08, POL-11, POL-12, POL-40; SEC-04, SEC-05; CTL-04; EVL-04; OPS-10). Spikes S3 and S4
@@ -243,6 +243,20 @@ def test_cedar_denies_another_customers_id(
     ):
         body = call(
             outputs, access, tool, arguments(access, customer_id=customer_id, **extra)
+        )
+        assert body["error"]["code"] == DENIED
+
+
+def test_cedar_denies_another_sign_ins_origin_jti(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    access = sign_in(users["customer"], "customer")["access"]
+    earlier = claims(sign_in(users["customer"], "customer")["access"])["origin_jti"]
+    assert earlier != claims(access)["origin_jti"]
+
+    for origin_jti in (earlier, str(uuid.uuid4())):
+        body = call(
+            outputs, access, "list_cards", arguments(access, origin_jti=origin_jti)
         )
         assert body["error"]["code"] == DENIED
 

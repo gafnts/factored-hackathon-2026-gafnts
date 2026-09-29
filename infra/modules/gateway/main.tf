@@ -239,7 +239,9 @@ resource "aws_bedrockagentcore_policy" "own_customer" {
         )
         when {
           principal.hasTag("customer_id") &&
-          principal.getTag("customer_id") == context.input.customer_id
+          principal.getTag("customer_id") == context.input.customer_id &&
+          principal.hasTag("origin_jti") &&
+          principal.getTag("origin_jti") == context.input.origin_jti
         };
       EOT
     }
