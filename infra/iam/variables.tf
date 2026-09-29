@@ -1,5 +1,5 @@
 variable "project_name" {
-  description = "Prefix for the deploy roles and for the service roles they are allowed to manage"
+  description = "Prefix for the deploy roles, the service roles they are allowed to manage, and the model key secrets"
   type        = string
   default     = "banking-agent"
 }

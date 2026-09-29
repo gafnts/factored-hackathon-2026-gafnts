@@ -198,7 +198,7 @@ This applies `infra/iam/`, then `infra/dataset/` (Terraform asks you to confirm 
 | `banking-agent-prototype-deploy` | The apply job, only from the `prototype` GitHub Environment | Write, scoped to `prototype` |
 | `banking-agent-prototype-plan` | The plan job on PRs into `main` | Read-only |
 
-`make iam-output` prints their ARNs whenever you need them. The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots ([step 3.7](#37-copy-the-dataset-snapshot)). It lives outside the environment stacks, so destroying one never deletes the data.
+`make iam-output` prints their ARNs whenever you need them. The IAM root also creates an empty secret for each environment's model key, `banking-agent-<env>-anthropic-api-key`, which you fill in [step 3.6](#36-verify-and-deploy-local). The second creates the data bucket, `banking-agent-data-<account-id>-us-east-1-an`, which holds the dataset snapshots ([step 3.7](#37-copy-the-dataset-snapshot)). It lives outside the environment stacks, so destroying one never deletes the data.
 
 #### 3.4 Configure your local deploy profile
 
@@ -395,7 +395,7 @@ make dataset-destroy I_KNOW=1
 make teardown
 ```
 
-Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` and `dataset-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it. `make dataset-destroy` deletes the data bucket with every dataset snapshot in it; the local copy under `data/` stays until you delete it.
+Everything after the local destroy runs with admin credentials: the local deploy role can't reach `prototype` state, and the prototype deploy role is only assumable from CI. The `iam-*` and `dataset-*` targets and `make teardown` switch to `AWS_ADMIN_PROFILE` on their own; the `prototype` commands need the override spelled out. `make teardown` prints what it will delete and makes you type the bucket name to confirm. It leaves the account's GitHub OIDC provider in place, since other projects may depend on it. `make iam-destroy` also deletes both environments' model key secrets, at once. `make dataset-destroy` deletes the data bucket with every dataset snapshot in it; the local copy under `data/` stays until you delete it.
 
 ---
 
