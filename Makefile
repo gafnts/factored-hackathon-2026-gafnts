@@ -22,6 +22,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration \
+	build \
 	bootstrap backend doctor provision teardown \
 	data snapshot analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
@@ -77,6 +78,12 @@ test: ## Run pytest with branch coverage
 
 integration: ## Run integration-marked tests (requires credentials and network access)
 	uv run pytest -m integration -v
+
+
+##@ Build
+
+build: ## Build the Runtime's and the Lambdas' zips into build/, and rewrite the Gateway's tool definitions
+	uv run python -m banking_agent.build
 
 
 ##@ Bootstrap
@@ -156,8 +163,7 @@ dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (require
 init: ## Initialize Terraform backend for ENV
 	$(TF_AWS) init -reconfigure $(BACKEND)
 
-plan: ## Preview infrastructure changes for ENV and save them to build/ENV.tfplan
-	@mkdir -p build
+plan: build ## Build, then preview infrastructure changes for ENV and save them to build/ENV.tfplan
 	$(TF_AWS) plan $(VARS) -out=../$(PLAN)
 
 apply: _check-backend ## Apply the plan that make plan saved for ENV (refuses prototype unless I_KNOW=1)
