@@ -2,9 +2,9 @@
 
 ## Status
 
-Proposed (2026-09-27).
+Accepted (2026-09-29).
 
-Some decisions are still open. Each is marked **Open** where it arises and listed under [Open decisions](#open-decisions) with the option we lean towards, which the rest of this record assumes; we settle them before accepting it. What only a deployed stack can show is listed under [To verify on the first deploy](#to-verify-on-the-first-deploy).
+Its open decisions were settled on 2026-09-29, each on the option we leaned towards, and are listed under [Settled at acceptance](#settled-at-acceptance) with the alternatives we didn't take. What only a deployed stack can show is listed under [To verify on the first deploy](#to-verify-on-the-first-deploy).
 
 ## Context
 
@@ -56,7 +56,7 @@ Bronze covers all 13 tables although card support reads three. The business-date
 Each check's severity is fixed before the first build.
 
 - **Errors stop the build:** keys unique and not null; every transaction's product and every product's customer present; accepted values for statuses and product and transaction types; every partition's events dated within its processing day, as the profile measured; bronze's row count per file equal to the file's records, counted by Python's `csv` module with the contract's dialect, apart from DuckDB, since the check exists to catch DuckDB's reader dropping or merging rows (the transcripts' quoted fields hold line breaks, so their 1,097 files have 925,351 lines but 171,321 records); no gold transaction after the as-of instant or before the window.
-- **Warnings are counted, never fixed:** the data quality facts the analysis already reports, among them active cards past their expiration date, missing values in the core fields, `last_transaction_date` disagreeing with the card's transactions, rows updated after the as-of instant, and values outside the dictionary's lists (among them `México`, which silver [spells one way](#one-spelling-per-country)). Each goes into the run's manifest with its count and share (**Open**, decision 4). A warning is a fact about the bank that the policy surfaces (POL-30, POL-32) and the limitations report (SCP-07); correcting it in silver would hide it.
+- **Warnings are counted, never fixed:** the data quality facts the analysis already reports, among them active cards past their expiration date, missing values in the core fields, `last_transaction_date` disagreeing with the card's transactions, rows updated after the as-of instant, and values outside the dictionary's lists (among them `México`, which silver [spells one way](#one-spelling-per-country)). Each goes into the run's manifest with its count and share (decision 4). A warning is a fact about the bank that the policy surfaces (POL-30, POL-32) and the limitations report (SCP-07); correcting it in silver would hide it.
 
 ### One spelling per country
 
@@ -77,7 +77,7 @@ The spelling therefore decides outcomes, not just text: POL-25 shows a transacti
 
 - The data arrives as daily files. Each processing day closes at a fixed cutoff the next morning (06:00 for transactions), and no row arrives after its processing day (profile). Nothing arrives between snapshots here, so a stream would have nothing to carry; streaming isn't required either.
 - The workflow reads a frozen bank at one business date. Its freshness need is that every tool answers as of the same instant, which a batch gives by construction.
-- The whole build fits one machine: 5.35 GB of CSV into DuckDB. Incremental models would add state to reason about and test, for no gain at this size (**Open**, decision 2).
+- The whole build fits one machine: 5.35 GB of CSV into DuckDB. Incremental models would add state to reason about and test, for no gain at this size (decision 2).
 
 **New data arrives only as a new snapshot,** through ADR-0002's lock and a reviewed change. The pipeline computes the business date and the as-of instant itself, with ADR-0003's rule, so a late partition moves them only once the day it completes is complete; a test pins snapshot `b3b8b248f604ef9a` to 2026-06-17 and 06:00. The held-out set is drawn on one snapshot (ADR-0005), so once its manifest is committed no new snapshot is adopted; a later one would make a new evaluation version.
 
@@ -102,8 +102,8 @@ That the tools' store then holds the second version only needs an import, which 
 
 - **`make pipeline`** builds on the machine that holds the snapshot (after `make data`). The DuckDB file lives under `data/`, which is gitignored and never published, so bronze and silver, with their full card numbers and personal data, stay there. The file is rebuilt by each `make pipeline` and kept only there, beside the local snapshot, which holds the same data; deleting `data/` removes both (OPS-10). The oracle reads bronze from the same file.
 - **`make export`** writes gold's items to the data bucket under `gold/<snapshot_id>/<pipeline_version>/items/`, a prefix of their own, since DynamoDB imports every object under the prefix it is given and fails the import on anything that isn't an item. The manifest goes beside them, at `gold/<snapshot_id>/<pipeline_version>/manifest.json`, last, as the completion marker, as ADR-0002 does for snapshots. The bucket's no-overwrite policy makes an export immutable, and exports are kept with the snapshots, until `make dataset-destroy` (OPS-10). Gold holds no full card number and no identity or contact field, so it is the only layer that leaves the machine.
-- **CI** runs dbt's unit tests and the update fixture on every push, neither of which needs the snapshot. The full build on the snapshot runs by hand, before an export (**Open**, decision 3).
-- **The tools' store is created from an export** (**Open**, decision 1). Terraform creates the tools' table with `aws_dynamodb_table`'s `import_table` from the export, in DynamoDB JSON, gzipped, with the export chosen by a variable that only a reviewed change sets, like the lock. A data source reads the export's `manifest.json` first, so a plan fails on an export without its completion marker, or one whose snapshot and pipeline version don't match the variable. DynamoDB imports only into a new table, so each export gets its own table, named by its snapshot and pipeline version, and the tools switch when Terraform points them at it; `make destroy` removes it. The provider documents `import_table`; we confirm it on provider 6.66.0 before the first import ([To verify on the first deploy](#to-verify-on-the-first-deploy)).
+- **CI** runs dbt's unit tests and the update fixture on every push, neither of which needs the snapshot. The full build on the snapshot runs by hand, before an export (decision 3).
+- **The tools' store is created from an export** (decision 1). Terraform creates the tools' table with `aws_dynamodb_table`'s `import_table` from the export, in DynamoDB JSON, gzipped, with the export chosen by a variable that only a reviewed change sets, like the lock. A data source reads the export's `manifest.json` first, so a plan fails on an export without its completion marker, or one whose snapshot and pipeline version don't match the variable. DynamoDB imports only into a new table, so each export gets its own table, named by its snapshot and pipeline version, and the tools switch when Terraform points them at it; `make destroy` removes it. The provider documents `import_table`; we confirm it on provider 6.66.0 before the first import ([To verify on the first deploy](#to-verify-on-the-first-deploy)).
 
 The profile and the analysis reports keep reading the snapshot directly, every value as text (`make analysis`). A profile should measure the delivery before any contract shapes it, and the contracts and warnings are set from its numbers.
 
@@ -112,14 +112,14 @@ The profile and the analysis reports keep reading the snapshot directly, every v
 - **`import_table` on provider 6.66.0.** The provider documents it, and no spike has run it; the first deploy confirms it, or a tiny export before then. If it fails, decision 1 falls back to its alternative, a publish script, by amendment.
 - **The store holds one export.** The imported table holds exactly the chosen export's items, which the fixture's tests can't show without the account. If it doesn't, the import is wrong, not the export, and the tools can't be pointed at the table.
 
-### Open decisions
+### Settled at acceptance
 
-We settle these before accepting this record. Each names the option we lean towards, which the rest of the record assumes, and any alternative still in play.
+Each decision left open while this record was proposed, as settled on 2026-09-29, with any alternative we didn't take.
 
-1. **Creating the tools' store.** Lean: Terraform imports each gold export into a new table, named by its snapshot and pipeline version. Alternative: a publish script that batch-writes the export into one table and writes the stamp last; simpler, but a publish that fails halfway leaves two versions mixed, which the tools would have to detect from the stamp.
-2. **Rebuild or increment.** Lean: a full rebuild per snapshot. Alternative: bronze incremental by source file, which is how a daily feed would run, and which the fixture would then exercise directly.
-3. **Where the full build runs.** Lean: by hand, on the machine holding the snapshot; CI runs the unit tests and the fixture. Alternative: a CI job that downloads the snapshot from the data bucket and builds on every change to the models, moving about 5.35 GB per run.
-4. **Warnings across snapshots.** Lean: warnings never stop the build; the manifest compares each count with the previous snapshot's, and the PR adopting a snapshot lists any that moved by more than 10%. Alternative: a band around each count, outside which the build fails.
+1. **Creating the tools' store.** Terraform imports each gold export into a new table, named by its snapshot and pipeline version. Not taken: a publish script that batch-writes the export into one table and writes the stamp last; simpler, but a publish that fails halfway leaves two versions mixed, which the tools would have to detect from the stamp.
+2. **Rebuild or increment.** A full rebuild per snapshot. Not taken: bronze incremental by source file, which is how a daily feed would run, and which the fixture would then exercise directly.
+3. **Where the full build runs.** By hand, on the machine holding the snapshot; CI runs the unit tests and the fixture. Not taken: a CI job that downloads the snapshot from the data bucket and builds on every change to the models, moving about 5.35 GB per run.
+4. **Warnings across snapshots.** Warnings never stop the build; the manifest compares each count with the previous snapshot's, and the PR adopting a snapshot lists any that moved by more than 10%. Not taken: a band around each count, outside which the build fails.
 
 ## Alternatives considered
 
