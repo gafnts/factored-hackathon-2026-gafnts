@@ -25,13 +25,14 @@ Evaluate offline, on scenarios: authored conversations played against the snapsh
 
 One customer from one split, one scripted conversation from one authored request family in one language, optional fixtures and faults, and the outcome the oracle expects:
 
-- **Script:** the customer's turns, which are messages, presses of the confirm control (confirm or cancel), and harness actions (wait past a time limit, sign out, send another customer's thread ID).
+- **Script:** the customer's opening messages; the answers the customer gives when asked (which card, a reason, confirm or cancel with the control, accept or decline an offered handoff); and harness actions at named points (wait past a time limit, sign out, send another customer's thread ID). The [scripted customer](#the-scripted-customer) plays it.
 - **Fixtures and faults:** records the snapshot lacks, added to the case's own sandbox (a transaction with an unlisted code, a merchant name that carries an injection), and fault plans (a tool that fails N times). Only the harness's role can write them, and tools honor them only in the sign-in they were written for (ADR-0004).
 - **Expected outcome, per turn:** the labels in order; the outcome class (answer, clarify, abstain, decline, block, or hand off); the tool calls required and forbidden; the facts the reply must state, formatted as the system formats them; the content it must not hold; the handoff's reason code, queue, priority, trigger, rules, and verified facts; the sandbox's end state; and the rule IDs the case exercises.
+- **Expected outcome, after the conversation:** what happens once the customer stops writing, such as the handoff filed when a POL-39 block offer lapses at its deadline (ADR-0004's decision 7).
 
 ### Coverage and size
 
-About 600 held-out cases, 300 per language (**Open**, decision 1). Every group has cases in both languages, and every policy rule is exercised by at least one case.
+About 600 held-out cases, 300 per language (**Open**, decision 1). Every group has cases in both languages, and every policy rule is exercised by at least one case. Each of the five reason codes whose handoff is offered has a case where the customer accepts and one where the customer declines, in both languages, so unnecessary transfers can be counted (M-03).
 
 | Group | Covers | Requirements | Cases per language | Source |
 |---|---|---|---|---|
@@ -76,6 +77,14 @@ About 50 cases from development customers and development families: the three pa
 - **Written from the policy's text, independently of the tools.** SQL over the pipeline's bronze tables, the typed copy of the snapshot ([ADR-0006](0006-batch-medallion-pipeline.md)), rather than the gold tables the tools read, so that a transformation bug shows up as a disagreement instead of agreeing with itself. It lives in the evaluation package and shares no code with the tools.
 - **Computes each case's expected outcome** from the customer's state, the script's parameters (which card the customer names, and how), and the case's fixtures.
 - **Disagreements are triaged in writing.** When the system and the oracle differ, the log records whether the oracle, the system, or the policy's wording was wrong. A wording fault becomes a policy change, which raises the version once the policy is accepted. The log is published with the report.
+
+### The scripted customer
+
+The customer is code, not a model. The graph's paths are code (ADR-0004): the model labels, extracts, and writes, and code picks every step and tool. The oracle can therefore predict each turn, and a customer that follows its script while reacting to what the agent asks is enough to walk every path, over as many turns as it takes (AI-01).
+
+- **It reacts to structured signals, never to prose.** After each turn it reads the turn's decision entry in the execution record (the outcome class, and what the agent waits for) and the interrupt's payload in the stream, and answers from the script: the card's type or last four digits when asked which card, the reason when asked for one, a press of the control naming the pending `confirmation_id`, an acceptance or a refusal when a handoff is offered. The script decides what the customer says; the agent decides only when. When the script holds no answer for what is asked, the customer says, in a fixed phrase in the case's language, that it doesn't know. Harness actions happen at the points the script names, such as waiting past the confirmation's time limit once the control appears.
+- **Divergence.** The first turn whose outcome differs from the oracle's (another outcome class, another question, a required tool call missing, or a forbidden one made) is recorded as "diverged at turn N" and fails. Correctness is graded up to that turn and not after it, so one error isn't counted several times. The customer keeps playing until the conversation ends or reaches twice the turns the oracle expects, and the safety checks behind M-04 run over every turn, so an unsafe outcome after the first mistake still counts.
+- **No one else takes part.** The confirm control is the customer's, so the harness presses it. A handoff is filed, not awaited ([ADR-0007](0007-role-gated-web-app.md)): the harness reads the cases a run filed from the handoff cases table, found through the execution record, including a case filed at a deadline after the last turn, which it reads once the deadline has passed. No human agent claims or resolves them, and M-03 grades each one as filed.
 
 ### Running a case
 
@@ -164,11 +173,14 @@ We settle these before accepting this record. Each names the option we lean towa
 
 **Count policy impact in cases.** It would measure our authoring, not the policy.
 
+**A model playing the customer.** It would vary between runs, adding noise that the repeats would then measure as the agent's; it could invent facts about its own cards; and its messages, written on the fly, couldn't be kept inside the held-out request families (DML-09). The graph's paths are code, so what it would add is mostly new phrasing, which the families' paraphrases already cover.
+
 ## Consequences
 
 Positive:
 - Expected outcomes don't depend on the code under test: the oracle reads another layer, through other code.
 - Three groupings, tested, keep development work away from held-out results.
+- A mistake fails its case once, and what the agent does after it is still checked for safety.
 - Access, actions, and facts are graded exactly; the judge covers language and wording only, and its agreement with a person is published.
 - Failures, small samples, built cases, and the unknown request mix are reported as such, rather than hidden in an overall rate.
 - Any run can be traced to its code, data, policy, prompts, and models through its manifest, and repeated.
@@ -179,6 +191,7 @@ Negative:
 - The oracle's independence is of code and data layer, not of people: the same team wrote both from the same policy.
 - About 600 cases resolve language comparisons to a few points and segment comparisons only to large gaps.
 - The judge's validation rests on one grader.
+- The customer answers only what its script holds, or says it doesn't know, so replies a real customer might improvise are covered only as far as the families' paraphrases reach.
 - Built cases are ours, and the report can only label them.
 - End-to-end runs are slow (real waits, cold starts) and cost money, so the held-out workload can't be rerun freely.
 - No rate here predicts production traffic, whose mix is unknown.
