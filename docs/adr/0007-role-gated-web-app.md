@@ -2,9 +2,9 @@
 
 ## Status
 
-Proposed (2026-09-28).
+Accepted (2026-09-29).
 
-Some decisions are still open. Each is marked **Open** where it arises and listed under [Open decisions](#open-decisions) with the option we lean towards, which the rest of this record assumes; we settle them before accepting it.
+Its open decisions were settled on 2026-09-29, each on the option we leaned towards, and are listed under [Settled at acceptance](#settled-at-acceptance) with the alternatives we didn't take.
 
 ## Context
 
@@ -60,14 +60,14 @@ The consoles are in Spanish, the bank's working language, in which the payload's
 
 - **The app** is static files in a private S3 bucket, which CloudFront reads through origin access control. A CloudFront Function serves `index.html` for any path without a file extension, so `/agent` loads the app while a missing asset still returns 404. A response headers policy sets the content security policy ([Rendering what others wrote](#rendering-what-others-wrote)), HSTS, and `X-Content-Type-Options`.
 - **Configuration is read at load,** from a `config.json` written from Terraform's outputs: the user pool, both app clients, the Runtime's ARN, and the console API's URL. The same build then runs in any fork.
-- **The custom domain is optional,** and it takes two changes (**Open**, decision 1), since every merge to `main` applies the stack, and an apply that waited for DNS couldn't show the record it waits for: Terraform prints outputs only when an apply ends. The first change sets `domain_name`: Terraform requests an ACM certificate in us-east-1 with DNS validation and outputs its validation record, and the apply finishes at once. We add that record by hand in Netlify's DNS, where it stays so the certificate keeps renewing, and ACM issues the certificate. The second change sets `attach_domain`: `aws_acm_certificate_validation`, which then passes at once, and the distribution's alias and certificate. A CNAME in Netlify then points the subdomain at the distribution's domain. A distribution can carry several names, so a later rename can keep the old name working.
+- **The custom domain is optional,** and it takes two changes (decision 1), since every merge to `main` applies the stack, and an apply that waited for DNS couldn't show the record it waits for: Terraform prints outputs only when an apply ends. The first change sets `domain_name`: Terraform requests an ACM certificate in us-east-1 with DNS validation and outputs its validation record, and the apply finishes at once. We add that record by hand in Netlify's DNS, where it stays so the certificate keeps renewing, and ACM issues the certificate. The second change sets `attach_domain`: `aws_acm_certificate_validation`, which then passes at once, and the distribution's alias and certificate. A CNAME in Netlify then points the subdomain at the distribution's domain. A distribution can carry several names, so a later rename can keep the old name working.
 - **Without it,** the site is served on the distribution's own domain, which is what a fork submits. Terraform outputs the site's URL either way, and `deploy-prototype.yml` sets it as the environment's URL, the link SUB-02 asks for.
 - **Cross-origin calls:** the console API allows the distribution's domain and the custom domain; the Runtime answers the browser's preflight itself (S4), as Cognito's API does for sign-in.
 - **Deployment:** `deploy-prototype.yml` builds the app, uploads it once Terraform has applied, and invalidates the distribution (ADR-0004's deployment).
 
 ### Sign-in
 
-- **Our own form, in the app** (**Open**, decision 2). It signs in with SRP through Amplify's auth library, calling Cognito's API directly: no user pool domain, no managed login, and no redirect. Admins create every user with a permanent password (ADR-0004), so there is no sign-up and no forced password change.
+- **Our own form, in the app** (decision 2). It signs in with SRP through Amplify's auth library, calling Cognito's API directly: no user pool domain, no managed login, and no redirect. Admins create every user with a permanent password (ADR-0004), so there is no sign-up and no forced password change.
 - **Tokens live in the tab's `sessionStorage`.** Each tab holds its own sign-in, so a customer in one tab and a human agent in another stay signed in side by side, and closing a tab drops its tokens. A reload keeps the sign-in; a new tab asks for one. A sign-in lasts an hour (ADR-0004's decision 10), and when it ends the tab asks the person to sign in again (POL-09); an access token refreshed just before then keeps working up to 15 minutes more (ADR-0004's known limit).
 - **Two app clients, and a trigger that holds each user to theirs,** separate customers from staff before the Runtime or the console API runs any of our code. Any user of a pool can sign in through any of its app clients, and both client IDs are public in `config.json`, so the clients alone would separate tokens, not people. ADR-0004's pre-token trigger, which runs at every sign-in and every refresh, therefore refuses a token when the app client doesn't match the user's group: the customers' client issues tokens to the `customer` group only, and the staff client to `human_agent` and `ai_team` only. A user with no group, or with groups on both sides, gets no token.
   - **Customers':** the only client the Runtime's JWT authorizer accepts, so a staff member's token never reaches the agent, even if the customer group claim, which ADR-0004 requires but no spike has tried, were misconfigured. The evaluation's test users sign in through it too (ADR-0005).
@@ -86,7 +86,7 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 | `POST /cases/{reference}/claim` | `human_agent` | Moves a `filed` case to `claimed`, by the caller |
 | `POST /cases/{reference}/resolve` | `human_agent` | Moves a case the caller claimed to `resolved`, with a resolution |
 
-- **IAM, per Lambda, under the deploy boundary.** The reading Lambdas read their tables and indexes only. The Lambda behind claim and resolve may `Query` the reference index, to find a case's `handoff_id`, and call `UpdateItem` on the cases table for the status attributes alone (a condition on `dynamodb:Attributes`), so even a bug in it can't change a payload (**Open**, decision 3). No console Lambda reads CloudWatch.
+- **IAM, per Lambda, under the deploy boundary.** The reading Lambdas read their tables and indexes only. The Lambda behind claim and resolve may `Query` the reference index, to find a case's `handoff_id`, and call `UpdateItem` on the cases table for the status attributes alone (a condition on `dynamodb:Attributes`), so even a bug in it can't change a payload (decision 3). No console Lambda reads CloudWatch.
 - **Nothing in the console API acts on the bank.** No route blocks, unblocks, or changes a card, and none writes the tools' data, the sandbox overlay, or the confirmations.
 - **A stage rate limit,** well above what the polling below needs, caps a runaway tab or script.
 
@@ -94,7 +94,7 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 
 **No one approves or rejects a handoff.** Code decides whether one is required or offered, from the policy's table, and the customer accepts an offered one (POL-45). A person who approved handoffs would stand between an urgent case and the bank, adding the delay the policy avoids by filing at once, and a rejected handoff would mean nothing to a customer already told that a person will follow up. This is the trade-off between autonomy and oversight the policy already made (DSN-02): code acts where the policy is explicit, and a person picks up, after filing, every case the agent can't finish.
 
-**The case record.** `file_handoff` validates the payload (ADR-0004) and writes one item per handoff, whose fields have a schema of their own, `handoff-case.schema.json`, beside the payload's (**Open**, decision 5):
+**The case record.** `file_handoff` validates the payload (ADR-0004) and writes one item per handoff, whose fields have a schema of their own, `handoff-case.schema.json`, beside the payload's (decision 5):
 
 | Field | Holds |
 |---|---|
@@ -123,13 +123,13 @@ The payload's schema stays at version 1. A status isn't a fact about the handoff
 
 ### Freshness: the consoles poll
 
-- `/agent` asks for its queue every 3 seconds while its tab is visible; a hidden tab stops asking. A case appears in the queue within 3 seconds of being filed, and the console says when it last refreshed. It is a poll, not a push, and we call it one (**Open**, decision 4).
+- `/agent` asks for its queue every 3 seconds while its tab is visible; a hidden tab stops asking. A case appears in the queue within 3 seconds of being filed, and the console says when it last refreshed. It is a poll, not a push, and we call it one (decision 4).
 - A few open staff tabs make a few requests a second at most, which Lambda and DynamoDB on demand absorb without notice; the stage's rate limit caps anything more.
 - Push is the production path: a DynamoDB stream on the cases table feeding AppSync Events, which the pinned provider supports ([Alternatives considered](#alternatives-considered)).
 
 ### The AI team's page
 
-`/ops` shows ADR-0005's committed evaluation report, bundled with the site when it is built, labeled as an offline measurement on held-out cases (EVL-13) (**Open**, decision 6). It calls no API, so it holds no live number that could be read as a production result.
+`/ops` shows ADR-0005's committed evaluation report, bundled with the site when it is built, labeled as an offline measurement on held-out cases (EVL-13; decision 6). It calls no API, so it holds no live number that could be read as a production result.
 
 The live monitoring stays in the account, as ADR-0004 describes it (OPS-03): alarms and metrics defined in Terraform, which the judges can't reach and the site doesn't show. A live view (the alarms' states and the metrics over the last day, and recent turns with no message text and a pseudonym per sign-in, read through the console API) is production work; in a bank it belongs to the observability stack ([In a bank](#in-a-bank-ops-11)).
 
@@ -161,16 +161,16 @@ The live monitoring stays in the account, as ADR-0004 describes it (OPS-03): ala
 | No person can join the chat | A live transfer to a person in the same conversation, through the contact center's chat, which needs a channel into the customer's conversation outside the agent's run |
 | The AI team's page, with the evaluation report; alarms in the account | The bank's observability stack, with dashboards, alerting, and on-call |
 
-### Open decisions
+### Settled at acceptance
 
-We settle these before accepting this record. Each names the option we lean towards, which the rest of the record assumes, and any alternative still in play.
+Each decision left open while this record was proposed, as settled on 2026-09-29, with any alternative we didn't take.
 
-1. **The hostname.** Lean: the product's name as a subdomain of `gabriel.com.gt`, set through `domain_name` and then `attach_domain`, in two changes, once branding names the product, with `tarjetas` (the workflow, in the bank's language) as the fallback; until then the site runs on its CloudFront domain, and the name only has to exist by the time the link is submitted (SUB-02). Other options: `soporte` (nearly the same word in Portuguese), `agente` (the same word in both languages, but it also names the human agent), and `banco` (reads as the bank's own site). Names with accents are out, since they become punycode.
-2. **Sign-in.** Lean: our own form, with SRP through Amplify's auth library and tokens in the tab's `sessionStorage`. Alternative: Cognito's managed login with PKCE, sending `prompt=login` so each tab signs in on its own.
-3. **Claim and resolve.** Lean: built once the read-only queue works. Alternative: a read-only queue, with the lifecycle described as production work; ADR-0004's IAM line and the mock's limitations would then say the consoles only read.
-4. **Freshness.** Lean: polling the queue every 3 seconds. Alternative: push through AppSync Events.
-5. **The case record.** Lean: a record with its own schema that wraps the payload, which stays at version 1. Alternative: a `status` in the payload's schema, at version 2, which would put state that changes after filing into the artifact the policy validates.
-6. **The AI team's page.** Lean: the evaluation report alone, bundled with the site, with the monitoring defined in Terraform and described in ADR-0004. Alternative: a live view beside the report, with alarms and metrics from CloudWatch and recent turns with no text and a pseudonym per sign-in, read through the console API; it adds two routes, a Lambda that reads every metric in the account (`GetMetricData` can't be scoped), and an index on the execution records.
+1. **The hostname.** The product's name as a subdomain of `gabriel.com.gt`, set through `domain_name` and then `attach_domain`, in two changes, once branding names the product, with `tarjetas` (the workflow, in the bank's language) as the fallback; until then the site runs on its CloudFront domain, and the name only has to exist by the time the link is submitted (SUB-02). Names with accents are out, since they become punycode. Not taken: `soporte` (nearly the same word in Portuguese), `agente` (the same word in both languages, but it also names the human agent), and `banco` (reads as the bank's own site).
+2. **Sign-in.** Our own form, with SRP through Amplify's auth library and tokens in the tab's `sessionStorage`. Not taken: Cognito's managed login with PKCE, sending `prompt=login` so each tab signs in on its own.
+3. **Claim and resolve.** Built once the read-only queue works. Not taken: a read-only queue, with the lifecycle described as production work.
+4. **Freshness.** Polling the queue every 3 seconds. Not taken: push through AppSync Events.
+5. **The case record.** A record with its own schema that wraps the payload, which stays at version 1. Not taken: a `status` in the payload's schema, at version 2, which would put state that changes after filing into the artifact the policy validates.
+6. **The AI team's page.** The evaluation report alone, bundled with the site, with the monitoring defined in Terraform and described in ADR-0004. Not taken: a live view beside the report, with alarms and metrics from CloudWatch and recent turns with no text and a pseudonym per sign-in, read through the console API; it adds two routes, a Lambda that reads every metric in the account (`GetMetricData` can't be scoped), and an index on the execution records.
 
 ## Alternatives considered
 
