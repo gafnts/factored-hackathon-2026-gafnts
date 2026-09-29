@@ -1,0 +1,626 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:banking-agent:card-support:execution-record:1",
+  "title": "Card support execution record entry",
+  "description": "One entry of the execution record: the system's own trace, its audit log, and the evaluation's source (ADR-0004, A turn, end to end; OPS-02). A turn is one run: it opens with turn_opened, holds its model calls, tool calls, controls, and reply, and closes with turn_closed. A turn that runs the graph writes its decision entry last before turn_closed, before the run's last event; a warm-up runs no graph, so it writes none. Entries are keyed by the sign-in, then by the turn's start and the entry's sequence, so a sign-in's entries read in order. Text is masked before it is recorded (POL-11). The sign-in is Cognito's origin_jti, the handoff's session_id.",
+  "type": "object",
+  "required": ["sign_in", "entry_key", "turn_id", "seq", "kind", "at", "source", "expires_at"],
+  "properties": {
+    "sign_in": { "$ref": "#/$defs/origin_jti" },
+    "entry_key": {
+      "description": "The sort key: the turn's start on the wall clock, the turn's ID, and the entry's sequence, joined by #.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}#[0-9]{4}$"
+    },
+    "turn_id": {
+      "description": "Drawn by the entrypoint; never the client's run ID.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "seq": { "type": "integer", "minimum": 0, "maximum": 9999 },
+    "kind": {
+      "enum": [
+        "turn_opened",
+        "request_refused",
+        "model_call",
+        "tool_call",
+        "interrupt",
+        "resume",
+        "confirmation",
+        "reply_check",
+        "reply",
+        "handoff",
+        "decision",
+        "turn_closed"
+      ]
+    },
+    "at": { "$ref": "#/$defs/wall_time" },
+    "source": {
+      "description": "From the token's groups; every metric is split by it, so evaluation runs never pass for live traffic (EVL-13).",
+      "enum": ["demo", "evaluation"]
+    },
+    "case_id": {
+      "description": "The evaluation case, for source evaluation only.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "expires_at": {
+      "description": "Epoch seconds, 90 days after the entry, for DynamoDB's time to live (OPS-10).",
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/turn_opened_entry" },
+    { "$ref": "#/$defs/request_refused_entry" },
+    { "$ref": "#/$defs/model_call_entry" },
+    { "$ref": "#/$defs/tool_call_entry" },
+    { "$ref": "#/$defs/interrupt_entry" },
+    { "$ref": "#/$defs/resume_entry" },
+    { "$ref": "#/$defs/confirmation_entry" },
+    { "$ref": "#/$defs/reply_check_entry" },
+    { "$ref": "#/$defs/reply_entry" },
+    { "$ref": "#/$defs/handoff_entry" },
+    { "$ref": "#/$defs/decision_entry" },
+    { "$ref": "#/$defs/turn_closed_entry" }
+  ],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "customer_id": { "type": "string", "pattern": "^CLI-[A-Z0-9]{12}$" },
+    "product_id": { "type": "string", "pattern": "^PRD-[A-Z0-9]{12}$" },
+    "origin_jti": {
+      "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "wall_time": {
+      "description": "Wall clock, UTC (ADR-0004, Two clocks).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "bank_date": {
+      "description": "A date on the bank's own clock (POL-19).",
+      "type": "string",
+      "format": "date"
+    },
+    "bank_timestamp": {
+      "description": "A timestamp on the bank's own clock, naive, as the snapshot delivers it.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$"
+    },
+    "clock": {
+      "description": "The frozen bank's clock, published with the tools' data (ADR-0004, Two clocks). Today is the business date, and every window ends at the as-of instant.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["business_date", "as_of"],
+      "properties": {
+        "business_date": { "$ref": "#/$defs/bank_date" },
+        "as_of": { "$ref": "#/$defs/bank_timestamp" }
+      }
+    },
+    "language": {
+      "description": "The conversation's language (POL-50).",
+      "enum": ["es", "pt"]
+    },
+    "label": {
+      "enum": [
+        "card_status",
+        "available_credit",
+        "recent_transactions",
+        "decline_reason",
+        "block_card",
+        "unrecognized_charge",
+        "unsupported",
+        "talk_to_human"
+      ]
+    },
+    "rule": { "type": "string", "pattern": "^POL-[0-9]{2}$" },
+    "hash": {
+      "description": "The first 16 hexadecimal digits of a SHA-256.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "masked_text": {
+      "description": "Text the customer typed, masked by the entrypoint before anything stores it (POL-11).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "not": { "pattern": "[0-9](?:[ -]?[0-9]){12,}" }
+    },
+    "tool": {
+      "enum": ["list_cards", "get_card", "get_available_credit", "find_transactions", "block_card", "file_handoff"]
+    },
+    "block_reason": { "enum": ["lost", "stolen", "unrecognized_charge", "customer_request"] },
+    "reason_code": {
+      "enum": [
+        "unrecognized_charge",
+        "customer_request",
+        "complaint",
+        "unblock_request",
+        "customer_not_active",
+        "ambiguous_card",
+        "action_not_verified",
+        "block_lapsed",
+        "unsupported_request",
+        "clarification_failed",
+        "record_conflict",
+        "missing_data",
+        "tool_failure"
+      ]
+    },
+    "reference": {
+      "description": "A handoff's reference: eight characters of Crockford's base32, in two groups of four (ADR-0007).",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$"
+    },
+    "validation_error": {
+      "description": "A path and the rule it broke, never the value (POL-11).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "rule"],
+      "properties": {
+        "path": { "type": "string", "maxLength": 256 },
+        "rule": { "type": "string", "pattern": "^[A-Za-z]{1,32}$" }
+      }
+    },
+    "run_error_code": {
+      "enum": ["invalid_request", "session_refused", "no_customer", "rate_limited", "daily_limit", "internal"]
+    },
+    "turn_opened_entry": {
+      "description": "A turn's first entry, stamped with everything that shapes it. Only the entrypoint opens turns: the deadline handoffs of ADR-0004's decision 7 are deferred, and building them would add a turn the deadline Lambda opens, with no runtime session or client IDs.",
+      "type": "object",
+      "required": [
+        "kind",
+        "sub",
+        "customer_id",
+        "role",
+        "thread_key",
+        "client_thread_id",
+        "client_run_id",
+        "runtime_session_id",
+        "request_id",
+        "input",
+        "language",
+        "clock",
+        "versions"
+      ],
+      "properties": {
+        "kind": { "const": "turn_opened" },
+        "sub": { "type": "string", "format": "uuid" },
+        "customer_id": { "$ref": "#/$defs/customer_id" },
+        "role": { "const": "customer" },
+        "thread_key": {
+          "description": "The thread's key, derived from sub and the client's thread ID (decision 12).",
+          "type": "string",
+          "format": "uuid"
+        },
+        "client_thread_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+        "client_run_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+        "runtime_session_id": { "type": "string", "minLength": 33, "maxLength": 256 },
+        "request_id": {
+          "description": "The Runtime's request ID.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "input": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "text"],
+              "properties": {
+                "kind": { "const": "message" },
+                "text": { "$ref": "#/$defs/masked_text" }
+              }
+            },
+            {
+              "description": "A control's answer, or a message typed while a control was pending (masked).",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "resume"],
+              "properties": {
+                "kind": { "const": "resume" },
+                "resume": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["kind"],
+                  "properties": {
+                    "kind": { "enum": ["confirm", "cancel", "accept", "decline", "message"] },
+                    "confirmation_id": { "type": "string", "format": "uuid" },
+                    "offer_id": { "type": "string", "format": "uuid" },
+                    "text": { "$ref": "#/$defs/masked_text" }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "warmup" } }
+            }
+          ]
+        },
+        "language": {
+          "description": "The conversation's language when the turn opens (POL-50).",
+          "$ref": "#/$defs/language"
+        },
+        "clock": { "$ref": "#/$defs/clock" },
+        "versions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["app", "policy", "prompts", "schemas", "snapshot", "pipeline_version"],
+          "properties": {
+            "app": {
+              "description": "The deployed commit.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "policy": { "type": "integer", "minimum": 1 },
+            "prompts": {
+              "description": "Each model node's prompt, by the hash of its text.",
+              "type": "object",
+              "propertyNames": { "enum": ["route", "resolve_card", "find_transaction", "reply", "handoff"] },
+              "additionalProperties": { "$ref": "#/$defs/hash" }
+            },
+            "schemas": {
+              "description": "Each contract's version, from its $id.",
+              "type": "object",
+              "propertyNames": { "pattern": "^[a-z][a-z-]{0,31}$" },
+              "additionalProperties": { "type": "integer", "minimum": 1 }
+            },
+            "snapshot": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+            "pipeline_version": { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+          }
+        }
+      }
+    },
+    "request_refused_entry": {
+      "description": "A request the entrypoint turned away before opening a turn; it is its own turn's only entry. The regression tests on threads and runtime sessions check these (ADR-0004).",
+      "type": "object",
+      "required": ["kind", "code", "sub", "runtime_session_id"],
+      "properties": {
+        "kind": { "const": "request_refused" },
+        "code": { "$ref": "#/$defs/run_error_code" },
+        "sub": { "type": ["string", "null"], "format": "uuid" },
+        "runtime_session_id": { "type": ["string", "null"], "maxLength": 256 },
+        "client_thread_id": { "type": ["string", "null"], "maxLength": 64 },
+        "errors": {
+          "description": "For invalid_request: where the request failed the chat contract.",
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/validation_error" }
+        }
+      }
+    },
+    "model_call_entry": {
+      "description": "One attempt at one model call (decision 18). The reply's text is recorded by the reply entry, once checked.",
+      "type": "object",
+      "required": [
+        "kind",
+        "node",
+        "purpose",
+        "provider",
+        "model_requested",
+        "model_returned",
+        "prompt_version",
+        "settings",
+        "attempt",
+        "outcome",
+        "latency_ms",
+        "usage",
+        "cost_usd"
+      ],
+      "properties": {
+        "kind": { "const": "model_call" },
+        "node": { "enum": ["route", "resolve_card", "find_transaction", "reply", "handoff"] },
+        "purpose": { "enum": ["route", "extract", "reply", "handoff_text"] },
+        "provider": { "enum": ["anthropic", "openai", "google"] },
+        "model_requested": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "model_returned": {
+          "description": "The model_name the provider returned; null when the call failed.",
+          "type": ["string", "null"],
+          "maxLength": 128
+        },
+        "prompt_version": { "$ref": "#/$defs/hash" },
+        "settings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reasoning", "max_tokens"],
+          "properties": {
+            "reasoning": { "type": ["string", "null"], "maxLength": 32 },
+            "max_tokens": { "type": "integer", "minimum": 1 },
+            "temperature": { "type": ["number", "null"], "minimum": 0 }
+          }
+        },
+        "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "outcome": { "enum": ["ok", "rate_limited", "server_error", "timeout", "invalid_output", "error"] },
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "usage": {
+          "description": "From usage_metadata; output tokens include reasoning. Null where the provider reports none.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"],
+          "properties": {
+            "input_tokens": { "type": ["integer", "null"], "minimum": 0 },
+            "output_tokens": { "type": ["integer", "null"], "minimum": 0 },
+            "cache_read_tokens": { "type": ["integer", "null"], "minimum": 0 },
+            "cache_write_tokens": { "type": ["integer", "null"], "minimum": 0 }
+          }
+        },
+        "cost_usd": {
+          "description": "At the provider's list price on the call's date; null when the price isn't known.",
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "output": {
+          "description": "The structured output of a routing or extraction call that succeeded. A reply's or a handoff's text isn't kept here.",
+          "oneOf": [
+            {
+              "description": "The router: every supported request it finds, and whether the message holds one at all (S5).",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["requests", "has_request"],
+              "properties": {
+                "requests": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/label" } },
+                "has_request": { "type": "boolean" }
+              }
+            },
+            {
+              "description": "An extraction, each field among the values its step allows.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["extracted"],
+              "properties": {
+                "extracted": {
+                  "type": "object",
+                  "maxProperties": 10,
+                  "propertyNames": { "pattern": "^[a-z][a-z_]{0,31}$" },
+                  "additionalProperties": { "type": ["string", "null"], "maxLength": 64 }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tool_call_entry": {
+      "description": "One attempt at one tool call. ok, not_found, refused, and invalid_input are the tool's own outputs, kept whole as its result; failed is a call the Lambda never answered, and denied is Cedar's JSON-RPC -32002 (POL-49). A handoff's evidence names these calls by call_id, with ok, not_found, and refused as ok, invalid_input and failed as error, and denied as denied.",
+      "type": "object",
+      "required": ["kind", "call_id", "tool", "via", "attempt", "called_at", "latency_ms", "request_id", "input", "outcome"],
+      "properties": {
+        "kind": { "const": "tool_call" },
+        "call_id": { "type": "string", "format": "uuid" },
+        "tool": { "$ref": "#/$defs/tool" },
+        "via": {
+          "description": "gateway for the reads and the block; direct for file_handoff, which the Runtime invokes with IAM (ADR-0004, Where the tools run).",
+          "enum": ["gateway", "direct"]
+        },
+        "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "called_at": { "$ref": "#/$defs/wall_time" },
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "request_id": {
+          "description": "The Gateway's request ID, or the Lambda's for a direct call; null when the call never reached either.",
+          "type": ["string", "null"],
+          "maxLength": 128
+        },
+        "input": {
+          "description": "The tool's input as sent. For file_handoff, only the handoff's ID: the payload is in the case, and the forwarded token is never recorded.",
+          "type": "object"
+        },
+        "outcome": { "enum": ["ok", "not_found", "refused", "invalid_input", "failed", "denied"] },
+        "result": {
+          "description": "The tool's output, whole, for ok, not_found, refused, and invalid_input. The grader checks each handoff fact against it (ADR-0005).",
+          "type": "object"
+        },
+        "error": {
+          "description": "For failed and denied.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code"],
+          "properties": {
+            "code": { "enum": ["timeout", "throttled", "lambda_error", "transport", "denied"] },
+            "jsonrpc_code": { "type": ["integer", "null"] }
+          }
+        }
+      },
+      "if": { "properties": { "outcome": { "enum": ["failed", "denied"] } } },
+      "then": { "required": ["error"], "not": { "required": ["result"] } },
+      "else": { "required": ["result"], "not": { "required": ["error"] } }
+    },
+    "interrupt_entry": {
+      "description": "The controls a turn ended waiting on (POL-36, POL-45).",
+      "type": "object",
+      "required": ["kind", "interrupt_id", "controls"],
+      "properties": {
+        "kind": { "const": "interrupt" },
+        "interrupt_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "enum": ["block_confirmation", "handoff_offer"] },
+              "confirmation_id": { "type": "string", "format": "uuid" },
+              "offer_id": { "type": "string", "format": "uuid" },
+              "reason_code": { "$ref": "#/$defs/reason_code" }
+            }
+          }
+        }
+      }
+    },
+    "resume_entry": {
+      "description": "An answer to a pending control, and whether the graph took it. A stale control changes nothing and says why (POL-09, POL-36, POL-45).",
+      "type": "object",
+      "required": ["kind", "resume_kind", "accepted"],
+      "properties": {
+        "kind": { "const": "resume" },
+        "resume_kind": { "enum": ["confirm", "cancel", "accept", "decline", "message"] },
+        "confirmation_id": { "type": "string", "format": "uuid" },
+        "offer_id": { "type": "string", "format": "uuid" },
+        "accepted": { "type": "boolean" },
+        "refusal": {
+          "description": "Why an answer was not taken: the ID isn't the thread's pending one, the confirmation expired, or the answer came from another sign-in.",
+          "enum": ["not_pending", "expired", "other_sign_in"]
+        }
+      },
+      "if": { "properties": { "accepted": { "const": false } } },
+      "then": { "required": ["refusal"] },
+      "else": { "not": { "required": ["refusal"] } }
+    },
+    "confirmation_entry": {
+      "description": "A change in a confirmation record's status, copied from the record, which expires after 24 hours (ADR-0004, The confirmation).",
+      "type": "object",
+      "required": ["kind", "confirmation_id", "card_id", "reason", "from", "to", "cause"],
+      "properties": {
+        "kind": { "const": "confirmation" },
+        "confirmation_id": { "type": "string", "format": "uuid" },
+        "card_id": { "$ref": "#/$defs/product_id" },
+        "reason": { "$ref": "#/$defs/block_reason" },
+        "from": { "enum": [null, "pending", "confirmed"] },
+        "to": { "enum": ["pending", "confirmed", "consumed", "cancelled", "lapsed"] },
+        "cause": {
+          "enum": ["created", "control", "message", "handoff_accepted", "time_limit", "session_end", "block"]
+        },
+        "attempts": {
+          "description": "The block's writes under this confirmation, when it was consumed (POL-37).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "block_outcome": {
+          "description": "Whether the read-back showed Blocked, when it was consumed.",
+          "enum": ["verified", "not_verified"]
+        }
+      }
+    },
+    "reply_check_entry": {
+      "description": "The reply check's verdict (decision 8). Failures are named by rule, never by the text that broke them.",
+      "type": "object",
+      "required": ["kind", "passed", "failures", "fell_back"],
+      "properties": {
+        "kind": { "const": "reply_check" },
+        "passed": { "type": "boolean" },
+        "failures": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["unknown_placeholder", "bare_number", "digit_run", "internal_flag", "withheld_status"]
+          }
+        },
+        "fell_back": {
+          "description": "The reply was replaced by a fixed one built from the same facts.",
+          "type": "boolean"
+        }
+      }
+    },
+    "reply_entry": {
+      "description": "The reply as the chat received it: checked, with its facts and outcomes filled in.",
+      "type": "object",
+      "required": ["kind", "message_id", "text", "language", "fixed_texts"],
+      "properties": {
+        "kind": { "const": "reply" },
+        "message_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "language": { "$ref": "#/$defs/language" },
+        "fixed_texts": {
+          "description": "The fixed sentences code added, by name: an action's outcome, a handoff's reference, a fallback (AI-05, POL-37, POL-45).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z_]{0,63}$" }
+        }
+      }
+    },
+    "handoff_entry": {
+      "description": "A handoff saved as a draft, filed, or found already filed when a retry files it again. A draft is saved when the confirm control shows a handoff POL-38 or POL-39 may require; with decision 7 deferred, the Runtime files it when the confirmation ends within a turn, and otherwise it expires unfiled.",
+      "type": "object",
+      "required": ["kind", "handoff_id", "reason_code", "trigger", "queue", "priority", "status", "flagged"],
+      "properties": {
+        "kind": { "const": "handoff" },
+        "handoff_id": { "type": "string", "format": "uuid" },
+        "reference": { "$ref": "#/$defs/reference" },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "trigger": { "enum": ["required", "accepted_offer"] },
+        "queue": { "enum": ["customer_service", "dispute_intake"] },
+        "priority": { "enum": ["urgent", "normal"] },
+        "status": { "enum": ["draft_saved", "filed", "already_filed"] },
+        "flagged": {
+          "description": "Parts of the payload failed validation after the fallback and were left out (ADR-0004, The handoff).",
+          "type": "boolean"
+        },
+        "validation_errors": {
+          "type": "array",
+          "maxItems": 60,
+          "items": { "$ref": "#/$defs/validation_error" }
+        }
+      },
+      "if": { "properties": { "status": { "const": "draft_saved" } } },
+      "else": { "required": ["reference"] }
+    },
+    "decision_entry": {
+      "description": "The turn's outcome, which the evaluation's scripted customer reacts to, never the reply's prose (ADR-0005). outcome_class names the path the turn is on, and awaiting what it ended waiting for: which card, a reason, which listed transaction, or a control. A turn that shows the confirm control is block, awaiting it; the turn a confirm resumes is block when the read-back verifies it and hand_off when it doesn't (POL-37); a cancelled or lapsed confirmation's reply is answer, or hand_off when POL-39 requires one; clarify is kept for which card, a reason, or which transaction (ADR-0005, as amended on 2026-09-29).",
+      "type": "object",
+      "required": ["kind", "request_label", "pending_labels", "outcome_class", "awaiting", "rules", "language"],
+      "properties": {
+        "kind": { "const": "decision" },
+        "request_label": {
+          "description": "The request this turn served; null for a message with no card request (POL-06).",
+          "anyOf": [{ "$ref": "#/$defs/label" }, { "type": "null" }]
+        },
+        "pending_labels": {
+          "description": "The requests still queued, in POL-05's order.",
+          "type": "array",
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/label" }
+        },
+        "outcome_class": { "enum": ["answer", "clarify", "abstain", "decline", "block", "hand_off"] },
+        "awaiting": {
+          "enum": ["none", "card", "reason", "transaction", "confirm_control", "handoff_control"]
+        },
+        "rules": {
+          "description": "The rules that decided the outcome.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/rule" }
+        },
+        "language": { "$ref": "#/$defs/language" }
+      }
+    },
+    "turn_closed_entry": {
+      "description": "A turn's last entry.",
+      "type": "object",
+      "required": ["kind", "outcome", "latency_ms", "totals"],
+      "properties": {
+        "kind": { "const": "turn_closed" },
+        "outcome": { "enum": ["finished", "interrupted", "error"] },
+        "error_code": { "$ref": "#/$defs/run_error_code" },
+        "latency_ms": {
+          "description": "From the turn's opening to its last event.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model_calls", "tool_calls", "input_tokens", "output_tokens", "cost_usd"],
+          "properties": {
+            "model_calls": { "type": "integer", "minimum": 0 },
+            "tool_calls": { "type": "integer", "minimum": 0 },
+            "input_tokens": { "type": "integer", "minimum": 0 },
+            "output_tokens": { "type": "integer", "minimum": 0 },
+            "cost_usd": { "type": ["number", "null"], "minimum": 0 }
+          }
+        }
+      },
+      "if": { "properties": { "outcome": { "const": "error" } } },
+      "then": { "required": ["error_code"] },
+      "else": { "not": { "required": ["error_code"] } }
+    }
+  }
+}

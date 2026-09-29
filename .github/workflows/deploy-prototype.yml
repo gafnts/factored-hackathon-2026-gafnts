@@ -7,6 +7,9 @@ on:
       - "infra/**"
       - "!infra/iam/**"
       - "!infra/dataset/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/deploy-prototype.yml"
   pull_request:
     branches: [main]
@@ -14,6 +17,9 @@ on:
       - "infra/**"
       - "!infra/iam/**"
       - "!infra/dataset/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/deploy-prototype.yml"
   workflow_dispatch:
 
@@ -50,6 +56,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: ${{ env.TF_VERSION }}
@@ -66,6 +76,7 @@ jobs:
       - run: terraform -chdir=infra fmt -check -recursive
       - run: make init ENV=${{ env.ENV }}
 
+      # make plan builds the zips first.
       - name: Plan
         id: plan
         env:
@@ -123,6 +134,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: ${{ env.TF_VERSION }}
@@ -137,6 +152,7 @@ jobs:
         run: make backend
 
       - run: make init ENV=${{ env.ENV }}
+      - run: make build
 
       - name: Apply
         run: |

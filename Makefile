@@ -4,6 +4,12 @@ ENV ?= local
 TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
+PLAN    := build/$(ENV).tfplan
+OUTPUTS := build/$(ENV).outputs.json
+
+# The pinned AWS provider can't assume a role on top of an `aws login` sign-in, so Terraform
+# gets the CLI's credentials for AWS_PROFILE; a failed export stops it before another profile can.
+TF_AWS := $(if $(AWS_PROFILE),creds="$$(aws configure export-credentials --format env)" && eval "$$creds" && env -u AWS_PROFILE ,)$(TF)
 
 # The IAM and dataset roots are admin-only, so they ignore the scoped AWS_PROFILE
 # that .envrc sets (that profile can't exist until the IAM root has run).
@@ -17,12 +23,13 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration \
+	build \
 	bootstrap backend doctor provision teardown \
 	data snapshot analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
-	init plan apply destroy lock \
-	_check-backend
+	init model-key plan apply destroy outputs lock \
+	_check-backend _check-profile
 
 # Targets tagged `## ...` are listed under the nearest `##@ Section` header.
 help:
@@ -70,8 +77,14 @@ tf-format: ## Format all Terraform files
 test: ## Run pytest with branch coverage
 	uv run pytest --cov --cov-report=term-missing
 
-integration: ## Run integration-marked tests (requires credentials and network access)
-	uv run pytest -m integration -v
+integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m integration -v
+
+
+##@ Build
+
+build: ## Build the Runtime's and the Lambdas' zips into build/, and rewrite the Gateway's tool definitions
+	uv run python -m banking_agent.build
 
 
 ##@ Bootstrap
@@ -79,12 +92,13 @@ integration: ## Run integration-marked tests (requires credentials and network a
 bootstrap: ## Create state bucket and write backend files for all environments (admin profile)
 	@bash scripts/bootstrap.sh
 
+# The local deploy profile doesn't exist until step 3.4 of CONTRIBUTING.md, so local is initialized as admin.
 provision: ## One-time: create IAM roles and the dataset bucket, and initialize Terraform for ENV=local
 	$(MAKE) iam-init
 	$(MAKE) iam-apply
 	$(MAKE) dataset-init
 	$(MAKE) dataset-apply
-	$(MAKE) init ENV=local
+	$(MAKE) init ENV=local AWS_PROFILE=$(AWS_ADMIN_PROFILE)
 
 
 doctor: ## Check that every AWS profile resolves to the right account (read-only)
@@ -101,7 +115,7 @@ teardown: ## Last step of a full teardown: delete the state bucket (admin profil
 data: ## Download the pinned dataset snapshot into data/ and verify it (ADOPT=1 accepts a changed source)
 	uv run python -m banking_agent.dataset download $(if $(filter 1,$(ADOPT)),--adopt)
 
-snapshot: data ## Copy the pinned snapshot into this account's data bucket
+snapshot: _check-profile data ## Copy the pinned snapshot into this account's data bucket
 	uv run python -m banking_agent.dataset upload
 
 ##@ Analysis
@@ -148,34 +162,51 @@ dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (require
 
 ##@ Terraform (per ENV)
 
-init: ## Initialize Terraform backend for ENV
-	$(TF) init -reconfigure $(BACKEND)
+init: _check-profile ## Initialize Terraform backend for ENV
+	$(TF_AWS) init -reconfigure $(BACKEND)
 
-plan: ## Preview infrastructure changes for ENV
-	$(TF) plan $(VARS)
+model-key: _check-profile ## Store ANTHROPIC_API_KEY from .env in ENV's secret (prototype needs AWS_PROFILE=default)
+	uv run python -m banking_agent.model_key --env $(ENV)
 
-apply: _check-backend ## Apply infrastructure changes for ENV (refuses prototype unless I_KNOW=1)
+plan: _check-profile build ## Build, then preview infrastructure changes for ENV and save them to build/ENV.tfplan
+	$(TF_AWS) plan $(VARS) -out=../$(PLAN)
+
+apply: _check-profile _check-backend ## Apply the plan that make plan saved for ENV (refuses prototype unless I_KNOW=1)
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to apply prototype from local. CI owns prototype."; exit 1; fi
-	$(TF) apply $(VARS)
+	@if [ ! -f $(PLAN) ]; then \
+		echo "No saved plan for $(ENV). Run 'make plan ENV=$(ENV)' first."; exit 1; fi
+	$(TF_AWS) apply ../$(PLAN)
 
-destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
+# Terraform reads the zips even to plan a destroy.
+destroy: _check-profile _check-backend build ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
 		echo "destroy requires explicit ENV (e.g. make destroy ENV=local). Refusing default."; exit 1; fi
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy prototype. Re-run with I_KNOW=1."; exit 1; fi
-	$(TF) destroy $(VARS)
+	$(TF_AWS) destroy $(VARS)
+
+outputs: _check-profile _check-backend ## Write ENV's Terraform outputs to build/ENV.outputs.json
+	@mkdir -p build
+	$(TF_AWS) output -json > $(OUTPUTS)
 
 
 ##@ Maintenance
 
-lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) in all modules
-	@find infra -name ".terraform.lock.hcl" -not -path "*/.terraform/*" -exec dirname {} \; | \
+lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) in every root
+	@find infra -name ".terraform.lock.hcl" -not -path "*/.terraform/*" -not -path "infra/modules/*" -exec dirname {} \; | \
 		xargs -I{} terraform -chdir={} providers lock \
 		-platform=linux_amd64 -platform=darwin_amd64 -platform=darwin_arm64
 
 
 # INTERNAL
+
+# Without AWS_PROFILE, Terraform and boto3 fall back to the default profile, usually an admin sign-in, so a local
+# target would run outside the local deploy role. prototype takes the credentials the environment provides, as in CI.
+_check-profile:
+	@if [ "$(ENV)" = "local" ] && [ -z "$(AWS_PROFILE)" ]; then \
+		echo "AWS_PROFILE is unset, so this would run as your default profile. Run 'direnv allow',"; \
+		echo "or 'export AWS_PROFILE=banking-agent-local'."; exit 1; fi
 
 # Verify the configured backend key matches ENV. Prevents the footgun where
 # `make init ENV=prototype` followed by `make destroy` (defaulting to local)

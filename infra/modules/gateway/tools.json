@@ -1,0 +1,46 @@
+[
+  {
+    "name": "list_cards",
+    "description": "Lists the signed-in customer's cards, by type and last four digits, with their status, and whether the customer is served in full.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": {
+          "type": "string"
+        },
+        "origin_jti": {
+          "type": "string",
+          "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
+        }
+      },
+      "required": [
+        "customer_id",
+        "origin_jti"
+      ]
+    }
+  },
+  {
+    "name": "get_card",
+    "description": "Reads one of the signed-in customer's cards: its status, dates, and conflict flags.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": {
+          "type": "string"
+        },
+        "origin_jti": {
+          "type": "string",
+          "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
+        },
+        "card_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "customer_id",
+        "origin_jti",
+        "card_id"
+      ]
+    }
+  }
+]

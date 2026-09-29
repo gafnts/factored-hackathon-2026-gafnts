@@ -20,6 +20,8 @@ htmlcov/
 
 # Terraform: lock files and *.backend.tfbackend are committed on purpose
 .terraform/
+# Child modules take their root's lock; the validate hook writes one per module
+infra/modules/*/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 crash.log

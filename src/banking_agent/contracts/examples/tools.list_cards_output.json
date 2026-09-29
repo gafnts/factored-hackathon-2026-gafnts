@@ -1,0 +1,52 @@
+[
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "customer": {
+      "served_in_full": true,
+      "country": "México"
+    },
+    "cards": [
+      {
+        "card_id": "PRD-EXAMPLE00002",
+        "product_type": "Tarjeta Crédito",
+        "last_four": "4821",
+        "product_status": "Active",
+        "past_expiration": true,
+        "updated_after_as_of": false
+      },
+      {
+        "card_id": "PRD-EXAMPLE00007",
+        "product_type": "Tarjeta Crédito",
+        "last_four": "9034",
+        "product_status": "Closed",
+        "past_expiration": true,
+        "updated_after_as_of": false
+      },
+      {
+        "card_id": "PRD-EXAMPLE00005",
+        "product_type": "Tarjeta Débito",
+        "last_four": "1177",
+        "product_status": "Active",
+        "past_expiration": false,
+        "updated_after_as_of": true
+      }
+    ]
+  },
+  {
+    "outcome": "invalid_input",
+    "errors": [
+      {
+        "path": "/customer_id",
+        "rule": "pattern"
+      }
+    ]
+  }
+]
