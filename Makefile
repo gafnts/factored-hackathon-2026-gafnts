@@ -106,7 +106,7 @@ snapshot: data ## Copy the pinned snapshot into this account's data bucket
 
 ##@ Analysis
 
-analysis: ## Profile the pinned snapshot, compute the workflow selection (ADR-0003), and analyze card support into docs/analysis/
+analysis: ## Profile the pinned snapshot, compute the workflow selection (ADR-0003), and analyze card support and traffic into docs/analysis/
 	uv run python -m banking_agent.analysis all
 
 ##@ IAM module

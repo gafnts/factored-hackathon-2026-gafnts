@@ -6,13 +6,15 @@ import argparse
 import sys
 from pathlib import Path
 
-from banking_agent.analysis import cards_report, selection_report
+from banking_agent.analysis import cards_report, selection_report, traffic_report
+from banking_agent.analysis.capacity import project
 from banking_agent.analysis.cards import card_support
 from banking_agent.analysis.catalog import TABLES
 from banking_agent.analysis.profile import profile
 from banking_agent.analysis.report import write
 from banking_agent.analysis.selection import select
 from banking_agent.analysis.source import AnalysisError, check_local
+from banking_agent.analysis.traffic import traffic
 from banking_agent.dataset.lock import LockError, read_lock
 from banking_agent.dataset.snapshot import snapshot_dir
 
@@ -39,8 +41,14 @@ def main(argv: list[str] | None = None) -> int:
         "and card-support.json",
     )
     commands.add_parser(
+        "traffic",
+        help="Profile the snapshot, then measure the development customers' traffic and project the "
+        "agent's capacity into traffic.md and traffic.json",
+    )
+    commands.add_parser(
         "all",
-        help="Profile the snapshot once, then write the selection and the card support analysis",
+        help="Profile the snapshot once, then write the selection, the card support analysis, and the "
+        "traffic analysis",
     )
     args = parser.parse_args(argv)
 
@@ -68,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
                     card_support(lock, root, TABLES, business_date, as_of, log=log),
                     args.out,
                 )
+            if args.command in ("traffic", "all"):
+                measured = traffic(lock, root, TABLES, business_date, as_of, log=log)
+                written += traffic_report.write(measured, project(measured), args.out)
     except (AnalysisError, LockError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
