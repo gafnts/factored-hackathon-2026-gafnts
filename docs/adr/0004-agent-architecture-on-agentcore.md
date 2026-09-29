@@ -30,8 +30,8 @@ Build one backend on AgentCore. A Runtime serves the chat over AG-UI and runs an
 | Component | Runs on | Does | Trusted with |
 |---|---|---|---|
 | Customer chat | assistant-ui (`useAgUiRuntime`), static files on S3 and CloudFront | Signs in, sends messages, renders replies and the confirm control from structured events | Nothing: the server checks everything it sends |
-| Consoles | The same site; API Gateway and Lambda behind a Cognito authorizer | The human agent's handoff queue, payloads, and traces; the AI team's read-only view with personal data masked, built last | Reading, by Cognito group |
-| Identity | Cognito user pool (Essentials tier), one group per role | Signs people in; a pre-token trigger copies the admin-written `custom:customer_id` into the access token | Who the customer is |
+| Consoles | The same site; API Gateway and Lambda behind a JWT authorizer that accepts staff tokens only | The human agent's handoff queue, where each handoff is read with its evidence, then claimed and resolved; the AI team's read-only view of the alarms, the metrics, and masked turns, built last | Reading, by Cognito group, and a handoff's status |
+| Identity | Cognito user pool (Essentials tier), one group per role, and one app client for customers and one for staff | Signs people in; a pre-token trigger copies the admin-written `custom:customer_id` into the access token | Who the customer is |
 | Agent | AgentCore Runtime: AG-UI mode, direct code deployment, Python 3.13 | The entrypoint (checks before the graph) and the graph | The conversation; never the last check on access or actions |
 | Tool access | AgentCore Gateway (MCP, JWT authorizer) with a Cedar policy engine in `ENFORCE` mode | Validates the customer's token again and checks that every call names the token's customer | Record isolation |
 | Tools | Lambda functions behind the Gateway | Reads, the block, filing a handoff | The policy's hard rules |
@@ -67,7 +67,7 @@ Access and actions are decided by two layers that don't trust the one above them
 ### A turn, end to end
 
 1. The chat sends the customer's message to the Runtime's AG-UI endpoint with the Cognito access token, the conversation's thread ID, and the runtime session ID it keeps for the sign-in.
-2. The Runtime's JWT authorizer turns away a missing, expired, or foreign token before our code runs (401 with an AG-UI `RUN_ERROR`, S4). It checks the issuer and the app client, and it can also require a claim, which step 9 sets to the customer group (`cognito:groups`; documented, not yet tried).
+2. The Runtime's JWT authorizer turns away a missing, expired, or foreign token before our code runs (401 with an AG-UI `RUN_ERROR`, S4). It checks the issuer and the customers' app client, so a staff member's token never reaches the agent, and it can also require a claim, which step 9 sets to the customer group (`cognito:groups`; documented, not yet tried).
 3. The entrypoint, before the graph:
    1. reads `sub`, `customer_id`, and `origin_jti` from the token the Runtime already validated;
    2. binds the runtime session ID to `sub` and refuses a request from anyone else ([Threads and runtime sessions](#threads-and-runtime-sessions));
@@ -281,7 +281,8 @@ This corrects ADR-0003's sentence. ADR-0003 stays as accepted, and the corrected
 - **The model writes three fields only:** `request.summary`, `customer_statements`, and `unresolved_questions`, in Spanish, through a small schema of their own. Provider strict modes don't accept the full schema's `if`/`then` and `not`, and a model that fills identifiers or facts is exactly what the payload must not depend on.
 - **It is validated twice:** by the graph before filing, and by `file_handoff` before storing, both against [the handoff schema](../../src/banking_agent/policy/handoff.schema.json).
 - **It is never dropped** (OPS-05). Free text that fails validation (a run of digits, a length) is replaced by fixed text per reason code. A payload that still fails points to a bug in code: it is filed flagged, with the validation errors, the console shows it as such, an alarm fires, and the customer still gets the reference.
-- **The JSON Schema is the source of truth** (**Open**, decision 9): the graph's Pydantic models are tested against it, and the console's TypeScript types are generated from it.
+- **It is filed as a case.** `file_handoff` stores the validated payload unchanged in a case record that adds a short reference, the one the reply gives (POL-45), and a status (`filed`, `claimed`, `resolved`) that only a human agent changes, in the console. No one approves or rejects a handoff: code decides it, and the customer accepts an offered one.
+- **The JSON Schemas are the source of truth** (**Open**, decision 9), the payload's and the case record's: the graph's Pydantic models are tested against them, and the console's TypeScript types are generated from them.
 
 ### Two clocks
 
@@ -312,8 +313,8 @@ DynamoDB tables, on demand (**Open**, decisions 1 to 3). The sandbox is keyed by
 | Confirmations | Confirmation | The graph; `block_card` | 24 hours; the outcome is copied into the execution record |
 | Session bindings | Runtime session | The entrypoint | 8 hours, the Runtime's longest session |
 | Checkpoints | Derived thread key | The graph (`DynamoDBSaver`) | 7 days |
-| Execution records | Sign-in, then event | The entrypoint and the graph | 90 days |
-| Handoffs | Handoff, indexed by queue | `file_handoff` | 90 days |
+| Execution records | Sign-in, then event; indexed by day and time for the AI team's view | The entrypoint and the graph | 90 days |
+| Handoff cases | Handoff, indexed by queue and status, and by reference | `file_handoff`; the console, a case's status only | 90 days |
 
 The tools' data holds, per customer, the customer's status and country, the cards with their last four digits, and the card transactions of the 90-day window with their conflict flags: only what the tools read. The overlay also carries the evaluation's fixtures (a built transaction, an unlisted code, an injected merchant name) and fault plans (a tool that fails N times); only the harness's role can write them, and tools honor them only in the sign-in they were written for (ADR-0005).
 
@@ -332,7 +333,7 @@ The tools' data and the sandbox overlay are a mock of the bank's systems of reco
 | The confirmation is used once, in one transaction with the write | `confirmation_id` becomes the call's idempotency key, so a retry, or a crash between the write and the record, can't block twice or lose the outcome |
 | The read-back reads the overlay with a strongly consistent read | It reads the card system; a change accepted but applied later reads as not yet `Blocked`, which POL-37 already treats as unverified and hands off (`action_not_verified`) |
 | The Gateway validates the customer's token and Cedar checks the customer; the Lambda gets only the tool's input, never the token | The bank's API checks the customer too. A Lambda target never receives the caller's token, so a Gateway request interceptor, which can read it, would exchange it for a credential the bank accepts (OAuth token exchange) and add it to the call it forwards; Cedar stays as the first check |
-| `file_handoff` writes to the handoffs table, which our console reads | It opens a case in the bank's case system with the payload attached, and the reference the customer hears is that system's |
+| `file_handoff` writes a case to the handoff cases table, where our console claims and resolves it | It opens a case in the bank's case system with the payload attached; the reference the customer hears, the case's status, and the follow-up with the customer are that system's |
 | The execution record is the only audit | The card system keeps its own audit of the change, and the execution record stores its reference, so the two can be joined |
 | Nothing flows back: the overlay is never merged, and the snapshot stays frozen | The change reaches the bank's analytical layers through their own feeds, where evaluation and monitoring read it |
 
@@ -342,7 +343,7 @@ The tools' data and the sandbox overlay are a mock of the bank's systems of reco
 - A write is seen only by the sign-in that made it and disappears after 24 hours; nothing reacts to a block (no declined authorization, no notification, no replacement card).
 - No real system's latency or outages: failures exist only as the evaluation's fault plans, which make a tool fail and recover, never write late or in part.
 - Master records carry their values as delivered, flagged when updated after the as-of instant ([State](#state-a-frozen-master-snapshot-with-an-event-cutoff)).
-- Handoffs reach our console, not a case system, and no one works them.
+- Handoffs reach our console, not a case system. A person can claim and resolve one there, but resolving changes nothing at the bank, and the customer never hears back.
 - No tool moves money or unblocks a card (SEC-07, POL-41), and none would in production without its own policy and confirmation.
 
 **The contracts** (**Open**, decision 16): each tool's input and output as a JSON Schema, kept beside the handoff schema, declared as the Gateway target's tool schemas, and tested against the Lambdas' responses, with each tool's errors listed (not found, refused, denied by Cedar, failed). They and the limitations above are the documentation SEC-06 asks for, and the table above is the core of the production write-up (SCP-08).
@@ -351,7 +352,7 @@ The tools' data and the sandbox overlay are a mock of the bank's systems of reco
 
 **Tracing (OPS-01).** The execution record ties each turn to the Runtime's request and session IDs and each tool call to the Gateway's, and it is what the evaluation grades. AgentCore Observability adds OpenTelemetry spans in CloudWatch once CloudWatch Transaction Search is enabled for the account (a one-time setting, made in Terraform) and the agent is instrumented; no spike tried it, so step 9 proves it or falls back to the execution record and structured logs. The SDK's logs are JSON with request and session IDs (S2), and they carry masked text only. LangSmith stays off unless `LANGSMITH_TRACING` is set.
 
-**Monitoring (OPS-03).** CloudWatch metrics and alarms, described rather than built into a dashboard: Runtime errors and turn latency (p50, p95); active runtime sessions and model tokens a minute against their quotas; Gateway authorizer rejections and Cedar denials (a rise may mean probing); tool errors and retries; any `action_not_verified` and any handoff that needed the fallback (an alarm on each); provider errors and rate limiting; tokens and cost per conversation, from the execution record; and failures of the deadline Lambda, if decision 7 adopts it.
+**Monitoring (OPS-03).** CloudWatch metrics and alarms, described rather than built into a dashboard: Runtime errors and turn latency (p50, p95); active runtime sessions and model tokens a minute against their quotas; Gateway authorizer rejections and Cedar denials (a rise may mean probing); tool errors and retries; any `action_not_verified` and any handoff that needed the fallback (an alarm on each); provider errors and rate limiting; tokens and cost per conversation, from the execution record; and failures of the deadline Lambda, if decision 7 adopts it. The judges have no access to the account, so the AI team's view in the site shows these alarms' states and metrics to the AI team's group; no dashboard is shared.
 
 **Capacity (OPS-08).** The [traffic analysis](../analysis/traffic.md) measures the bank's traffic among development customers and projects this design's load from it, under the assumptions it lists (turns per conversation, model calls per turn, tokens per call). Every load figure below is that projection, not a measurement (EVL-13).
 
@@ -371,12 +372,12 @@ The tools' data and the sandbox overlay are a mock of the bank's systems of reco
 
 **Access controls (OPS-09).**
 
-- **Cognito:** admins create users; one group per role (customer, human agent, AI team); `custom:customer_id` is written by admins only, because spike S3 found that a user could rewrite it when the app client left `write_attributes` unset; token revocation on; access tokens valid 15 minutes and refresh tokens 60 minutes, so a sign-in lasts at most an hour (**Open**, decision 10).
-- **Runtime:** a JWT authorizer with the discovery URL, the app client, and the customer group as a required claim; only `Authorization` is forwarded to the agent.
+- **Cognito:** admins create users; one group per role (customer, human agent, AI team) and two app clients (customers and staff); `custom:customer_id` is written by admins only, because spike S3 found that a user could rewrite it when the app client left `write_attributes` unset; token revocation on; access tokens valid 15 minutes and refresh tokens 60 minutes, so a sign-in lasts at most an hour (**Open**, decision 10).
+- **Runtime:** a JWT authorizer with the discovery URL, the customers' app client, and the customer group as a required claim; only `Authorization` is forwarded to the agent.
 - **Gateway:** a JWT authorizer, and Cedar in `ENFORCE` mode, which denies by default and filters `tools/list`. `exception_level` stays off in `prototype`, since `DEBUG` hands the caller the denial's reason (**Open**, decision 14).
-- **IAM:** every role sits under the deploy boundary with least privilege per component. The Runtime's role reaches its own tables, key providers, and logs. The read tools only read the tools' data and the overlay; `block_card` also writes the overlay and the confirmations; `file_handoff` writes handoffs; console Lambdas only read. `GetWorkloadAccessTokenForUserId` and `InvokeAgentRuntimeForUser` are denied, as AgentCore advises when a JWT is always present.
+- **IAM:** every role sits under the deploy boundary with least privilege per component. The Runtime's role reaches its own tables, key providers, and logs. The read tools only read the tools' data and the overlay; `block_card` also writes the overlay and the confirmations; `file_handoff` writes handoff cases; console Lambdas only read, except the one that claims and resolves, which may update a case's status attributes and nothing else (an IAM condition on `dynamodb:Attributes`), never its payload. `GetWorkloadAccessTokenForUserId` and `InvokeAgentRuntimeForUser` are denied, as AgentCore advises when a JWT is always present.
 - **Keys** stay in AgentCore Identity, never in state or plans.
-- **Consoles:** routes by Cognito group; the AI team reads masked records only.
+- **Consoles:** the console API accepts the staff app client only, and each route checks the caller's group; the AI team reads masked records only; no console route blocks, unblocks, or changes a card.
 - **Known limit:** the authorizers validate a token's signature and expiry, so a revoked token should keep working until it expires (to verify in step 9). A sign-out therefore takes effect within the 15-minute access token.
 
 **Data retention (OPS-10).** The table retention above is enforced with DynamoDB time to live. Logs are kept 30 days, on log groups Terraform creates before Lambda and the Runtime can create their own (S4 found that self-created groups had no retention and survived a destroy). Evaluation results per case stay in the evaluation bucket for 90 days, and the committed report holds aggregates only (SEC-03). Each provider's API data policy applies to what it receives. `make destroy` removes every table and log group.
@@ -395,13 +396,13 @@ We settle these before accepting this record. Each names the option we lean towa
 6. **Card numbers in the tools' data.** Lean: last four digits only.
 7. **A required handoff after a wait.** Lean: a draft handoff and a delayed SQS message that files it at the deadline; POL-44 hands off without its optional question. Alternatives: hand off before offering the block (POL-39's order changes, and the payload can't show the block's outcome), or report the gap as a limitation (OPS-11).
 8. **The reply check.** Lean: check every reply before it is sent, and give up token-by-token streaming for it. Alternative: stream and check afterwards, which can't take back what the customer already read. Load doesn't move the lean: the check is code and adds no model call, and what the customer waits for is the model's generation, longer when a provider throttles.
-9. **The handoff's source of truth.** Lean: the JSON Schema, with the Pydantic models tested against it and the console's TypeScript types generated from it.
+9. **The handoff's source of truth.** Lean: the JSON Schema, with the Pydantic models tested against it and the console's TypeScript types generated from it. The case record that wraps the payload has a schema of its own, used the same way, so the payload's schema stays at version 1.
 10. **Timings.** Lean: a confirmation lasts 5 minutes; access tokens 15 minutes and refresh tokens 60 minutes.
 11. **Masking.** Lean: our own detector in the entrypoint, for card numbers. Alternative for wider personal data: Bedrock's `ApplyGuardrail`, which works with any model (sensitive-information filters plus custom patterns) at one extra call per message.
 12. **Thread scoping.** Lean: the derived thread key and the session binding in the entrypoint, with the regression tests above.
 13. **The state contract.** Lean: "a frozen master snapshot with an event cutoff", with rows updated after the as-of instant flagged. With it: whether ADR-0003 gains a one-line pointer to this correction when this record is accepted.
 14. **The Gateway's `exception_level`.** Lean: off in `prototype`; the agent handles `-32002` the same either way.
-15. **Frontend hosting.** Lean: S3 and CloudFront on a subdomain of `gabriel.com.gt` ([ADR-0001](0001-deploy-to-us-east-1.md)), the custom domain optional so a fork works without it.
+15. **Frontend hosting.** Lean: S3 and CloudFront on a subdomain of `gabriel.com.gt`, whose DNS stays on Netlify ([ADR-0001](0001-deploy-to-us-east-1.md)): an ACM certificate in us-east-1, validated by a record we add there by hand, and a CNAME to the distribution. The subdomain is chosen with the product's name; until then, and in any fork, the site is served from its CloudFront domain.
 16. **The tools' contracts.** Lean: a JSON Schema per tool for its input and output, declared on the Gateway target and tested against the Lambdas, with its errors listed, as decision 9 does for the handoff. Alternative: Pydantic models as the source, with the schemas generated from them.
 17. **Model quotas.** Lean: before any launch, request the chosen model's quotas in the production account, sized from the traffic analysis's busiest projected minute with room to spare (every contact over business hours at 10×, for example), since an account's applied quota can sit far below the documented default (S1). The prototype keeps the limits of our direct keys, which suffice for it.
 18. **A provider that throttles.** Lean: a model call answered with a 429 is retried within the turn, after the provider's `retry-after` or a jittered backoff, twice at most (OPS-04); then the turn ends with a fixed reply that the service is busy and offers a handoff (OPS-05), and the execution record counts it. No queue: a chat turn can't wait minutes for a slot. Alternative: a queue in front of the model calls, which smooths bursts but leaves the customer without an answer while it drains.
