@@ -16,6 +16,7 @@ Revised before acceptance, so the version stays 1:
   - An offered handoff is accepted only with the handoff control (POL-45, and with it POL-06, POL-09, and POL-36).
   - POL-36 offers no handoff when POL-39 already requires one.
   - An unrecognized charge gets one handoff, which records a failed block or read (POL-39).
+  - POL-13 finds the card the customer named before checking whether the request applies to it.
 
 Once accepted, a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
 
@@ -73,8 +74,8 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 
 ## Which card
 
-- **POL-13** A request about one card is answered for the one card that fits it: the cards the customer holds that match what they said (type, last four digits), among those the request applies to (active cards for a block, credit cards for available credit, any card otherwise). The reply names it by type and last four digits. (AI-02)
-- **POL-14** When several cards fit, the agent asks which, listing each by type and last four digits. A request about all the customer's cards ("my cards") is answered for each. Of 65,796 customers with an active card, 13,420 hold two or more active credit cards and 2,681 two or more active debit cards. (AI-02)
+- **POL-13** A request about one card is answered for the card the customer means: the one among their cards that matches what they said (type, last four digits). When several match, the ones the request applies to (active cards for a block, credit cards for available credit) are meant, if there are any. A card that matches but that the request doesn't apply to is still the card meant, and the request's own rule answers for it (POL-22, POL-34). The reply names the card by type and last four digits. (AI-02)
+- **POL-14** When POL-13 leaves several cards, the agent asks which, listing each by type and last four digits. A request about all the customer's cards ("my cards") is answered for each. Of 65,796 customers with an active card, 13,420 hold two or more active credit cards and 2,681 two or more active debit cards. (AI-02)
 - **POL-15** When the last four digits the customer gives match two cards of different types, the agent asks for the type. When they match two cards of the same type, it hands off (`ambiguous_card`): fewer than 10 customers hold such a pair, so no second identifier is worth asking for. (AI-02, CTL-02, CTL-03)
 - **POL-16** Last four digits that match none of the customer's cards are answered by listing the cards the customer holds, by type and last four digits. (AI-02)
 - **POL-17** After two questions that don't settle the same detail, the agent stops asking and offers a handoff (`clarification_failed`). (AI-02, CTL-03)
