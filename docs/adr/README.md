@@ -54,3 +54,4 @@ Negative:
 | [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph agent on AgentCore, with policy enforced in Gateway tools and Cedar | Proposed |
 | [0005](0005-offline-scenario-evaluation.md) | Offline scenario evaluation against an independent policy oracle | Proposed |
 | [0006](0006-batch-medallion-pipeline.md) | Batch medallion pipeline in dbt-duckdb, exported per snapshot to the tools' store | Proposed |
+| [0007](0007-role-gated-web-app.md) | Role-gated web app on one CloudFront origin, with a polled handoff console | Proposed |
