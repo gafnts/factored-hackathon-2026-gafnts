@@ -60,6 +60,7 @@ overrides = [
     "banking_agent.analysis.cards_figures",
     "banking_agent.analysis.figures",
     "banking_agent.analysis.plotting",
+    "banking_agent.analysis.traffic_figures",
   ], disallow_untyped_calls = false },
 ]
 
