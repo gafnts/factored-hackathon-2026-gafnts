@@ -232,8 +232,8 @@ The apply job runs on merges to `main` that touch `infra/`. If `main` already ha
 
 ```bash
 make doctor   # Every line but the dataset snapshot's should read ok
-make plan     # Preview the local stack
-make apply
+make plan     # Preview the local stack and save the plan
+make apply    # Apply the saved plan
 ```
 
 From here on, every merge to `main` deploys `prototype` (see [Promote to prototype](#promote-to-prototype)).
@@ -324,8 +324,8 @@ With `AWS_PROFILE=banking-agent-local` active (direnv sets it when you enter the
 
 ```bash
 make init                # Initialize the local backend (safe to re-run)
-make plan                # Preview changes
-make apply               # Apply changes
+make plan                # Preview changes and save the plan to build/local.tfplan
+make apply               # Apply the saved plan
 make destroy ENV=local   # Tear down your local resources
 ```
 
@@ -375,6 +375,7 @@ Run `make doctor` first; most setup problems show up there.
 | `make data` says the source no longer matches `dataset.lock` | The organizers added, removed, or replaced files; the message lists them by table. Adopt the change deliberately with `make data ADOPT=1`, which writes a new snapshot and lock, then commit the lock in a PR of its own and run `make snapshot`. |
 | `make data` deleted files that didn't match | A download was corrupted or a local file was edited. Run `make data` again; it downloads only the deleted files. |
 | `make plan` stops at `aws configure export-credentials` | Your sign-in session ended, or `AWS_PROFILE` names a profile that doesn't exist. Run `aws login`, or finish [step 3.4](#34-configure-your-local-deploy-profile). |
+| `make apply` says there is no saved plan | Run `make plan` first; `make apply` applies only what it saved. |
 
 ---
 
@@ -433,6 +434,7 @@ The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbacken
 Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
+- `build/`: the plan `make plan` saves
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets such as LLM API keys; if you add one, document its variables in a tracked `.env.example`

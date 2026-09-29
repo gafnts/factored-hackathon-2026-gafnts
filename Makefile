@@ -4,6 +4,7 @@ ENV ?= local
 TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
+PLAN    := build/$(ENV).tfplan
 
 # The pinned AWS provider can't assume a role on top of an `aws login` sign-in, so Terraform
 # gets the CLI's credentials for AWS_PROFILE; a failed export stops it before another profile can.
@@ -155,13 +156,16 @@ dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (require
 init: ## Initialize Terraform backend for ENV
 	$(TF_AWS) init -reconfigure $(BACKEND)
 
-plan: ## Preview infrastructure changes for ENV
-	$(TF_AWS) plan $(VARS)
+plan: ## Preview infrastructure changes for ENV and save them to build/ENV.tfplan
+	@mkdir -p build
+	$(TF_AWS) plan $(VARS) -out=../$(PLAN)
 
-apply: _check-backend ## Apply infrastructure changes for ENV (refuses prototype unless I_KNOW=1)
+apply: _check-backend ## Apply the plan that make plan saved for ENV (refuses prototype unless I_KNOW=1)
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to apply prototype from local. CI owns prototype."; exit 1; fi
-	$(TF_AWS) apply $(VARS)
+	@if [ ! -f $(PLAN) ]; then \
+		echo "No saved plan for $(ENV). Run 'make plan ENV=$(ENV)' first."; exit 1; fi
+	$(TF_AWS) apply ../$(PLAN)
 
 destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
