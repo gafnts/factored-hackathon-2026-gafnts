@@ -8,14 +8,14 @@ Some decisions are still open. Each is marked **Open** where it arises and liste
 
 ## Context
 
-The organizers grade demonstrated behavior and honesty about it: results on a held-out workload against a baseline (EVL-01), cases with incorrect or missing data, expired sessions, unauthorized access, injection, tool failures, and mixed languages (EVL-02 to EVL-07), metrics M-01 to M-05 with sample sizes (EVL-11), per language and segment (EVL-12), failures included (EVL-09), and a learned component against a baseline (DML-07). Six forces shape how:
+The organizers ask how the system is evaluated for quality and safety (DSN-04), and grade demonstrated behavior and honesty about it: results on a held-out workload against a baseline (EVL-01), cases with incorrect or missing data, expired sessions, unauthorized access, injection, tool failures, and mixed languages (EVL-02 to EVL-07), metrics M-01 to M-05 with sample sizes (EVL-11), per language and segment (EVL-12), failures included (EVL-09), and a learned component against a baseline (DML-07). Six forces shape how:
 
 - **The data holds no ground truth for the agent.** No supplied label carries signal, contacts can't be tied to a workflow, and the transcripts are templated ([ADR-0003](0003-choose-workflow-from-evidence.md)). Expected outcomes therefore come from the [card support policy](../policy/card-support.md) applied to the frozen state, never from historical outcomes.
 - **The request mix is unknown.** Nothing in the snapshot says how often customers ask each question, so a rate over cases describes the cases we wrote, not a bank's traffic, and must be reported that way (EVL-13). Only the volume is known: the [traffic analysis](../analysis/traffic.md) counts the bank's contacts per day and hour, finds no daily cycle, and projects the agent's load from them under assumptions (turns per conversation, model calls per turn, tokens per call) that this evaluation can measure.
 - **Some situations are thin or absent.** Among development customers, a decline with no listed code backs 75, 231, and 972 customers in 30, 90, and 365 days, and a transaction marked `is_fraud` on an active card backs 27, 87, and 360. Unlisted codes, and blocked or closed cards with recent activity, never occur ([card support analysis](../analysis/card-support.md)).
 - **A split already exists.** ADR-0003 holds out customers whose `customer_id` has an MD5 divisible by 5: 29,825 of the 150,000 registered by the as-of instant. The analysis and the policy read the other 120,175 only, and the demo personas will too.
 - **The system records itself.** [ADR-0004](0004-agent-architecture-on-agentcore.md) writes an execution record for every model call, tool call, decision, interrupt, and resume, keeps writes in a sandbox per sign-in, and lets an evaluation harness add fixtures and faults there. Access and actions are enforced outside the model, so they can be graded without it.
-- **Model calls cost money and are rate limited.** The providers' limits, and Gemini 3.1 Pro's daily cap, bound how often the held-out workload can run.
+- **Model calls cost money and are rate limited.** The providers' limits bound how often the held-out workload can run.
 
 ## Decision
 

@@ -1,7 +1,7 @@
 # Card support policy
 
 > [!IMPORTANT]
-> **Synthetic policy (SEC-02).** The team wrote it; no bank adopted it. It governs the card support agent over the organizers' synthetic snapshot, which [ADR-0003](../adr/0003-choose-workflow-from-evidence.md) chose card support on, and it is where the agent's expected outcomes come from: the evaluation applies these rules to the frozen state, never to historical outcomes.
+> **Synthetic policy (SEC-02).** The organizers supplied no policy, so we wrote these rules; they are not a real bank's. It governs the card support agent, the workflow [ADR-0003](../adr/0003-choose-workflow-from-evidence.md) chose on the organizers' synthetic snapshot, and it is where expected outcomes come from: the evaluation applies these rules to the frozen state, never to historical outcomes.
 
 It says what the agent answers, what it does, when it asks, abstains, or declines, and when a person takes over. Every rule has a stable ID (`POL-01`, …) that tests, evaluation cases, and handoffs cite, and the policy's version is stamped in every execution record and handoff.
 

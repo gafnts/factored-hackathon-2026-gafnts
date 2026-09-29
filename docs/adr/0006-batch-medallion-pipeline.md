@@ -4,7 +4,7 @@
 
 Proposed (2026-09-27).
 
-Some decisions are still open. Each is marked **Open** where it arises and listed under [Open decisions](#open-decisions) with the option we lean towards, which the rest of this record assumes; we settle them before accepting it.
+Some decisions are still open. Each is marked **Open** where it arises and listed under [Open decisions](#open-decisions) with the option we lean towards, which the rest of this record assumes; we settle them before accepting it. What only a deployed stack can show is listed under [To verify on the first deploy](#to-verify-on-the-first-deploy).
 
 ## Context
 
@@ -95,9 +95,13 @@ The supplied data is static, so a fixture shows that an update is handled correc
 - **`make pipeline`** builds on the machine that holds the snapshot (after `make data`). The DuckDB file lives under `data/`, which is gitignored and never published, so bronze and silver, with their full card numbers and personal data, stay there. The oracle reads bronze from the same file.
 - **`make export`** writes gold to the data bucket under `gold/<snapshot_id>/<pipeline_version>/`, the manifest last as the completion marker, as ADR-0002 does for snapshots; the bucket's no-overwrite policy makes an export immutable. Gold holds no full card number and no identity or contact field, so it is the only layer that leaves the machine.
 - **CI** runs dbt's unit tests and the update fixture on every push, neither of which needs the snapshot. The full build on the snapshot runs by hand, before an export (**Open**, decision 3).
-- **The tools' store is created from an export** (**Open**, decision 1). Terraform creates the tools' table with `aws_dynamodb_table`'s `import_table` from the export, in DynamoDB JSON, gzipped, with the export chosen by a variable that only a reviewed change sets, like the lock. DynamoDB imports only into a new table, so each export gets its own table, named by its pipeline version, and the tools switch when Terraform points them at it; `make destroy` removes it. The provider documents `import_table`; step 9 confirms it on provider 6.66.0.
+- **The tools' store is created from an export** (**Open**, decision 1). Terraform creates the tools' table with `aws_dynamodb_table`'s `import_table` from the export, in DynamoDB JSON, gzipped, with the export chosen by a variable that only a reviewed change sets, like the lock. DynamoDB imports only into a new table, so each export gets its own table, named by its pipeline version, and the tools switch when Terraform points them at it; `make destroy` removes it. The provider documents `import_table`; we confirm it on provider 6.66.0 before the first import ([To verify on the first deploy](#to-verify-on-the-first-deploy)).
 
 The profile and the analysis reports keep reading the snapshot directly, every value as text (`make analysis`). A profile should measure the delivery before any contract shapes it, and the contracts and warnings are set from its numbers.
+
+### To verify on the first deploy
+
+- **`import_table` on provider 6.66.0.** The provider documents it, and no spike has run it; the first deploy confirms it, or a tiny export before then. If it fails, decision 1 falls back to its alternative, a publish script, by amendment.
 
 ### Open decisions
 

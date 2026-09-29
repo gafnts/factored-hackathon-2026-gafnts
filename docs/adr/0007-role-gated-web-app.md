@@ -8,7 +8,7 @@ Some decisions are still open. Each is marked **Open** where it arises and liste
 
 ## Context
 
-[ADR-0004](0004-agent-architecture-on-agentcore.md) puts the customer chat and two consoles on one static site, gives each role a Cognito group, and leaves the hosting open (its decision 15). This record says how the site is served, how each role signs in and what it sees, and what a human agent does with a handoff. Seven forces shape it:
+[ADR-0004](0004-agent-architecture-on-agentcore.md) puts the customer chat and two consoles on one static site, gives each role a Cognito group, and leaves the hosting to this record (its decision 15). This record says how the site is served, how each role signs in and what it sees, and what a human agent does with a handoff. Seven forces shape it:
 
 - **Three roles use the site, and only one talks to the agent.** A customer chats with the agent, a human agent receives its handoffs, and the AI team watches the system. The Runtime serves customers only (ADR-0004), so the consoles need an API of their own. The consoles are also what makes the prototype a customer-service system rather than a chatbot (SCP-02).
 - **The judges reach the system only through the submitted link** (OPS-12, SUB-02). They have no access to the AWS account, so what they should see has to be in the site. A frontend is scored; a dashboard earns nothing by itself ([Reading between the lines](../hackathon-requirements.md#reading-between-the-lines)).
