@@ -248,7 +248,7 @@
           "format": "uuid"
         },
         "outcome": {
-          "description": "verified: the sandbox read back Blocked. not_verified: it didn't, so the card's state is unknown (POL-37). declined_by_customer: the customer cancelled with the confirm control. lapsed: the confirmation ended unused otherwise, on a new request, its time limit, or the session's end (POL-36).",
+          "description": "verified: the sandbox read back Blocked. not_verified: it didn't, so the card's state is unknown (POL-37). declined_by_customer: the customer cancelled with the confirm control. lapsed: the confirmation ended unused otherwise: on a new request, an accepted handoff, its time limit, or the session's end (POL-36).",
           "enum": ["verified", "not_verified", "declined_by_customer", "lapsed"]
         },
         "confirmed_at": { "type": ["string", "null"], "format": "date-time" },

@@ -29,7 +29,7 @@ Build one backend on AgentCore. A Runtime serves the chat over AG-UI and runs an
 
 | Component | Runs on | Does | Trusted with |
 |---|---|---|---|
-| Customer chat | assistant-ui (`useAgUiRuntime`), static files on S3 and CloudFront | Signs in, sends messages, renders replies and the confirm control from structured events | Nothing: the server checks everything it sends |
+| Customer chat | assistant-ui (`useAgUiRuntime`), static files on S3 and CloudFront | Signs in, sends messages, renders replies and the confirm and handoff controls from structured events | Nothing: the server checks everything it sends |
 | Consoles | The same site; API Gateway and Lambda behind a JWT authorizer that accepts staff tokens only ([ADR-0007](0007-role-gated-web-app.md)) | The human agent's handoff queue, where each handoff is read with its evidence, then claimed and resolved; the AI team's page, which shows the evaluation report | Reading, by Cognito group, and a handoff's status |
 | Identity | Cognito user pool (Essentials tier), one group per role, and one app client for customers and one for staff | Signs people in; a pre-token trigger copies the admin-written `custom:customer_id` into the access token | Who the customer is |
 | Agent | AgentCore Runtime: AG-UI mode, direct code deployment, Python 3.13 | The entrypoint (checks before the graph) and the graph | The conversation; never the last check on access or actions |
@@ -73,14 +73,14 @@ Access and actions are decided by two layers that don't trust the one above them
    2. binds the runtime session ID to `sub` and refuses a request from anyone else ([Threads and runtime sessions](#threads-and-runtime-sessions));
    3. replaces the client's thread ID with a key derived from `sub`;
    4. masks card numbers in the incoming text ([Card numbers](#card-numbers));
-   5. turns a typed message sent while a confirmation is pending into a structured resume ([The confirmation](#the-confirmation));
+   5. turns a typed message sent while a confirmation or a handoff offer is pending into a structured resume ([The confirmation](#the-confirmation));
    6. fetches the model key from AgentCore Identity and keeps the token, the key, and the claims in context variables, never in the graph's config, because LangGraph writes `configurable` values into checkpoints (S4);
    7. opens the turn's execution record.
 4. The graph runs, calling tools through the Gateway with the customer's own access token.
 5. The Gateway validates the token, Cedar checks `customer_id`, and the Lambda answers from the tools' data and the sign-in's overlay.
 6. Replies go back as AG-UI events, limited to what the chat renders ([What the chat receives](#what-the-chat-receives)); the wrapper's raw LangChain events are turned off, since they double the stream and expose internals (S4).
 
-The execution record holds every model call (model, prompt version, tokens, latency, cost), tool call, decision, interrupt, and resume, stamped with the sign-in, thread, role, source (demo or evaluation), business date, and the policy, prompt, schema, and snapshot versions. It is the system's own trace, its audit log (OPS-02), and the evaluation's source (ADR-0005). Each turn ends with a decision entry, written before the run's last event: the turn's outcome class (answer, clarify, abstain, decline, block, or hand off) and what the agent waits for next, if anything (which card, a reason, the confirm control, or an answer to an offered handoff). The evaluation's scripted customer reacts to that entry, never to the reply's prose. Demo users are created by an admin script from development-split personas; their credentials reach the judges with the submission, never the repository.
+The execution record holds every model call (model, prompt version, tokens, latency, cost), tool call, decision, interrupt, and resume, stamped with the sign-in, thread, role, source (demo or evaluation), business date, and the policy, prompt, schema, and snapshot versions. It is the system's own trace, its audit log (OPS-02), and the evaluation's source (ADR-0005). Each turn ends with a decision entry, written before the run's last event: the turn's outcome class (answer, clarify, abstain, decline, block, or hand off) and what the agent waits for next, if anything (which card, a reason, the confirm control, or the handoff control). The evaluation's scripted customer reacts to that entry, never to the reply's prose. Demo users are created by an admin script from development-split personas; their credentials reach the judges with the submission, never the repository.
 
 ### The graph
 
@@ -100,7 +100,7 @@ Everything else is code: which tool runs and with which `customer_id` (always th
 ```mermaid
 flowchart TD
   IN(["message or resume"])
-  P{"confirmation pending?"}
+  P{"control pending?"}
   ROUTE["route"]
   CARD["resolve_card"]
   DH["decline or hand off"]
@@ -108,6 +108,7 @@ flowchart TD
   REASON["ask_reason"]
   FIND["find_transaction"]
   CONFIRM["confirm: interrupt"]
+  OFFER["offer: interrupt"]
   BLOCK["block"]
   VERIFY["verify"]
   AFTER{"handoff required?"}
@@ -116,7 +117,8 @@ flowchart TD
   OUT(["events to the chat"])
   IN --> P
   P -->|"no"| ROUTE
-  P -->|"yes"| CONFIRM
+  P -->|"confirmation"| CONFIRM
+  P -->|"handoff offer"| OFFER
   ROUTE -->|"a card request"| CARD
   ROUTE -->|"unsupported, talk_to_human"| DH
   ROUTE -->|"no request"| REPLY
@@ -138,6 +140,10 @@ flowchart TD
   DH --> HANDOFF
   DH --> REPLY
   HANDOFF --> REPLY
+  REPLY -->|"a handoff offered"| OFFER
+  OFFER -->|"accepted"| HANDOFF
+  OFFER -->|"typed text, nothing changed"| OFFER
+  OFFER -->|"declined or lapsed"| REPLY
   REPLY --> OUT
 ```
 
@@ -149,12 +155,13 @@ flowchart TD
 | `find_transaction` | Tool, extraction | Lists the window's candidates; the model may pick one listed ID, "none", or "several" | POL-27, POL-39 |
 | `ask_reason` | Code | Asks for a block reason, in fixed text | POL-35 |
 | `confirm` | Code, interrupt | Creates the confirmation, shows the control, waits | POL-36 |
+| `offer` | Code, interrupt | Shows the handoff control after the reply that offers a handoff, waits | POL-45 |
 | `block` | Tool | Uses the confirmation: writes, reads back, retries | POL-33, POL-34, POL-37 |
 | `verify` | Tool | Reads the card again for the reply's and the handoff's evidence | POL-37 |
 | `handoff` | Code, model, tool | Builds, validates, and files the payload | POL-45 to POL-47 |
 | `reply` | Model, code | Writes the reply with placeholders, fills them, adds the outcomes' fixed text, and checks it | POL-11, POL-18, POL-20, POL-37, POL-45 |
 
-Offered handoffs (POL-24, POL-31, POL-32, POL-38, POL-42, POL-48) are remembered in state, so the customer's answer returns to the step that offered (POL-06).
+**Offered handoffs** (POL-17, POL-24, POL-31, POL-32, POL-36, POL-38, POL-42, POL-48) come with the handoff control (POL-45). After the reply that offers one, `offer` interrupts with `{kind: "handoff_offer", offer_id, reason_code}`, and the chat renders the control from it in fixed text, as it does the confirm control. Only the control's resume, `{kind: "accept" | "decline", offer_id}`, answers it, and `offer` takes it only when the ID is the thread's pending offer and the request comes from the sign-in that saw it. Typed text arrives as a `message` resume, as during a confirmation: a new request ends the offer and goes to the router, and anything else shows the control again. The offer lives in the graph's private state, not in a table, since no tool acts on it: accepting it runs `handoff`. When POL-36 offers a handoff while its confirmation is pending, one interrupt carries both controls, and accepting the handoff ends the confirmation unused.
 
 **Tools.** Every tool takes `customer_id`, filled by the graph from the token, never by the model:
 
@@ -211,10 +218,10 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-03 | Tool, Cedar | `block_card` requires an `Active` card, the token's customer (Cedar), and a confirmed confirmation; the read-back decides the reply |
 | POL-04 | Graph | The router's output type holds the eight labels only; code picks outcomes after the tools answer |
 | POL-05 | Graph | Code orders the requests the router finds and queues the rest |
-| POL-06 | Graph, entrypoint | A pending question routes the answer to the node that asked; typed text during a confirmation becomes a `message` resume |
+| POL-06 | Graph, entrypoint | A pending question routes the answer to the node that asked; typed text during a confirmation or a handoff offer becomes a `message` resume |
 | POL-07 | Cognito, graph, Cedar | `customer_id` comes only from the admin-written claim; the graph fills every tool's `customer_id` from it; Cedar denies any other |
 | POL-08 | Cedar, tool | Cedar denies another customer's ID; tools look up records under the caller's customer only, so another's card reads as not found |
-| POL-09 | Authorizers, frontend, graph | Both JWT authorizers reject an expired token; the chat asks the customer to sign in; `confirm` refuses a resume from another sign-in or after the confirmation expires |
+| POL-09 | Authorizers, frontend, graph | Both JWT authorizers reject an expired token; the chat asks the customer to sign in; `confirm` and `offer` refuse a resume from another sign-in, and `confirm` one after the confirmation expires |
 | POL-10 | Graph, tool | No rule lives in text: the model picks no tool and no customer, its outputs are typed, and tool results reach it as data |
 | POL-11 | Pipeline, entrypoint, graph, tool | The tools' data holds last four digits only; the entrypoint masks typed numbers; the reply check and the handoff schema reject runs of 13 or more digits; the chat's stream carries no private state |
 | POL-12 | Tool, graph | For a `Closed` or `Suspended` customer, `get_available_credit` and `find_transactions` refuse, while `list_cards` and `get_card`, which a block needs, mark the customer as restricted without naming the status; the graph hands off everything but a block |
@@ -250,7 +257,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-42 | Graph | Declines with the reason and offers the handoff |
 | POL-43 | Graph, tool | Declines; no tool reads accounts or loans |
 | POL-44 | Graph | Hands off at once |
-| POL-45 | Graph | Required or offered, from a table in code; the reply gives the handoff's reference in fixed text |
+| POL-45 | Graph, entrypoint, frontend | Required or offered, from a table in code; an offer is accepted only through the handoff control's resume; the reply gives the handoff's reference in fixed text |
 | POL-46 | Graph, tool | Code builds the payload; the graph and `file_handoff` validate it against the schema |
 | POL-47 | Graph, tool | Code sets the queue and priority; the schema ties the queue to the reason code |
 | POL-48 | Graph | Three attempts per read, then `tool_failure` offered |
@@ -269,16 +276,16 @@ The masked text is what the checkpoint, the execution record, the model, and the
 
 ### What the chat receives
 
-The chat should receive the replies and the confirm control, and nothing else. `ag-ui-langgraph` 0.0.45 sends more by default (read in its source on 2026-09-28):
+The chat should receive the replies and the two controls, and nothing else. `ag-ui-langgraph` 0.0.45 sends more by default (read in its source on 2026-09-28):
 
 - **State snapshots.** At node exits and at the end of a run it emits a `STATE_SNAPSHOT` of the graph's state, filtered only by the graph's output schema, and a `StateGraph` declared without one outputs its whole state. Whatever the graph keeps for its own steps would reach the customer's browser: tool results, `is_fraud` on its way to the handoff builder (POL-40), a draft handoff.
 - **Model output as it streams.** Every streamed model call becomes text or tool-call events unless its run's metadata sets `emit-messages` and `emit-tool-calls` to false. The router's and the extraction's structured output, the handoff's free text, and a reply before its check would all reach the chat; S4's replies arrived that way, 11 to 25 deltas each.
 
 The reply check reads the reply alone and would see none of it, so three layers keep the stream to what the chat renders (POL-11, POL-40, CTL-04):
 
-1. **A public state.** The graph's output schema holds `messages` only, and `messages` holds the customer's masked messages and the agent's checked replies, never a tool result. Tool results, flags, confirmations, and drafts live in state the output schema leaves out.
+1. **A public state.** The graph's output schema holds `messages` only, and `messages` holds the customer's masked messages and the agent's checked replies, never a tool result. Tool results, flags, confirmations, offers, and drafts live in state the output schema leaves out.
 2. **No streamed model calls.** Every model call runs with `emit-messages` and `emit-tool-calls` off, and a reply reaches the chat once, after its check (decision 8); the first deploy checks that the chat renders a reply sent whole.
-3. **An allowlist in the entrypoint.** The entrypoint passes on only the event types the chat renders (the run's start, end, and errors; text messages; the messages snapshot; and the confirmation's interrupt) and drops the rest, so an event type added by a later version of the wrapper is dropped, not sent.
+3. **An allowlist in the entrypoint.** The entrypoint passes on only the event types the chat renders (the run's start, end, and errors; text messages; the messages snapshot; and the controls' interrupts) and drops the rest, so an event type added by a later version of the wrapper is dropped, not sent.
 
 A test runs every path of the graph through the wrapper and the entrypoint, and fails if any event, of any type, carries a key the public state leaves out, a label or an extracted field, an `is_fraud` value, or a reply before its check. ADR-0005's grader reads every event the harness receives too, not only the reply.
 
@@ -307,7 +314,7 @@ This corrects ADR-0003's sentence. ADR-0003 stays as accepted, and the corrected
 - **The model writes three fields only:** `request.summary`, `customer_statements`, and `unresolved_questions`, in Spanish, through a small schema of their own. Provider strict modes don't accept the full schema's `if`/`then` and `not`, and a model that fills identifiers or facts is exactly what the payload must not depend on.
 - **It is validated twice:** by the graph before filing, and by `file_handoff` before storing, both against [the handoff schema](../../src/banking_agent/policy/handoff.schema.json).
 - **It is never dropped** (OPS-05). Free text that fails validation (a run of digits, a length) is replaced by fixed text per reason code. A payload that still fails points to a bug in code: it is filed flagged, with the validation errors, the console shows it as such, an alarm fires, and the customer still gets the reference.
-- **It is filed as a case.** `file_handoff` stores the validated payload unchanged in a case record that adds a short reference, the one the reply gives (POL-45), and a status (`filed`, `claimed`, `resolved`) that only a human agent changes, in the console ([ADR-0007](0007-role-gated-web-app.md)). No one approves or rejects a handoff: code decides it, and the customer accepts an offered one.
+- **It is filed as a case.** `file_handoff` stores the validated payload unchanged in a case record that adds a short reference, the one the reply gives (POL-45), and a status (`filed`, `claimed`, `resolved`) that only a human agent changes, in the console ([ADR-0007](0007-role-gated-web-app.md)). No one approves or rejects a handoff: code decides it, and the customer accepts an offered one with the handoff control.
 - **The JSON Schemas are the source of truth** (**Open**, decision 9), the payload's and the case record's: the graph's Pydantic models are tested against them, and the console's TypeScript types are generated from them.
 
 ### Two clocks
@@ -422,7 +429,7 @@ What only the deployed stack can show, and what changes if it fails:
 - **Revoked tokens.** Expected to validate until they expire, so a sign-out takes effect within the 15-minute access token ([Operations](#operations)). If they're rejected at once, the known limit goes.
 - **Request bodies in AgentCore's logs.** Whether AgentCore's request logging or tracing records a body before the entrypoint masks it (decision 11). If it does, that logging is turned off.
 - **`StopRuntimeSession` and its caller.** Whether AgentCore ties the call to the session's caller. If it doesn't, the risk stands as stated in [Threads and runtime sessions](#threads-and-runtime-sessions): a cold start for the session's owner, nothing more.
-- **The chat in a real browser.** Whether assistant-ui's `useAgUiRuntime` sends AG-UI resume entries and renders a reply sent whole. If not, the chat sends the control's resume with the AG-UI client itself and renders replies on its own; nothing on the server changes.
+- **The chat in a real browser.** Whether assistant-ui's `useAgUiRuntime` sends AG-UI resume entries and renders a reply sent whole. If not, the chat sends the controls' resumes with the AG-UI client itself and renders replies on its own; nothing on the server changes.
 
 ### Open decisions
 
@@ -472,9 +479,9 @@ We settle these before accepting this record. Each names the option we lean towa
 
 Positive:
 - Access and the block hold even if the model, or the graph's routing, is wrong: Cedar and the tools decide them.
-- Typed text can't block a card, and a confirmation can't be replayed or moved to another card, reason, conversation, or sign-in.
+- Typed text can't block a card or accept an offered handoff, and a confirmation can't be replayed or moved to another card, reason, conversation, or sign-in.
 - No full card number exists where the agent can read it, and a typed one is masked before any store sees it.
-- The chat's stream carries replies and the confirm control only: no tool result, flag, label, or unchecked reply reaches the browser.
+- The chat's stream carries replies and the two controls only: no tool result, flag, label, or unchecked reply reaches the browser.
 - Every rule has a named place in code, which tests and evaluation cases cite.
 - Another customer's thread or runtime session ID gets nothing, and a regression test keeps it that way.
 - Everything is Terraform on one provider version, and a fork stands up without our accounts.

@@ -9,9 +9,13 @@ It says what the agent answers, what it does, when it asks, abstains, or decline
 
 Proposed (2026-09-27). Version 1.
 
-Revised the same day, before acceptance, so the version stays 1: a block is confirmed with the confirm control and never with typed text (POL-36), which also changed POL-03, POL-06, POL-09, POL-37, and POL-39.
+Revised before acceptance, so the version stays 1:
 
-Once accepted, a changed rule keeps its ID and raises the version; a retired rule's ID isn't reused.
+- **2026-09-27:** a block is confirmed only with the confirm control, never with typed text (POL-36, and with it POL-03, POL-06, POL-09, POL-37, and POL-39).
+- **2026-09-29:**
+  - An offered handoff is accepted only with the handoff control (POL-45, and with it POL-06, POL-09, and POL-36).
+
+Once accepted, a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
 
 ## How to read it
 
@@ -22,6 +26,7 @@ Once accepted, a changed rule keeps its ID and raises the version; a retired rul
 - **Clarify** is to ask for a detail the request is missing. **Abstain** is to give no answer on one point and say why. **Decline** is to refuse a request the policy doesn't support and say why. **Hand off** is to pass the case to a person with a structured payload (CTL-05).
 - **The sandbox** is the session's own layer over the snapshot: writes land there, reads in the same session see them, and the snapshot never changes.
 - **The confirm control** is the button the chat shows before a block, naming the card and the reason. It answers the agent with a structured value, not text, and confirms or cancels that one block.
+- **The handoff control** is the button the chat shows with an offered handoff. It answers the agent with a structured value, not text, and accepts or declines that one offer.
 
 Rules apply in this order: the session and identity, then the customer's status, then the request. They say what the system does, not where: ADR-0004 maps each rule to the component that enforces it, always in code and outside the model's prose (CTL-04). Numbers cited come from the [card support analysis](../analysis/card-support.md), which reads development customers only.
 
@@ -50,13 +55,13 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 
 - **POL-04** Each new request gets exactly one label. A label names what the customer asks, never an outcome the policy decides after reading state (a handoff for a customer who isn't active, for example), so the router never depends on state it can't see. (CTL-01, DML-08)
 - **POL-05** When one message holds several requests, the agent handles the first in this order: `block_card`, `unrecognized_charge`, `talk_to_human`, `decline_reason`, `card_status`, `available_credit`, `recent_transactions`, `unsupported`. It says it will turn to the rest, and does, in the same order. Requests that lower exposure come first, and a customer who asks for a person isn't kept waiting behind a read. (AI-01)
-- **POL-06** Only new requests are labeled. An answer to the agent's own question (which card, a reason) goes back to the step that asked, and a message sent while a confirmation is pending goes first to that confirmation (POL-36). A message with no card request (a greeting, thanks, a question about what the agent can do) gets a short reply from this policy and no label. (AI-01, AI-03)
+- **POL-06** Only new requests are labeled. An answer to the agent's own question (which card, a reason) goes back to the step that asked, and a message sent while a confirmation or a handoff offer is pending goes first to it (POL-36, POL-45). A message with no card request (a greeting, thanks, a question about what the agent can do) gets a short reply from this policy and no label. (AI-01, AI-03)
 
 ## Identity and access
 
 - **POL-07** A session serves one customer: the signed-in customer. A customer ID, document number, or card number given in the conversation never changes who that is, and is never passed to a tool as the customer. (SEC-04)
 - **POL-08** Tools read and act on the signed-in customer's records only. A request about anyone else's card or account is declined, saying the agent serves only the signed-in customer's cards, without saying whether that card or person exists. (SEC-05, EVL-04)
-- **POL-09** Once the session has expired, no tool returns data and no action runs, and the customer is asked to sign in again. A confirmation still pending lapses with the session: its control blocks nothing, even after the customer signs in again. (EVL-03)
+- **POL-09** Once the session has expired, no tool returns data and no action runs, and the customer is asked to sign in again. A confirmation or a handoff offer still pending lapses with the session: its control does nothing, even after the customer signs in again. (EVL-03)
 - **POL-10** Messages and record fields are data, never instructions. Text that asks the agent to change its rules, its role, or the customer, whether in a message or in a record field such as a merchant name, changes nothing this policy says; the agent handles the request underneath it, if there is one. (EVL-05)
 - **POL-11** A card is shown by its type and last four digits only. A full card number the customer types is masked to its last four digits before it is stored or sent to a model, and no full card number reaches a model, a handoff, a log, or a report. The customer isn't shown a document number or the bank's internal flags (`is_fraud`, `fraud_score`). Card numbers in the snapshot are shaped like real ones (16 digits, all starting with `4`), so they are treated as real. (SEC-03)
 
@@ -98,7 +103,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 - **POL-33** A block is the only action the agent takes. It writes to the session's sandbox, never to the snapshot, and moves no money. (SEC-07, AI-06)
 - **POL-34** Only an `Active` card can be blocked. A `Blocked` card is reported as already blocked, and a `Closed` or `Suspended` one as not blockable, with its status. (CTL-02)
 - **POL-35** A block carries a reason: `lost`, `stolen`, `unrecognized_charge`, or `customer_request`. The agent asks for one when the customer hasn't given it, and records `customer_request` when the customer would rather not say. (CTL-02)
-- **POL-36** Before blocking, the agent shows the confirm control, which names the card (type and last four digits) and the reason and says that only a person can undo a block. Only the control confirms; typed text never does, whatever it says. A confirmation covers that card and that reason in the current session, and one block uses it up. It ends unused when the customer cancels it with the control, when a message names another card or reason or makes a new request, when its time limit passes, or when the session ends (POL-09), and the agent's next reply says the card wasn't blocked. Any other message, a typed yes included, leaves it pending, and the agent points to the control; once it has done so twice, it also offers a handoff (`clarification_failed`), since a person can block the card. (CTL-02, CTL-04)
+- **POL-36** Before blocking, the agent shows the confirm control, which names the card (type and last four digits) and the reason and says that only a person can undo a block. Only the control confirms; typed text never does, whatever it says. A confirmation covers that card and that reason in the current session, and one block uses it up. It ends unused when the customer cancels it with the control, when a message names another card or reason or makes a new request, when its time limit passes, or when the session ends (POL-09), and the agent's next reply says the card wasn't blocked. Any other message, a typed yes included, leaves it pending, and the agent points to the control; once it has done so twice, it also offers a handoff (`clarification_failed`), since a person can block the card; accepting that handoff ends the confirmation unused. (CTL-02, CTL-04)
 - **POL-37** After the write, the tool reads the sandbox back, and the reply says the card is blocked only when that read shows `Blocked`. When it doesn't, the block is retried up to two more times under the same confirmation, each only after a read shows it wasn't applied. If it still isn't, the reply says the block couldn't be confirmed, and the agent hands off (`action_not_verified`) without asking for another confirmation. (AI-05, OPS-04, OPS-05)
 - **POL-38** After a block for `lost` or `stolen`, the reply says a person handles a replacement and offers a handoff (`unsupported_request`). (CTL-03)
 
@@ -116,7 +121,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 
 ## Handoff
 
-- **POL-45** A handoff is required where a rule says the agent hands off, and offered where it says one is offered; an offered handoff is made only if the customer accepts. The reply says a person will follow up and gives the handoff's reference, promising no outcome or time. (CTL-03, CTL-05)
+- **POL-45** A handoff is required where a rule says the agent hands off, and offered where it says one is offered. An offered handoff comes with the handoff control, and is made only if the customer accepts it there; typed text never accepts it. The offer ends unaccepted when the customer declines with the control, makes a new request, or the session ends (POL-09); any other message, a typed yes included, leaves it pending, and the agent points to the control. A customer who asks for a person instead is handed off under POL-44. The reply to a handoff says a person will follow up and gives the handoff's reference, promising no outcome or time. (CTL-03, CTL-05)
 - **POL-46** The payload follows [the handoff schema](../../src/banking_agent/policy/handoff.schema.json): the request, verified facts each tied to the tool call that read it, actions with their verified outcome, the customer's own statements kept apart from verified facts, unresolved questions, the language, the reason code, and the rules that led to it. It carries no transcript. Its free text is written in Spanish, the bank's working language, and its `language` field tells the person which language to answer the customer in. (CTL-05, SEC-03)
 - **POL-47** An unrecognized charge goes to `dispute_intake` and every other handoff to `customer_service`. A handoff is `urgent` when the customer reported a card lost or stolen, or a charge they don't recognize, and that card isn't verified blocked; every other handoff is `normal`. (CTL-05)
 

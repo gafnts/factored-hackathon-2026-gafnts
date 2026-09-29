@@ -12,7 +12,7 @@ Some decisions are still open. Each is marked **Open** where it arises and liste
 
 - **Three roles use the site, and only one talks to the agent.** A customer chats with the agent, a human agent receives its handoffs, and the AI team watches the system. The Runtime serves customers only (ADR-0004), so the consoles need an API of their own. The consoles are also what makes the prototype a customer-service system rather than a chatbot (SCP-02).
 - **The judges reach the system only through the submitted link** (OPS-12, SUB-02). They have no access to the AWS account, so what they should see has to be in the site. A frontend is scored; a dashboard earns nothing by itself ([Reading between the lines](../hackathon-requirements.md#reading-between-the-lines)).
-- **A handoff is asynchronous by policy.** Code decides whether a handoff is required or offered, the customer accepts an offered one, and the reply says that a person will follow up, promising no outcome or time (POL-45). No person stands between the customer and a block (POL-36, POL-39), so the human agent's side is a queue of cases, not a gate.
+- **A handoff is asynchronous by policy.** Code decides whether a handoff is required or offered, the customer accepts an offered one with the handoff control, and the reply says that a person will follow up, promising no outcome or time (POL-45). No person stands between the customer and a block (POL-36, POL-39), so the human agent's side is a queue of cases, not a gate.
 - **The payload is a first-class artifact** (CTL-05). The demo should show it arriving in a person's queue, structured, with each fact next to the tool call that read it.
 - **The judges will attack the site as well as the agent.** Text a customer wrote reaches an employee's browser through the payload, text the model wrote reaches the customer's browser as Markdown, and a customer's token must not open a console (SEC-05, CTL-04).
 - **The custom domain is ours, and a fork must stand up without it** (OPS-07). `gabriel.com.gt` has its DNS on Netlify, not Route 53, and CloudFront takes certificates from us-east-1 only ([ADR-0001](0001-deploy-to-us-east-1.md)).
@@ -48,7 +48,7 @@ flowchart LR
 
 | Route | For | Signs in through | Talks to | Shows |
 |---|---|---|---|---|
-| `/chat` | Customers (the `customer` group) | The customers' app client | The Runtime, over AG-UI | The chat in Spanish or Portuguese, the confirm control, a handoff's reference, and the persona's card with suggested prompts |
+| `/chat` | Customers (the `customer` group) | The customers' app client | The Runtime, over AG-UI | The chat in Spanish or Portuguese, the confirm and handoff controls, a handoff's reference, and the persona's card with suggested prompts |
 | `/agent` | Human agents (`human_agent`) | The staff app client | The console API | The queues, each case's payload with every verified fact next to the tool call that read it, and the controls to claim and resolve a case |
 | `/ops` | The AI team (`ai_team`) | The staff app client | Nothing: the report ships with the site | The evaluation report, labeled as an offline measurement |
 
