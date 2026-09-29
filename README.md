@@ -60,5 +60,5 @@ make check
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): setup paths by goal, environments and guardrails, day-to-day workflow, troubleshooting, and teardown
 - [hackathon-requirements.md](docs/hackathon-requirements.md): every point the organizers evaluate, with stable requirement IDs that code, tests, and PRs cite
-- [docs/adr/](docs/adr/README.md): architecture decision records, from the deployment region to the agent's architecture and its evaluation
+- [docs/adr/](docs/adr/README.md): architecture decision records, from the deployment region to the agent's architecture, its evaluation, and the data pipeline
 - [card-support.md](docs/policy/card-support.md): the card support policy (synthetic), whose rule IDs tests, evaluation cases, and handoffs cite

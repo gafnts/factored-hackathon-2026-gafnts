@@ -36,7 +36,7 @@ Build one backend on AgentCore. A Runtime serves the chat over AG-UI and runs an
 | Tool access | AgentCore Gateway (MCP, JWT authorizer) with a Cedar policy engine in `ENFORCE` mode | Validates the customer's token again and checks that every call names the token's customer | Record isolation |
 | Tools | Lambda functions behind the Gateway | Reads, the block, filing a handoff | The policy's hard rules |
 | Stores | DynamoDB, on demand | The tools' data (read-only to them), the sandbox overlay, confirmations, checkpoints, execution records, handoffs | State; IAM limits who writes what |
-| Pipeline | dbt-core with dbt-duckdb, run by `make` | Builds the tools' data from the pinned snapshot and publishes it, stamped | What the tools can see at all |
+| Pipeline | dbt-core with dbt-duckdb, run by `make` ([ADR-0006](0006-batch-medallion-pipeline.md)) | Builds the tools' data from the pinned snapshot and exports it, stamped | What the tools can see at all |
 | Models | The providers' APIs; keys in AgentCore Identity | Routing, extraction, replies, handoff text | Nothing |
 
 ```mermaid
@@ -252,7 +252,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 
 Two layers keep full card numbers away from the agent (POL-11, SEC-03):
 
-- **The tools' data never holds one.** The pipeline publishes only the last four digits of `product_number` (**Open**, decision 6), so no tool, model, handoff, or log can return a full number. Full numbers stay in the pipeline's bronze and silver layers, which only the pipeline and the evaluation's oracle read.
+- **The tools' data never holds one.** The pipeline publishes only the last four digits of `product_number` (**Open**, decision 6), so no tool, model, handoff, or log can return a full number. Full numbers stay in the pipeline's bronze and silver layers, which only the pipeline and the evaluation's oracle read, and which never leave the machine that builds them ([ADR-0006](0006-batch-medallion-pipeline.md)).
 - **What the customer types is masked before anything stores it.** LangGraph writes a run's input to the checkpointer before any node runs (the pending write at step -1 and the channel values at step 0; checked 2026-09-27), so a redaction node, or LangChain's `PIIMiddleware` (a hook before the model call), would still leave the number in DynamoDB. The entrypoint therefore masks every incoming message before the graph sees it. The detector is ours: a run of 13 or more digits, spaced, dashed, or neither, with no Luhn check, the same pattern the handoff schema rejects. LangChain's `credit_card` detector keeps only Luhn-valid numbers, and only 9.95% of the snapshot's card numbers pass Luhn, so it would miss about nine in ten. A match keeps its last four digits (`****4821`), which is all the policy uses (POL-13).
 
 The masked text is what the checkpoint, the execution record, the model, and the chat's message snapshot hold, so the customer sees their own message masked after the turn. AgentCore does no content masking of its own. Two gaps remain for step 9 to check: whether AgentCore's request logging or tracing records a request body before our entrypoint runs, and personal data other than card numbers, which a customer may type and which the synthetic records make low-risk here (**Open**, decision 11).
@@ -269,7 +269,7 @@ Three identifiers are in play. The sign-in is the policy's session: it starts wh
 
 ADR-0003 reads everything as of one instant and says that every table then shows the bank at the same moment. That holds for event tables, which are cut at the as-of instant by each event's own timestamp. It doesn't hold for the master tables: `customers` and `products` carry no history, so a row that existed at the as-of instant arrives with its status and balances as they were at delivery, and 6.23% of active cards were [updated after the as-of instant](../analysis/card-support.md#6-dates). The state the tools read is therefore **a frozen master snapshot with an event cutoff**:
 
-- **Customers and cards:** every row registered or opened by the as-of instant, with its values as delivered. A row updated after the as-of instant carries a flag, defined by the data contracts (step 7) and computed by the pipeline. It is flagged, never corrected: there is nothing to roll it back to.
+- **Customers and cards:** every row registered or opened by the as-of instant, with its values as delivered. A row updated after the as-of instant carries a flag, defined by the data contracts and computed by the pipeline in its silver layer ([ADR-0006](0006-batch-medallion-pipeline.md)). It is flagged, never corrected: there is nothing to roll it back to.
 - **Card transactions:** only those dated at or before the as-of instant, by their own timestamp, never `process_date`.
 - No rule reads the flag. The tools return it with the record, the execution record keeps it, and the evaluation reports results with and without flagged cards (ADR-0005).
 
@@ -316,7 +316,7 @@ DynamoDB tables, on demand (**Open**, decisions 1 to 3). The sandbox is keyed by
 | Execution records | Sign-in, then event; indexed by day and time for the AI team's view | The entrypoint and the graph | 90 days |
 | Handoff cases | Handoff, indexed by queue and status, and by reference | `file_handoff`; the console, a case's status only | 90 days |
 
-The tools' data holds, per customer, the customer's status and country, the cards with their last four digits, and the card transactions of the 90-day window with their conflict flags: only what the tools read. The overlay also carries the evaluation's fixtures (a built transaction, an unlisted code, an injected merchant name) and fault plans (a tool that fails N times); only the harness's role can write them, and tools honor them only in the sign-in they were written for (ADR-0005).
+The tools' data holds, per customer, the customer's status and country, the cards with their last four digits, and the card transactions of the 90-day window with their conflict flags: only what the tools read. It is created from the pipeline's gold export, stamped with the snapshot and pipeline version ([ADR-0006](0006-batch-medallion-pipeline.md)). The overlay also carries the evaluation's fixtures (a built transaction, an unlisted code, an injected merchant name) and fault plans (a tool that fails N times); only the harness's role can write them, and tools honor them only in the sign-in they were written for (ADR-0005).
 
 ### The tools as the seam to the bank's systems
 
@@ -383,13 +383,13 @@ The tools' data and the sandbox overlay are a mock of the bank's systems of reco
 
 **Data retention (OPS-10).** The table retention above is enforced with DynamoDB time to live. Logs are kept 30 days, on log groups Terraform creates before Lambda and the Runtime can create their own (S4 found that self-created groups had no retention and survived a destroy). Evaluation results per case stay in the evaluation bucket for 90 days, and the committed report holds aggregates only (SEC-03). Each provider's API data policy applies to what it receives. `make destroy` removes every table and log group.
 
-**Deployment.** The `prototype` stack in Terraform: the Runtime as a direct code deployment (a zip of Linux arm64 wheels in S3), the Lambdas, the tables, Cognito, the Gateway with its Cedar policies, the consoles' API, and the static site, deployed by `deploy-prototype.yml` on each merge to `main`. The custom domain is optional configuration, so a fork serves the site from its CloudFront domain (**Open**, decision 15).
+**Deployment.** The `prototype` stack in Terraform: the Runtime as a direct code deployment (a zip of Linux arm64 wheels in S3), the Lambdas, the tables (the tools' data created from the pipeline's export, ADR-0006), Cognito, the Gateway with its Cedar policies, the consoles' API, and the static site, deployed by `deploy-prototype.yml` on each merge to `main`. The custom domain is optional configuration, so a fork serves the site from its CloudFront domain (**Open**, decision 15).
 
 ### Open decisions
 
 We settle these before accepting this record. Each names the option we lean towards, which the rest of the record assumes, and any alternative still in play.
 
-1. **The tools' data.** Lean: DynamoDB keyed by customer, published by the pipeline and stamped with the snapshot and pipeline version; each tool reads one customer's partition. Alternative: DuckDB files in S3 read by the Lambdas, simpler to publish but loaded on every cold start.
+1. **The tools' data.** Lean: DynamoDB keyed by customer, created from the pipeline's export and stamped with the snapshot and pipeline version (how it is filled is ADR-0006's decision 1); each tool reads one customer's partition. Alternative: DuckDB files in S3 read by the Lambdas, simpler to publish but loaded on every cold start.
 2. **Sandbox overlay and execution records.** Lean: DynamoDB, with the overlay per sign-in and a time to live.
 3. **Checkpointer.** Lean: `DynamoDBSaver`, in the same store as the overlay and records, with contents that can be audited (S4). Alternative: `AgentCoreMemorySaver`, which scopes by `actor_id` natively but whose encoding S4's scan couldn't read.
 4. **Models.** Lean: S2's grid for extraction and replies, with three direct provider keys. Open with it: one OpenRouter key instead of three (S5). OpenRouter lists every model here, but tool calling, structured output, streaming, and usage through it are untested, and it adds an intermediary to the data path; lean to test it only if a fork's setup cost demands it.

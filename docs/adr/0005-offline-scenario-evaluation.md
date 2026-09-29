@@ -73,7 +73,7 @@ About 50 cases from development customers and development families: the three pa
 
 ### The oracle
 
-- **Written from the policy's text, independently of the tools.** SQL over the pipeline's bronze tables, the typed copy of the snapshot, rather than the gold tables the tools read, so that a transformation bug shows up as a disagreement instead of agreeing with itself. It lives in the evaluation package and shares no code with the tools.
+- **Written from the policy's text, independently of the tools.** SQL over the pipeline's bronze tables, the typed copy of the snapshot ([ADR-0006](0006-batch-medallion-pipeline.md)), rather than the gold tables the tools read, so that a transformation bug shows up as a disagreement instead of agreeing with itself. It lives in the evaluation package and shares no code with the tools.
 - **Computes each case's expected outcome** from the customer's state, the script's parameters (which card the customer names, and how), and the case's fixtures.
 - **Disagreements are triaged in writing.** When the system and the oracle differ, the log records whether the oracle, the system, or the policy's wording was wrong. A wording fault becomes a policy change, which raises the version once the policy is accepted. The log is published with the report.
 

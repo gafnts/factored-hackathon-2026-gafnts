@@ -53,3 +53,4 @@ Negative:
 | [0003](0003-choose-workflow-from-evidence.md) | Choose the workflow from evidence | Accepted |
 | [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph agent on AgentCore, with policy enforced in Gateway tools and Cedar | Proposed |
 | [0005](0005-offline-scenario-evaluation.md) | Offline scenario evaluation against an independent policy oracle | Proposed |
+| [0006](0006-batch-medallion-pipeline.md) | Batch medallion pipeline in dbt-duckdb, exported per snapshot to the tools' store | Proposed |
