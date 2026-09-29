@@ -27,3 +27,14 @@ module "identity" {
   log_retention_days       = var.log_retention_days
   pre_token_zip            = "${local.build}/pre_token.zip"
 }
+
+module "gateway" {
+  source = "./modules/gateway"
+
+  prefix                   = local.prefix
+  permissions_boundary_arn = local.permissions_boundary_arn
+  log_retention_days       = var.log_retention_days
+  discovery_url            = module.identity.discovery_url
+  allowed_clients          = [module.identity.customer_client_id]
+  reads_zip                = "${local.build}/reads.zip"
+}

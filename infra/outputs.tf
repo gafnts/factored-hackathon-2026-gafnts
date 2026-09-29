@@ -28,3 +28,11 @@ output "customer_client_id" {
 output "staff_client_id" {
   value = module.identity.staff_client_id
 }
+
+output "gateway_url" {
+  value = module.gateway.gateway_url
+}
+
+output "gateway_target" {
+  value = module.gateway.target
+}
