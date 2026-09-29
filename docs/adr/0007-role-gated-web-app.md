@@ -107,7 +107,7 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 | `reference` | Eight characters from Crockford's base32 alphabet (no `I`, `L`, `O`, or `U`), drawn at random, unique by a conditional put, and shown in two groups of four (`7K2M-9QXA`): what the reply gives the customer (POL-45), and what a human agent searches by |
 | `payload` | The payload as filed, never changed afterwards |
 | `queue`, `priority`, `reason_code`, `language` | Copied from the payload, for the indexes and the queue's list |
-| `source` | `demo` or `evaluation`, set by the graph from the token's groups as the execution record's is (ADR-0004), so an evaluation run's cases never reach a human agent's queue ([ADR-0005](0005-offline-scenario-evaluation.md)) |
+| `source` | `demo` or `evaluation`, from the token's groups: set by the graph, as the execution record's is (ADR-0004), or by the evaluation harness for ADR-0005's naive agent, so an evaluation run's cases never reach a human agent's queue ([ADR-0005](0005-offline-scenario-evaluation.md)) |
 | `status` | `filed`, `claimed`, or `resolved` |
 | `filed_at`, `claimed_at`, `resolved_at` | Wall clock |
 | `claimed_by` | The human agent's `sub` and user name |
