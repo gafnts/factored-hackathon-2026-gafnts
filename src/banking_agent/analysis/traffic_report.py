@@ -868,8 +868,8 @@ def _projection_lines(result: Traffic, projection: Projection) -> list[str]:
         *_cost_lines(projection),
         "### What the projection leaves out",
         "",
-        "- Retries (OPS-04), handoff text, and the reply check's fallback add calls; prompt caching would "
-        "cut input tokens and their cost.",
+        "- Retries (OPS-04) and handoff text add calls; prompt caching would cut input tokens and their "
+        "cost.",
         "- The evaluation's own runs (ADR-0005) share the same quotas while they run.",
         "- A customer who returns to a live session skips its cold start, and one who signs in twice pays "
         "two.",

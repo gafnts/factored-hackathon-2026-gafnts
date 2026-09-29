@@ -360,7 +360,7 @@ At list price, on the mean day (not the busiest), with every call on one model a
 
 ### What the projection leaves out
 
-- Retries (OPS-04), handoff text, and the reply check's fallback add calls; prompt caching would cut input tokens and their cost.
+- Retries (OPS-04) and handoff text add calls; prompt caching would cut input tokens and their cost.
 - The evaluation's own runs (ADR-0005) share the same quotas while they run.
 - A customer who returns to a live session skips its cold start, and one who signs in twice pays two.
 - The measured peak is a synthetic flat day's; a real contact center's daily cycle, campaigns, or an outage elsewhere in the bank would raise it. The business-hours profile is one such assumption, not an estimate.
