@@ -1,0 +1,63 @@
+[
+  {
+    "pk": "META",
+    "sk": "META",
+    "kind": "metadata",
+    "schema_version": 1,
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    }
+  },
+  {
+    "pk": "CLI-EXAMPLE00001",
+    "sk": "CUSTOMER",
+    "kind": "customer",
+    "customer_id": "CLI-EXAMPLE00001",
+    "customer_status": "Active",
+    "country": "México",
+    "updated_after_as_of": false
+  },
+  {
+    "pk": "CLI-EXAMPLE00001",
+    "sk": "CARD#PRD-EXAMPLE00002",
+    "kind": "card",
+    "card_id": "PRD-EXAMPLE00002",
+    "product_type": "Tarjeta Crédito",
+    "last_four": "4821",
+    "currency": "USD",
+    "current_balance": 1240.55,
+    "credit_limit": null,
+    "product_status": "Active",
+    "opening_date": "2023-02-14",
+    "expiration_date": "2026-02-13",
+    "past_expiration": true,
+    "updated_after_as_of": false
+  },
+  {
+    "pk": "CLI-EXAMPLE00001",
+    "sk": "TXN#TRX-EXAMPLE0000000000003",
+    "kind": "transaction",
+    "card_key": "CLI-EXAMPLE00001#PRD-EXAMPLE00002",
+    "listed_at": "2026-06-14 21:07:33#TRX-EXAMPLE0000000000003",
+    "transaction_id": "TRX-EXAMPLE0000000000003",
+    "card_id": "PRD-EXAMPLE00002",
+    "transaction_date": "2026-06-14 21:07:33",
+    "transaction_type": "Purchase",
+    "amount": 189.9,
+    "currency": "USD",
+    "channel": "POS",
+    "merchant_name": "Comercio Ejemplo",
+    "merchant_category": "Retail",
+    "transaction_country": "USA",
+    "transaction_status": "Approved",
+    "response_code": "00",
+    "is_fraud": false,
+    "before_card_opening": false,
+    "after_card_expiration": true
+  }
+]

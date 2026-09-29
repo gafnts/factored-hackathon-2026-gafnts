@@ -1,0 +1,133 @@
+[
+  {
+    "type": "RUN_STARTED",
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+  },
+  {
+    "type": "TEXT_MESSAGE_START",
+    "messageId": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f",
+    "role": "assistant"
+  },
+  {
+    "type": "TEXT_MESSAGE_CONTENT",
+    "messageId": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f",
+    "delta": "Para bloquear o seu cartão de crédito final 4821 por perda, confirme no botão abaixo."
+  },
+  {
+    "type": "TEXT_MESSAGE_END",
+    "messageId": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f"
+  },
+  {
+    "type": "MESSAGES_SNAPSHOT",
+    "messages": [
+      {
+        "id": "8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d",
+        "role": "user",
+        "content": "Perdi meu cartão de crédito final 4821, quero bloquear."
+      },
+      {
+        "id": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f",
+        "role": "assistant",
+        "content": "Para bloquear o seu cartão de crédito final 4821 por perda, confirme no botão abaixo."
+      }
+    ]
+  },
+  {
+    "type": "RUN_FINISHED",
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "outcome": {
+      "type": "interrupt",
+      "interrupts": [
+        {
+          "id": "d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6",
+          "reason": "controls",
+          "metadata": {
+            "language": "pt",
+            "controls": [
+              {
+                "kind": "block_confirmation",
+                "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+                "card": {
+                  "type": "Tarjeta Crédito",
+                  "last_four": "4821"
+                },
+                "reason": "lost",
+                "expires_at": "2026-10-02T15:46:04Z"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "RUN_STARTED",
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+  },
+  {
+    "type": "TEXT_MESSAGE_START",
+    "messageId": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f80",
+    "role": "assistant"
+  },
+  {
+    "type": "TEXT_MESSAGE_CONTENT",
+    "messageId": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f80",
+    "delta": "Pronto: o seu cartão de crédito final 4821 está bloqueado. A reposição do cartão é feita por uma pessoa da nossa equipe; se quiser, posso passar o seu caso para ela."
+  },
+  {
+    "type": "TEXT_MESSAGE_END",
+    "messageId": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f80"
+  },
+  {
+    "type": "MESSAGES_SNAPSHOT",
+    "messages": [
+      {
+        "id": "8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d",
+        "role": "user",
+        "content": "Perdi meu cartão de crédito final 4821, quero bloquear."
+      },
+      {
+        "id": "4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f",
+        "role": "assistant",
+        "content": "Para bloquear o seu cartão de crédito final 4821 por perda, confirme no botão abaixo."
+      },
+      {
+        "id": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f80",
+        "role": "assistant",
+        "content": "Pronto: o seu cartão de crédito final 4821 está bloqueado. A reposição do cartão é feita por uma pessoa da nossa equipe; se quiser, posso passar o seu caso para ela."
+      }
+    ]
+  },
+  {
+    "type": "RUN_FINISHED",
+    "threadId": "c7f3a1d2-4b5e-4f60-8a9b-0c1d2e3f4a5b",
+    "runId": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+    "outcome": {
+      "type": "interrupt",
+      "interrupts": [
+        {
+          "id": "e2f3a4b5-c6d7-4e8f-90a1-b2c3d4e5f6a7",
+          "reason": "controls",
+          "metadata": {
+            "language": "pt",
+            "controls": [
+              {
+                "kind": "handoff_offer",
+                "offer_id": "2e8d4b61-9f3a-4c07-b5e2-6a1d9c7f0b83",
+                "reason_code": "unsupported_request"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "RUN_ERROR",
+    "message": "Too many messages in a short time.",
+    "code": "rate_limited"
+  }
+]

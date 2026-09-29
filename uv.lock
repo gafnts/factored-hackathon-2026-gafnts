@@ -94,12 +94,13 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3", extra = ["crt"] },
     { name = "duckdb" },
+    { name = "jsonschema" },
+    { name = "rfc3339-validator" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "boto3-stubs", extra = ["s3", "sts"] },
-    { name = "jsonschema" },
     { name = "moto", extra = ["s3"] },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -107,7 +108,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-timeout" },
-    { name = "rfc3339-validator" },
     { name = "ruff" },
     { name = "shellcheck-py" },
     { name = "types-jsonschema" },
@@ -124,12 +124,13 @@ eda = [
 requires-dist = [
     { name = "boto3", extras = ["crt"], specifier = ">=1.43.103" },
     { name = "duckdb", specifier = ">=1.5.5" },
+    { name = "jsonschema", specifier = ">=4.26" },
+    { name = "rfc3339-validator", specifier = ">=0.1.4" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3-stubs", extras = ["s3", "sts"], specifier = ">=1.43.103" },
-    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "moto", extras = ["s3"], specifier = ">=5.2.3" },
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
@@ -137,7 +138,6 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1" },
     { name = "pytest-timeout", specifier = ">=2.4" },
-    { name = "rfc3339-validator", specifier = ">=0.1.4" },
     { name = "ruff", specifier = ">=0.16.9" },
     { name = "shellcheck-py", specifier = ">=0.11.0.1" },
     { name = "types-jsonschema", specifier = ">=4.26.0.20260518" },
