@@ -36,3 +36,20 @@ output "gateway_url" {
 output "gateway_target" {
   value = module.gateway.target
 }
+
+output "runtime_arn" {
+  value = module.runtime.runtime_arn
+}
+
+output "invoke_url" {
+  value = module.runtime.invoke_url
+}
+
+output "model_key_secret" {
+  description = "The secret make model-key stores the Anthropic API key in (CONTRIBUTING.md, step 3.6)"
+  value       = module.runtime.model_key_secret
+}
+
+output "runtime_log_group" {
+  value = module.runtime.runtime_log_group
+}

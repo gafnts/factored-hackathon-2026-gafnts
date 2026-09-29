@@ -85,6 +85,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` and `dataset-destroy` need `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
+| The model key reaching state, plans, or CI | The IAM root creates each environment's secret empty, `make model-key` stores the key from your `.env`, and the stack only looks the secret up by name ([step 3.6](#36-verify-and-deploy-local)) |
 | The dataset changing under an evaluation | `make data` stops when the organizers' bucket drifts from `dataset.lock`, and the data bucket rejects any write that would overwrite a snapshot |
 
 ---
@@ -384,6 +385,9 @@ Run `make doctor` first; most setup problems show up there.
 | `make data` deleted files that didn't match | A download was corrupted or a local file was edited. Run `make data` again; it downloads only the deleted files. |
 | `make plan` stops at `aws configure export-credentials` | Your sign-in session ended, or `AWS_PROFILE` names a profile that doesn't exist. Run `aws login`, or finish [step 3.4](#34-configure-your-local-deploy-profile). |
 | `make apply` says there is no saved plan | Run `make plan` first; `make apply` applies only what it saved. |
+| `make plan` can't find the secret `banking-agent-<env>-anthropic-api-key` | The IAM root predates it. Run `make iam-apply`, then `make model-key` ([step 3.6](#36-verify-and-deploy-local)). |
+| `make apply` fails creating the API key credential provider: `can't find the specified secret value for staging label: AWSCURRENT` | The model key isn't stored. Run `make model-key`, then `make plan` and `make apply` again. |
+| The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.6](#36-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
 | A test says `infra/modules/gateway/tools.json` is stale | The tools' contract changed. Run `make build` and commit the file. |
 
 ---
