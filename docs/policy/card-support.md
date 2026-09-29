@@ -180,7 +180,7 @@ A Portuguese-speaking customer doesn't recognize a purchase and confirms a block
     {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "amount", "value": 189.9, "evidence": "call-1"},
     {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "currency", "value": "USD", "evidence": "call-1"},
     {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "transaction_country", "value": "USA", "evidence": "call-1"},
-    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "is_fraud", "value": false, "evidence": "call-1"},
+    {"subject": "transaction", "id": "TRX-EXAMPLE0000000000003", "field": "is_fraud", "value": false, "evidence": "call-4"},
     {"subject": "card", "id": "PRD-EXAMPLE00002", "field": "product_type", "value": "Tarjeta Crédito", "evidence": "call-3"},
     {"subject": "card", "id": "PRD-EXAMPLE00002", "field": "last_four", "value": "4821", "evidence": "call-3"},
     {"subject": "card", "id": "PRD-EXAMPLE00002", "field": "product_status", "value": "Blocked", "evidence": "call-3"}
@@ -191,7 +191,8 @@ A Portuguese-speaking customer doesn't recognize a purchase and confirms a block
   "evidence": [
     {"call_id": "call-1", "tool": "find_transactions", "called_at": "2026-10-02T15:40:51Z", "outcome": "ok"},
     {"call_id": "call-2", "tool": "block_card", "called_at": "2026-10-02T15:41:39Z", "outcome": "ok"},
-    {"call_id": "call-3", "tool": "get_card", "called_at": "2026-10-02T15:41:40Z", "outcome": "ok"}
+    {"call_id": "call-3", "tool": "get_card", "called_at": "2026-10-02T15:41:40Z", "outcome": "ok"},
+    {"call_id": "call-4", "tool": "file_handoff", "called_at": "2026-10-02T15:42:08Z", "outcome": "ok"}
   ],
   "customer_statements": ["Dice que tiene la tarjeta consigo y que no hizo esa compra."],
   "unresolved_questions": ["Si el cliente autorizó la compra."]
