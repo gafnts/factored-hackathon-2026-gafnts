@@ -52,7 +52,7 @@ flowchart LR
 | `/agent` | Human agents (`human_agent`) | The staff app client | The console API | The queues, each case's payload with every verified fact next to the tool call that read it, and the controls to claim and resolve a case |
 | `/ops` | The AI team (`ai_team`) | The staff app client | Nothing: the report ships with the site | The evaluation report, labeled as an offline measurement |
 
-A route only decides what the browser draws. What a token can reach is decided on the server: the Runtime accepts the customers' app client and the customer group only (ADR-0004), and the console API accepts the staff app client only and checks each route's group. A customer who opens `/agent` meets a sign-in form their credentials can't pass.
+A route only decides what the browser draws. What a token can reach is decided on the server: the Runtime accepts the customers' app client and the customer group only (ADR-0004), and the console API accepts the staff app client only and checks each route's group. A customer who opens `/agent` meets a sign-in form their credentials can't pass: the pre-token trigger refuses them a token from the staff app client ([Sign-in](#sign-in)).
 
 The consoles are in Spanish, the bank's working language, in which the payload's free text is written (POL-46). The chat's own text follows a language switch that starts from the browser's language; the agent's replies follow POL-50. Every page says it is a prototype over synthetic data (SEC-02).
 
@@ -68,16 +68,16 @@ The consoles are in Spanish, the bank's working language, in which the payload's
 ### Sign-in
 
 - **Our own form, in the app** (**Open**, decision 2). It signs in with SRP through Amplify's auth library, calling Cognito's API directly: no user pool domain, no managed login, and no redirect. Admins create every user with a permanent password (ADR-0004), so there is no sign-up and no forced password change.
-- **Tokens live in the tab's `sessionStorage`.** Each tab holds its own sign-in, so a customer in one tab and a human agent in another stay signed in side by side, and closing a tab drops its tokens. A reload keeps the sign-in; a new tab asks for one. A sign-in lasts at most an hour (ADR-0004's decision 10), and when it ends the tab asks the person to sign in again (POL-09).
-- **Two app clients** separate customers from staff before any of our code runs:
-  - **Customers':** the only client the Runtime's JWT authorizer accepts, so a staff token never reaches the agent, even if the customer group claim, which ADR-0004 requires but no spike has tried, were misconfigured. The evaluation's test users sign in through it too (ADR-0005).
-  - **Staff:** the only client the console API's JWT authorizer accepts, so a customer's token gets 401 there.
+- **Tokens live in the tab's `sessionStorage`.** Each tab holds its own sign-in, so a customer in one tab and a human agent in another stay signed in side by side, and closing a tab drops its tokens. A reload keeps the sign-in; a new tab asks for one. A sign-in lasts an hour (ADR-0004's decision 10), and when it ends the tab asks the person to sign in again (POL-09); an access token refreshed just before then keeps working up to 15 minutes more (ADR-0004's known limit).
+- **Two app clients, and a trigger that holds each user to theirs,** separate customers from staff before the Runtime or the console API runs any of our code. Any user of a pool can sign in through any of its app clients, and both client IDs are public in `config.json`, so the clients alone would separate tokens, not people. ADR-0004's pre-token trigger, which runs at every sign-in and every refresh, therefore refuses a token when the app client doesn't match the user's group: the customers' client issues tokens to the `customer` group only, and the staff client to `human_agent` and `ai_team` only. A user with no group, or with groups on both sides, gets no token.
+  - **Customers':** the only client the Runtime's JWT authorizer accepts, so a staff member's token never reaches the agent, even if the customer group claim, which ADR-0004 requires but no spike has tried, were misconfigured. The evaluation's test users sign in through it too (ADR-0005).
+  - **Staff:** the only client the console API's JWT authorizer accepts, so a customer's token gets 401 there, and a customer who tries the staff client gets no token at all.
   - **Both:** `write_attributes` limited to `locale`, which closes the hole spike S3 found; token revocation on; ADR-0004's token lifetimes.
 - **Signing out** revokes the refresh token and clears the tab. An access token already issued keeps working until it expires, up to 15 minutes (ADR-0004's known limit).
 
 ### The console API
 
-An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and whose audience is the staff app client. The authorizer can require scopes but not groups, so each route's Lambda checks `cognito:groups` for the route's group before anything else. A test calls every route with each role's token, an expired one, and none (SEC-05, EVL-04).
+An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and whose audience is the staff app client. The authorizer can require scopes but not groups, so each route's Lambda checks `cognito:groups` for the route's group before anything else. A test calls every route with each role's token, an expired one, and none, and signs in across the clients both ways, a customer through the staff client and a staff member through the customers', expecting no token (SEC-05, EVL-04).
 
 | Route | Group | Does |
 |---|---|---|
@@ -182,7 +182,7 @@ We settle these before accepting this record. Each names the option we lean towa
 
 **Tokens in `localStorage`** (Amplify's default). One sign-in per browser: signing in as a human agent in one tab signs the customer out of the other, which breaks the side-by-side demo, and tokens outlive the tab.
 
-**One app client for every role.** The Runtime and the console API would tell roles apart by the group claim alone, which no spike has tried at the Runtime, and a customer's token would pass the console API's authorizer and reach our code.
+**One app client for every role.** The Runtime and the console API would tell roles apart by the group claim alone, which no spike has tried at the Runtime, and a customer's token would pass the console API's authorizer and reach our code. The pre-token trigger couldn't help either: with one client, it can't tell which side a sign-in is for.
 
 **Push through AppSync Events.** A DynamoDB stream on the cases table, a Lambda publishing to a channel namespace, and a channel authorizer for staff tokens. The pinned provider supports it (`aws_appsync_api`, `aws_appsync_channel_namespace`), and it is the production path, but it adds four resources and a second connection per console for updates a 3-second poll shows as quickly. API Gateway WebSockets would do the same with more of our own code.
 
@@ -199,7 +199,7 @@ We settle these before accepting this record. Each names the option we lean towa
 Positive:
 - One certificate, one distribution, one DNS record, and one build; a fork serves the site on its CloudFront domain with no DNS work.
 - A customer and a human agent can be signed in side by side in one browser, so a handoff filed in one tab shows up in the other within seconds.
-- Customer and staff tokens are told apart by app client before our code runs, at the Runtime and at the console API, and staff roles by group in every console route.
+- A customer can't get a staff token, nor a staff member a customer's: the trigger holds each user to their side's app client, the authorizers tell the tokens apart before our code runs, and every console route checks the staff role by group.
 - The payload stays the validated artifact CTL-05 asks for; its case's status lives beside it, and IAM keeps the console from editing it.
 - A human agent reads each verified fact next to the tool call that read it.
 - Evaluation runs file their handoffs apart, so a human agent's queue holds only the cases customers filed in the chat.
@@ -214,4 +214,5 @@ Negative:
 - Claiming and resolving change nothing at the bank, and no one tells the customer: the console shows a workflow, not a service.
 - The judges see no live monitoring: it is described and defined in Terraform, not shown.
 - The first apply with the custom domain waits for a record we add by hand in Netlify.
+- Holding each user to their side's app client rests on our pre-token trigger; a bug in it would reopen sign-ins across the clients, with the group checks at the Runtime and in every console route still behind it.
 - Nothing technical stops a judge from sharing credentials; the caps make that a bounded cost, not an open one.
