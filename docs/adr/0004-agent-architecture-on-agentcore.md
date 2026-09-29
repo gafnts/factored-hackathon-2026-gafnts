@@ -78,7 +78,7 @@ Access and actions are decided by two layers that don't trust the one above them
    7. opens the turn's execution record.
 4. The graph runs, calling tools through the Gateway with the customer's own access token.
 5. The Gateway validates the token, Cedar checks `customer_id`, and the Lambda answers from the tools' data and the sign-in's overlay.
-6. Replies go back as AG-UI events, with the wrapper's raw LangChain events turned off (they double the stream and expose internals, S4).
+6. Replies go back as AG-UI events, limited to what the chat renders ([What the chat receives](#what-the-chat-receives)); the wrapper's raw LangChain events are turned off, since they double the stream and expose internals (S4).
 
 The execution record holds every model call (model, prompt version, tokens, latency, cost), tool call, decision, interrupt, and resume, stamped with the sign-in, thread, role, source (demo or evaluation), business date, and the policy, prompt, schema, and snapshot versions. It is the system's own trace and the evaluation's source (ADR-0005). Demo users are created by an admin script from development-split personas; their credentials reach the judges with the submission, never the repository.
 
@@ -206,7 +206,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-08 | Cedar, tool | Cedar denies another customer's ID; tools look up records under the caller's customer only, so another's card reads as not found |
 | POL-09 | Authorizers, frontend, graph | Both JWT authorizers reject an expired token; the chat asks the customer to sign in; `confirm` refuses a resume from another sign-in or after the confirmation expires |
 | POL-10 | Graph, tool | No rule lives in text: the model picks no tool and no customer, its outputs are typed, and tool results reach it as data |
-| POL-11 | Pipeline, entrypoint, graph, tool | The tools' data holds last four digits only; the entrypoint masks typed numbers; the reply check and the handoff schema reject runs of 13 or more digits |
+| POL-11 | Pipeline, entrypoint, graph, tool | The tools' data holds last four digits only; the entrypoint masks typed numbers; the reply check and the handoff schema reject runs of 13 or more digits; the chat's stream carries no private state |
 | POL-12 | Tool, graph | For a `Closed` or `Suspended` customer, `get_available_credit` and `find_transactions` refuse, while `list_cards` and `get_card`, which a block needs, mark the customer as restricted without naming the status; the graph hands off everything but a block |
 | POL-13 | Graph, tool | Code matches extracted hints against `list_cards` |
 | POL-14 | Graph | Code asks, listing the cards that fit |
@@ -235,7 +235,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-37 | Tool, graph | Three writes at most under one confirmation, each after a read-back; the graph hands off `action_not_verified` |
 | POL-38 | Graph | Offers the handoff after a verified `lost` or `stolen` block |
 | POL-39 | Graph | The offer, then the required handoff, with the deadline of decision 7 |
-| POL-40 | Pipeline, graph | `fraud_score` isn't published; `is_fraud` reaches the handoff builder, never the model |
+| POL-40 | Pipeline, graph, entrypoint | `fraud_score` isn't published; `is_fraud` reaches the handoff builder, never the model or the chat's stream |
 | POL-41 | Graph, tool | Hands off; no unblock tool exists |
 | POL-42 | Graph | Declines with the reason and offers the handoff |
 | POL-43 | Graph, tool | Declines; no tool reads accounts or loans |
@@ -256,6 +256,21 @@ Two layers keep full card numbers away from the agent (POL-11, SEC-03):
 - **What the customer types is masked before anything stores it.** LangGraph writes a run's input to the checkpointer before any node runs (the pending write at step -1 and the channel values at step 0; checked 2026-09-27), so a redaction node, or LangChain's `PIIMiddleware` (a hook before the model call), would still leave the number in DynamoDB. The entrypoint therefore masks every incoming message before the graph sees it. The detector is ours: a run of 13 or more digits, spaced, dashed, or neither, with no Luhn check, the same pattern the handoff schema rejects. LangChain's `credit_card` detector keeps only Luhn-valid numbers, and only 9.95% of the snapshot's card numbers pass Luhn, so it would miss about nine in ten. A match keeps its last four digits (`****4821`), which is all the policy uses (POL-13).
 
 The masked text is what the checkpoint, the execution record, the model, and the chat's message snapshot hold, so the customer sees their own message masked after the turn. AgentCore does no content masking of its own. Two gaps remain for step 9 to check: whether AgentCore's request logging or tracing records a request body before our entrypoint runs, and personal data other than card numbers, which a customer may type and which the synthetic records make low-risk here (**Open**, decision 11).
+
+### What the chat receives
+
+The chat should receive the replies and the confirm control, and nothing else. `ag-ui-langgraph` 0.0.45 sends more by default (read in its source on 2026-09-28):
+
+- **State snapshots.** At node exits and at the end of a run it emits a `STATE_SNAPSHOT` of the graph's state, filtered only by the graph's output schema, and a `StateGraph` declared without one outputs its whole state. Whatever the graph keeps for its own steps would reach the customer's browser: tool results, `is_fraud` on its way to the handoff builder (POL-40), a draft handoff.
+- **Model output as it streams.** Every streamed model call becomes text or tool-call events unless its run's metadata sets `emit-messages` and `emit-tool-calls` to false. The router's and the extraction's structured output, the handoff's free text, and a reply before its check would all reach the chat; S4's replies arrived that way, 11 to 25 deltas each.
+
+The reply check reads the reply alone and would see none of it, so three layers keep the stream to what the chat renders (POL-11, POL-40, CTL-04):
+
+1. **A public state.** The graph's output schema holds `messages` only, and `messages` holds the customer's masked messages and the agent's checked replies, never a tool result. Tool results, flags, confirmations, and drafts live in state the output schema leaves out.
+2. **No streamed model calls.** Every model call runs with `emit-messages` and `emit-tool-calls` off, and a reply reaches the chat once, after its check (decision 8); step 9 checks that the chat renders a reply sent whole.
+3. **An allowlist in the entrypoint.** The entrypoint passes on only the event types the chat renders (the run's start, end, and errors; text messages; the messages snapshot; and the confirmation's interrupt) and drops the rest, so an event type added by a later version of the wrapper is dropped, not sent.
+
+A test runs every path of the graph through the wrapper and the entrypoint, and fails if any event, of any type, carries a key the public state leaves out, a label or an extracted field, an `is_fraud` value, or a reply before its check. ADR-0005's grader reads every event the harness receives too, not only the reply.
 
 ### Threads and runtime sessions
 
@@ -435,6 +450,7 @@ Positive:
 - Access and the block hold even if the model, or the graph's routing, is wrong: Cedar and the tools decide them.
 - Typed text can't block a card, and a confirmation can't be replayed or moved to another card, reason, conversation, or sign-in.
 - No full card number exists where the agent can read it, and a typed one is masked before any store sees it.
+- The chat's stream carries replies and the confirm control only: no tool result, flag, label, or unchecked reply reaches the browser.
 - Every rule has a named place in code, which tests and evaluation cases cite.
 - Another customer's thread or runtime session ID gets nothing, and a regression test keeps it that way.
 - Everything is Terraform on one provider version, and a fork stands up without our accounts.
@@ -443,6 +459,7 @@ Positive:
 
 Negative:
 - More code than a prebuilt agent: an entrypoint around `ag-ui-langgraph`, an explicit graph, and a confirmation record with a lifecycle of its own. `ag-ui-langgraph` is at 0.0.x, and the entrypoint depends on how it handles interrupts.
+- `ag-ui-langgraph` streams the graph's state and every model call by default, so keeping them off the stream is our code's job, and its test's, with each new version of the wrapper.
 - The model providers receive the conversation, which only synthetic data makes acceptable.
 - The mock can't show what a real system adds: latency, outages, late or partial writes, and what follows a block. The fault plans simulate only a tool's failures.
 - The guarantee that a block was confirmed rests on the Runtime's code, not on IAM.
