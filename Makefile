@@ -173,7 +173,8 @@ apply: _check-backend ## Apply the plan that make plan saved for ENV (refuses pr
 		echo "No saved plan for $(ENV). Run 'make plan ENV=$(ENV)' first."; exit 1; fi
 	$(TF_AWS) apply ../$(PLAN)
 
-destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
+# Terraform reads the zips even to plan a destroy.
+destroy: _check-backend build ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
 		echo "destroy requires explicit ENV (e.g. make destroy ENV=local). Refusing default."; exit 1; fi
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
@@ -183,8 +184,8 @@ destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit
 
 ##@ Maintenance
 
-lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) in all modules
-	@find infra -name ".terraform.lock.hcl" -not -path "*/.terraform/*" -exec dirname {} \; | \
+lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) in every root
+	@find infra -name ".terraform.lock.hcl" -not -path "*/.terraform/*" -not -path "infra/modules/*" -exec dirname {} \; | \
 		xargs -I{} terraform -chdir={} providers lock \
 		-platform=linux_amd64 -platform=darwin_amd64 -platform=darwin_arm64
 
