@@ -5,6 +5,10 @@ TF      := terraform -chdir=infra
 VARS    := -var-file=envs/$(ENV).tfvars
 BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
 
+# The pinned AWS provider can't assume a role on top of an `aws login` sign-in, so Terraform
+# gets the CLI's credentials for AWS_PROFILE; a failed export stops it before another profile can.
+TF_AWS := $(if $(AWS_PROFILE),creds="$$(aws configure export-credentials --format env)" && eval "$$creds" && env -u AWS_PROFILE ,)$(TF)
+
 # The IAM and dataset roots are admin-only, so they ignore the scoped AWS_PROFILE
 # that .envrc sets (that profile can't exist until the IAM root has run).
 AWS_ADMIN_PROFILE ?= default
@@ -149,22 +153,22 @@ dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (require
 ##@ Terraform (per ENV)
 
 init: ## Initialize Terraform backend for ENV
-	$(TF) init -reconfigure $(BACKEND)
+	$(TF_AWS) init -reconfigure $(BACKEND)
 
 plan: ## Preview infrastructure changes for ENV
-	$(TF) plan $(VARS)
+	$(TF_AWS) plan $(VARS)
 
 apply: _check-backend ## Apply infrastructure changes for ENV (refuses prototype unless I_KNOW=1)
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to apply prototype from local. CI owns prototype."; exit 1; fi
-	$(TF) apply $(VARS)
+	$(TF_AWS) apply $(VARS)
 
 destroy: _check-backend ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
 		echo "destroy requires explicit ENV (e.g. make destroy ENV=local). Refusing default."; exit 1; fi
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy prototype. Re-run with I_KNOW=1."; exit 1; fi
-	$(TF) destroy $(VARS)
+	$(TF_AWS) destroy $(VARS)
 
 
 ##@ Maintenance
