@@ -1,11 +1,14 @@
 """
 The deployed stack holds its boundaries: each user signs in through their side's client only, a customer can't rewrite
-their customer_id, the Gateway and Cedar serve a customer their own ID only, the Runtime accepts customers' access
-tokens only, and every log group keeps a retention (ADR-0004, To verify on the first deploy; ADR-0007, Sign-in; POL-07,
-POL-08; SEC-04, SEC-05; EVL-04; OPS-10). Spikes S3 and S4 found each of these by hand.
+their customer_id, the Gateway and Cedar serve a customer their own ID only, the read tools answer from the
+customer's own partition of the tools' data and nothing more, the Runtime accepts customers' access tokens only, and
+every log group keeps a retention (ADR-0004, To verify on the first deploy; ADR-0006, To verify on the first deploy;
+ADR-0007, Sign-in; POL-07, POL-08, POL-11, POL-12, POL-40; SEC-04, SEC-05; CTL-04; EVL-04; OPS-10). Spikes S3 and S4
+found the first of these by hand.
 """
 
 import json
+import re
 import uuid
 from typing import Any
 
@@ -18,6 +21,7 @@ from botocore.exceptions import ClientError
 from mypy_boto3_cognito_idp import CognitoIdentityProviderClient
 
 from banking_agent.agent.app import REPLY
+from banking_agent.contracts import validator
 
 from .conftest import SignIn, User, claims
 
@@ -65,12 +69,20 @@ def tool_output(body: dict[str, Any]) -> dict[str, Any]:
     return output
 
 
-def get_card(customer_id: str, card_id: str = "PRD-ITEST0000001") -> dict[str, Any]:
+def arguments(access: str, **overrides: str) -> dict[str, Any]:
+    """
+    A call as the agent makes it: the token's customer and sign-in, unless a test names others.
+    """
+    token = claims(access)
     return {
-        "customer_id": customer_id,
-        "origin_jti": str(uuid.uuid4()),
-        "card_id": card_id,
+        "customer_id": token.get("customer_id", "CLI-ITEST0000404"),
+        "origin_jti": token["origin_jti"],
+        **overrides,
     }
+
+
+def fits(tool: str, output: dict[str, Any]) -> bool:
+    return validator("tools", f"{tool}_output").is_valid(output)
 
 
 def invoke(
@@ -153,12 +165,12 @@ def test_a_customer_cant_rewrite_their_customer_id(
     customer = users["customer"]
     access = sign_in(customer, "customer")["access"]
 
+    other = users["other_customer"].customer_id
+    assert other is not None
     with pytest.raises(ClientError):
         public.update_user_attributes(
             AccessToken=access,
-            UserAttributes=[
-                {"Name": "custom:customer_id", "Value": "CLI-ITEST0000002"}
-            ],
+            UserAttributes=[{"Name": "custom:customer_id", "Value": other}],
         )
     public.update_user_attributes(
         AccessToken=access, UserAttributes=[{"Name": "locale", "Value": "pt-BR"}]
@@ -204,12 +216,10 @@ def test_a_customer_lists_the_read_tools(
 def test_a_customers_own_call_reaches_the_tool_which_validates_it(
     outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
 ) -> None:
-    customer = users["customer"]
-    assert customer.customer_id is not None
-    access = sign_in(customer, "customer")["access"]
+    access = sign_in(users["customer"], "customer")["access"]
 
     body = call(
-        outputs, access, "get_card", get_card(customer.customer_id, "4123456789014821")
+        outputs, access, "get_card", arguments(access, card_id="4123456789014821")
     )
 
     assert tool_output(body) == {
@@ -218,15 +228,23 @@ def test_a_customers_own_call_reaches_the_tool_which_validates_it(
     }
 
 
-@pytest.mark.parametrize("customer_id", ["CLI-ITEST0000002", "cli-itest0000001"])
+@pytest.mark.parametrize("whose", ["other_customer", "lowercase"])
 def test_cedar_denies_another_customers_id(
-    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn, customer_id: str
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn, whose: str
 ) -> None:
     access = sign_in(users["customer"], "customer")["access"]
+    own, other = users["customer"].customer_id, users["other_customer"].customer_id
+    assert own is not None and other is not None
+    customer_id = other if whose == "other_customer" else own.lower()
 
-    body = call(outputs, access, "get_card", get_card(customer_id))
-
-    assert body["error"]["code"] == DENIED
+    for tool, extra in (
+        ("list_cards", {}),
+        ("get_card", {"card_id": "PRD-ITEST0000001"}),
+    ):
+        body = call(
+            outputs, access, tool, arguments(access, customer_id=customer_id, **extra)
+        )
+        assert body["error"]["code"] == DENIED
 
 
 def test_cedar_denies_a_customer_without_the_claim(
@@ -235,9 +253,177 @@ def test_cedar_denies_a_customer_without_the_claim(
     access = sign_in(users["no_claim"], "customer")["access"]
     assert "customer_id" not in claims(access)
 
-    body = call(outputs, access, "get_card", get_card("CLI-ITEST0000001"))
+    body = call(
+        outputs,
+        access,
+        "get_card",
+        arguments(access, customer_id="CLI-ITEST0000001", card_id="PRD-ITEST0000001"),
+    )
 
     assert body["error"]["code"] == DENIED
+
+
+# The tools' data (ADR-0006, decision 1; SEC-05, CTL-04)
+
+
+def own_cards(outputs: dict[str, Any], access: str) -> dict[str, Any]:
+    output = tool_output(call(outputs, access, "list_cards", arguments(access)))
+    assert output["outcome"] == "ok"
+    return output
+
+
+@pytest.mark.parametrize("role", ["customer", "other_customer"])
+def test_a_customer_lists_their_own_cards_as_of_the_export(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn, role: str
+) -> None:
+    output = own_cards(outputs, sign_in(users[role], "customer")["access"])
+
+    assert fits("list_cards", output)
+    assert output["cards"]
+    assert output["customer"]["served_in_full"] is True
+    assert output["stamp"] == outputs["tools_data"]["stamp"]
+    assert output["clock"] == {
+        "business_date": "2026-06-17",
+        "as_of": "2026-06-18 06:00:00",
+    }
+
+
+def test_a_customer_reads_each_of_their_cards(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    access = sign_in(users["customer"], "customer")["access"]
+
+    for listed in own_cards(outputs, access)["cards"]:
+        output = tool_output(
+            call(
+                outputs,
+                access,
+                "get_card",
+                arguments(access, card_id=listed["card_id"]),
+            )
+        )
+        assert fits("get_card", output)
+        assert output["outcome"] == "ok"
+        assert {k: output["card"][k] for k in listed} == listed
+
+
+def test_another_customers_card_reads_as_a_card_that_doesnt_exist(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    access = sign_in(users["customer"], "customer")["access"]
+    theirs = own_cards(outputs, sign_in(users["other_customer"], "customer")["access"])
+    missing = tool_output(
+        call(outputs, access, "get_card", arguments(access, card_id="PRD-ITEST0000404"))
+    )
+
+    assert missing["outcome"] == "not_found"
+    for card in theirs["cards"]:
+        output = tool_output(
+            call(
+                outputs, access, "get_card", arguments(access, card_id=card["card_id"])
+            )
+        )
+        assert output == missing
+
+
+def test_two_customers_share_no_card(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    mine, theirs = (
+        {
+            c["card_id"]
+            for c in own_cards(outputs, sign_in(users[role], "customer")["access"])[
+                "cards"
+            ]
+        }
+        for role in ("customer", "other_customer")
+    )
+
+    assert mine and theirs
+    assert not mine & theirs
+
+
+def test_no_output_carries_what_the_customer_mustnt_see(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    access = sign_in(users["customer"], "customer")["access"]
+    listed = own_cards(outputs, access)
+    read = [
+        tool_output(
+            call(outputs, access, "get_card", arguments(access, card_id=c["card_id"]))
+        )
+        for c in listed["cards"]
+    ]
+
+    text = json.dumps([listed, *read])
+    for withheld in ("is_fraud", "customer_status", "current_balance", "credit_limit"):
+        assert withheld not in text
+    assert not re.search(r"\d{13,}", text)
+
+
+def test_a_customer_the_data_doesnt_hold_gets_no_ones_cards(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    access = sign_in(users["unknown_customer"], "customer")["access"]
+
+    listed = call(outputs, access, "list_cards", arguments(access))
+    read = tool_output(
+        call(outputs, access, "get_card", arguments(access, card_id="PRD-ITEST0000001"))
+    )
+
+    # A Lambda that fails reaches the caller as an error result with generic text, never the exception's message.
+    assert listed["result"]["isError"] is True
+    assert "customer" not in json.dumps(listed)
+    assert read["outcome"] == "not_found"
+
+
+def test_the_tools_data_holds_exactly_the_export(outputs: dict[str, Any]) -> None:
+    dynamodb = boto3.client("dynamodb", region_name="us-east-1")
+    table = outputs["tools_data"]["table"]
+    arn = dynamodb.describe_table(TableName=table)["Table"]["TableArn"]
+    imports = dynamodb.list_imports(TableArn=arn)["ImportSummaryList"]
+    assert len(imports) == 1
+    described = dynamodb.describe_import(ImportArn=imports[0]["ImportArn"])
+    imported = described["ImportTableDescription"]
+    total = outputs["tools_data"]["items"]["total"]
+
+    assert imported["ImportStatus"] == "COMPLETED"
+    assert imported.get("ErrorCount", 0) == 0
+    assert imported["ImportedItemCount"] == total
+    assert dynamodb.scan(TableName=table, Select="COUNT")["Count"] == total
+    meta = dynamodb.get_item(
+        TableName=table,
+        Key={"pk": {"S": "META"}, "sk": {"S": "META"}},
+        ProjectionExpression="stamp",
+    )["Item"]["stamp"]["M"]
+    assert {k: v["S"] for k, v in meta.items()} == outputs["tools_data"]["stamp"]
+
+
+def test_the_tools_data_carries_its_environment_tag(outputs: dict[str, Any]) -> None:
+    dynamodb = boto3.client("dynamodb", region_name="us-east-1")
+    table = dynamodb.describe_table(TableName=outputs["tools_data"]["table"])["Table"]
+
+    tags = dynamodb.list_tags_of_resource(ResourceArn=table["TableArn"])["Tags"]
+
+    assert {"Key": "Environment", "Value": outputs["environment"]} in tags
+
+
+def test_the_read_tools_may_name_every_attribute_but_is_fraud(
+    outputs: dict[str, Any],
+) -> None:
+    iam: Any = boto3.client("iam")
+    document = iam.get_role_policy(
+        RoleName=f"{outputs['prefix']}-reads", PolicyName="reads"
+    )["PolicyDocument"]
+    reads = next(s for s in document["Statement"] if "dynamodb:GetItem" in s["Action"])
+    allowed = reads["Condition"]["ForAllValues:StringEquals"]["dynamodb:Attributes"]
+
+    assert "is_fraud" not in allowed
+    assert {"pk", "sk", "customer_status", "last_four"} <= set(allowed)
+    assert (
+        reads["Condition"]["StringEquals"]["dynamodb:Select"] == "SPECIFIC_ATTRIBUTES"
+    )
+    assert "dynamodb:Scan" not in reads["Action"]
 
 
 # The Runtime (ADR-0004, spike S4)
@@ -300,6 +486,7 @@ def test_every_log_group_of_the_stack_keeps_a_retention(
     prefixes = [
         f"/aws/lambda/{outputs['prefix']}-",
         outputs["runtime_log_group"].removesuffix("-DEFAULT"),
+        "/aws-dynamodb/imports",
     ]
     groups = [
         group
@@ -310,5 +497,8 @@ def test_every_log_group_of_the_stack_keeps_a_retention(
         for group in page["logGroups"]
     ]
 
-    assert {g["logGroupName"] for g in groups} >= {outputs["runtime_log_group"]}
+    assert {g["logGroupName"] for g in groups} >= {
+        outputs["runtime_log_group"],
+        "/aws-dynamodb/imports",
+    }
     assert [g["logGroupName"] for g in groups if "retentionInDays" not in g] == []

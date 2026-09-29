@@ -1,5 +1,6 @@
 """
-The read tools' Lambda dispatches on the Gateway's tool name and validates before it reads (ADR-0004, decision 16).
+The read tools' Lambda dispatches on the Gateway's tool name, validates before it reads, and returns only outputs that
+fit the contract (ADR-0004, decision 16 and its amendment of 2026-09-29).
 """
 
 from types import SimpleNamespace
@@ -7,13 +8,13 @@ from typing import Any
 
 import pytest
 
-from banking_agent.tools.reads import ToolsDataMissingError, handler, tool_name
+from banking_agent.tools import OutputContractError, reads
+from banking_agent.tools.reads import answer, handler, tool_name
+from banking_agent.tools.store import MemoryData, ToolsData
 
-VALID = {
-    "customer_id": "CLI-EXAMPLE00001",
-    "origin_jti": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
-    "card_id": "PRD-EXAMPLE00002",
-}
+from .conftest import OWN, SIGN_IN, example_items
+
+VALID = {"customer_id": OWN, "origin_jti": SIGN_IN, "card_id": "PRD-EXAMPLE00002"}
 
 
 def context(name: str | None) -> Any:
@@ -22,6 +23,10 @@ def context(name: str | None) -> Any:
     return SimpleNamespace(
         client_context=SimpleNamespace(custom={"bedrockAgentCoreToolName": name})
     )
+
+
+def unopened() -> ToolsData:
+    raise AssertionError("the tools' data was opened")
 
 
 @pytest.mark.parametrize(
@@ -41,9 +46,7 @@ def test_a_name_that_isnt_a_read_tool_is_refused(name: str | None) -> None:
 
 
 def test_an_invalid_input_is_answered_without_reading() -> None:
-    result = handler(
-        VALID | {"card_id": "4123456789014821"}, context("reads___get_card")
-    )
+    result = answer("get_card", VALID | {"card_id": "4123456789014821"}, unopened)
 
     assert result == {
         "outcome": "invalid_input",
@@ -51,6 +54,27 @@ def test_an_invalid_input_is_answered_without_reading() -> None:
     }
 
 
-def test_a_valid_input_fails_while_there_is_no_data() -> None:
-    with pytest.raises(ToolsDataMissingError, match="get_card"):
-        handler(VALID, context("reads___get_card"))
+def test_the_handler_answers_from_the_tools_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reads, "tools_data", lambda: MemoryData(example_items()))
+
+    result = handler(VALID, context("reads___get_card"))
+
+    assert result["outcome"] == "ok"
+    assert result["card"]["last_four"] == "4821"
+
+
+def test_an_output_that_doesnt_fit_the_contract_is_never_returned() -> None:
+    items = example_items()
+    items[1]["customer_status"] = "Unknown"
+    items[2]["last_four"] = "44821"
+
+    with pytest.raises(OutputContractError, match="list_cards's output") as raised:
+        answer(
+            "list_cards",
+            {"customer_id": OWN, "origin_jti": SIGN_IN},
+            lambda: MemoryData(items),
+        )
+
+    assert "44821" not in str(raised.value)

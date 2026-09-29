@@ -198,8 +198,8 @@ agent = [
     { name = "langgraph-checkpoint-aws" },
 ]
 dev = [
-    { name = "boto3-stubs", extra = ["cognito-idp", "logs", "s3", "secretsmanager", "sts"] },
-    { name = "moto", extra = ["s3"] },
+    { name = "boto3-stubs", extra = ["cognito-idp", "dynamodb", "logs", "s3", "secretsmanager", "sts"] },
+    { name = "moto", extra = ["dynamodb", "s3"] },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pyproject-fmt" },
@@ -218,6 +218,7 @@ eda = [
     { name = "scikit-learn" },
 ]
 tools = [
+    { name = "boto3" },
     { name = "jsonschema" },
     { name = "rfc3339-validator" },
 ]
@@ -243,8 +244,8 @@ agent = [
     { name = "langgraph-checkpoint-aws", specifier = ">=1.2.3" },
 ]
 dev = [
-    { name = "boto3-stubs", extras = ["cognito-idp", "logs", "s3", "secretsmanager", "sts"], specifier = ">=1.43.103" },
-    { name = "moto", extras = ["s3"], specifier = ">=5.2.3" },
+    { name = "boto3-stubs", extras = ["cognito-idp", "dynamodb", "logs", "s3", "secretsmanager", "sts"], specifier = ">=1.43.103" },
+    { name = "moto", extras = ["dynamodb", "s3"], specifier = ">=5.2.3" },
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pyproject-fmt", specifier = ">=2.29.4" },
@@ -263,6 +264,7 @@ eda = [
     { name = "scikit-learn", specifier = ">=1.9.1" },
 ]
 tools = [
+    { name = "boto3", specifier = ">=1.43.103" },
     { name = "jsonschema", specifier = ">=4.26" },
     { name = "rfc3339-validator", specifier = ">=0.1.4" },
 ]
@@ -321,6 +323,9 @@ wheels = [
 [package.optional-dependencies]
 cognito-idp = [
     { name = "mypy-boto3-cognito-idp" },
+]
+dynamodb = [
+    { name = "mypy-boto3-dynamodb" },
 ]
 logs = [
     { name = "mypy-boto3-logs" },
@@ -588,6 +593,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527f8a2e8885fc8015d3e6f5775df186e443e0964a11c3/distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed", size = 60722, upload-time = "2023-12-24T09:54:32.31Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277, upload-time = "2023-12-24T09:54:30.421Z" },
+]
+
+[[package]]
+name = "docker"
+version = "7.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/88/7f/731ff914b0255d3d065f45fd4e626d4b8c95dbcbaada049f337a6ac16410/docker-7.2.0.tar.gz", hash = "sha256:cebb93773d334f778e023a7ee352a8d6e13ab1bd3b863a4d4a59dec897df43ac", size = 118731, upload-time = "2026-07-09T14:53:46.39Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/23/529140fe1aab80fc6992f93a706deec709140a6397439139a054e1515c45/docker-7.2.0-py3-none-any.whl", hash = "sha256:a3f45fdeb9165e2d25d9a1d02ddf3bc70fb572cf5ebbf9b58558c22caf29b71f", size = 148775, upload-time = "2026-07-09T14:53:45.224Z" },
 ]
 
 [[package]]
@@ -1175,6 +1194,10 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+dynamodb = [
+    { name = "docker" },
+    { name = "py-partiql-parser" },
+]
 s3 = [
     { name = "py-partiql-parser" },
     { name = "pyyaml" },
@@ -1209,6 +1232,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/07/c9/4f0f54e51138e8a791ba104c1ce7213582fceb69015b5403cdc2e94e330c/mypy_boto3_cognito_idp-1.43.83.tar.gz", hash = "sha256:338f0e3a30b26827f08c538893185a7bd13b64e55ffb531e8a47cdaacc6db8e6", size = 55796, upload-time = "2026-08-28T19:47:03.219Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/16/87/b17062844acedf0ab12dddca8276ce57a09d039242c3d60a1646a0723100/mypy_boto3_cognito_idp-1.43.83-py3-none-any.whl", hash = "sha256:446c86afcd02855fc976f0ec44b19f6881814755789a2e9209294a3190f3253e", size = 62030, upload-time = "2026-08-28T19:46:59.839Z" },
+]
+
+[[package]]
+name = "mypy-boto3-dynamodb"
+version = "1.43.64"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/26/7b/6a7649813c7c367c405182d70d5fc4ff5fc531a8d5b0d4d08fa68276ba7c/mypy_boto3_dynamodb-1.43.64.tar.gz", hash = "sha256:8597ddd7d5f92cf00e7aa0875993e5cf09988f017eef41b94d47c08e7675b5d0", size = 50088, upload-time = "2026-08-04T21:37:37.911Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/3a/34904b687c40e88f004df3ae010d4d64093dab6506eafc9f6f322ef8eeb6/mypy_boto3_dynamodb-1.43.64-py3-none-any.whl", hash = "sha256:74f59f05544e7682bd2ee284fea9dc859d6ca5984f60f80c0ac54aa744115ead", size = 60304, upload-time = "2026-08-04T21:37:34.946Z" },
 ]
 
 [[package]]
@@ -1654,6 +1686,16 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0c/57/250bd238b966cece44328235eb85290045d059265fdaf7527a3a958123db/python_discovery-1.6.1.tar.gz", hash = "sha256:cf87d3627dfb4412437fdd5b13eae402607722998d21567993aedbc59b23c15e", size = 84338, upload-time = "2026-09-18T01:31:53.971Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/16/7d/e9ffbadfbf89c93848412d04594135c4ae8c1d37d9e053b9c3ed718fabc4/python_discovery-1.6.1-py3-none-any.whl", hash = "sha256:d43fcdef879fe795352bd13ccf8d185ba5a9f86f36cfcd00529f596e737442b3", size = 38664, upload-time = "2026-09-18T01:31:52.448Z" },
+]
+
+[[package]]
+name = "pywin32"
+version = "312"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/41/12fbfd7f36ed2146d8bc9de96c2741296bf0d490b98508496cff322e274c/pywin32-312-cp313-cp313-win32.whl", hash = "sha256:7a27df850933d16a8eabfbaeb73d52b273e2da667f80d70b01a89d1f6828d02c", size = 6370184, upload-time = "2026-06-04T07:49:36.253Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/db/36a78e3403099d31d9746d13fdcde5accc43c1155f375a34d15983a479a7/pywin32-312-cp313-cp313-win_amd64.whl", hash = "sha256:c53e878d15a1c44788082bfe712a905433473aa38f86375b7cf8b45e3acbaaf9", size = 6914298, upload-time = "2026-06-04T07:49:38.876Z" },
+    { url = "https://files.pythonhosted.org/packages/84/37/c1697194092b76de9ed47ca124323f02c57ffc8a45c06f88a3d5acaf01eb/pywin32-312-cp313-cp313-win_arm64.whl", hash = "sha256:59aba5d5940842075343a5ddc6b11f1cdf0d1567fe745290359dfbcc7c2eb831", size = 6727640, upload-time = "2026-06-04T07:49:41.083Z" },
 ]
 
 [[package]]

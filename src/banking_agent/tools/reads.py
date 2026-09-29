@@ -1,18 +1,24 @@
 """
 The read tools' Lambda, a Gateway target. The Gateway passes the tool as `<target>___<tool>` in the invocation's client
-context, and the arguments as the event (ADR-0004, Where the tools run).
+context, and the arguments as the event (ADR-0004, Where the tools run). It reads the table Terraform created from the
+chosen export, named in TOOLS_DATA_TABLE.
 """
 
+import os
+from collections.abc import Callable
+from functools import cache
 from typing import Any
 
-from banking_agent.tools import invalid_input
+import boto3
 
-TOOLS = ("list_cards", "get_card")
+from banking_agent.tools import check_output, invalid_input
+from banking_agent.tools.cards import get_card, list_cards
+from banking_agent.tools.store import DynamoData, ToolsData
 
-
-class ToolsDataMissingError(RuntimeError):
-    def __init__(self, tool: str) -> None:
-        super().__init__(f"{tool} has no tools' data to read yet")
+TOOLS: dict[str, Callable[[ToolsData, dict[str, Any]], dict[str, Any]]] = {
+    "list_cards": list_cards,
+    "get_card": get_card,
+}
 
 
 def tool_name(context: Any) -> str:
@@ -23,9 +29,22 @@ def tool_name(context: Any) -> str:
     return tool
 
 
-def handler(event: Any, context: Any) -> dict[str, Any]:
-    tool = tool_name(context)
-    refused = invalid_input(tool, event)
+@cache
+def tools_data() -> ToolsData:
+    return DynamoData(boto3.client("dynamodb"), os.environ["TOOLS_DATA_TABLE"])
+
+
+def answer(tool: str, arguments: Any, data: Callable[[], ToolsData]) -> dict[str, Any]:
+    """
+    The data is opened only for an input that passes, so a refusal reads nothing.
+    """
+    refused = invalid_input(tool, arguments)
     if refused is not None:
         return refused
-    raise ToolsDataMissingError(tool)
+    output = TOOLS[tool](data(), arguments)
+    check_output(tool, output)
+    return output
+
+
+def handler(event: Any, context: Any) -> dict[str, Any]:
+    return answer(tool_name(context), event, tools_data)

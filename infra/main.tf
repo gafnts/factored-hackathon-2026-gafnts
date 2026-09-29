@@ -48,6 +48,9 @@ module "gateway" {
   discovery_url            = module.identity.discovery_url
   allowed_clients          = [module.identity.customer_client_id]
   reads_zip                = "${local.build}/reads.zip"
+  tools_data_table         = module.tools_data.table_name
+  tools_data_table_arn     = module.tools_data.table_arn
+  tools_data_attributes    = module.tools_data.readable_attributes
 }
 
 module "runtime" {
