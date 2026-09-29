@@ -4,10 +4,10 @@ What we decided about Faro, why, and the evidence behind it. Every document cite
 
 | Path | Holds |
 |---|---|
-| [product/](product/) | The [product brief](product/brief.md), covering the problem, who Faro serves, and the outcomes we intend; and the [identity guide](product/identity.md), covering Faro's name, voice, and look |
-| [policy/](policy/) | The [card support policy](policy/card-support.md): what Faro answers, does, and refuses, one ID per rule (synthetic) |
 | [adr/](adr/README.md) | The architecture decision records and their index |
 | [analysis/](analysis/) | The profiling, traffic, workflow selection, and card support reports, each with its JSON, computed from the pinned snapshot by `make analysis` |
+| [policy/](policy/) | The [card support policy](policy/card-support.md): what Faro answers, does, and refuses, one ID per rule (synthetic) |
+| [product/](product/) | The [product brief](product/brief.md), covering the problem, who Faro serves, and the outcomes we intend; and the [identity guide](product/identity.md), covering Faro's name, voice, and look |
 | [hackathon-requirements.md](hackathon-requirements.md) | Everything the organizers evaluate, with stable requirement IDs |
 
 ## Reading order
