@@ -100,20 +100,20 @@ An API Gateway HTTP API with a JWT authorizer whose issuer is the user pool and 
 |---|---|
 | `handoff_id` | The payload's UUID; the item's key |
 | `reference` | Eight characters from Crockford's base32 alphabet (no `I`, `L`, `O`, or `U`), drawn at random, unique by a conditional put, and shown in two groups of four (`7K2M-9QXA`): what the reply gives the customer (POL-45), and what a human agent searches by |
-| `payload` | The payload as filed, never changed afterwards |
+| `payload` | The payload as filed, never changed afterwards; a draft's is completed once, when it is filed |
 | `queue`, `priority`, `reason_code`, `language` | Copied from the payload, for the indexes and the queue's list |
 | `source` | `demo` or `evaluation`, from the token's groups: set by the graph, as the execution record's is (ADR-0004), or by the evaluation harness for ADR-0005's naive agent, so an evaluation run's cases never reach a human agent's queue ([ADR-0005](0005-offline-scenario-evaluation.md)) |
-| `status` | `filed`, `claimed`, or `resolved` |
+| `status` | `draft`, `filed`, `claimed`, or `resolved` |
 | `filed_at`, `claimed_at`, `resolved_at` | Wall clock |
 | `claimed_by` | The human agent's `sub` and user name |
 | `resolution` | `handled`, `duplicate`, or `not_actionable`, and a note in Spanish of up to 500 characters, under the payload's rule against runs of 13 or more digits (POL-11) |
 | `flagged`, `validation_errors` | Set when the payload still failed validation after the fallback, so the console shows it as such (ADR-0004) |
 | `record` | The keys of the turn's execution record, from which the console reads the tool calls the evidence names |
-| `expires_at` | 90 days after filing, enforced with time to live (ADR-0004, OPS-10) |
+| `expires_at` | 90 days after filing, or after saving for a draft, enforced with time to live (ADR-0004, OPS-10) |
 
 The payload's schema stays at version 1. A status isn't a fact about the handoff: it changes after filing, and the payload is what the policy validates and a person reads as evidence (CTL-05).
 
-**The lifecycle.** A case moves from `filed` to `claimed` to `resolved`, and never back. Each move is a conditional update on the current status, and a resolve also on `claimed_by` being the caller, so two people can't claim one case, only its claimer resolves it, and a stale screen changes nothing. Within a queue, the console lists `urgent` cases first. If ADR-0004's decision 7 keeps the draft handoff, the draft is a case in status `draft`, which the queue doesn't show and the deadline Lambda files.
+**The lifecycle.** A case moves from `filed` to `claimed` to `resolved`, and never back. Each move is a conditional update on the current status, and a resolve also on `claimed_by` being the caller, so two people can't claim one case, only its claimer resolves it, and a stale screen changes nothing. Within a queue, the console lists `urgent` cases first. A deadline handoff starts a step earlier, as a `draft` the queue doesn't show (ADR-0004's decision 7): the Runtime files it when the turn requires the handoff, or the deadline Lambda when it is still owed, each through a conditional update from `draft` to `filed`, so it is filed once. A draft no one files (a `lost` or `stolen` block the customer saw blocked, cancelled, or moved on from) expires unfiled with the table's time to live.
 
 **Indexes:** one by source, queue, and status, sorted by filing time, from which the queue reads the demo's cases only, and one by reference.
 
