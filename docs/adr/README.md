@@ -6,13 +6,15 @@ This directory records the significant architectural decisions made in this proj
 
 | Element | Rule |
 |---|---|
-| File name | `NNNN-kebab-case-title.md` |
+| File name | `NNNN-short-slug.md`: a few words from the title in kebab case, without articles, e.g. `0004-agent-architecture-on-agentcore.md` |
 | Number | 4-digit zero-padded integer, assigned sequentially (`0001`, `0002`, …) |
-| Title | Short imperative phrase describing the decision (verb + noun), e.g. `use-event-driven-pipeline` |
-| Status | `Proposed` → `Accepted` → `Deprecated` / `Superseded by ADR-NNNN` |
+| Title | A formal phrase that names the decision itself (what is chosen, and for what), as a noun phrase or an imperative, e.g. `Offline scenario evaluation against an independent policy oracle` or `Choose the workflow from evidence` |
+| Status | `Proposed` → `Accepted` → `Deprecated` / `Superseded by ADR-NNNN`; an accepted ADR can also be `Amended by ADR-NNNN` |
 
 > [!NOTE]
-> When a decision is reversed or replaced, mark the old ADR as `Superseded by ADR-NNNN` and link forward. Never delete an ADR.
+> When a decision is reversed or replaced, mark the old ADR as `Superseded by ADR-NNNN` and link forward. When a later ADR corrects part of an accepted one, the earlier ADR stays accepted and is marked `Amended by ADR-NNNN`, with a link to the correction. Never delete an ADR.
+
+A proposed ADR may leave decisions open: each is marked **Open** where it arises and listed under Open decisions with the option we lean towards. Accepting the ADR settles them, and the list becomes Settled at acceptance, each item stating the choice and any alternative not taken.
 
 ## Template
 
@@ -50,4 +52,8 @@ Negative:
 |---|---|---|
 | [0001](0001-deploy-to-us-east-1.md) | Deploy to us-east-1 | Accepted |
 | [0002](0002-mirror-dataset-into-pinned-snapshots.md) | Mirror the organizer dataset into pinned snapshots | Accepted |
-| [0003](0003-choose-workflow-from-evidence.md) | Choose the workflow from evidence | Accepted |
+| [0003](0003-choose-workflow-from-evidence.md) | Choose the workflow from evidence | Accepted; amended by ADR-0004 |
+| [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph workflow on AgentCore, with policy enforced in Gateway tools and Cedar | Accepted |
+| [0005](0005-offline-scenario-evaluation.md) | Offline scenario evaluation against an independent policy oracle | Accepted |
+| [0006](0006-batch-medallion-pipeline.md) | Batch medallion pipeline in dbt-duckdb, exported per snapshot to the tools' store | Accepted |
+| [0007](0007-role-gated-web-app.md) | Role-gated web app on one CloudFront origin, with a polled handoff console | Accepted |

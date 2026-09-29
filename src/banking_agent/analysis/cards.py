@@ -449,13 +449,17 @@ def split(con: duckdb.DuckDBPyConnection) -> tuple[int, int]:
     return development, len(ids) - development
 
 
-def prepare(con: duckdb.DuckDBPyConnection, business_date: date) -> None:
+def define_days(con: duckdb.DuckDBPyConnection, business_date: date) -> None:
     con.execute(f"set variable business_date = date '{business_date.isoformat()}'")
     # A day is the 24 hours ending at the as-of time of day, as the windows count them.
     con.execute(
         "create or replace temp macro business_day(ts) as cast(ts - (getvariable('as_of') "
         "- date_trunc('day', getvariable('as_of'))) - interval 1 microsecond as date)"
     )
+
+
+def prepare(con: duckdb.DuckDBPyConnection, business_date: date) -> None:
+    define_days(con, business_date)
     con.execute(
         f"""
         create or replace temp table cards as

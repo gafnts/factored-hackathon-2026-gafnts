@@ -190,12 +190,16 @@ class Selection:
     evidence: Evidence
 
 
-def stage(con: duckdb.DuckDBPyConnection, as_of: datetime) -> None:
+def define_window(con: duckdb.DuckDBPyConnection, as_of: datetime) -> None:
     con.execute(f"set variable as_of = timestamp '{as_of.isoformat(sep=' ')}'")
     con.execute(
         "create or replace temp macro within(ts, days) as "
         "ts > getvariable('as_of') - to_days(days)"
     )
+
+
+def stage(con: duckdb.DuckDBPyConnection, as_of: datetime) -> None:
+    define_window(con, as_of)
     for name, sql in _STAGING.items():
         con.execute(f"create or replace temp table {name} as {sql}")
 

@@ -49,7 +49,7 @@ make check
 | [infra/iam/](infra/iam/) | One-time IAM bootstrap: the deploy roles for each environment |
 | [infra/dataset/](infra/dataset/) | The bucket holding the pinned dataset snapshots, outside every environment |
 | [scripts/](scripts/) | Account bootstrap, teardown, and setup checks, run through `make` |
-| [docs/](docs/) | Requirements catalogue, architecture decision records, and the dataset analysis reports |
+| [docs/](docs/) | Requirements catalogue, architecture decision records, the card support policy, and the dataset analysis reports |
 | [.github/workflows/](.github/workflows/) | Quality gates and the `prototype` deploy pipeline |
 | [dataset.lock](dataset.lock) | The pinned dataset snapshot every run reads ([ADR-0002](docs/adr/0002-mirror-dataset-into-pinned-snapshots.md)) |
 | [Makefile](Makefile) | Every setup, quality, and deploy command (`make help` lists them) |
@@ -60,4 +60,5 @@ make check
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): setup paths by goal, environments and guardrails, day-to-day workflow, troubleshooting, and teardown
 - [hackathon-requirements.md](docs/hackathon-requirements.md): every point the organizers evaluate, with stable requirement IDs that code, tests, and PRs cite
-- [docs/adr/](docs/adr/README.md): architecture decision records, from the deployment region to how the dataset is snapshotted
+- [docs/adr/](docs/adr/README.md): architecture decision records, from the deployment region to the agent's architecture, its evaluation, the data pipeline, and the web app
+- [card-support.md](docs/policy/card-support.md): the card support policy (synthetic), whose rule IDs tests, evaluation cases, and handoffs cite

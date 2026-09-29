@@ -12,6 +12,7 @@ from banking_agent.analysis import profile as profiling
 from banking_agent.analysis.cards import CardSupport
 from banking_agent.analysis.catalog import Table
 from banking_agent.analysis.selection import Selection
+from banking_agent.analysis.traffic import Traffic
 from banking_agent.dataset.lock import Lock, write_lock
 
 
@@ -98,6 +99,31 @@ def test_cards_writes_the_profile_and_the_card_support_analysis(
     assert written == {"profiling.md", "profiling.json", *CARD_SUPPORT_FILES}
 
 
+TRAFFIC_FILES = {
+    "traffic.md",
+    "traffic.json",
+    "traffic-daily.svg",
+    "traffic-hourly.svg",
+    "traffic-capacity.svg",
+}
+
+
+@pytest.mark.filterwarnings("ignore::plotnine.exceptions.PlotnineWarning")
+def test_traffic_writes_the_profile_and_the_traffic_analysis(
+    locked: None,
+    root: Path,
+    tmp_path: Path,
+    traffic_result: Traffic,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(cli, "traffic", lambda *args, **kwargs: traffic_result)
+
+    assert cli.main([*options(tmp_path), "traffic"]) == 0
+    written = {p.name for p in (tmp_path / "analysis").rglob("*") if p.is_file()}
+    assert written == {"profiling.md", "profiling.json", *TRAFFIC_FILES}
+
+
 @pytest.mark.filterwarnings("ignore::plotnine.exceptions.PlotnineWarning")
 def test_all_profiles_once_and_writes_every_report(
     locked: None,
@@ -105,6 +131,7 @@ def test_all_profiles_once_and_writes_every_report(
     tmp_path: Path,
     selection: Selection,
     card_result: CardSupport,
+    traffic_result: Traffic,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     profiles = []
@@ -117,6 +144,7 @@ def test_all_profiles_once_and_writes_every_report(
     monkeypatch.setattr(cli, "profile", counted)
     monkeypatch.setattr(cli, "select", lambda *args, **kwargs: selection)
     monkeypatch.setattr(cli, "card_support", lambda *args, **kwargs: card_result)
+    monkeypatch.setattr(cli, "traffic", lambda *args, **kwargs: traffic_result)
 
     assert cli.main([*options(tmp_path), "all"]) == 0
     written = {p.name for p in (tmp_path / "analysis").rglob("*") if p.is_file()}
@@ -129,7 +157,23 @@ def test_all_profiles_once_and_writes_every_report(
         "selection-f1-fields.svg",
         "selection-e2-learned.svg",
         *CARD_SUPPORT_FILES,
+        *TRAFFIC_FILES,
     }
+
+
+def test_traffic_needs_the_tables_it_reads(
+    locked: None,
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+
+    assert cli.main([*options(tmp_path), "traffic"]) == 1
+    assert (
+        "the traffic analysis needs call_center_interactions" in capsys.readouterr().err
+    )
 
 
 def test_cards_needs_the_tables_it_reads(
