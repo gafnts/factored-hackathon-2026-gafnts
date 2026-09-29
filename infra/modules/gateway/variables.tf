@@ -21,6 +21,19 @@ variable "allowed_clients" {
   type        = list(string)
 }
 
+variable "tools_data_table" {
+  type = string
+}
+
+variable "tools_data_table_arn" {
+  type = string
+}
+
+variable "tools_data_attributes" {
+  description = "Every attribute of the tools' data the read tools may name"
+  type        = list(string)
+}
+
 variable "reads_zip" {
   description = "The read tools' zip, written by make build"
   type        = string
