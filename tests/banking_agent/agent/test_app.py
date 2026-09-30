@@ -119,8 +119,8 @@ PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
         {"request_label": None, "outcome_class": "answer", "rules": ["POL-06"]},
     ),
     "not_yet_served": (
-        {"requests": ["card_status", "block_card"]},
-        {"request_label": "block_card", "outcome_class": "decline", "rules": []},
+        {"requests": ["recent_transactions", "available_credit"]},
+        {"request_label": "available_credit", "outcome_class": "decline", "rules": []},
     ),
     "tool_failed": (
         {
@@ -604,7 +604,7 @@ def test_the_warm_up_binds_the_session_without_running_the_graph(
     for event in events:
         validator("chat", "event").validate(event)
     assert harness.workload_tokens == []
-    assert harness.script.model_inputs == {"route": [], "reply": []}
+    assert all(calls == [] for calls in harness.script.model_inputs.values())
     entries = harness.records.of(who.origin_jti)
     assert kinds(entries) == ["turn_opened", "turn_closed"]
     assert entries[0]["input"] == {"kind": "warmup"}
@@ -719,6 +719,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
         "CHECKPOINTS_TABLE": "checkpoints",
         "SESSION_BINDINGS_TABLE": "bindings",
         "EXECUTION_RECORDS_TABLE": "records",
+        "CONFIRMATIONS_TABLE": "confirmations",
         "AWS_REGION": "us-east-1",
     }
     for name, value in variables.items():
@@ -732,7 +733,16 @@ def test_the_services_are_built_from_the_runtimes_environment(
 
     assert built.settings == SETTINGS
     assert built.gateway.targets["block_card"] == "block"
-    assert set(built.graph.nodes) >= {"route", "list_cards", "reply"}
+    assert set(built.graph.nodes) >= {
+        "route",
+        "list_cards",
+        "resolve_card",
+        "confirm",
+        "await_control",
+        "block",
+        "verify",
+        "reply",
+    }
 
 
 def test_a_failure_before_the_turn_opens_reaches_the_chat_as_the_contracts_error(

@@ -70,6 +70,14 @@ class Turn:
         self.input_tokens = 0
         self.output_tokens = 0
         self.cost_usd: float | None = 0.0
+        self.decision: dict[str, Any] | None = None
+
+    def decide(self, **fields: Any) -> None:
+        """
+        Held until the run ends, since the decision is the last entry before turn_closed and an interrupt's entry,
+        which only the entrypoint sees, comes before it.
+        """
+        self.decision = fields
 
     async def write(self, kind: str, **fields: Any) -> dict[str, Any]:
         at = self.now()

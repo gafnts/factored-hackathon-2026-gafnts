@@ -1,7 +1,9 @@
 """
 The entrypoint served as the Runtime serves it, through the SDK's app and the real wrapper, with every outside service
-replaced: an in-memory checkpointer, bindings, and record, a scripted model, and a Gateway answered by a mock transport.
-Tokens are unsigned, since the entrypoint doesn't check a signature the Runtime's authorizer already checked.
+replaced: an in-memory checkpointer, bindings, record, and confirmations, a scripted model, a clock the tests move, and
+a Gateway answered by a mock transport, which by default serves the contract's example cards and blocks one under any
+confirmation. Tokens are unsigned, since the entrypoint doesn't check a signature the Runtime's authorizer already
+checked.
 """
 
 import base64
@@ -9,7 +11,7 @@ import json
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 from typing import Any
 
@@ -21,9 +23,10 @@ from langgraph.checkpoint.memory import InMemorySaver
 from starlette.testclient import TestClient
 
 from banking_agent.agent import app as entrypoint
+from banking_agent.agent.confirmations import MemoryConfirmations
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
-from banking_agent.agent.models import MODEL, RouterOutput
+from banking_agent.agent.models import MODEL, BlockDetails, RouterOutput
 
 CLIENT_ID = "customer-client-0001"
 SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
@@ -51,6 +54,79 @@ def list_cards_output() -> dict[str, Any]:
     )
     output: dict[str, Any] = next(o for o in json.loads(text) if o["outcome"] == "ok")
     return output
+
+
+def tool_error() -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "content": [{"type": "text", "text": "An error occurred"}],
+                "isError": True,
+            },
+        },
+    )
+
+
+def denied() -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": -32002, "message": "Denied"},
+        },
+    )
+
+
+class Bank:
+    """
+    The example's cards, as the tools would answer about them in one sign-in: block_card blocks under any
+    confirmation, and verified is what a test changes to see a block the read-back doesn't show.
+    """
+
+    def __init__(self) -> None:
+        self.listed = list_cards_output()
+        self.blocked: set[str] = set()
+        self.verified = True
+
+    def cards(self) -> list[dict[str, Any]]:
+        return [
+            {**c, "product_status": "Blocked"} if c["card_id"] in self.blocked else c
+            for c in self.listed["cards"]
+        ]
+
+    def answer(self, request: httpx.Request) -> httpx.Response:
+        params = json.loads(request.content)["params"]
+        tool, arguments = params["name"].rpartition("___")[2], params["arguments"]
+        stamped = {k: self.listed[k] for k in ("stamp", "clock")}
+        if tool == "list_cards":
+            return tool_result({**self.listed, "cards": self.cards()})
+        card = next(c for c in self.cards() if c["card_id"] == arguments["card_id"])
+        if tool == "get_card":
+            detail = {
+                **{k: v for k, v in card.items()},
+                "opening_date": "2023-02-14",
+                "expiration_date": None,
+            }
+            return tool_result({"outcome": "ok", **stamped, "card": detail})
+        if self.verified:
+            self.blocked.add(card["card_id"])
+        return tool_result(
+            {
+                "outcome": "ok",
+                **stamped,
+                "card_id": card["card_id"],
+                "reason": arguments["reason"],
+                "confirmation_id": arguments["confirmation_id"],
+                "attempts": 1 if self.verified else 3,
+                "block_outcome": "verified" if self.verified else "not_verified",
+                "read_back": "Blocked" if self.verified else "Active",
+                "repeated": False,
+            }
+        )
 
 
 def tool_result(output: Any) -> httpx.Response:
@@ -130,13 +206,13 @@ class Script:
     requests: list[str] = field(default_factory=lambda: ["card_status"])
     has_request: bool = True
     route_error: Exception | None = None
+    extracted: dict[str, Any] = field(default_factory=dict)
+    extract_error: Exception | None = None
     reply: str = "Estas son sus tarjetas."
     reply_error: Exception | None = None
-    gateway: Callable[[httpx.Request], httpx.Response] = lambda _: tool_result(
-        list_cards_output()
-    )
+    gateway: Callable[[httpx.Request], httpx.Response] | None = None
     model_inputs: dict[str, list[list[BaseMessage]]] = field(
-        default_factory=lambda: {"route": [], "reply": []}
+        default_factory=lambda: {"route": [], "extract": [], "reply": []}
     )
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
 
@@ -148,6 +224,9 @@ class Harness:
         self.bindings = MemoryBindings()
         self.saver = InMemorySaver()
         self.graph = build(self.saver)
+        self.bank = Bank()
+        self.confirmations = MemoryConfirmations()
+        self.moved = timedelta()
         self.workload_tokens: list[str | None] = []
         self.key_error: Exception | None = None
         transport = httpx.MockTransport(self.answer_tool)
@@ -163,7 +242,8 @@ class Harness:
                 SETTINGS.gateway_targets,
                 httpx.AsyncClient(transport=transport),
             ),
-            now=lambda: datetime.now(UTC),
+            confirmations=self.confirmations,
+            now=lambda: datetime.now(UTC) + self.moved,
         )
         monkeypatch.setattr(entrypoint, "services", lambda: self.services)
 
@@ -175,7 +255,9 @@ class Harness:
 
     def answer_tool(self, request: httpx.Request) -> httpx.Response:
         self.script.tool_calls.append(json.loads(request.content))
-        return self.script.gateway(request)
+        if self.script.gateway is not None:
+            return self.script.gateway(request)
+        return self.bank.answer(request)
 
     def factory(self, key: str) -> Callable[[str], Runnable[Any, Any]]:
         assert key == "model-key"
@@ -195,6 +277,21 @@ class Harness:
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
+        async def extract(messages: list[BaseMessage]) -> dict[str, Any]:
+            script.model_inputs["extract"].append(messages)
+            if script.extract_error is not None:
+                raise script.extract_error
+            raw = AIMessage(
+                content="{}",
+                usage_metadata=USAGE,
+                response_metadata={"model_name": MODEL},
+            )
+            parsed = BlockDetails.model_validate(
+                {"card_type": None, "last_four": None, "block_reason": None}
+                | script.extracted
+            )
+            return {"raw": raw, "parsed": parsed, "parsing_error": None}
+
         async def reply(messages: list[BaseMessage]) -> AIMessage:
             script.model_inputs["reply"].append(messages)
             if script.reply_error is not None:
@@ -206,7 +303,8 @@ class Harness:
             )
 
         def make(purpose: str) -> Runnable[Any, Any]:
-            return RunnableLambda(route if purpose == "route" else reply)
+            chosen = {"route": route, "extract": extract}.get(purpose, reply)
+            return RunnableLambda(chosen)
 
         return make
 

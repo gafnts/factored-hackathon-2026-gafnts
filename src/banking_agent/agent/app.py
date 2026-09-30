@@ -1,9 +1,12 @@
 """
 The Runtime's entrypoint (ADR-0004, A turn, end to end, step 3, and its amendments). Before the graph runs, it reads the
 token's claims, binds the runtime session to its user, checks the request against the chat's contract, replaces the
-thread ID with a key derived from the user, masks the new message, opens the turn's execution record, and fetches the
-model key. The wrapper gets the thread, the run, and the masked message alone, and each event it sends back is rebuilt
-to the chat's contract. A refused request gets a lone RUN_ERROR and is recorded in the caller's own sign-in.
+thread ID with a key derived from the user, masks the new message, takes a control's answer only when it answers the
+thread's pending control, turns a message typed while one is pending into a resume, opens the turn's execution record,
+and fetches the model key. The wrapper gets the thread, the run, and the masked message or the one resume alone, and
+each event it sends back is rebuilt to the chat's contract. When the run ends, the entrypoint records the controls it
+ended at, then the graph's decision, then closes the turn, before the run's last event. A refused request gets a lone
+RUN_ERROR and is recorded in the caller's own sign-in.
 """
 
 import asyncio
@@ -22,6 +25,7 @@ import boto3
 from ag_ui.core import (
     BaseEvent,
     EventType,
+    ResumeEntry,
     RunAgentInput,
     RunFinishedEvent,
     RunStartedEvent,
@@ -35,6 +39,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph_checkpoint_aws import DynamoDBSaver
 
 from banking_agent.agent.claims import Claims, ClaimsRefusedError, read_claims, token_of
+from banking_agent.agent.confirmations import Confirmations, DynamoConfirmations
 from banking_agent.agent.events import SUCCESS, checked, rebuild, run_error
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
@@ -48,7 +53,9 @@ from banking_agent.agent.models import (
 from banking_agent.agent.records import DynamoRecords, RecordStore, Turn
 from banking_agent.agent.request import (
     NewMessage,
+    Pending,
     RequestRefusedError,
+    Resume,
     Warmup,
     check_contract,
     read,
@@ -98,6 +105,7 @@ class Services:
     fetch_key: Callable[[str | None], Awaitable[str]]
     models: Callable[[str], Factory]
     gateway: Gateway
+    confirmations: Confirmations
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
 
 
@@ -127,17 +135,16 @@ def services() -> Services:
     records = boto3.resource("dynamodb", region_name=region).Table(
         os.environ["EXECUTION_RECORDS_TABLE"]
     )
+    client = boto3.client("dynamodb", region_name=region)
     return Services(
         settings=settings,
         graph=build(saver),
-        bindings=DynamoBindings(
-            boto3.client("dynamodb", region_name=region),
-            os.environ["SESSION_BINDINGS_TABLE"],
-        ),
+        bindings=DynamoBindings(client, os.environ["SESSION_BINDINGS_TABLE"]),
         records=DynamoRecords(records),
         fetch_key=fetch_model_key,
         models=anthropic_factory,
         gateway=Gateway(settings.gateway_url, settings.gateway_targets),
+        confirmations=DynamoConfirmations(client, os.environ["CONFIRMATIONS_TABLE"]),
     )
 
 
@@ -146,6 +153,23 @@ def thread_key(sub: str, client_thread_id: str) -> str:
     Another user's thread ID names a different, empty thread (decision 12).
     """
     return str(uuid.uuid5(uuid.UUID(sub), client_thread_id))
+
+
+def pending_of(snapshot: Any) -> Pending | None:
+    interrupts = getattr(snapshot, "interrupts", ()) or ()
+    if not interrupts:
+        return None
+    value = interrupts[0].value
+    return Pending(interrupts[0].id, value.get("controls", []))
+
+
+def recorded_input(parsed: NewMessage | Warmup | Resume) -> dict[str, Any]:
+    if isinstance(parsed, NewMessage):
+        return {"kind": "message", "text": parsed.text}
+    if isinstance(parsed, Resume):
+        answer = {k: v for k, v in parsed.payload.items() if k != "message_id"}
+        return {"kind": "resume", "resume": answer}
+    return {"kind": "warmup"}
 
 
 def recorded_id(value: str | None) -> str | None:
@@ -165,7 +189,10 @@ class Entrypoint:
         return {
             "app": settings.app_version,
             "policy": POLICY_VERSION,
-            "prompts": {name: prompt_version(name) for name in ("route", "reply")},
+            "prompts": {
+                name: prompt_version(name)
+                for name in ("route", "resolve_card", "reply")
+            },
             "schemas": {name: version(name) for name in NAMES},
             "snapshot": settings.stamp["snapshot"],
             "pipeline_version": settings.stamp["pipeline_version"],
@@ -252,7 +279,7 @@ class Entrypoint:
                 {"configurable": {"thread_id": key}}
             )
             held = {m.id for m in snapshot.values.get("messages", [])}
-            parsed = read(request, held)
+            parsed = read(request, held, pending_of(snapshot))
         except RequestRefusedError as refusal:
             yield await refused("invalid_request", refusal.errors)
             return
@@ -274,7 +301,7 @@ class Entrypoint:
         token: str,
         key: str,
         run_input: RunAgentInput,
-        parsed: NewMessage | Warmup,
+        parsed: NewMessage | Warmup | Resume,
         language: str,
         session_id: str,
         workload: str | None,
@@ -293,11 +320,7 @@ class Entrypoint:
                 runtime_session_id=session_id,
                 request_id=BedrockAgentCoreContext.get_request_id()
                 or str(uuid.uuid4()),
-                input=(
-                    {"kind": "message", "text": parsed.text}
-                    if isinstance(parsed, NewMessage)
-                    else {"kind": "warmup"}
-                ),
+                input=recorded_input(parsed),
                 language=language,
                 clock=services.settings.clock,
                 versions=self.versions(),
@@ -324,9 +347,12 @@ class Entrypoint:
                 Scope(
                     claims=claims,
                     token=token,
+                    thread_key=key,
                     turn=turn,
                     gateway=services.gateway,
                     models=Models(services.models(model_key), turn.write),
+                    confirmations=services.confirmations,
+                    now=services.now,
                 )
             )
             wrapper = LangGraphAgent(
@@ -339,19 +365,34 @@ class Entrypoint:
             given = RunAgentInput(
                 thread_id=key,
                 run_id=run_input.run_id,
-                messages=[UserMessage(id=parsed.id, role="user", content=parsed.text)],
+                messages=(
+                    [UserMessage(id=parsed.id, role="user", content=parsed.text)]
+                    if isinstance(parsed, NewMessage)
+                    else []
+                ),
                 state={},
                 tools=[],
                 context=[],
                 forwarded_props={},
+                resume=(
+                    [
+                        ResumeEntry(
+                            interrupt_id=parsed.interrupt_id,
+                            status="resolved",
+                            payload=parsed.payload,
+                        )
+                    ]
+                    if isinstance(parsed, Resume)
+                    else None
+                ),
             )
             async for event in wrapper.run(given):
                 rebuilt = rebuild(event, run_input.thread_id, run_input.run_id)
                 if rebuilt is None:
                     continue
                 rebuilt = checked(rebuilt)
-                if rebuilt.type == EventType.RUN_FINISHED:
-                    await self.close(turn, "finished")
+                if isinstance(rebuilt, RunFinishedEvent):
+                    await self.finish(turn, rebuilt)
                     finished = True
                 yield rebuilt
             if not finished:
@@ -365,6 +406,26 @@ class Entrypoint:
             except Exception:
                 logger.exception("couldn't close a failed turn's record")
             yield run_error("internal")
+
+    async def finish(self, turn: Turn, event: RunFinishedEvent) -> None:
+        interrupts = getattr(event.outcome, "interrupts", None) or []
+        for interrupt in interrupts:
+            await turn.write(
+                "interrupt",
+                interrupt_id=interrupt.id,
+                controls=[
+                    {
+                        k: control[k]
+                        for k in ("kind", "confirmation_id", "offer_id", "reason_code")
+                        if k in control
+                    }
+                    for control in (interrupt.metadata or {})["controls"]
+                ],
+            )
+        if turn.decision is None:
+            raise RuntimeError("the graph ended its run without a decision")
+        await turn.write("decision", **turn.decision)
+        await self.close(turn, "interrupted" if interrupts else "finished")
 
     async def close(self, turn: Turn, outcome: str) -> None:
         fields: dict[str, Any] = {
