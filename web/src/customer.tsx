@@ -7,6 +7,7 @@ import {
   signInWith,
   signOutHere,
 } from "./auth";
+import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
 import { Page } from "./layout";
@@ -90,6 +91,10 @@ export function Customer({ language }: { language: Language }) {
     [state],
   );
 
+  const ended = useCallback(() => {
+    if (config) void end(config, true);
+  }, [config, end]);
+
   if (state.kind === "loading")
     return (
       <Page language={language} label={texts.assistant}>
@@ -135,7 +140,12 @@ export function Customer({ language }: { language: Language }) {
         </div>
       }
     >
-      {null}
+      <Chat
+        url={state.config.runtime_url}
+        session={state.session}
+        language={language}
+        onSignInEnded={ended}
+      />
     </Page>
   );
 }

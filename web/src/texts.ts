@@ -1,4 +1,7 @@
-import type { Language } from "./contracts/chat";
+import type { Language, RunError } from "./contracts/chat";
+
+export type RunErrorCode = RunError["code"];
+export type Problem = RunErrorCode | "unreachable";
 
 export interface Texts {
   assistant: string;
@@ -17,6 +20,14 @@ export interface Texts {
     ended: string;
     signOut: string;
     endsAt: (time: string) => string;
+  };
+  chat: {
+    opening: string;
+    suggestion: string;
+    placeholder: string;
+    send: string;
+    working: string;
+    problems: Record<Problem, string>;
   };
 }
 
@@ -41,6 +52,29 @@ export const TEXTS: Record<Language, Texts> = {
       signOut: "Cerrar sesión",
       endsAt: (time) => `Su sesión termina a las ${time}.`,
     },
+    chat: {
+      opening:
+        "Hola, soy Faro, el asistente automático de LATAM Bank para sus tarjetas. ¿En qué le puedo ayudar?",
+      suggestion: "¿Qué tarjetas tengo y en qué estado están?",
+      placeholder: "Escriba su mensaje",
+      send: "Enviar",
+      working: "Faro está preparando su respuesta.",
+      problems: {
+        invalid_request:
+          "No pude procesar ese mensaje. Por favor, escríbalo de nuevo.",
+        session_refused:
+          "No pudimos continuar esta conversación. Cierre la sesión y vuelva a iniciarla.",
+        no_customer:
+          "Su usuario no tiene tarjetas que este chat pueda atender.",
+        rate_limited:
+          "Envió muchos mensajes seguidos. Espere un momento e inténtelo de nuevo.",
+        daily_limit:
+          "Alcanzó el límite de mensajes de hoy. Vuelva a intentarlo mañana.",
+        internal:
+          "En este momento no puedo responder. Por favor, inténtelo de nuevo en unos minutos.",
+        unreachable: "No pudimos comunicarnos con Faro. Inténtelo de nuevo.",
+      },
+    },
   },
   pt: {
     assistant: "Faro · assistente automático",
@@ -62,6 +96,28 @@ export const TEXTS: Record<Language, Texts> = {
       signOut: "Sair",
       endsAt: (time) => `Sua sessão termina às ${time}.`,
     },
+    chat: {
+      opening:
+        "Olá, sou o Faro, o assistente automático do LATAM Bank para os seus cartões. Como posso ajudar?",
+      suggestion: "Quais cartões eu tenho e qual é o status de cada um?",
+      placeholder: "Escreva sua mensagem",
+      send: "Enviar",
+      working: "O Faro está preparando sua resposta.",
+      problems: {
+        invalid_request:
+          "Não consegui processar essa mensagem. Por favor, escreva de novo.",
+        session_refused:
+          "Não foi possível continuar esta conversa. Saia e entre de novo.",
+        no_customer: "Seu usuário não tem cartões que este chat possa atender.",
+        rate_limited:
+          "Você enviou muitas mensagens seguidas. Aguarde um momento e tente novamente.",
+        daily_limit:
+          "Você atingiu o limite de mensagens de hoje. Tente novamente amanhã.",
+        internal:
+          "No momento não consigo responder. Por favor, tente novamente em alguns minutos.",
+        unreachable: "Não foi possível falar com o Faro. Tente novamente.",
+      },
+    },
   },
 };
 
@@ -76,3 +132,11 @@ export const CONSOLES = {
     body: "El informe de evaluación llega en una próxima versión del prototipo.",
   },
 } as const;
+
+export function isRunErrorCode(code: unknown): code is RunErrorCode {
+  return (
+    typeof code === "string" &&
+    code !== "unreachable" &&
+    Object.hasOwn(TEXTS.es.chat.problems, code)
+  );
+}

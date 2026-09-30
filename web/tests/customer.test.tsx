@@ -21,6 +21,23 @@ vi.mock(import("../src/auth"), async (original) => ({
   signOutHere: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock(import("../src/chat/chat"), () => ({
+  Chat: ({
+    session,
+    onSignInEnded,
+  }: {
+    session: string;
+    onSignInEnded: () => void;
+  }) => (
+    <div>
+      <p>chat in {session}</p>
+      <button type="button" onClick={onSignInEnded}>
+        runtime turned the token away
+      </button>
+    </div>
+  ),
+}));
+
 const CONFIG = {
   region: "us-east-1",
   user_pool_id: "us-east-1_pool",
@@ -59,7 +76,7 @@ test("says the app couldn't load when config.json can't be read", async () => {
   expect(await screen.findByText(texts.broken)).toBeInTheDocument();
 });
 
-test("signs in through the form and draws a runtime session of its own", async () => {
+test("signs in through the form and opens the chat in a runtime session of its own", async () => {
   vi.mocked(signInWith).mockResolvedValue("signed_in");
   vi.mocked(currentSignIn)
     .mockResolvedValueOnce(null)
@@ -68,13 +85,9 @@ test("signs in through the form and draws a runtime session of its own", async (
 
   await signInThroughTheForm();
 
-  expect(
-    await screen.findByText(/Su sesión termina a las/),
-  ).toBeInTheDocument();
+  expect(await screen.findByText(/^chat in [0-9a-f]{64}$/)).toBeInTheDocument();
   expect(signInWith).toHaveBeenCalledWith("persona", "secret");
-  expect(window.sessionStorage.getItem("faro.runtime-session")).toMatch(
-    /^[0-9a-f]{64}$/,
-  );
+  expect(screen.getByText(/Su sesión termina a las/)).toBeInTheDocument();
   expect(screen.getByText(texts.notice)).toBeInTheDocument();
 });
 
@@ -112,10 +125,7 @@ test("a reload keeps the sign-in and its runtime session", async () => {
   vi.mocked(currentSignIn).mockResolvedValue(signedIn());
   render(<Customer language="es" />);
 
-  expect(
-    await screen.findByText(/Su sesión termina a las/),
-  ).toBeInTheDocument();
-  expect(window.sessionStorage.getItem("faro.runtime-session")).toBe(session);
+  expect(await screen.findByText(`chat in ${session}`)).toBeInTheDocument();
 });
 
 test("a reload after the hour ends the sign-in", async () => {
@@ -131,12 +141,27 @@ test("a reload after the hour ends the sign-in", async () => {
 test("the hour's end signs the tab out and says so (POL-09)", async () => {
   vi.mocked(currentSignIn).mockResolvedValue(signedIn(100));
   render(<Customer language="es" />);
-  await screen.findByText(/Su sesión termina a las/);
+  await screen.findByText(/^chat in/);
 
   expect(await screen.findByRole("alert")).toHaveTextContent(
     texts.signIn.ended,
   );
   expect(signOutHere).toHaveBeenCalled();
+});
+
+test("the Runtime turning the token away ends the sign-in", async () => {
+  vi.mocked(currentSignIn).mockResolvedValue(signedIn());
+  render(<Customer language="es" />);
+
+  await userEvent.setup().click(
+    await screen.findByRole("button", {
+      name: "runtime turned the token away",
+    }),
+  );
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    texts.signIn.ended,
+  );
 });
 
 test("signing out returns to the form without a message", async () => {
