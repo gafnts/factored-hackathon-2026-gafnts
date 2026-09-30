@@ -75,7 +75,7 @@ The operations that can hurt are hard to trigger by mistake:
 
 | Risk | What stops it |
 |---|---|
-| Applying or destroying `prototype` from a laptop | `make` refuses without `I_KNOW=1`; CI owns `prototype` |
+| Applying or destroying `prototype`, or deploying its site, from a laptop | `make` refuses without `I_KNOW=1`; CI owns `prototype` |
 | A `local` target running as your admin profile | `make` refuses the targets that deploy or test `local` while `AWS_PROFILE` is unset, instead of falling back to the default profile |
 | `make destroy` hitting the wrong environment | It requires an explicit `ENV`, and refuses when Terraform is initialized for a different one |
 | Unfinished work reaching the prototype | A workflow fails any PR into `main` that doesn't come from `develop` |
@@ -231,7 +231,7 @@ The deploy workflow needs a `prototype` environment and two repository variables
 
    Or add them under **Settings → Secrets and variables → Actions → Variables**.
 
-The apply job runs on merges to `main` that touch `infra/`. Store `prototype`'s model key before its first deploy ([step 3.7](#37-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
+The apply job runs on merges to `main` that touch the stack's code (`infra/`, `src/`, `web/`), and deploys the site once Terraform has applied; the deployment then links the site's URL from the `prototype` environment, on your fork's own CloudFront domain. Store `prototype`'s model key before its first deploy ([step 3.7](#37-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
 
 #### 3.6 Copy the dataset snapshot and the tools' data
 
@@ -262,6 +262,7 @@ cp .env.example .env   # Then set ANTHROPIC_API_KEY in .env
 make model-key         # Store it in banking-agent-local-anthropic-api-key
 make plan              # Build the zips, preview the local stack, and save the plan
 make apply             # Apply the saved plan
+make site              # Build the web app and upload it to the site
 ```
 
 `make model-key` sends the key straight to Secrets Manager, without printing it or putting it on a command line. Store `prototype`'s key the same way before its first deploy, with `AWS_PROFILE=default make model-key ENV=prototype`, since the local deploy role can't reach its secret; `make doctor` reports both. The secrets outlive `make destroy`, so the key is stored once per environment; `make iam-destroy` deletes them.
@@ -348,6 +349,7 @@ With `AWS_PROFILE=banking-agent-local` active (direnv sets it when you enter the
 make init                # Initialize the local backend (safe to re-run)
 make plan                # Build, preview changes, and save the plan to build/local.tfplan
 make apply               # Apply the saved plan
+make site                # Build the web app, upload it to the site, and invalidate the distribution's cache
 make integration         # Test the deployed stack with throwaway users
 make probe               # Time the Runtime per persona and check what it stores and traces
 make web-dev             # Serve the web app on localhost:5173 against the deployed stack
@@ -357,6 +359,8 @@ make destroy ENV=local   # Tear down your local resources
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
 
 `make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+
+The site's `config.json`, which names the user pool, the customers' app client, and the Runtime, is written by Terraform at every apply, so `make site` uploads only the build and leaves it alone. `make outputs` writes the site's URL under `site.url` in `build/<env>.outputs.json`.
 
 The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`src/banking_agent/export/`, `src/banking_agent/personas.py`, or the tools' data contract) gives it a new version: run `make tiny-export`, which uploads it and prints the value, and set it in both files. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
 
@@ -370,7 +374,7 @@ make lock
 
 ### Promote to prototype
 
-When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/` and `infra/dataset/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`. Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
+When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/` and `infra/dataset/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype` and deploys the site; the deployment links its URL, the one the submission gives (SUB-02). Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
 
 To redeploy `main` without an infrastructure change, run the workflow by hand: **Actions → Deploy · Prototype → Run workflow**.
 

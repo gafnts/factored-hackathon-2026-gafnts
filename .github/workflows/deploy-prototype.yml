@@ -8,6 +8,8 @@ on:
       - "!infra/iam/**"
       - "!infra/dataset/**"
       - "src/**"
+      - "web/**"
+      - ".nvmrc"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/deploy-prototype.yml"
@@ -129,8 +131,10 @@ jobs:
     concurrency:
       group: deploy-prototype-apply
       cancel-in-progress: false
+    # The site's URL is the link the submission gives (SUB-02).
     environment:
       name: prototype
+      url: ${{ steps.site.outputs.url }}
     steps:
       # Full history, so the build stamps the Runtime with the commit that last changed its code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,3 +166,21 @@ jobs:
         run: |
           terraform -chdir=infra apply -auto-approve \
             -var-file=envs/${{ env.ENV }}.tfvars
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: web/package.json
+          cache: true
+          cache_dependency_path: web/pnpm-lock.yaml
+
+      # After the apply, so the build lands beside the config.json that names the stack it applied.
+      - name: Deploy the site
+        id: site
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          make site ENV=${{ env.ENV }} I_KNOW=1
+          echo "url=$(jq -r .site.value.url build/${{ env.ENV }}.outputs.json)" >> "$GITHUB_OUTPUT"

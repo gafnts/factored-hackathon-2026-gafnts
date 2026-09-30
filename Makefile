@@ -23,7 +23,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration probe \
-	build web web-dev \
+	build web web-dev site \
 	bootstrap backend doctor provision teardown \
 	data snapshot personas tiny-export analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
@@ -96,6 +96,11 @@ build: ## Build the Runtime's and the Lambdas' zips into build/, and rewrite the
 
 web: ## Build the web app into web/dist
 	pnpm --dir web build
+
+site: _check-profile outputs web ## Build the web app and upload it to ENV's site (refuses prototype unless I_KNOW=1)
+	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to deploy prototype's site from local. CI owns prototype."; exit 1; fi
+	@bash scripts/site.sh $(OUTPUTS)
 
 web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack, with the config.json its site holds
 	@mkdir -p web/public
