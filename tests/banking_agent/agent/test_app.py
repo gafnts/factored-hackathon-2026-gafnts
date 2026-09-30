@@ -682,6 +682,20 @@ def test_ids_are_recorded_as_the_client_drew_them(harness: Harness) -> None:
     assert harness.records.of(who.origin_jti)[0]["client_thread_id"] == body["threadId"]
 
 
+def test_assistant_uis_seven_character_ids_are_served(harness: Harness) -> None:
+    who = customer()
+    body = {**run_body(message_id="Mx3k9Qa"), "runId": "R7pT2wZ"}
+
+    events = harness.post(body, who.token(), session_id())
+
+    assert events[-1]["type"] == "RUN_FINISHED"
+    opened = harness.records.of(who.origin_jti)[0]
+    assert opened["client_run_id"] == "R7pT2wZ"
+    too_short = {**run_body(message_id="Mx3k9Q"), "runId": "R7pT2w"}
+    refused = harness.post(too_short, who.token(), session_id())
+    assert refused[0]["code"] == "invalid_request"
+
+
 def test_a_thread_id_that_isnt_id_shaped_isnt_recorded(harness: Harness) -> None:
     who = customer()
 

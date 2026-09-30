@@ -194,8 +194,8 @@
           "type": "string",
           "format": "uuid"
         },
-        "client_thread_id": { "type": "string", "minLength": 8, "maxLength": 64 },
-        "client_run_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+        "client_thread_id": { "type": "string", "minLength": 7, "maxLength": 64 },
+        "client_run_id": { "type": "string", "minLength": 7, "maxLength": 64 },
         "runtime_session_id": { "type": "string", "minLength": 33, "maxLength": 256 },
         "request_id": {
           "description": "The Runtime's request ID.",
