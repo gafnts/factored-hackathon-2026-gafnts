@@ -1,29 +1,46 @@
 """
-The chat in a real browser, against the deployed site (ADR-0004, To verify on the first deploy: the chat in a real
-browser; ADR-0007): a persona signs in through the form with SRP, asks about their cards, and reads a reply sent whole,
-with the turn in the sign-in's execution record; a persona blocks a card with the confirm control, which a typed yes
-doesn't confirm, and is offered the replacement with the handoff control; the README's journey runs, from a charge the
-customer doesn't recognize to the case's reference, urgent when the block is cancelled; another customer's ID, a staff
-user, and another sign-in's runtime session get nothing; and signing out revokes the sign-in's refresh token (SEC-04,
-SEC-05, POL-09, POL-11, POL-27, POL-36 to POL-39, POL-45, POL-47, CTL-02, EVL-04, OPS-02). Assertions count and compare
-without printing a reply, a token, or an ID, and nothing the page shows is saved: no trace, screenshot, or video.
+The chat and the console in a real browser, against the deployed site (ADR-0004, To verify on the first deploy: the
+chat in a real browser; ADR-0007): a persona signs in through the form with SRP, asks about their cards, and reads a
+reply sent whole, with the turn in the sign-in's execution record; a persona blocks a card with the confirm control,
+which a typed yes doesn't confirm, and is offered the replacement with the handoff control; the README's journey runs in
+two tabs, from a charge the customer doesn't recognize to the case's reference, while a human agent sees the case reach
+dispute intake within a poll, urgent when the block is cancelled, and reads it with each fact next to its call; the
+console shows a case's markup as text; another customer's ID, a staff user in the chat, a customer or the AI team in
+the console, and another sign-in's runtime session get nothing; and signing out revokes the sign-in's refresh token
+(SEC-04, SEC-05, POL-09 to POL-11, POL-27, POL-36 to POL-39, POL-45, POL-47, CTL-02, CTL-05, EVL-04, OPS-02).
+Assertions count and compare without printing a reply, a token, or an ID, and nothing the page shows is saved: no
+trace, screenshot, or video.
 """
 
+import json
 import re
 import secrets
 import time
+import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from importlib.resources import files
 from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
 from mypy_boto3_cognito_idp import CognitoIdentityProviderClient
-from playwright.sync_api import Browser, Page, Request, expect, sync_playwright
+from playwright.sync_api import (
+    Browser,
+    Dialog,
+    Locator,
+    Page,
+    Request,
+    expect,
+    sync_playwright,
+)
 
 from banking_agent.agent.texts import FIXED, render, transaction_name
+from banking_agent.contracts import validator
+from banking_agent.tools.cases import draw_reference, queue_order, reference_item
 
-from .conftest import SignIn, User, claims, handoffs
+from .conftest import SignIn, User, cases, claims, handoffs
 from .test_agent import records
 from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
@@ -59,6 +76,22 @@ TEXTS = {
     },
 }
 RUNTIME_SESSION = "faro.runtime-session"
+# The console's own text, in Spanish whatever the browser's language (ADR-0007, Routes).
+CONSOLE = {
+    "disputes": "Disputas",
+    "service": "Servicio al cliente",
+    "normal": "Normal",
+    "urgent": "Urgente",
+    "verified": "Verificado",
+    "facts": "Hechos verificados",
+    "actions": "Acciones",
+    "flagged": "Caso marcado",
+    "reference": "Referencia",
+    "search": "Buscar",
+    "no_access": "Su usuario no tiene acceso a la consola de agentes",
+}
+# Within a poll: 3 seconds, the queue index's lag, and a request's time.
+ARRIVES_MS = 10_000
 
 
 @dataclass
@@ -80,8 +113,8 @@ class Tab:
         )
         return found
 
-    def sign_in(self, site: str, user: User) -> None:
-        self.page.goto(f"{site}/chat")
+    def sign_in(self, site: str, user: User, path: str = "/chat") -> None:
+        self.page.goto(f"{site}{path}")
         self.page.get_by_label(self.texts["username"]).fill(user.username)
         self.page.get_by_label(self.texts["password"]).fill(user.password)
         self.page.get_by_role("button", name=self.texts["submit"]).click()
@@ -301,6 +334,44 @@ def charged(
     return access, card, disputed(window(outputs, access, card["card_id"]))
 
 
+def at_the_console(site: str, agent: Tab, user: User) -> None:
+    """
+    A human agent, signed in at /agent through the staff client, with the queues polling.
+    """
+    agent.sign_in(site, user, "/agent")
+    expect(agent.page.get_by_role("region", name=CONSOLE["disputes"])).to_be_visible()
+
+
+def arrives(agent: Tab, reference: str, priority: str) -> Locator:
+    """
+    The case's row in dispute intake, there within a poll of its filing, with the rows above it.
+    """
+    queue = agent.page.get_by_role("region", name=CONSOLE["disputes"])
+    row = queue.get_by_role("button", name=re.compile(re.escape(reference)))
+    expect(row).to_be_visible(timeout=ARRIVES_MS)
+    expect(row).to_contain_text(CONSOLE[priority])
+    return row
+
+
+def reads_the_case(agent: Tab, reference: str, row: Locator, outcome: str) -> None:
+    """
+    The case opened: its block among its actions, and each fact next to the call that read it.
+    """
+    row.click()
+    expect(agent.page.get_by_role("heading", level=2, name=reference)).to_be_visible()
+    actions = agent.page.get_by_role("region", name=CONSOLE["actions"])
+    expect(actions).to_contain_text(outcome)
+    # A block cancelled with the control made no call to cite.
+    if outcome == CONSOLE["verified"]:
+        expect(actions).to_contain_text("block_card")
+    facts = agent.page.get_by_role("region", name=CONSOLE["facts"])
+    expect(facts).to_contain_text("find_transactions")
+    expect(facts).to_contain_text("file_handoff")
+    expect(agent.page.get_by_text(CONSOLE["flagged"])).to_have_count(0)
+    shown = agent.page.evaluate("new URLSearchParams(location.search).get('caso')")
+    assert shown == reference, "the address doesn't keep the open case"
+
+
 def case_filed(
     outputs: dict[str, Any], access: str, reply: str, saved: list[str]
 ) -> dict[str, Any]:
@@ -324,6 +395,8 @@ def test_the_readmes_journey_blocks_the_card_and_files_the_charge_to_dispute_int
     tab: Callable[[str], Tab],
     saved: list[str],
 ) -> None:
+    agent = tab("es")
+    at_the_console(site, agent, users["staff"])
     customer = tab("pt")
     access, card, charge = charged(outputs, users, site, customer)
     controls = customer.page.get_by_role("group", name=customer.texts["control"])
@@ -363,7 +436,11 @@ def test_the_readmes_journey_blocks_the_card_and_files_the_charge_to_dispute_int
         call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
     )
     assert read["card"]["product_status"] == "Blocked"
+    # In the other tab, a human agent sees the case arrive and reads it (ADR-0007, Judges' access: the demo).
+    row = arrives(agent, filed["reference"], "normal")
+    reads_the_case(agent, filed["reference"], row, CONSOLE["verified"])
     assert (customer.violations, customer.errors) == ([], 0)
+    assert (agent.violations, agent.errors) == ([], 0)
 
 
 def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
@@ -373,6 +450,8 @@ def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
     tab: Callable[[str], Tab],
     saved: list[str],
 ) -> None:
+    agent = tab("es")
+    at_the_console(site, agent, users["staff"])
     customer = tab("pt")
     access, card, charge = charged(outputs, users, site, customer)
     controls = customer.page.get_by_role("group", name=customer.texts["control"])
@@ -401,7 +480,15 @@ def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
         call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
     )
     assert read["card"]["product_status"] == "Active"
+    # Urgent, the case sits above every normal one, however new (POL-47).
+    row = arrives(agent, filed["reference"], "urgent")
+    queue = agent.page.get_by_role("region", name=CONSOLE["disputes"])
+    rows = queue.get_by_role("button").all_inner_texts()
+    above = rows[: next(i for i, r in enumerate(rows) if filed["reference"] in r)]
+    assert all(CONSOLE["urgent"] in r for r in above), "a normal case is above it"
+    reads_the_case(agent, filed["reference"], row, "Cancelado por el cliente")
     assert (customer.violations, customer.errors) == ([], 0)
+    assert (agent.violations, agent.errors) == ([], 0)
 
 
 def test_a_persona_signs_in_and_reads_a_reply_sent_whole(
@@ -486,6 +573,115 @@ def test_a_staff_user_gets_no_sign_in_through_the_chat(
     expect(staff.page.get_by_role("alert")).to_contain_text(staff.texts["refused"])
     assert staff.stored(".accessToken") is None
     assert staff.violations == []
+
+
+def test_a_customer_gets_no_sign_in_through_the_console(
+    users: dict[str, User], site: str, tab: Callable[[str], Tab]
+) -> None:
+    customer = tab("es")
+
+    customer.sign_in(site, users["customer"], "/agent")
+
+    # The pre-token trigger refuses a customer a staff token, and the form says only that the sign-in failed.
+    expect(customer.page.get_by_role("alert")).to_contain_text(
+        customer.texts["refused"]
+    )
+    assert customer.stored(".accessToken") is None
+    expect(customer.page.get_by_role("region", name=CONSOLE["disputes"])).to_have_count(
+        0
+    )
+    assert customer.violations == []
+
+
+def test_the_ai_team_signs_in_but_reads_no_case(
+    users: dict[str, User], site: str, tab: Callable[[str], Tab]
+) -> None:
+    member = tab("es")
+
+    member.sign_in(site, users["ai_team"], "/agent")
+
+    expect(member.page.get_by_role("alert")).to_contain_text(CONSOLE["no_access"])
+    expect(member.page.get_by_role("region", name=CONSOLE["disputes"])).to_have_count(0)
+    # The browser logs each refused request as an error; the page itself breaks no rule.
+    assert member.violations == []
+
+
+def planted(outputs: dict[str, Any], markup: dict[str, str]) -> dict[str, Any]:
+    """
+    A demo case put straight into the cases table, whose free text holds markup: the console must show it as text
+    (ADR-0007, Rendering what others wrote). Its IDs are made up, and the record it names holds nothing.
+    """
+    example = json.loads(
+        files("banking_agent.contracts")
+        .joinpath("examples/handoff-case.json")
+        .read_text(encoding="utf-8")
+    )[2]
+    handoff_id, sign_in = str(uuid.uuid4()), str(uuid.uuid4())
+    now = datetime.now(UTC)
+    filed_at = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    payload = {
+        **example["payload"],
+        "handoff_id": handoff_id,
+        "session_id": sign_in,
+        "request": {**example["payload"]["request"], "summary": markup["summary"]},
+        "customer_statements": [markup["statement"]],
+        "unresolved_questions": [markup["question"]],
+    }
+    reference = draw_reference()
+    case = {
+        **example,
+        "pk": handoff_id,
+        "handoff_id": handoff_id,
+        "reference": reference,
+        "payload": payload,
+        "queue_order": queue_order(example["priority"], filed_at),
+        "filed_at": filed_at,
+        "record": {"sign_in": sign_in, "turns": [f"{filed_at}#{uuid.uuid4()}"]},
+        "expires_at": int(now.timestamp()) + 3600,
+    }
+    validator("handoff-case").validate(case)
+    table = cases(outputs)
+    table.put_item(Item=case)
+    table.put_item(Item=reference_item(reference, handoff_id, case["expires_at"]))
+    return case
+
+
+def test_the_console_shows_what_a_case_holds_as_text_never_as_markup(
+    outputs: dict[str, Any],
+    users: dict[str, User],
+    site: str,
+    tab: Callable[[str], Tab],
+    saved: list[str],
+) -> None:
+    markup = {
+        "summary": 'Resumen <script>alert("resumen")</script>',
+        "statement": 'Dice <img src="x" onerror="alert(1)">',
+        "question": "Pregunta <script>alert(2)</script>",
+    }
+    case = planted(outputs, markup)
+    saved.append(case["handoff_id"])
+    agent = tab("es")
+    dialogs: list[str] = []
+
+    def opened(dialog: Dialog) -> None:
+        dialogs.append(dialog.type)
+        dialog.dismiss()
+
+    agent.page.on("dialog", opened)
+    at_the_console(site, agent, users["staff"])
+
+    agent.page.get_by_label(CONSOLE["reference"]).fill(case["reference"].lower())
+    agent.page.get_by_role("button", name=CONSOLE["search"]).click()
+
+    expect(
+        agent.page.get_by_role("heading", level=2, name=case["reference"])
+    ).to_be_visible()
+    for text in markup.values():
+        expect(agent.page.get_by_text(text, exact=True)).to_be_visible()
+    assert agent.page.locator("article script, article img").count() == 0
+    # The case is flagged as filed, each part named without its value.
+    expect(agent.page.get_by_text(CONSOLE["flagged"])).to_be_visible()
+    assert (dialogs, agent.violations, agent.errors) == ([], [], 0)
 
 
 def test_another_sign_ins_runtime_session_is_refused(
