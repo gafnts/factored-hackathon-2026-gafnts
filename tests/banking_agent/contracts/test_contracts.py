@@ -358,7 +358,44 @@ def test_unknown_contracts_and_definitions_are_refused() -> None:
     with pytest.raises(KeyError, match="no contract named"):
         schema("handoff-case")
     with pytest.raises(KeyError, match="defines no"):
-        definition("tools", "block_card_input")
+        definition("tools", "file_handoff_input")
+
+
+def test_a_block_needs_a_confirmation_and_one_of_the_policys_reasons() -> None:
+    call = first("tools.block_card_input.json")
+
+    assert invalid("tools", "block_card_input", {**call, "reason": "fraud"})
+    del call["confirmation_id"]
+    assert invalid("tools", "block_card_input", call)
+
+
+def test_a_block_is_verified_only_by_a_read_back_that_shows_it() -> None:
+    # POL-37 and AI-05: the outcome can't claim a block the sandbox doesn't show.
+    verified = first("tools.block_card_output.json")
+
+    assert invalid("tools", "block_card_output", {**verified, "read_back": "Active"})
+    assert invalid(
+        "tools",
+        "block_card_output",
+        {**verified, "block_outcome": "not_verified", "read_back": "Blocked"},
+    )
+    assert invalid("tools", "block_card_output", {**verified, "attempts": 4})
+
+
+def test_a_refused_block_gives_a_status_only_for_a_card_that_isnt_active() -> None:
+    refusals = [
+        o for o in examples("tools.block_card_output.json") if o["outcome"] == "refused"
+    ]
+    not_confirmed, not_active = refusals
+
+    assert invalid(
+        "tools", "block_card_output", {**not_confirmed, "product_status": "Active"}
+    )
+    assert invalid(
+        "tools", "block_card_output", {**not_active, "product_status": "Active"}
+    )
+    del not_active["product_status"]
+    assert invalid("tools", "block_card_output", not_active)
 
 
 def test_only_the_entrypoint_opens_turns() -> None:

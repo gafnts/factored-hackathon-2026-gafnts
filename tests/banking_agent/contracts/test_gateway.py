@@ -1,6 +1,6 @@
 """
 The Gateway's tool definitions hold only what its schema accepts, generated from the full contract (ADR-0004,
-decision 16), and never declare file_handoff.
+decision 16), one list per target, and never declare file_handoff.
 """
 
 from collections.abc import Iterator
@@ -13,6 +13,7 @@ from banking_agent.contracts.gateway import reduced, tool_definition, tool_defin
 
 ACCEPTED = {"type", "description", "properties", "required", "items"}
 TYPES = {"string", "number", "integer", "boolean", "array", "object"}
+DECLARED = [tool for tools in GATEWAY_TOOLS.values() for tool in tools]
 
 
 def nodes(node: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -24,13 +25,29 @@ def nodes(node: dict[str, Any]) -> Iterator[dict[str, Any]]:
 
 
 def test_the_gateway_declares_every_gateway_tool_and_not_file_handoff() -> None:
-    names = [d["name"] for d in tool_definitions()]
+    declared = tool_definitions()
 
-    assert names == list(GATEWAY_TOOLS)
-    assert "file_handoff" not in names
+    assert list(declared) == ["reads", "block"]
+    for target, definitions in declared.items():
+        assert [d["name"] for d in definitions] == list(GATEWAY_TOOLS[target])
+    assert "file_handoff" not in DECLARED
 
 
-@pytest.mark.parametrize("tool", GATEWAY_TOOLS)
+def test_the_block_has_a_target_of_its_own() -> None:
+    # Its Lambda writes the sandbox and the confirmations, which the reads' must not (ADR-0004, Where the tools run).
+    assert GATEWAY_TOOLS["block"] == ("block_card",)
+    assert "block_card" not in GATEWAY_TOOLS["reads"]
+
+
+def test_the_block_names_its_reasons_though_the_gateway_drops_the_enum() -> None:
+    reason = tool_definition("block_card")["inputSchema"]["properties"]["reason"]
+
+    assert reason["type"] == "string"
+    for value in schema("tools")["$defs"]["block_reason"]["enum"]:
+        assert value in reason["description"]
+
+
+@pytest.mark.parametrize("tool", DECLARED)
 def test_a_reduced_input_holds_only_what_the_gateway_accepts(tool: str) -> None:
     declared = tool_definition(tool)
     input_schema = declared["inputSchema"]
@@ -42,7 +59,7 @@ def test_a_reduced_input_holds_only_what_the_gateway_accepts(tool: str) -> None:
         assert node["type"] in TYPES
 
 
-@pytest.mark.parametrize("tool", GATEWAY_TOOLS)
+@pytest.mark.parametrize("tool", DECLARED)
 def test_a_reduced_input_keeps_the_full_contracts_fields(tool: str) -> None:
     full = definition("tools", f"{tool}_input")
     declared = tool_definition(tool)["inputSchema"]

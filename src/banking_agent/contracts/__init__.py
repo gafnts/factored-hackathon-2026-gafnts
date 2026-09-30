@@ -20,8 +20,9 @@ TOOLS = (
     "file_handoff",
 )
 
-# file_handoff is off the Gateway: a customer could otherwise file a forged case (ADR-0004).
-GATEWAY_TOOLS = ("list_cards", "get_card")
+# By Gateway target, one Lambda each, split by what it may write; file_handoff is off the Gateway, since a customer
+# could otherwise file a forged case (ADR-0004, Where the tools run).
+GATEWAY_TOOLS = {"reads": ("list_cards", "get_card"), "block": ("block_card",)}
 
 # Keywords that constrain an instance; a definition's schema keeps its root's $defs and drops these.
 _ROOT_CONSTRAINTS = (

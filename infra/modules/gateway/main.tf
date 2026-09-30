@@ -12,7 +12,7 @@ locals {
   reads_name    = "${var.prefix}-reads"
   target        = "reads"
   # Generated from the contract by make build, and committed so a PR shows what the Gateway declares.
-  tools = jsondecode(file("${path.module}/tools.json"))
+  tools = jsondecode(file("${path.module}/tools.json")).reads
 }
 
 resource "aws_bedrockagentcore_policy_engine" "this" {
