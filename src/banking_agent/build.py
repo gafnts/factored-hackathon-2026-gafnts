@@ -49,7 +49,7 @@ ARTIFACTS = (
         entry="from banking_agent.agent.app import main\n\nmain({app_version!r})\n",
     ),
     Artifact("pre_token"),
-    Artifact("reads", group="tools"),
+    Artifact("tools", group="tools"),
 )
 
 

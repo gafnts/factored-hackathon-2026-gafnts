@@ -1,6 +1,7 @@
 """
 The graph's model calls: Claude Haiku 4.5 through Anthropic's API with the key from AgentCore Identity (ADR-0004,
-Models, as amended). The router's output is typed through structured output, and a reply is plain text read whole.
+Models, as amended). The router's and the extraction's outputs are typed through structured output, each field among
+the values its step allows, and a reply is plain text read whole.
 Every call is one attempt, recorded as a model_call entry, and runs with emit-messages and emit-tool-calls off and
 streaming disabled, so nothing it writes reaches the chat unchecked (ADR-0004, What the chat receives). The client's
 own retries are off too, since each attempt is recorded (decision 18).
@@ -64,6 +65,23 @@ class RouterOutput(BaseModel):
     has_request: bool
 
 
+class BlockDetails(BaseModel):
+    """
+    What a message says about the card to block and why, each among the values the step allows (POL-13, POL-35).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    card_type: Literal["credit", "debit"] | None
+    last_four: str | None
+    block_reason: (
+        Literal["lost", "stolen", "unrecognized_charge", "customer_request"] | None
+    )
+
+
+OUTPUTS: dict[str, type[BaseModel]] = {"route": RouterOutput, "extract": BlockDetails}
+
+
 class ModelFailedError(RuntimeError):
     pass
 
@@ -93,9 +111,9 @@ def anthropic_factory(key: str) -> Factory:
         )
         runnable: Runnable[Any, Any] = (
             chat.with_structured_output(
-                RouterOutput, method="json_schema", include_raw=True
+                OUTPUTS[purpose], method="json_schema", include_raw=True
             )
-            if purpose == "route"
+            if purpose in OUTPUTS
             else chat
         )
         return runnable.with_config(metadata=EMIT_OFF)
@@ -164,7 +182,7 @@ class Models:
         outcome = "ok"
         try:
             answer = await self.factory(purpose).ainvoke(list(messages))
-            if purpose == "route":
+            if purpose in OUTPUTS:
                 raw, parsed = answer["raw"], answer["parsed"]
                 if answer.get("parsing_error") is not None or parsed is None:
                     outcome = "invalid_output"
@@ -197,6 +215,8 @@ class Models:
         }
         if outcome == "ok" and isinstance(parsed, RouterOutput):
             entry["output"] = parsed.model_dump()
+        if outcome == "ok" and isinstance(parsed, BlockDetails):
+            entry["output"] = {"extracted": parsed.model_dump()}
         await self.record("model_call", **entry)
         if outcome != "ok":
             raise ModelFailedError(f"the {node} call ended {outcome}")
@@ -208,6 +228,19 @@ class Models:
         )
         routed: RouterOutput = parsed
         return routed
+
+    async def extract(self, text: str, context: str) -> BlockDetails:
+        system = SystemMessage(
+            [
+                {"type": "text", "text": prompt("resolve_card")},
+                {"type": "text", "text": context},
+            ]
+        )
+        _, parsed = await self.call(
+            "resolve_card", "extract", [system, HumanMessage(text)]
+        )
+        details: BlockDetails = parsed
+        return details
 
     async def reply(
         self, conversation: Sequence[BaseMessage], facts: str, language_name: str

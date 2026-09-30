@@ -1,46 +1,84 @@
-[
-  {
-    "name": "list_cards",
-    "description": "Lists the signed-in customer's cards, by type and last four digits, with their status, and whether the customer is served in full.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "customer_id": {
-          "type": "string"
+{
+  "reads": [
+    {
+      "name": "list_cards",
+      "description": "Lists the signed-in customer's cards, by type and last four digits, with their status, and whether the customer is served in full.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "origin_jti": {
+            "type": "string",
+            "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
+          }
         },
-        "origin_jti": {
-          "type": "string",
-          "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
-        }
-      },
-      "required": [
-        "customer_id",
-        "origin_jti"
-      ]
+        "required": [
+          "customer_id",
+          "origin_jti"
+        ]
+      }
+    },
+    {
+      "name": "get_card",
+      "description": "Reads one of the signed-in customer's cards: its status, dates, and conflict flags.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "origin_jti": {
+            "type": "string",
+            "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
+          },
+          "card_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "origin_jti",
+          "card_id"
+        ]
+      }
     }
-  },
-  {
-    "name": "get_card",
-    "description": "Reads one of the signed-in customer's cards: its status, dates, and conflict flags.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "customer_id": {
-          "type": "string"
+  ],
+  "block": [
+    {
+      "name": "block_card",
+      "description": "Blocks one of the signed-in customer's cards in the sign-in's sandbox, under the confirmation the customer gave with the confirm control, then reads it back. It never changes the bank's records and moves no money (POL-33 to POL-37).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "origin_jti": {
+            "type": "string",
+            "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
+          },
+          "card_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the card is blocked, as the confirmation names it: lost, stolen, unrecognized_charge, or customer_request (POL-35)."
+          },
+          "confirmation_id": {
+            "type": "string",
+            "description": "The confirmation the customer gave with the confirm control. The tool blocks only under one confirmed for this customer, card, and reason, before its time limit, and uses it up (POL-36)."
+          }
         },
-        "origin_jti": {
-          "type": "string",
-          "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
-        },
-        "card_id": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "customer_id",
-        "origin_jti",
-        "card_id"
-      ]
+        "required": [
+          "customer_id",
+          "origin_jti",
+          "card_id",
+          "reason",
+          "confirmation_id"
+        ]
+      }
     }
-  }
-]
+  ]
+}

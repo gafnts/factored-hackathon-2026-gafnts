@@ -1,8 +1,10 @@
 """
 Rebuilds each event the wrapper emits, field by field, to the chat's contract (ADR-0004, What the chat receives, and the
 amendment on the wrapper's whole input). Only the event types the chat renders pass, with the client's thread and run
-IDs, and without the wrapper's additions: the input echo, the run's token usage, raw events, and anything a later
-version of the wrapper adds. Every event sent is checked against the contract first.
+IDs, and without the wrapper's additions: the input echo, the run's token usage, raw events, an interrupt's LangGraph
+metadata, which names the graph's nodes, and anything a later version of the wrapper adds. A run that ends at the
+controls carries them rebuilt from the interrupt's value, which must fit the contract. Every event sent is checked
+against the contract first.
 """
 
 from typing import Any
@@ -11,9 +13,11 @@ from ag_ui.core import (
     AssistantMessage,
     BaseEvent,
     EventType,
+    Interrupt,
     MessagesSnapshotEvent,
     RunErrorEvent,
     RunFinishedEvent,
+    RunFinishedInterruptOutcome,
     RunFinishedSuccessOutcome,
     RunStartedEvent,
     TextMessageContentEvent,
@@ -61,14 +65,35 @@ def public_messages(messages: list[Any]) -> list[Any]:
     return kept
 
 
+def controls(interrupt: Any) -> Interrupt:
+    value: Any = ((interrupt.metadata or {}).get("langgraph") or {}).get("raw")
+    if not validator("chat", "interrupt_value").is_valid(value):
+        raise UnexpectedEventError(
+            "an interrupt's value doesn't fit the chat's contract"
+        )
+    return Interrupt(
+        id=interrupt.id,
+        reason="controls",
+        metadata={"language": value["language"], "controls": value["controls"]},
+    )
+
+
 def rebuild(event: Any, thread_id: str, run_id: str) -> BaseEvent | None:
     kind = event.type
     if kind == EventType.RUN_STARTED:
         return RunStartedEvent(thread_id=thread_id, run_id=run_id)
     if kind == EventType.RUN_FINISHED:
-        outcome = getattr(event, "outcome", None)
-        if outcome is not None and getattr(outcome, "type", "success") != "success":
-            raise UnexpectedEventError("an interrupt, and no control exists yet")
+        outcome: Any = getattr(event, "outcome", None)
+        ended = getattr(outcome, "type", "success")
+        if ended == "interrupt":
+            interrupted = RunFinishedInterruptOutcome(
+                type="interrupt", interrupts=[controls(i) for i in outcome.interrupts]
+            )
+            return RunFinishedEvent(
+                thread_id=thread_id, run_id=run_id, outcome=interrupted
+            )
+        if ended != "success":
+            raise UnexpectedEventError(f"a run finished as {ended}")
         return RunFinishedEvent(thread_id=thread_id, run_id=run_id, outcome=SUCCESS)
     if kind == EventType.TEXT_MESSAGE_START:
         return TextMessageStartEvent(message_id=event.message_id, role="assistant")

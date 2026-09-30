@@ -5,9 +5,14 @@ import {
   MessagePrimitive,
   type TextMessagePartProps,
   ThreadPrimitive,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import {
+  useAgUiInterrupts,
+  useAgUiRuntime,
+  useAgUiSteerAway,
+} from "@assistant-ui/react-ag-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Language } from "../contracts/chat";
@@ -19,6 +24,7 @@ import {
   warmUp,
 } from "../runtime";
 import { type Problem, TEXTS } from "../texts";
+import { ConfirmControl, type Shown, ShownControls } from "./control";
 import { Reply } from "./reply";
 
 // The contract's limit on a customer's message.
@@ -50,6 +56,7 @@ function AssistantMessage() {
       className="max-w-[85%] rounded-lg border border-rule bg-paper-raised px-4 py-3 empty:hidden"
     >
       <MessagePrimitive.Parts components={{ Text: ReplyText }} />
+      <ConfirmControl />
     </MessagePrimitive.Root>
   );
 }
@@ -75,6 +82,20 @@ function Thread({
 }) {
   const texts = TEXTS[language].chat;
   const running = useAuiState((state) => state.thread.isRunning);
+  const pending = useAgUiInterrupts().length > 0;
+  const steerAway = useAgUiSteerAway();
+  const aui = useAui();
+
+  // assistant-ui refuses a new message while a control is pending; steerAway settles the control and sends it, and
+  // the Runtime decides what the message does to the confirmation (POL-36).
+  const divert = (event: { preventDefault: () => void }) => {
+    if (!pending) return;
+    event.preventDefault();
+    const text = aui.composer.getState().text.trim();
+    if (!text) return;
+    aui.composer.setText("");
+    steerAway(text).catch(() => undefined);
+  };
 
   return (
     <ThreadPrimitive.Root className="flex flex-1 flex-col">
@@ -103,7 +124,10 @@ function Thread({
           </p>
         )}
       </ThreadPrimitive.Viewport>
-      <ComposerPrimitive.Root className="sticky bottom-0 flex items-end gap-2 border-t border-rule bg-paper py-4">
+      <ComposerPrimitive.Root
+        onSubmit={divert}
+        className="sticky bottom-0 flex items-end gap-2 border-t border-rule bg-paper py-4"
+      >
         <ComposerPrimitive.Input
           aria-label={texts.placeholder}
           placeholder={texts.placeholder}
@@ -111,7 +135,10 @@ function Thread({
           rows={1}
           className="min-h-11 flex-1 resize-none rounded-lg border border-rule bg-paper-raised px-3 py-2.5 text-base"
         />
-        <ComposerPrimitive.Send className="h-11 rounded-lg bg-ink px-4 font-medium text-paper-raised disabled:opacity-40">
+        <ComposerPrimitive.Send
+          onClick={divert}
+          className="h-11 rounded-lg bg-ink px-4 font-medium text-paper-raised disabled:opacity-40"
+        >
           {texts.send}
         </ComposerPrimitive.Send>
       </ComposerPrimitive.Root>
@@ -167,6 +194,7 @@ export function Chat({
     [onSignInEnded],
   );
   const runtime = useAgUiRuntime({ agent, onError });
+  const [shown] = useState(() => new Map<string, Shown>());
 
   useEffect(() => {
     warmUp(url, threadId, fetcher)
@@ -187,7 +215,9 @@ export function Chat({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <Thread language={language} problem={problem} />
+      <ShownControls value={shown}>
+        <Thread language={language} problem={problem} />
+      </ShownControls>
     </AssistantRuntimeProvider>
   );
 }

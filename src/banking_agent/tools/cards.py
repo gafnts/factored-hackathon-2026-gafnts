@@ -1,12 +1,13 @@
 """
-list_cards and get_card (ADR-0004, Tools; POL-08, POL-12, POL-13 to POL-16, POL-21, POL-30). Every key is built from the
-input's customer_id, which Cedar has matched to the token, so a customer reads their own partition only and another
-customer's card reads as not found. There is no sandbox overlay until block_card (M2), so a card's status is the tools'
-data's; origin_jti, which will choose the overlay, is validated and not yet read.
+list_cards and get_card (ADR-0004, Tools; POL-08, POL-12, POL-13 to POL-16, POL-21, POL-30, POL-33). Every key is built
+from the input's customer_id, which Cedar has matched to the token, so a customer reads their own partition only and
+another customer's card reads as not found. A card's status is the sign-in's overlay's when a block wrote one there,
+and the tools' data's otherwise; origin_jti, which Cedar matched to the token too, chooses the overlay.
 """
 
 from typing import Any
 
+from banking_agent.tools.sandbox import Stores
 from banking_agent.tools.store import Record, ToolsData
 
 # Closed and Suspended customers may only block a card; their status is never returned (POL-12).
@@ -44,11 +45,12 @@ def _only(record: Record, names: tuple[str, ...]) -> dict[str, Any]:
     return {name: record[name] for name in names}
 
 
-def list_cards(data: ToolsData, arguments: dict[str, Any]) -> dict[str, Any]:
-    customer_id = arguments["customer_id"]
+def list_cards(stores: Stores, arguments: dict[str, Any]) -> dict[str, Any]:
+    data, customer_id = stores.data, arguments["customer_id"]
     customer = data.customer(customer_id)
     if customer is None:
         raise CustomerMissingError()
+    written = stores.overlay.statuses(arguments["origin_jti"], customer_id)
     cards = sorted(
         data.cards(customer_id),
         key=lambda card: (card["product_type"], card["last_four"], card["card_id"]),
@@ -60,12 +62,29 @@ def list_cards(data: ToolsData, arguments: dict[str, Any]) -> dict[str, Any]:
             "served_in_full": customer["customer_status"] in SERVED_IN_FULL,
             "country": customer["country"],
         },
-        "cards": [_only(card, SUMMARY) for card in cards],
+        "cards": [_only(overlaid(card, written), SUMMARY) for card in cards],
     }
 
 
-def get_card(data: ToolsData, arguments: dict[str, Any]) -> dict[str, Any]:
-    card = data.card(arguments["customer_id"], arguments["card_id"])
+def get_card(stores: Stores, arguments: dict[str, Any]) -> dict[str, Any]:
+    card = sandboxed_card(stores, arguments)
     if card is None:
-        return {"outcome": "not_found", **_stamped(data)}
-    return {"outcome": "ok", **_stamped(data), "card": _only(card, DETAIL)}
+        return {"outcome": "not_found", **_stamped(stores.data)}
+    return {"outcome": "ok", **_stamped(stores.data), "card": _only(card, DETAIL)}
+
+
+def overlaid(card: Record, written: dict[str, str]) -> Record:
+    status = written.get(card["card_id"])
+    return card if status is None else {**card, "product_status": status}
+
+
+def sandboxed_card(stores: Stores, arguments: dict[str, Any]) -> Record | None:
+    """
+    The card as the sign-in's sandbox shows it, which the block reads too (POL-34).
+    """
+    customer_id, card_id = arguments["customer_id"], arguments["card_id"]
+    card = stores.data.card(customer_id, card_id)
+    if card is None:
+        return None
+    status = stores.overlay.status(arguments["origin_jti"], customer_id, card_id)
+    return card if status is None else {**card, "product_status": status}

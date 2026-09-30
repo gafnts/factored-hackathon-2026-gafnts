@@ -56,6 +56,7 @@ In another tab, a human agent sees the case arrive within seconds: the request, 
 
 - [hackathon-requirements.md](docs/hackathon-requirements.md): what the organizers evaluate, with the IDs every document cites
 - [card-support.md](docs/policy/card-support.md): the policy Faro follows (synthetic), one ID per rule
+- [architecture.md](docs/architecture.md): the system on one page, with its diagrams
 - [docs/adr/](docs/adr/README.md): the architecture decision records, from the workflow choice to the web app
 
 ### Data

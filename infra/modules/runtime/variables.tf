@@ -35,9 +35,17 @@ variable "gateway_url" {
   type = string
 }
 
-variable "gateway_target" {
-  description = "The read tools' target, which names each tool as <target>___<tool>"
-  type        = string
+variable "gateway_targets" {
+  description = "Each tool's target, which names the tool as <target>___<tool>"
+  type        = map(string)
+}
+
+variable "confirmations_table" {
+  description = "The confirmations the Runtime creates and the control answers"
+  type = object({
+    name = string
+    arn  = string
+  })
 }
 
 variable "tools_data" {

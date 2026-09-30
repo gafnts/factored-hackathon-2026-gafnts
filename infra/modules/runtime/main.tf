@@ -257,6 +257,11 @@ data "aws_iam_policy_document" "runtime" {
     actions   = ["dynamodb:PutItem"]
     resources = [aws_dynamodb_table.session_bindings.arn, aws_dynamodb_table.execution_records.arn]
   }
+  # Creates a confirmation and changes its status, always on a condition; it never reads the sandbox or the tools' data.
+  statement {
+    actions   = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
+    resources = [var.confirmations_table.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "runtime" {
@@ -320,11 +325,12 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
   environment_variables = {
     CUSTOMER_CLIENT_ID      = var.customer_client_id
     GATEWAY_URL             = var.gateway_url
-    GATEWAY_TARGET          = var.gateway_target
+    GATEWAY_TARGETS         = jsonencode(var.gateway_targets)
     TOOLS_DATA              = jsonencode(var.tools_data)
     CHECKPOINTS_TABLE       = aws_dynamodb_table.checkpoints.name
     SESSION_BINDINGS_TABLE  = aws_dynamodb_table.session_bindings.name
     EXECUTION_RECORDS_TABLE = aws_dynamodb_table.execution_records.name
+    CONFIRMATIONS_TABLE     = var.confirmations_table.name
     MODEL_KEY_PROVIDER      = aws_bedrockagentcore_api_key_credential_provider.model.name
     # The SDK then fails without a workload token instead of making a local workload identity (spike S4).
     DOCKER_CONTAINER = "1"

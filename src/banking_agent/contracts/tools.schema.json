@@ -50,6 +50,7 @@
       "description": "The overlay's status when the sign-in's sandbox holds one, the tools' data otherwise (POL-33, POL-34).",
       "enum": ["Active", "Blocked", "Closed", "Suspended"]
     },
+    "block_reason": { "enum": ["lost", "stolen", "unrecognized_charge", "customer_request"] },
     "last_four": {
       "description": "The last four digits of the card's number, the only part the tools' data holds (POL-11).",
       "type": "string",
@@ -204,6 +205,86 @@
             "clock": { "$ref": "#/$defs/clock" },
             "card": { "$ref": "#/$defs/card" }
           }
+        },
+        { "$ref": "#/$defs/not_found" },
+        { "$ref": "#/$defs/invalid_input" }
+      ]
+    },
+    "block_card_input": {
+      "description": "Blocks one of the signed-in customer's cards in the sign-in's sandbox, under the confirmation the customer gave with the confirm control, then reads it back. It never changes the bank's records and moves no money (POL-33 to POL-37).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["customer_id", "origin_jti", "card_id", "reason", "confirmation_id"],
+      "properties": {
+        "customer_id": { "$ref": "#/$defs/customer_id" },
+        "origin_jti": { "$ref": "#/$defs/origin_jti" },
+        "card_id": { "$ref": "#/$defs/product_id" },
+        "reason": {
+          "description": "Why the card is blocked, as the confirmation names it: lost, stolen, unrecognized_charge, or customer_request (POL-35).",
+          "$ref": "#/$defs/block_reason"
+        },
+        "confirmation_id": {
+          "description": "The confirmation the customer gave with the confirm control. The tool blocks only under one confirmed for this customer, card, and reason, before its time limit, and uses it up (POL-36).",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "block_card_output": {
+      "oneOf": [
+        {
+          "description": "The block ran under the confirmation, which it used up, or had already run under it. attempts counts the writes to the sandbox, three at most, each after a read-back that didn't show Blocked, and block_outcome is verified only when the last read-back shows Blocked (POL-37). repeated is true when the confirmation was already used, so this call wrote nothing and reports the first call's outcome.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "stamp",
+            "clock",
+            "card_id",
+            "reason",
+            "confirmation_id",
+            "attempts",
+            "block_outcome",
+            "read_back",
+            "repeated"
+          ],
+          "properties": {
+            "outcome": { "const": "ok" },
+            "stamp": { "$ref": "#/$defs/stamp" },
+            "clock": { "$ref": "#/$defs/clock" },
+            "card_id": { "$ref": "#/$defs/product_id" },
+            "reason": { "$ref": "#/$defs/block_reason" },
+            "confirmation_id": { "type": "string", "format": "uuid" },
+            "attempts": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "block_outcome": { "enum": ["verified", "not_verified"] },
+            "read_back": {
+              "description": "The card's status as the last read of the sign-in's sandbox showed it.",
+              "$ref": "#/$defs/product_status"
+            },
+            "repeated": { "type": "boolean" }
+          },
+          "if": { "properties": { "block_outcome": { "const": "verified" } } },
+          "then": { "properties": { "read_back": { "const": "Blocked" } } },
+          "else": { "properties": { "read_back": { "not": { "const": "Blocked" } } } }
+        },
+        {
+          "description": "The tool wrote nothing. not_confirmed: no confirmation this call can use, whether it doesn't exist, is another customer's, wasn't confirmed with the control, has ended, is past its time limit, or names another card or reason; each reads alike, so the answer says nothing about anyone else's confirmations (POL-08, POL-36). not_active: the card isn't Active, and its status is given (POL-34).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome", "stamp", "clock", "refusal"],
+          "properties": {
+            "outcome": { "const": "refused" },
+            "stamp": { "$ref": "#/$defs/stamp" },
+            "clock": { "$ref": "#/$defs/clock" },
+            "refusal": { "enum": ["not_confirmed", "not_active"] },
+            "product_status": { "$ref": "#/$defs/product_status" }
+          },
+          "if": { "properties": { "refusal": { "const": "not_active" } } },
+          "then": {
+            "required": ["product_status"],
+            "properties": { "product_status": { "not": { "const": "Active" } } }
+          },
+          "else": { "not": { "required": ["product_status"] } }
         },
         { "$ref": "#/$defs/not_found" },
         { "$ref": "#/$defs/invalid_input" }
