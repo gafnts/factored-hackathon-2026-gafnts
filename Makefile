@@ -55,8 +55,8 @@ tflint-init: ## Refresh tflint plugins after a .tflint.hcl version bump
 
 ##@ Quality gates
 
+# A hook without `stages` runs in every stage, so the pre-push stage alone covers both.
 check: ## Run every pre-commit hook against every file (both stages)
-	uv run pre-commit run --all-files --hook-stage pre-commit
 	uv run pre-commit run --all-files --hook-stage pre-push
 
 lint: ## Run ruff check on src and tests, and ESLint on the web app
