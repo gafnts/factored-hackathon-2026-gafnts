@@ -2,9 +2,9 @@
 The replies code gives in fixed text, in each of the chat's languages (POL-50), named as the execution record's reply
 entry names them. A block's questions and outcomes are all fixed text: code chooses each from the tools' results and
 the confirmation, and fills in the card's type, last four digits, and status, so the model never reports an action
-(ADR-0004, decision 8; AI-05). A filed handoff's reference reaches the customer here too (POL-45). Where the policy
-requires a handoff once a confirmation ends, handoff_unavailable says the chat can't pass it on yet, until the drafts
-land.
+(ADR-0004, decision 8; AI-05). An offered handoff and a filed handoff's reference reach the customer here too
+(POL-45). Where the policy requires a handoff once a confirmation ends, handoff_unavailable says the chat can't pass it
+on yet, until the drafts land.
 """
 
 from typing import Any
@@ -19,7 +19,7 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Por ahora puedo mostrarle sus tarjetas y el estado de cada una, y bloquear una tarjeta. Con esta solicitud todavía no puedo ayudarle.",
         "pt": "Por enquanto posso mostrar seus cartões e o status de cada um, e bloquear um cartão. Ainda não posso ajudar com este pedido.",
     },
-    # POL-48, without the handoff offer until the controls land.
+    # POL-48; a routed request's failure is followed by handoff_offer.
     "unavailable": {
         "es": "En este momento no puedo ayudarle con eso. Por favor, inténtelo de nuevo en unos minutos.",
         "pt": "No momento não posso ajudar com isso. Por favor, tente novamente em alguns minutos.",
@@ -58,7 +58,7 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "¿Por qué quiere bloquear su {card}? Puede ser por pérdida, por robo, por un cargo que no reconoce o por otro motivo; si prefiere no decirlo, también puedo bloquearla.",
         "pt": "Por que você quer bloquear seu {card}? Pode ser por perda, por roubo, por uma cobrança que você não reconhece ou por outro motivo; se preferir não dizer, também posso bloqueá-lo.",
     },
-    # POL-17, without the handoff offer until the handoff control lands.
+    # POL-17, followed by handoff_offer.
     "clarification_stopped": {
         "es": "No logré precisar su solicitud con estas preguntas, así que no voy a seguir preguntando.",
         "pt": "Não consegui entender seu pedido com estas perguntas, então não vou continuar perguntando.",
@@ -94,7 +94,7 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "No pude confirmar que su {card} quedara bloqueada, así que no puedo darla por bloqueada.",
         "pt": "Não consegui confirmar que seu {card} foi bloqueado, então não posso dá-lo como bloqueado.",
     },
-    # POL-38, without the handoff offer until the handoff control lands.
+    # POL-38, followed by handoff_offer.
     "replacement_by_person": {
         "es": "La reposición de la tarjeta la gestiona una persona del banco.",
         "pt": "A reposição do cartão é feita por uma pessoa do banco.",
@@ -112,6 +112,24 @@ FIXED: dict[str, dict[str, str]] = {
     "handoff_filed": {
         "es": "Pasé su caso a una persona del banco, que le dará seguimiento. La referencia de su caso es {reference}.",
         "pt": "Passei seu caso para uma pessoa do banco, que vai dar continuidade a ele. A referência do seu caso é {reference}.",
+    },
+    # POL-45: the handoff control shows below it, and only the control accepts.
+    "handoff_offer": {
+        "es": "Si lo prefiere, puedo pasar su caso a una persona del banco: acéptelo con el botón.",
+        "pt": "Se preferir, posso encaminhar seu caso para uma pessoa do banco: aceite no botão.",
+    },
+    "offer_pointer": {
+        "es": "Para pasar su caso a una persona del banco, use el botón: un mensaje escrito no lo acepta. Si prefiere no hacerlo, puede rechazarlo con el botón.",
+        "pt": "Para encaminhar seu caso para uma pessoa do banco, use o botão: uma mensagem escrita não o aceita. Se preferir não fazer isso, pode recusar no botão.",
+    },
+    "offer_declined": {
+        "es": "De acuerdo: no pasé su caso a una persona del banco.",
+        "pt": "Certo: não encaminhei seu caso para uma pessoa do banco.",
+    },
+    # POL-09: an offer lapses with the session.
+    "offer_lapsed": {
+        "es": "La oferta de pasar su caso a una persona del banco ya no está vigente.",
+        "pt": "A oferta de encaminhar seu caso para uma pessoa do banco não está mais válida.",
     },
     # POL-48: the case couldn't be filed.
     "handoff_failed": {

@@ -70,6 +70,29 @@ def required(
     }
 
 
+def offered(
+    reason_code: str,
+    label: str | None,
+    rules: list[str],
+    decided: list[str],
+    *,
+    calls: Sequence[str] = (),
+    cards: Sequence[str] = (),
+    actions: Sequence[Mapping[str, Any]] = (),
+) -> dict[str, Any]:
+    """
+    A handoff the policy offers, filed only if the customer accepts it with the handoff control (POL-45). rules are the
+    ones that offered it here, since a reason code may be offered under more than one.
+    """
+    return {
+        **required(
+            reason_code, label, decided, calls=calls, cards=cards, actions=actions
+        ),
+        "trigger": "accepted_offer",
+        "rules": rules,
+    }
+
+
 def scalar(value: Any) -> bool:
     return value is None or isinstance(value, str | int | float | bool)
 

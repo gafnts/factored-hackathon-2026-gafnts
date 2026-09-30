@@ -189,11 +189,14 @@ def test_the_control_confirms_and_the_card_is_blocked_and_verified(
 
     done = chat.press("confirm", shown)
 
-    assert done[-1]["outcome"] == {"type": "success"}
+    assert [c["kind"] for c in interrupt(done)["metadata"]["controls"]] == [
+        "handoff_offer"
+    ]
     assert reply(done) == "\n\n".join(
         [
             "Listo: su tarjeta de crédito terminada en 4821 quedó bloqueada.",
             FIXED["replacement_by_person"]["es"],
+            FIXED["handoff_offer"]["es"],
         ]
     )
     assert called(harness)[-2:] == ["block___block_card", "reads___get_card"]
@@ -216,6 +219,7 @@ def test_the_control_confirms_and_the_card_is_blocked_and_verified(
         "confirmation",
         "tool_call",
         "reply",
+        "interrupt",
         "decision",
         "turn_closed",
     ]
@@ -229,10 +233,10 @@ def test_the_control_confirms_and_the_card_is_blocked_and_verified(
     assert chat.decision() == {
         "request_label": "block_card",
         "outcome_class": "block",
-        "awaiting": "none",
+        "awaiting": "handoff_control",
         "rules": ["POL-36", "POL-37", "POL-38"],
     }
-    assert reply(done).count("\n") == 2
+    assert reply(done).count("\n") == 4
 
 
 def test_a_typed_yes_leaves_the_confirmation_pending_and_shows_the_control_again(
@@ -457,7 +461,7 @@ def test_a_resume_that_doesnt_answer_the_pending_control_changes_nothing(
 
 def test_a_control_answered_once_is_stale_afterwards(harness: Harness) -> None:
     chat = Chat(harness)
-    shown = control_shown(chat)
+    shown = control_shown(chat, block_reason="customer_request")
     chat.press("confirm", shown)
     calls = len(harness.script.tool_calls)
 
@@ -566,7 +570,9 @@ def test_two_questions_that_dont_settle_the_card_stop_the_asking(
 
     stopped = chat.say("No recuerdo.", requests=[])
 
-    assert reply(stopped) == FIXED["clarification_stopped"]["es"]
+    assert reply(stopped) == "\n\n".join(
+        [FIXED["clarification_stopped"]["es"], FIXED["handoff_offer"]["es"]]
+    )
     assert chat.decision()["outcome_class"] == "abstain"
     assert "POL-17" in chat.decision()["rules"]
     shown = chat.say(

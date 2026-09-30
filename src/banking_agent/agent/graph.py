@@ -9,7 +9,8 @@ extracts a card's hints and a block's reason among the values each allows, write
 handoff's free text, while a block's questions and outcomes and a handoff's reference are fixed text code chooses
 (decision 8). Only the control confirms a block, and block_card acts only under the confirmation it confirmed (POL-36).
 A handoff the policy requires is filed by the handoff node, from the evidence the thread's tool calls left in state
-(POL-45 to POL-47).
+(POL-45 to POL-47). One it offers shows the handoff control after the reply, alone or beside a pending confirmation, and
+is filed only when the control accepts it; while it shows, await_control takes the answers as it does a confirmation's.
 
 The public state is the conversation alone: the graph's input and output schemas hold messages only, and what a turn
 keeps for its own steps never reaches the chat (What the chat receives). The turn's decision is handed to its record,
@@ -46,6 +47,7 @@ from banking_agent.agent.models import (
 from banking_agent.agent.payload import (
     built,
     context,
+    offered,
     required,
     transcript,
     written,
@@ -69,6 +71,7 @@ QUESTIONS = 2
 # A lost or stolen card left unblocked is handed to a person (POL-38).
 MISSING = ("lost", "stolen")
 CONTROL = "confirm_control"
+OFFERED = "handoff_control"
 # The tool calls a handoff may cite, the thread's latest first to go; a payload holds 60 at most.
 CITED = 40
 # file_handoff reads at most this many of the sign-in's turns.
@@ -97,7 +100,9 @@ class State(ChatState, total=False):
     pending: dict[str, Any] | None
     block: dict[str, Any] | None
     complaint: bool
+    listed: str | None
     handoff: dict[str, Any] | None
+    offer: dict[str, Any] | None
     evidence: Annotated[list[dict[str, Any]], kept]
 
 
@@ -214,7 +219,9 @@ async def begin(state: State) -> dict[str, Any]:
         "target": None,
         "block": None,
         "complaint": False,
+        "listed": None,
         "handoff": None,
+        "offer": None,
     }
 
 
@@ -321,19 +328,35 @@ def question(
     name: str,
     facts: dict[str, Any],
     rules: list[str],
+    offer: tuple[str | None, list[str]],
     **kept: Any,
 ) -> dict[str, Any]:
     """
-    Asks for a detail, or stops once two questions haven't settled it (POL-17).
+    Asks for a detail, or stops once two questions haven't settled it and offers a handoff (POL-17), citing the listing
+    and the cards the questions were about (offer).
     """
     asked = asked or {}
     before = asked.get("questions", 0) if asked.get("detail") == detail else 0
     if before >= QUESTIONS:
+        listed, cards = offer
+        stopped = [*rules, "POL-17"]
+        request = offered(
+            "clarification_failed",
+            "block_card",
+            ["POL-17"],
+            stopped,
+            calls=[listed] if listed else [],
+            cards=cards,
+        )
         return {
             "case": "fixed",
             "asking": None,
-            "say": [*state.get("say", []), *said(("clarification_stopped", {}))],
-            "decision": decided("abstain", [*rules, "POL-17"]),
+            "say": [
+                *state.get("say", []),
+                *said(("clarification_stopped", {}), ("handoff_offer", {})),
+            ],
+            "offer": offering(request, "abstain"),
+            "decision": decided("abstain", stopped, OFFERED),
         }
     return {
         "case": "fixed",
@@ -352,6 +375,7 @@ async def resolve_card(state: State) -> dict[str, Any]:
         return {**turn, "case": "refused", "asking": None}
     if call.outcome != "ok" or call.result is None:
         return {**turn, "case": "unavailable", "asking": None}
+    turn["listed"] = call.call_id
     cards: list[dict[str, Any]] = call.result["cards"]
     details = state.get("details")
     if details is None:
@@ -410,6 +434,7 @@ async def resolve_card(state: State) -> dict[str, Any]:
                     name,
                     facts,
                     rules,
+                    (call.call_id, [c["card_id"] for c in meant]),
                     candidates=[c["card_id"] for c in meant],
                     card_type=card_type if found == "which_card" else None,
                     last_four=last_four if found != "no_match" else None,
@@ -448,6 +473,7 @@ async def ask_reason(state: State) -> dict[str, Any]:
         "ask_reason",
         {"card": card_facts(target)},
         ["POL-13", "POL-35"],
+        (state.get("listed"), [target["card_id"]]),
         card_id=target["card_id"],
     )
 
@@ -494,6 +520,7 @@ async def confirm(state: State) -> dict[str, Any]:
             "expires_at": record["expires_at"],
             "origin_jti": scope.claims.origin_jti,
             "typed": 0,
+            "listed": state.get("listed"),
         },
         "say": [*state.get("say", []), *say],
         "decision": decided("block", rules, CONTROL),
@@ -502,14 +529,13 @@ async def confirm(state: State) -> dict[str, Any]:
 
 def controls(state: State) -> dict[str, Any]:
     """
-    The interrupt's value, built from the state alone: await_control runs again from its start when resumed.
+    The interrupt's value, built from the state alone: await_control runs again from its start when resumed. A pending
+    confirmation and an offer show together when POL-36 offers a handoff while the confirmation is pending.
     """
-    pending = state["pending"]
-    assert pending is not None
-    return {
-        "reason": "controls",
-        "language": state["language"],
-        "controls": [
+    pending, offer = state.get("pending"), state.get("offer")
+    shown: list[dict[str, Any]] = []
+    if pending is not None:
+        shown.append(
             {
                 "kind": "block_confirmation",
                 "confirmation_id": pending["confirmation_id"],
@@ -522,7 +548,49 @@ def controls(state: State) -> dict[str, Any]:
                     datetime.fromtimestamp(pending["expires_at"], UTC)
                 ),
             }
-        ],
+        )
+    if offer is not None:
+        shown.append(
+            {
+                "kind": "handoff_offer",
+                "offer_id": offer["offer_id"],
+                "reason_code": offer["reason_code"],
+            }
+        )
+    return {"reason": "controls", "language": state["language"], "controls": shown}
+
+
+def offering(request: dict[str, Any], outcome_class: str) -> dict[str, Any]:
+    """
+    An offered handoff, as the thread holds it until the handoff control answers: the handoff it would file, the
+    sign-in that saw it, since an offer lapses with the session, and the outcome of the turn that made it, which a turn
+    that leaves it pending repeats (POL-09, POL-45).
+    """
+    return {
+        "offer_id": str(uuid.uuid4()),
+        "reason_code": request["reason_code"],
+        "request": request,
+        "origin_jti": SCOPE.get().claims.origin_jti,
+        "outcome_class": outcome_class,
+    }
+
+
+def offer_waits(offer: dict[str, Any], rules: list[str]) -> dict[str, Any]:
+    return {
+        **concluded(offer["request"]["label"], offer["outcome_class"], rules),
+        "awaiting": OFFERED,
+    }
+
+
+def lapsed_action(pending: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "action": "block_card",
+        "card_id": pending["card_id"],
+        "reason": pending["reason"],
+        "confirmation_id": pending["confirmation_id"],
+        "outcome": "lapsed",
+        "confirmed_at": None,
+        "evidence": [],
     }
 
 
@@ -565,10 +633,11 @@ def lapse_rules(pending: dict[str, Any], cause: str) -> list[str]:
 async def await_control(state: State) -> dict[str, Any]:
     answer: dict[str, Any] = interrupt(controls(state))
     scope = SCOPE.get()
-    pending = state["pending"]
-    assert pending is not None
+    pending, offer = state.get("pending"), state.get("offer")
     turn: dict[str, Any] = {
-        "label": "block_card",
+        "label": "block_card"
+        if pending is not None or offer is None
+        else offer["request"]["label"],
         "case": "fixed",
         "say": [],
         "decision": None,
@@ -580,7 +649,12 @@ async def await_control(state: State) -> dict[str, Any]:
         "cards": [],
     }
     if answer["kind"] == "message":
-        return {**turn, **(await typed(state, scope, pending, answer))}
+        return {**turn, **(await typed(state, scope, answer))}
+    if answer["kind"] in ("accept", "decline"):
+        return {**turn, **(await answered_offer(state, scope, answer))}
+    assert pending is not None
+    # A confirm or a cancel ends an offer shown beside the confirmation.
+    turn["offer"] = None
     confirmation_id = pending["confirmation_id"]
     if answer.get("confirmation_id") != confirmation_id:
         # The entrypoint lets through only an answer naming the pending control.
@@ -592,6 +666,7 @@ async def await_control(state: State) -> dict[str, Any]:
         )
         return {
             **turn,
+            "offer": offer,
             "case": "again",
             "decision": decided("block", ["POL-36"], CONTROL),
         }
@@ -634,14 +709,96 @@ async def await_control(state: State) -> dict[str, Any]:
     }
 
 
-async def typed(
-    state: State, scope: Scope, pending: dict[str, Any], answer: dict[str, Any]
+async def answered_offer(
+    state: State, scope: Scope, answer: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    A message typed while the control shows (POL-06, POL-36). Past the time limit, or from another sign-in, the
-    confirmation has already ended, and the message is served as a new one. A new request, or another card or reason,
-    ends it and moves on; anything else, a typed yes included, leaves it pending and points to the control.
+    The handoff control's answer (POL-45). Accepting files the offered handoff and ends a confirmation shown beside it
+    unused (POL-36); declining ends the offer, and a confirmation beside it stays pending. From another sign-in, the
+    offer has lapsed with the session, and so has a confirmation beside it (POL-09).
     """
+    offer, pending = state["offer"], state.get("pending")
+    assert offer is not None
+    if answer.get("offer_id") != offer["offer_id"]:
+        await scope.turn.write(
+            "resume",
+            resume_kind=answer["kind"],
+            accepted=False,
+            refusal="not_pending",
+        )
+        waits = (
+            decided("block", ["POL-36"], CONTROL)
+            if pending is not None
+            else offer_waits(offer, ["POL-45"])
+        )
+        return {"case": "again", "decision": waits}
+    if offer["origin_jti"] != scope.claims.origin_jti:
+        await scope.turn.write(
+            "resume",
+            resume_kind=answer["kind"],
+            offer_id=offer["offer_id"],
+            accepted=False,
+            refusal="other_sign_in",
+        )
+        say, rules = said(("offer_lapsed", {})), ["POL-09", "POL-45"]
+        if pending is not None:
+            say = [*(await lapsed(scope, pending, "session_end")), *say]
+            rules = [*lapse_rules(pending, "session_end"), "POL-45"]
+        return {
+            "offer": None,
+            "pending": None,
+            "say": say,
+            "decision": concluded(
+                offer["request"]["label"],
+                "abstain" if "POL-38" in rules else "answer",
+                rules,
+            ),
+        }
+    await scope.turn.write(
+        "resume",
+        resume_kind=answer["kind"],
+        offer_id=offer["offer_id"],
+        accepted=True,
+    )
+    if answer["kind"] == "decline":
+        declined = {"offer": None, "say": said(("offer_declined", {}))}
+        if pending is not None:
+            return declined | {
+                "decision": decided("block", ["POL-36", "POL-45"], CONTROL)
+            }
+        return declined | {
+            "decision": concluded(offer["request"]["label"], "answer", ["POL-45"])
+        }
+    request = offer["request"]
+    update: dict[str, Any] = {
+        "case": "handoff",
+        "offer": None,
+        "label": request["label"],
+    }
+    if pending is not None:
+        if await asyncio.to_thread(
+            scope.confirmations.lapse,
+            pending["confirmation_id"],
+            "handoff_accepted",
+            scope.now(),
+        ):
+            await ended(scope, pending, "lapsed", "handoff_accepted")
+        request = {**request, "actions": [*request["actions"], lapsed_action(pending)]}
+        update |= {
+            "pending": None,
+            "say": said(("confirmation_lapsed", {"card": pending["card"]})),
+        }
+    return update | {"handoff": request}
+
+
+async def typed(state: State, scope: Scope, answer: dict[str, Any]) -> dict[str, Any]:
+    """
+    A message typed while a control shows (POL-06, POL-36, POL-45). A new request ends what shows and moves on, and so
+    does another card or reason for a pending block; anything else, a typed yes included, leaves the controls as they
+    were and points to them. Past a confirmation's time limit, or from another sign-in, what showed has already ended,
+    and the message is served as a new one.
+    """
+    pending, offer = state.get("pending"), state.get("offer")
     text = answer["text"]
     language = detect(text, state.get("language", DEFAULT))
     update: dict[str, Any] = {
@@ -651,36 +808,95 @@ async def typed(
     await scope.turn.write(
         "resume",
         resume_kind="message",
-        confirmation_id=pending["confirmation_id"],
+        **({} if pending is None else {"confirmation_id": pending["confirmation_id"]}),
+        **({} if offer is None else {"offer_id": offer["offer_id"]}),
         accepted=True,
     )
+    try:
+        routed = routing(await scope.models.route(text))
+    except ModelFailedError:
+        routed = None
+    if pending is None:
+        assert offer is not None
+        return update | (await typed_to_offer(scope, offer, routed))
+    return update | (await typed_to_confirmation(scope, pending, offer, text, routed))
+
+
+async def typed_to_offer(
+    scope: Scope, offer: dict[str, Any], routed: dict[str, Any] | None
+) -> dict[str, Any]:
+    if offer["origin_jti"] != scope.claims.origin_jti:
+        update: dict[str, Any] = {
+            "offer": None,
+            "say": said(("offer_lapsed", {})),
+            "rules": ["POL-09", "POL-45"],
+        }
+        if routed is None:
+            return update | {"case": "unavailable", "label": None}
+        if routed["case"] == "no_request":
+            return update | {
+                "decision": concluded(None, "answer", ["POL-09", "POL-45"])
+            }
+        return update | routed
+    if routed is None:
+        return {
+            "case": "pointer",
+            "say": said(("unavailable", {})),
+            "decision": offer_waits(offer, ["POL-48"]),
+        }
+    if routed["case"] != "no_request":
+        return routed | {"offer": None, "rules": ["POL-45"]}
+    return {
+        "case": "pointer",
+        "say": said(("offer_pointer", {})),
+        "decision": offer_waits(offer, ["POL-06", "POL-45"]),
+    }
+
+
+async def typed_to_confirmation(
+    scope: Scope,
+    pending: dict[str, Any],
+    offer: dict[str, Any] | None,
+    text: str,
+    routed: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """
+    An offer shown beside the confirmation ends with it. The second time the chat points to the confirm control, it
+    also offers a handoff, since a person can block the card, unless POL-39 already requires one (POL-36).
+    """
     cause = None
     if pending["expires_at"] <= scope.now().timestamp():
         cause = "time_limit"
     elif pending["origin_jti"] != scope.claims.origin_jti:
         cause = "session_end"
-    try:
-        routed = routing(await scope.models.route(text))
-    except ModelFailedError:
-        routed = None
     if cause is not None:
         say, rules = await lapsed(scope, pending, cause), lapse_rules(pending, cause)
-        update |= {"pending": None, "say": say, "rules": rules}
+        update: dict[str, Any] = {
+            "pending": None,
+            "offer": None,
+            "say": say,
+            "rules": rules,
+        }
         if routed is None:
-            return update | {"case": "unavailable"}
+            return update | {"case": "unavailable", "label": None}
         if routed["case"] == "no_request":
             outcome = "abstain" if "POL-38" in rules else "answer"
             return update | {"decision": decided(outcome, rules)}
         return update | routed
     if routed is None:
-        return update | {
+        return {
             "case": "pointer",
             "say": said(("unavailable", {})),
             "decision": decided("abstain", ["POL-48"], CONTROL),
         }
     if routed["case"] not in ("block", "no_request"):
         say = await lapsed(scope, pending, "message")
-        return update | routed | {"pending": None, "say": say, "rules": ["POL-36"]}
+        return routed | {
+            "pending": None,
+            "offer": None,
+            "say": say,
+            "rules": ["POL-36"],
+        }
     try:
         details = (
             await scope.models.extract(
@@ -702,19 +918,41 @@ async def typed(
                 "card_type": KINDS[pending["card"]["product_type"]],
                 "last_four": pending["card"]["last_four"],
             }
-        return update | {
+        return {
             "pending": None,
+            "offer": None,
             "case": "block",
             "label": "block_card",
             "say": say,
             "rules": ["POL-36"],
             "details": details | {"block_reason": reason or pending["reason"]},
         }
-    return update | {
+    pointers = pending["typed"] + 1
+    rules = ["POL-06", "POL-36"]
+    say = said(("control_pointer", {}))
+    if (
+        offer is None
+        and pointers >= QUESTIONS
+        and pending["reason"] != "unrecognized_charge"
+    ):
+        offer = offering(
+            offered(
+                "clarification_failed",
+                "block_card",
+                ["POL-36"],
+                rules,
+                calls=[pending["listed"]] if pending.get("listed") else [],
+                cards=[pending["card_id"]],
+            ),
+            "block",
+        )
+        say += said(("handoff_offer", {}))
+    return {
         "case": "pointer",
-        "pending": {**pending, "typed": pending["typed"] + 1},
-        "say": said(("control_pointer", {})),
-        "decision": decided("block", ["POL-06", "POL-36"], CONTROL),
+        "pending": {**pending, "typed": pointers},
+        "offer": offer,
+        "say": say,
+        "decision": decided("block", rules, CONTROL),
     }
 
 
@@ -777,16 +1015,6 @@ async def verify(state: State) -> dict[str, Any]:
             "say": said((name, {"card": card})),
             "decision": decided("decline", ["POL-34"]),
         }
-    if result.get("block_outcome") == "verified" and read == "Blocked":
-        say = said(("block_verified", facts))
-        rules = ["POL-36", "POL-37"]
-        if pending["reason"] in MISSING:
-            say += said(("replacement_by_person", {}))
-            rules.append("POL-38")
-        if pending["reason"] == "unrecognized_charge":
-            say += said(("handoff_unavailable", {}))
-            rules.append("POL-39")
-        return turn | {"say": say, "decision": decided("block", rules)}
     actions = []
     if result.get("block_outcome") is not None:
         actions.append(
@@ -800,6 +1028,31 @@ async def verify(state: State) -> dict[str, Any]:
                 "evidence": [done["call_id"]],
             }
         )
+    if result.get("block_outcome") == "verified" and read == "Blocked":
+        say = said(("block_verified", facts))
+        rules = ["POL-36", "POL-37"]
+        if pending["reason"] in MISSING:
+            # A replacement is a person's to arrange: offered, not required (POL-38).
+            say += said(("replacement_by_person", {}), ("handoff_offer", {}))
+            rules.append("POL-38")
+            request = offered(
+                "unsupported_request",
+                "block_card",
+                ["POL-38"],
+                rules,
+                calls=[done["call_id"], call.call_id],
+                cards=[pending["card_id"]],
+                actions=actions,
+            )
+            return turn | {
+                "say": say,
+                "offer": offering(request, "block"),
+                "decision": decided("block", rules, OFFERED),
+            }
+        if pending["reason"] == "unrecognized_charge":
+            say += said(("handoff_unavailable", {}))
+            rules.append("POL-39")
+        return turn | {"say": say, "decision": decided("block", rules)}
     return turn | {
         "case": "handoff",
         "say": said(("block_not_verified", facts)),
@@ -951,6 +1204,21 @@ async def reply(state: State, config: RunnableConfig) -> dict[str, Any]:
     if case in FIXED:
         names.append(case)
         parts.append(FIXED[case][language])
+    explicit = state.get("decision")
+    offer = None
+    if case == "unavailable" and state.get("label") is not None:
+        # A routed request whose read or model call failed; a failed router leaves no label to offer under (POL-48).
+        calls = [
+            c["call_id"]
+            for c in state.get("evidence", [])
+            if c["turn"] == scope.turn.prefix
+        ]
+        request = offered(
+            "tool_failure", state["label"], ["POL-48"], ["POL-48"], calls=calls
+        )
+        offer = offering(request, "abstain")
+        names.append("handoff_offer")
+        parts.append(render("handoff_offer", language, {}))
     text = "\n\n".join(parts)
     message_id = uuid.uuid4().hex
     await scope.turn.write(
@@ -960,12 +1228,13 @@ async def reply(state: State, config: RunnableConfig) -> dict[str, Any]:
         language=language,
         fixed_texts=list(dict.fromkeys(names)),
     )
-    explicit = state.get("decision")
     outcome = (
         decision(case, state.get("label"), cards)
         if explicit is None or case in FIXED
         else explicit
     )
+    if offer is not None:
+        outcome = {**outcome, "awaiting": OFFERED}
     scope.turn.decide(
         **{
             "awaiting": "none",
@@ -978,7 +1247,10 @@ async def reply(state: State, config: RunnableConfig) -> dict[str, Any]:
     await adispatch_custom_event(
         EMIT_MESSAGE, {"message_id": message_id, "message": text}, config=config
     )
-    return {"messages": [AIMessage(id=message_id, content=text)]}
+    update: dict[str, Any] = {"messages": [AIMessage(id=message_id, content=text)]}
+    if offer is not None:
+        update |= {"offer": offer, "decision": outcome}
+    return update
 
 
 async def hold(state: State) -> dict[str, Any]:
@@ -1016,8 +1288,12 @@ def onward(state: State) -> str:
 
 
 def after_reply(state: State) -> str:
-    waiting = (state.get("decision") or {}).get("awaiting") == CONTROL
-    return "await_control" if waiting and state.get("pending") else END
+    awaiting = (state.get("decision") or {}).get("awaiting")
+    if awaiting == CONTROL and state.get("pending"):
+        return "await_control"
+    if awaiting == OFFERED and state.get("offer"):
+        return "await_control"
+    return END
 
 
 def after_control(state: State) -> str:
@@ -1026,6 +1302,7 @@ def after_control(state: State) -> str:
         "cards": "list_cards",
         "status": "list_cards",
         "block": "resolve_card",
+        "handoff": "handoff",
         "again": "hold",
     }.get(state["case"], "reply")
 
@@ -1054,7 +1331,7 @@ def build(
     graph.add_conditional_edges(
         "await_control",
         after_control,
-        ["block", "list_cards", "resolve_card", "hold", "reply"],
+        ["block", "list_cards", "resolve_card", "handoff", "hold", "reply"],
     )
     graph.add_edge("hold", "await_control")
     graph.add_edge("block", "verify")
