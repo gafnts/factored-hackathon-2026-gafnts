@@ -21,7 +21,7 @@
       "pattern": "^[A-Za-z0-9_-]{8,64}$"
     },
     "request": {
-      "description": "The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12).",
+      "description": "The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12). A request that carries none of them, such as a resend of a message the checkpoint already holds, is refused as invalid_request, and so is a resume while no control is pending.",
       "type": "object",
       "required": ["threadId", "runId", "messages"],
       "properties": {
@@ -261,7 +261,7 @@
       }
     },
     "run_error": {
-      "description": "A run the entrypoint refused or that failed. The chat shows fixed text per code in its own language; message is for logs, a fixed sentence per code with no detail. A missing, expired, or foreign token is turned away by the Runtime's authorizer before this contract applies, with HTTP 401, and the chat asks the customer to sign in again (POL-09).",
+      "description": "A run the entrypoint refused or that failed. The chat shows fixed text per code in its own language; message is for logs, a fixed sentence per code with no detail. A request the entrypoint refuses gets this event alone, with no RUN_STARTED, since no run started. A missing, expired, or foreign token is turned away by the Runtime's authorizer before this contract applies, with HTTP 401, and the chat asks the customer to sign in again (POL-09).",
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "message", "code"],
@@ -270,7 +270,7 @@
         "timestamp": { "$ref": "#/$defs/timestamp" },
         "message": { "type": "string", "minLength": 1, "maxLength": 200 },
         "code": {
-          "description": "invalid_request: the request failed this contract. session_refused: the runtime session belongs to another user. no_customer: the token carries no customer_id (POL-07). rate_limited, daily_limit: decision 21's limits. internal: anything else, recorded.",
+          "description": "invalid_request: the request failed this contract. session_refused: the runtime session belongs to another user. no_customer: the token carries no customer_id, or isn't a customer's (POL-07). rate_limited, daily_limit: decision 21's limits. internal: anything else, recorded.",
           "enum": ["invalid_request", "session_refused", "no_customer", "rate_limited", "daily_limit", "internal"]
         }
       }

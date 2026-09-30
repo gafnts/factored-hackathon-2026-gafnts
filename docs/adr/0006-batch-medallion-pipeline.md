@@ -111,8 +111,8 @@ The profile and the analysis reports keep reading the snapshot directly, every v
 
 ### To verify on the first deploy
 
-- **`import_table` on provider 6.66.0.** The provider documents it, and no spike has run it; the first deploy confirms it, or a tiny export before then. If it fails, decision 1 falls back to its alternative, a publish script, by amendment.
-- **The store holds one export.** The imported table holds exactly the chosen export's items, which the fixture's tests can't show without the account. If it doesn't, the import is wrong, not the export, and the tools can't be pointed at the table.
+- **`import_table` on provider 6.66.0.** The provider documents it, and no spike has run it; the first deploy confirms it, or a tiny export before then. If it fails, decision 1 falls back to its alternative, a publish script, by amendment. **Answered (2026-09-29):** the tiny export's import completed on 6.66.0 with no errors, into a table the provider leaves untagged, as the amendment above says, and the stack tags.
+- **The store holds one export.** The imported table holds exactly the chosen export's items, which the fixture's tests can't show without the account. If it doesn't, the import is wrong, not the export, and the tools can't be pointed at the table. **Answered for the tiny export (2026-09-29):** the import counts, the table's own count, and the manifest's total agree, and the table's stamp is the export's (`test_the_tools_data_holds_exactly_the_export`); the pipeline's first export is checked the same way.
 
 ### Settled at acceptance
 

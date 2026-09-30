@@ -22,7 +22,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
-	test integration \
+	test integration probe \
 	build \
 	bootstrap backend doctor provision teardown \
 	data snapshot personas tiny-export analysis \
@@ -79,6 +79,9 @@ test: ## Run pytest with branch coverage
 
 integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
 	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m integration -v
+
+probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
+	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
 
 
 ##@ Build

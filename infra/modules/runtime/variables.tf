@@ -21,6 +21,11 @@ variable "allowed_clients" {
   type        = list(string)
 }
 
+variable "customer_client_id" {
+  description = "The customers' app client, which the entrypoint checks tokens against"
+  type        = string
+}
+
 variable "required_group" {
   description = "Cognito group a token's cognito:groups claim must contain"
   type        = string
@@ -28,6 +33,19 @@ variable "required_group" {
 
 variable "gateway_url" {
   type = string
+}
+
+variable "gateway_target" {
+  description = "The read tools' target, which names each tool as <target>___<tool>"
+  type        = string
+}
+
+variable "tools_data" {
+  description = "The stamp and the clock of the export the tools read, which every turn's record carries"
+  type = object({
+    stamp = object({ snapshot = string, pipeline_version = string })
+    clock = object({ business_date = string, as_of = string })
+  })
 }
 
 variable "runtime_zip" {

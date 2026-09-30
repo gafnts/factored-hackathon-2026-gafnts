@@ -2,7 +2,7 @@
 Throwaway users in the deployed stack's pool, signed in through IAM and deleted afterwards. The stack comes from the
 Terraform outputs that make integration writes; passwords and tokens stay in memory and are never printed. The two
 customers are the development personas (make personas), so their cards are in the tools' data; their IDs come from
-data/personas/ and are never printed either.
+data/personas/ and are never printed either. The probe (make probe) makes its users the same way.
 """
 
 import base64
@@ -70,24 +70,14 @@ def persona_ids() -> dict[str, str]:
         pytest.fail(str(error))
 
 
-@pytest.fixture(scope="session")
-def users(
-    outputs: dict[str, Any],
+@contextlib.contextmanager
+def throwaway_users(
+    pool: str,
     cognito: CognitoIdentityProviderClient,
-    persona_ids: dict[str, str],
+    wanted: dict[str, tuple[list[str], str | None]],
 ) -> Iterator[dict[str, User]]:
-    pool = outputs["user_pool_id"]
     run = uuid.uuid4().hex[:8]
     alphabet = string.ascii_letters + string.digits
-    wanted = {
-        "customer": (["customer"], persona_ids["es"]),
-        "other_customer": (["customer"], persona_ids["pt"]),
-        # Not in the tools' data.
-        "unknown_customer": (["customer"], "CLI-ITEST0000001"),
-        "staff": (["human_agent"], None),
-        "no_group": ([], "CLI-ITEST0000003"),
-        "no_claim": (["customer"], None),
-    }
     created: dict[str, User] = {}
     try:
         for role, (groups, customer_id) in wanted.items():
@@ -125,15 +115,47 @@ def users(
                 cognito.admin_delete_user(UserPoolId=pool, Username=user.username)
 
 
+def signed_in(
+    outputs: dict[str, Any],
+    cognito: CognitoIdentityProviderClient,
+    user: User,
+    client: str,
+) -> dict[str, str]:
+    result = cognito.admin_initiate_auth(
+        UserPoolId=outputs["user_pool_id"],
+        ClientId=outputs[f"{client}_client_id"],
+        AuthFlow="ADMIN_USER_PASSWORD_AUTH",
+        AuthParameters={"USERNAME": user.username, "PASSWORD": user.password},
+    )["AuthenticationResult"]
+    return {
+        "access": result["AccessToken"],
+        "id": result["IdToken"],
+        "refresh": result["RefreshToken"],
+    }
+
+
+@pytest.fixture(scope="session")
+def users(
+    outputs: dict[str, Any],
+    cognito: CognitoIdentityProviderClient,
+    persona_ids: dict[str, str],
+) -> Iterator[dict[str, User]]:
+    wanted: dict[str, tuple[list[str], str | None]] = {
+        "customer": (["customer"], persona_ids["es"]),
+        "other_customer": (["customer"], persona_ids["pt"]),
+        # Not in the tools' data.
+        "unknown_customer": (["customer"], "CLI-ITEST0000001"),
+        "staff": (["human_agent"], None),
+        "no_group": ([], "CLI-ITEST0000003"),
+        "no_claim": (["customer"], None),
+    }
+    with throwaway_users(outputs["user_pool_id"], cognito, wanted) as created:
+        yield created
+
+
 @pytest.fixture(scope="session")
 def sign_in(outputs: dict[str, Any], cognito: CognitoIdentityProviderClient) -> SignIn:
-    def signed_in(user: User, client: str) -> dict[str, str]:
-        result = cognito.admin_initiate_auth(
-            UserPoolId=outputs["user_pool_id"],
-            ClientId=outputs[f"{client}_client_id"],
-            AuthFlow="ADMIN_USER_PASSWORD_AUTH",
-            AuthParameters={"USERNAME": user.username, "PASSWORD": user.password},
-        )["AuthenticationResult"]
-        return {"access": result["AccessToken"], "id": result["IdToken"]}
+    def signed(user: User, client: str) -> dict[str, str]:
+        return signed_in(outputs, cognito, user, client)
 
-    return signed_in
+    return signed
