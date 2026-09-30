@@ -1,0 +1,353 @@
+[
+  {
+    "case": {
+      "reference": "7K2M-9QXA",
+      "status": "filed",
+      "queue": "dispute_intake",
+      "priority": "normal",
+      "reason_code": "unrecognized_charge",
+      "language": "pt",
+      "saved_at": "2026-10-02T15:41:02.884Z",
+      "filed_at": "2026-10-02T15:42:08.512Z",
+      "flagged": false,
+      "validation_errors": [],
+      "payload": {
+        "schema_version": 1,
+        "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50",
+        "created_at": "2026-10-02T15:42:08Z",
+        "session_id": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+        "customer_id": "CLI-EXAMPLE00001",
+        "versions": {
+          "policy": 1,
+          "snapshot": "b3b8b248f604ef9a"
+        },
+        "business_date": "2026-06-17",
+        "language": "pt",
+        "queue": "dispute_intake",
+        "priority": "normal",
+        "trigger": "required",
+        "reason_code": "unrecognized_charge",
+        "rules": [
+          "POL-39"
+        ],
+        "request": {
+          "label": "unrecognized_charge",
+          "summary": "El cliente no reconoce una compra del 14 de junio en su tarjeta de crédito terminada en 4821 y aceptó bloquearla."
+        },
+        "verified_facts": [
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "product_id",
+            "value": "PRD-EXAMPLE00002",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "transaction_date",
+            "value": "2026-06-14 21:07:33",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "transaction_type",
+            "value": "Purchase",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "transaction_status",
+            "value": "Approved",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "merchant_name",
+            "value": "Comercio Ejemplo",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "amount",
+            "value": 189.9,
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "currency",
+            "value": "USD",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "transaction_country",
+            "value": "USA",
+            "evidence": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21"
+          },
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "is_fraud",
+            "value": false,
+            "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+          },
+          {
+            "subject": "card",
+            "id": "PRD-EXAMPLE00002",
+            "field": "product_type",
+            "value": "Tarjeta Crédito",
+            "evidence": "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90"
+          },
+          {
+            "subject": "card",
+            "id": "PRD-EXAMPLE00002",
+            "field": "last_four",
+            "value": "4821",
+            "evidence": "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90"
+          },
+          {
+            "subject": "card",
+            "id": "PRD-EXAMPLE00002",
+            "field": "product_status",
+            "value": "Blocked",
+            "evidence": "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90"
+          },
+          {
+            "subject": "customer",
+            "id": "CLI-EXAMPLE00001",
+            "field": "customer_status",
+            "value": "Active",
+            "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+          }
+        ],
+        "actions": [
+          {
+            "action": "block_card",
+            "card_id": "PRD-EXAMPLE00002",
+            "reason": "unrecognized_charge",
+            "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+            "outcome": "verified",
+            "confirmed_at": "2026-10-02T15:41:37Z",
+            "evidence": [
+              "4e7a2c9d-8b1f-4d36-a5c0-6f2e9b8d1a47",
+              "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90"
+            ]
+          }
+        ],
+        "evidence": [
+          {
+            "call_id": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21",
+            "tool": "find_transactions",
+            "called_at": "2026-10-02T15:40:51Z",
+            "outcome": "ok"
+          },
+          {
+            "call_id": "4e7a2c9d-8b1f-4d36-a5c0-6f2e9b8d1a47",
+            "tool": "block_card",
+            "called_at": "2026-10-02T15:41:39Z",
+            "outcome": "ok"
+          },
+          {
+            "call_id": "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90",
+            "tool": "get_card",
+            "called_at": "2026-10-02T15:41:40Z",
+            "outcome": "ok"
+          },
+          {
+            "call_id": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52",
+            "tool": "file_handoff",
+            "called_at": "2026-10-02T15:42:08Z",
+            "outcome": "ok"
+          }
+        ],
+        "customer_statements": [
+          "Dice que tiene la tarjeta consigo y que no hizo esa compra."
+        ],
+        "unresolved_questions": [
+          "Si el cliente autorizó la compra."
+        ]
+      }
+    },
+    "calls": [
+      {
+        "call_id": "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21",
+        "recorded": true,
+        "tool": "find_transactions",
+        "via": "gateway",
+        "attempt": 1,
+        "called_at": "2026-10-02T15:40:51Z",
+        "latency_ms": 318,
+        "request_id": "gw-3e4f5a6b7c8d",
+        "outcome": "ok",
+        "rows": [
+          {
+            "transaction_id": "TRX-EXAMPLE0000000000003",
+            "transaction_date": "2026-06-14 21:07:33",
+            "transaction_type": "Purchase",
+            "transaction_status": "Approved",
+            "response_code": "00",
+            "response_meaning": null,
+            "amount": 189.9,
+            "currency": "USD",
+            "channel": "POS",
+            "merchant_name": "Comercio Ejemplo",
+            "merchant_category": "Retail",
+            "transaction_country": "USA",
+            "before_card_opening": false,
+            "after_card_expiration": true,
+            "product_id": "PRD-EXAMPLE00002"
+          }
+        ]
+      },
+      {
+        "call_id": "4e7a2c9d-8b1f-4d36-a5c0-6f2e9b8d1a47",
+        "recorded": true,
+        "tool": "block_card",
+        "via": "gateway",
+        "attempt": 1,
+        "called_at": "2026-10-02T15:41:39Z",
+        "latency_ms": 409,
+        "request_id": "gw-5a6b7c8d9e0f",
+        "outcome": "ok",
+        "rows": [
+          {
+            "outcome": "ok",
+            "card_id": "PRD-EXAMPLE00002",
+            "reason": "unrecognized_charge",
+            "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+            "attempts": 1,
+            "block_outcome": "verified",
+            "read_back": "Blocked",
+            "repeated": false,
+            "product_status": "Blocked"
+          }
+        ]
+      },
+      {
+        "call_id": "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90",
+        "recorded": true,
+        "tool": "get_card",
+        "via": "gateway",
+        "attempt": 1,
+        "called_at": "2026-10-02T15:41:40Z",
+        "latency_ms": 235,
+        "request_id": "gw-6b7c8d9e0f1a",
+        "outcome": "ok",
+        "rows": [
+          {
+            "card_id": "PRD-EXAMPLE00002",
+            "product_type": "Tarjeta Crédito",
+            "last_four": "4821",
+            "product_status": "Blocked",
+            "opening_date": "2023-02-14",
+            "expiration_date": "2026-02-13",
+            "past_expiration": true,
+            "updated_after_as_of": false
+          }
+        ]
+      },
+      {
+        "call_id": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52",
+        "recorded": true,
+        "tool": "file_handoff",
+        "via": "direct",
+        "attempt": 1,
+        "called_at": "2026-10-02T15:42:08Z",
+        "latency_ms": 372,
+        "request_id": "3e4f5a6b-7c8d-4e9f-8a0b-1c2d3e4f5a6b",
+        "outcome": "ok",
+        "rows": [
+          {
+            "subject": "transaction",
+            "id": "TRX-EXAMPLE0000000000003",
+            "field": "is_fraud",
+            "value": false,
+            "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+          },
+          {
+            "subject": "customer",
+            "id": "CLI-EXAMPLE00001",
+            "field": "customer_status",
+            "value": "Active",
+            "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case": {
+      "reference": "Q4TR-8B2N",
+      "status": "filed",
+      "queue": "customer_service",
+      "priority": "normal",
+      "reason_code": "customer_request",
+      "language": "pt",
+      "filed_at": "2026-10-02T15:42:08.512Z",
+      "flagged": true,
+      "validation_errors": [
+        {
+          "path": "/customer_statements/0",
+          "rule": "not"
+        }
+      ],
+      "payload": {
+        "schema_version": 1,
+        "handoff_id": "e3a91f6c-4b28-4d7e-8f05-c61b2d9a7e34",
+        "created_at": "2026-10-02T15:42:08Z",
+        "session_id": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+        "customer_id": "CLI-EXAMPLE00001",
+        "versions": {
+          "policy": 1,
+          "snapshot": "b3b8b248f604ef9a"
+        },
+        "business_date": "2026-06-17",
+        "language": "pt",
+        "queue": "customer_service",
+        "priority": "normal",
+        "trigger": "required",
+        "reason_code": "customer_request",
+        "rules": [
+          "POL-44"
+        ],
+        "request": {
+          "label": "talk_to_human",
+          "summary": "El cliente pidió hablar con una persona."
+        },
+        "verified_facts": [
+          {
+            "subject": "customer",
+            "id": "CLI-EXAMPLE00001",
+            "field": "customer_status",
+            "value": "Active",
+            "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+          }
+        ],
+        "actions": [],
+        "evidence": [
+          {
+            "call_id": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52",
+            "tool": "file_handoff",
+            "called_at": "2026-10-02T15:42:08Z",
+            "outcome": "ok"
+          }
+        ],
+        "customer_statements": [],
+        "unresolved_questions": []
+      }
+    },
+    "calls": [
+      {
+        "call_id": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52",
+        "recorded": false
+      }
+    ]
+  }
+]

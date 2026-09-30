@@ -1,0 +1,46 @@
+[
+  {
+    "queue": "dispute_intake",
+    "status": "filed",
+    "cases": [
+      {
+        "reference": "HX3P-2WDM",
+        "priority": "urgent",
+        "reason_code": "unrecognized_charge",
+        "language": "es",
+        "filed_at": "2026-10-02T15:39:51.207Z",
+        "flagged": false
+      },
+      {
+        "reference": "7K2M-9QXA",
+        "priority": "normal",
+        "reason_code": "unrecognized_charge",
+        "language": "pt",
+        "filed_at": "2026-10-02T15:42:08.512Z",
+        "flagged": false
+      }
+    ],
+    "next_cursor": "eyJwayI6IjBiNGE5YzNlLTVkMmYtNGU4YS05YzcxLTJmNmQ4ZTFhN2I1MCIsInF1ZXVlX2tleSI6ImRlbW8jZGlzcHV0ZV9pbnRha2UjZmlsZWQiLCJxdWV1ZV9vcmRlciI6IjAjMjAyNi0xMC0wMlQxNTo0MjowOC41MTJaIn0"
+  },
+  {
+    "queue": "customer_service",
+    "status": "filed",
+    "cases": [
+      {
+        "reference": "Q4TR-8B2N",
+        "priority": "normal",
+        "reason_code": "customer_request",
+        "language": "pt",
+        "filed_at": "2026-10-02T15:42:08.512Z",
+        "flagged": true
+      }
+    ],
+    "next_cursor": null
+  },
+  {
+    "queue": "customer_service",
+    "status": "filed",
+    "cases": [],
+    "next_cursor": null
+  }
+]

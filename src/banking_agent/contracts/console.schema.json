@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:banking-agent:card-support:console:1",
+  "title": "Card support console",
+  "description": "What the console API answers a human agent (ADR-0007, The console API, and its amendments of 2026-09-30): a page of a queue's cases, one case with the tool calls its evidence names, or a refusal. It reads the demo's filed cases only and changes none. A case's fields and its payload are the case record's and the handoff schema's own, referred to by their IDs rather than copied, so the console's types follow them.",
+  "oneOf": [{ "$ref": "#/$defs/case_list" }, { "$ref": "#/$defs/case_detail" }, { "$ref": "#/$defs/refusal" }],
+  "$defs": {
+    "list_query": {
+      "description": "GET /api/cases's query string, as API Gateway hands it over: strings only. The source is never a parameter, since the queue lists the demo's cases alone (EVL-13). status defaults to filed, the only status a case has while claim and resolve are deferred.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queue"],
+      "properties": {
+        "queue": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/queue" },
+        "status": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/status" },
+        "limit": {
+          "description": "A page's size, from 1 to 50; 25 when absent.",
+          "type": "string",
+          "pattern": "^(?:[1-9]|[1-4][0-9]|50)$"
+        },
+        "cursor": { "$ref": "#/$defs/queue_cursor" }
+      }
+    },
+    "queue_cursor": {
+      "description": "Where the next page starts: the queue index's key of the page's last case, encoded. The API refuses one that names another queue or status.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,512}$"
+    },
+    "case_row": {
+      "description": "One case in a queue, from the queue index's projection alone: the list never reads a payload.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "priority", "reason_code", "language", "filed_at", "flagged"],
+      "properties": {
+        "reference": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/reference" },
+        "priority": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/priority" },
+        "reason_code": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/reason_code" },
+        "language": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/language" },
+        "filed_at": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/wall_time" },
+        "flagged": { "type": "boolean" }
+      }
+    },
+    "case_list": {
+      "description": "A page of one queue's cases of one status: urgent cases first, and each priority's newest first, the queue index's own order (ADR-0007's amendment of 2026-09-30). next_cursor is null on the last page.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queue", "status", "cases", "next_cursor"],
+      "properties": {
+        "queue": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/queue" },
+        "status": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/status" },
+        "cases": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/case_row" } },
+        "next_cursor": { "anyOf": [{ "$ref": "#/$defs/queue_cursor" }, { "type": "null" }] }
+      }
+    },
+    "recorded_row": {
+      "description": "One record a tool call's recorded result holds, with its scalar fields as the tool returned them: the customer, a card, a transaction, or a block's outcome.",
+      "type": "object",
+      "maxProperties": 40,
+      "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+    },
+    "recorded_call": {
+      "description": "A tool call the case's evidence names, as the execution record holds it (OPS-02): its last attempt, and the rows of its result that the case's facts and actions name, never the whole result or the call's input. recorded is false while the record doesn't hold the call yet, which only file_handoff's own call can be, in the moment after the filing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["call_id", "recorded"],
+      "properties": {
+        "call_id": { "$ref": "urn:banking-agent:card-support:handoff:1#/$defs/call_id" },
+        "recorded": { "type": "boolean" },
+        "tool": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool" },
+        "via": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool_call_entry/properties/via" },
+        "attempt": {
+          "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool_call_entry/properties/attempt"
+        },
+        "called_at": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/wall_time" },
+        "latency_ms": {
+          "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool_call_entry/properties/latency_ms"
+        },
+        "request_id": {
+          "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool_call_entry/properties/request_id"
+        },
+        "outcome": {
+          "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool_call_entry/properties/outcome"
+        },
+        "error_code": {
+          "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool_call_entry/properties/error/properties/code"
+        },
+        "rows": { "type": "array", "maxItems": 60, "items": { "$ref": "#/$defs/recorded_row" } }
+      },
+      "if": { "properties": { "recorded": { "const": true } } },
+      "then": {
+        "required": ["tool", "via", "attempt", "called_at", "latency_ms", "request_id", "outcome", "rows"],
+        "if": { "properties": { "outcome": { "enum": ["failed", "denied"] } } },
+        "then": { "required": ["error_code"], "properties": { "rows": { "maxItems": 0 } } },
+        "else": { "not": { "required": ["error_code"] } }
+      },
+      "else": { "maxProperties": 2 }
+    },
+    "case_detail": {
+      "description": "One case, found by its reference with strongly consistent reads, so a case filed a moment ago is found at once: its status, the payload as filed, which never changes, and the calls its evidence names. A flagged case names each part left out or replaced by its path and the rule it broke, never its value (ADR-0004, The handoff).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case", "calls"],
+      "properties": {
+        "case": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "status",
+            "queue",
+            "priority",
+            "reason_code",
+            "language",
+            "filed_at",
+            "flagged",
+            "validation_errors",
+            "payload"
+          ],
+          "properties": {
+            "reference": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/reference" },
+            "status": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/status" },
+            "queue": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/queue" },
+            "priority": {
+              "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/priority"
+            },
+            "reason_code": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/reason_code" },
+            "language": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/language" },
+            "saved_at": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/wall_time" },
+            "filed_at": { "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/wall_time" },
+            "flagged": { "type": "boolean" },
+            "validation_errors": {
+              "$ref": "urn:banking-agent:card-support:handoff-case:1#/$defs/filed_case/properties/validation_errors"
+            },
+            "payload": { "$ref": "urn:banking-agent:card-support:handoff:1" }
+          }
+        },
+        "calls": { "type": "array", "maxItems": 60, "items": { "$ref": "#/$defs/recorded_call" } }
+      }
+    },
+    "refusal": {
+      "description": "The console API's own refusals: a caller who isn't a human agent (forbidden), a reference no demo case holds (not_found, the same for a draft or an evaluation's case), or a query or path outside this contract (invalid_request). A missing, expired, or foreign token, or an ID token, never reaches our code: the authorizer turns it away with API Gateway's own body.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error"],
+      "properties": { "error": { "enum": ["forbidden", "not_found", "invalid_request"] } }
+    }
+  }
+}
