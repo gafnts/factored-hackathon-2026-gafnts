@@ -4,6 +4,7 @@ OPS-07).
 """
 
 import json
+import re
 import zipfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -12,6 +13,8 @@ import pytest
 
 from banking_agent import build
 from banking_agent.contracts.gateway import tool_definitions
+
+COMMIT = "0123456789abcdef0123456789abcdef01234567"
 
 
 def tree(root: Path, files: dict[str, str]) -> Path:
@@ -79,7 +82,7 @@ def test_the_runtime_gets_its_groups_wheels_this_package_and_an_entry_script(
     recorder = Recorder(tmp_path)
     wheel = fake_wheel(tmp_path / "dist" / "banking_agent-0.1.0-py3-none-any.whl")
 
-    target = build.build_artifact(build.ARTIFACTS[0], wheel, tmp_path, recorder)
+    target = build.build_artifact(build.ARTIFACTS[0], wheel, tmp_path, COMMIT, recorder)
 
     export, install = recorder.commands
     assert export[:2] == ["uv", "export"]
@@ -93,7 +96,9 @@ def test_the_runtime_gets_its_groups_wheels_this_package_and_an_entry_script(
             "banking_agent/__init__.py",
             "main.py",
         }
-        assert archive.read("main.py").decode() == build.ARTIFACTS[0].entry
+        assert archive.read("main.py").decode() == (
+            f"from banking_agent.agent.app import main\n\nmain('{COMMIT}')\n"
+        )
 
 
 def test_a_lambda_without_a_group_carries_this_package_only(tmp_path: Path) -> None:
@@ -101,7 +106,7 @@ def test_a_lambda_without_a_group_carries_this_package_only(tmp_path: Path) -> N
     wheel = fake_wheel(tmp_path / "dist" / "banking_agent-0.1.0-py3-none-any.whl")
     pre_token = next(a for a in build.ARTIFACTS if a.name == "pre_token")
 
-    target = build.build_artifact(pre_token, wheel, tmp_path, recorder)
+    target = build.build_artifact(pre_token, wheel, tmp_path, COMMIT, recorder)
 
     assert recorder.commands == []
     with zipfile.ZipFile(target) as archive:
@@ -119,8 +124,27 @@ def test_main_builds_every_artifact_and_rewrites_the_gateway_tools(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     out, tools = tmp_path / "build", tmp_path / "tools.json"
-    built = build.main(out, tools, Recorder(out))
+    built = build.main(out, tools, Recorder(out), COMMIT)
 
     assert [p.name for p in built] == [f"{a.name}.zip" for a in build.ARTIFACTS]
     assert tools.read_text(encoding="utf-8") == build.gateway_tools()
     assert "build/runtime.zip" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("dirty", ["", " M src/banking_agent/agent/app.py"])
+def test_the_runtime_is_stamped_with_the_last_commit_of_its_code(
+    dirty: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    asked: list[list[str]] = []
+
+    def git(args: Sequence[str]) -> str:
+        asked.append(list(args))
+        return COMMIT if args[0] == "log" else dirty
+
+    assert build.app_version(git) == COMMIT
+    assert asked[0] == ["log", "-1", "--format=%H", "--", *build.PACKAGED]
+    assert ("uncommitted" in capsys.readouterr().err) == bool(dirty)
+
+
+def test_the_stamp_names_a_commit_of_this_repository() -> None:
+    assert re.fullmatch("[0-9a-f]{40}", build.app_version())

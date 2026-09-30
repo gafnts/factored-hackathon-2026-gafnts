@@ -61,7 +61,10 @@ module "runtime" {
   log_retention_days       = var.log_retention_days
   discovery_url            = module.identity.discovery_url
   allowed_clients          = [module.identity.customer_client_id]
+  customer_client_id       = module.identity.customer_client_id
   required_group           = "customer"
   gateway_url              = module.gateway.gateway_url
+  gateway_target           = module.gateway.target
+  tools_data               = { stamp = module.tools_data.stamp, clock = module.tools_data.clock }
   runtime_zip              = "${local.build}/runtime.zip"
 }

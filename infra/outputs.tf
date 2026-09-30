@@ -63,3 +63,7 @@ output "model_key_secret" {
 output "runtime_log_group" {
   value = module.runtime.runtime_log_group
 }
+
+output "runtime_tables" {
+  value = module.runtime.tables
+}
