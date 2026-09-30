@@ -253,7 +253,7 @@
           "required": ["app", "policy", "prompts", "schemas", "snapshot", "pipeline_version"],
           "properties": {
             "app": {
-              "description": "The deployed commit.",
+              "description": "The commit that last changed the deployed code (src/, pyproject.toml, uv.lock), so a commit that changes only documents or infrastructure deploys the same Runtime.",
               "type": "string",
               "pattern": "^[0-9a-f]{40}$"
             },
@@ -287,7 +287,7 @@
         "runtime_session_id": { "type": ["string", "null"], "maxLength": 256 },
         "client_thread_id": { "type": ["string", "null"], "maxLength": 64 },
         "errors": {
-          "description": "For invalid_request: where the request failed the chat contract.",
+          "description": "For invalid_request: where the request failed the chat contract, by the JSON Schema keyword that failed, or by one of the entrypoint's own checks: notNew (the last message is one the thread's checkpoint holds), notPending (a resume while no control is pending), or conflict (a message with a resume, or a warm-up with either).",
           "type": "array",
           "maxItems": 20,
           "items": { "$ref": "#/$defs/validation_error" }
