@@ -1,0 +1,3 @@
+﻿agent_id,employee_code,first_name,last_name,email,phone,native_accent,country_of_origin,assigned_branch_id,agent_type,experience_level,languages,specialty,hire_date,avg_csat,total_monthly_interactions,agent_status,work_shift
+AGT-TEAM0001,TEAM-E1,Team,Agent 1,agent1@team-generated.example,+00 000 000 2001,mexican,México,BRN-TEAM0001,Phone,Senior,Spanish,Cards,2020-01-01,4.50,300,Active,Morning
+AGT-TEAM0002,TEAM-E2,Team,Agent 2,agent2@team-generated.example,+00 000 000 2002,mexican,México,BRN-TEAM0001,Phone,Senior,Spanish,Cards,2020-01-01,4.50,300,Active,Morning

@@ -7,6 +7,10 @@ test fails when they aren't what this module writes.
 The base version reads as of 2026-06-17 06:00 with 2026-06-16 as its business date: complaints' last partition is the
 16th, while every other daily table's is the 17th. Each daily table has a settled partition on 2026-05-01, so the
 clock's rule has lags to read, and an event past midnight on its processing day's morning, so each has a cutoff.
+
+The update is the next delivery, as ADR-0006 lays it out for update correctness: it completes the 17th and starts the
+18th, so it reads a day later, and one card changed after its as-of instant. Each broken variant is the update with one
+bad file among the two it adds: an extra column in one, a column renamed with the count unchanged in the other.
 """
 
 import csv
@@ -728,24 +732,36 @@ SENDS = {
 }
 
 
-def base() -> dict[str, str]:
-    single = {
-        "branches": BRANCHES,
-        "customers": CUSTOMERS,
-        "products": PRODUCTS,
-        "service_agents": AGENTS,
-        "marketing_campaigns": CAMPAIGNS,
-        "daily_exchange_rates": EXCHANGE_RATES,
-    }
-    daily = {
-        "transactions": TRANSACTIONS,
-        "call_center_interactions": INTERACTIONS,
-        "call_transcripts": TRANSCRIPTS,
-        "satisfaction_surveys": SURVEYS,
-        "complaints": COMPLAINTS,
-        "digital_events": EVENTS,
-        "campaign_sends": SENDS,
-    }
+SINGLE: dict[str, Sequence[Row]] = {
+    "branches": BRANCHES,
+    "customers": CUSTOMERS,
+    "products": PRODUCTS,
+    "service_agents": AGENTS,
+    "marketing_campaigns": CAMPAIGNS,
+    "daily_exchange_rates": EXCHANGE_RATES,
+}
+DAILY: dict[str, Mapping[str, Sequence[Row]]] = {
+    "transactions": TRANSACTIONS,
+    "call_center_interactions": INTERACTIONS,
+    "call_transcripts": TRANSCRIPTS,
+    "satisfaction_surveys": SURVEYS,
+    "complaints": COMPLAINTS,
+    "digital_events": EVENTS,
+    "campaign_sends": SENDS,
+}
+
+# The update's two new files: complaints' partition for 2026-06-17, which completes the day the base held only in part,
+# and transactions' for 2026-06-18, the day after the last, whose charge falls after the update's as-of instant. Card
+# 41 was blocked after it.
+COMPLETED_DAY = "complaints/year=2026/month=06/day=17/complaints_20260617.csv"
+NEXT_DAY = "transactions/year=2026/month=06/day=18/transactions_20260618.csv"
+CHANGED_CARD = "PRD-TEAM00000041"
+
+
+def _files(
+    single: Mapping[str, Sequence[Row]],
+    daily: Mapping[str, Mapping[str, Sequence[Row]]],
+) -> dict[str, str]:
     files = {
         _key(_CATALOG[name], None): _render(_CATALOG[name], rows)
         for name, rows in single.items()
@@ -756,7 +772,59 @@ def base() -> dict[str, str]:
     return files
 
 
-VERSIONS = {"base": base}
+def base() -> dict[str, str]:
+    return _files(SINGLE, DAILY)
+
+
+def update() -> dict[str, str]:
+    changed = {"product_status": "Blocked", "last_updated": "2026-06-19 09:00:00"}
+    products = [
+        {**p, **changed} if p["product_id"] == CHANGED_CARD else p for p in PRODUCTS
+    ]
+    complaint = _complaint(
+        3,
+        "2026-06-17 11:00:00",
+        "2026-06-17",
+        5,
+        affected_product_id="PRD-TEAM00000051",
+        claimed_amount="20.00",
+        currency="COP",
+    )
+    charge = _transaction(309, "2026-06-18 10:00:00", "2026-06-18", 31, 3)
+    return _files(
+        {**SINGLE, "products": products},
+        {
+            **DAILY,
+            "complaints": {**COMPLAINTS, "2026-06-17": [complaint]},
+            "transactions": {**TRANSACTIONS, "2026-06-18": [charge]},
+        },
+    )
+
+
+def update_extra_column() -> dict[str, str]:
+    files = update()
+    header, *rows = files[NEXT_DAY].splitlines()
+    files[NEXT_DAY] = f"{header},team_note\n" + "".join(
+        f"{row},added by the team\n" for row in rows
+    )
+    return files
+
+
+def update_renamed_column() -> dict[str, str]:
+    files = update()
+    header, rest = files[COMPLETED_DAY].split("\n", 1)
+    names = header.split(",")
+    names[names.index("status")] = "complaint_status"
+    files[COMPLETED_DAY] = ",".join(names) + "\n" + rest
+    return files
+
+
+VERSIONS = {
+    "base": base,
+    "update": update,
+    "update-extra-column": update_extra_column,
+    "update-renamed-column": update_renamed_column,
+}
 
 
 def lock_for(files: Mapping[str, str]) -> Lock:
