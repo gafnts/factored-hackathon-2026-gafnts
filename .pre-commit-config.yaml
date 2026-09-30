@@ -24,6 +24,8 @@ repos:
         args:
           - --tf-init-args=-backend=false
           - --env-vars=AWS_REGION=us-east-1
+          # Directories init in parallel, and two inits filling a provider cache (CI sets one) can collide.
+          - --hook-config=--retry-once-with-cleanup=true
         stages: [pre-push]
       - id: terraform_tflint
         args:
@@ -93,7 +95,7 @@ repos:
         name: pytest
         language: system
         types: [python]
-        entry: uv run pytest --cov --cov-report=term-missing
+        entry: uv run pytest -n auto --cov --cov-report=term-missing
         pass_filenames: false
         stages: [pre-push]
 
