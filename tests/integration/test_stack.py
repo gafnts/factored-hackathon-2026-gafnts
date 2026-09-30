@@ -20,7 +20,6 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 from mypy_boto3_cognito_idp import CognitoIdentityProviderClient
 
-from banking_agent.agent.app import REPLY
 from banking_agent.contracts import validator
 
 from .conftest import SignIn, User, claims
@@ -471,23 +470,6 @@ def test_the_runtime_turns_away_a_missing_id_or_staff_token(
         401,
         403,
     )
-
-
-def test_a_customer_gets_the_placeholder_reply_after_the_key_is_fetched(
-    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
-) -> None:
-    response = invoke(outputs, sign_in(users["customer"], "customer")["access"])
-
-    assert response.status_code == 200
-    received = events(response)
-    assert [e["type"] for e in received] == [
-        "RUN_STARTED",
-        "TEXT_MESSAGE_START",
-        "TEXT_MESSAGE_CONTENT",
-        "TEXT_MESSAGE_END",
-        "RUN_FINISHED",
-    ], "a RUN_ERROR here usually means the model key isn't stored yet"
-    assert received[2]["delta"] == REPLY
 
 
 # Retention (OPS-10, spike S4)

@@ -40,10 +40,12 @@ agent = [
   "bedrock-agentcore>=1.23.1",
   "fastapi>=0.141.1",
   "httpx>=0.28.1",
+  "jsonschema>=4.26",
   "langchain>=1.4.2",
   "langchain-anthropic>=1.7.4",
   "langgraph>=1.2.12",
   "langgraph-checkpoint-aws>=1.2.3",
+  "rfc3339-validator>=0.1.4",
 ]
 eda = [
   "matplotlib>=3.11.2",
@@ -72,6 +74,7 @@ strict = true
 overrides = [
   { module = "tests.*", disallow_untyped_defs = false },
   { module = "sklearn.*", ignore_missing_imports = true },
+  { module = [ "ag_ui_langgraph.*", "langgraph_checkpoint_aws.*" ], ignore_missing_imports = true },
   { module = [
     "banking_agent.analysis.cards_figures",
     "banking_agent.analysis.figures",

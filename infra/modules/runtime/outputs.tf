@@ -14,3 +14,12 @@ output "model_key_secret" {
 output "runtime_log_group" {
   value = aws_cloudwatch_log_group.runtime.name
 }
+
+output "tables" {
+  description = "The Runtime's own tables"
+  value = {
+    checkpoints       = aws_dynamodb_table.checkpoints.name
+    session_bindings  = aws_dynamodb_table.session_bindings.name
+    execution_records = aws_dynamodb_table.execution_records.name
+  }
+}

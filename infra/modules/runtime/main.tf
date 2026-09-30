@@ -126,6 +126,50 @@ resource "aws_dynamodb_table" "checkpoints" {
   }
 }
 
+# Bindings live as long as the runtime session they name can (ADR-0004, Stores).
+#trivy:ignore:AVD-AWS-0024
+#trivy:ignore:AVD-AWS-0025
+resource "aws_dynamodb_table" "session_bindings" {
+  name         = "${var.prefix}-session-bindings"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "runtime_session_id"
+
+  attribute {
+    name = "runtime_session_id"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+}
+
+# Kept 90 days (OPS-10); point-in-time recovery and a key of our own are production work (OPS-11).
+#trivy:ignore:AVD-AWS-0024
+#trivy:ignore:AVD-AWS-0025
+resource "aws_dynamodb_table" "execution_records" {
+  name         = "${var.prefix}-execution-records"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "sign_in"
+  range_key    = "entry_key"
+
+  attribute {
+    name = "sign_in"
+    type = "S"
+  }
+
+  attribute {
+    name = "entry_key"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+}
+
 data "aws_iam_policy_document" "runtime_trust" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -208,6 +252,11 @@ data "aws_iam_policy_document" "runtime" {
     ]
     resources = [aws_dynamodb_table.checkpoints.arn]
   }
+  # Put only: the Runtime appends to the record and never rewrites or deletes an entry (ADR-0004's amendment).
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [aws_dynamodb_table.session_bindings.arn, aws_dynamodb_table.execution_records.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "runtime" {
@@ -269,9 +318,14 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
   }]
 
   environment_variables = {
-    GATEWAY_URL        = var.gateway_url
-    CHECKPOINTS_TABLE  = aws_dynamodb_table.checkpoints.name
-    MODEL_KEY_PROVIDER = aws_bedrockagentcore_api_key_credential_provider.model.name
+    CUSTOMER_CLIENT_ID      = var.customer_client_id
+    GATEWAY_URL             = var.gateway_url
+    GATEWAY_TARGET          = var.gateway_target
+    TOOLS_DATA              = jsonencode(var.tools_data)
+    CHECKPOINTS_TABLE       = aws_dynamodb_table.checkpoints.name
+    SESSION_BINDINGS_TABLE  = aws_dynamodb_table.session_bindings.name
+    EXECUTION_RECORDS_TABLE = aws_dynamodb_table.execution_records.name
+    MODEL_KEY_PROVIDER      = aws_bedrockagentcore_api_key_credential_provider.model.name
     # The SDK then fails without a workload token instead of making a local workload identity (spike S4).
     DOCKER_CONTAINER = "1"
   }
