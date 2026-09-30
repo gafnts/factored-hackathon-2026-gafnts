@@ -1,12 +1,13 @@
 """
 The contract's example items plus a second customer, who is Suspended, and two more cards for the first, all written by
-the team.
+the team, with an empty sandbox.
 """
 
 from typing import Any
 
 import pytest
 
+from banking_agent.tools.sandbox import MemoryOverlay, Stores
 from banking_agent.tools.store import MemoryData
 
 from ..conftest import tools_data_example
@@ -57,6 +58,22 @@ def example_items() -> list[dict[str, Any]]:
     ]
 
 
+def overlay_item(
+    card_id: str, sign_in: str = SIGN_IN, customer_id: str = OWN
+) -> dict[str, Any]:
+    return {
+        "sign_in": sign_in,
+        "item": f"CARD#{card_id}",
+        "customer_id": customer_id,
+        "card_id": card_id,
+        "product_status": "Blocked",
+        "reason": "lost",
+        "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+        "written_at": "2026-10-02T15:41:37.110Z",
+        "ttl": 1790000000,
+    }
+
+
 @pytest.fixture
-def data() -> MemoryData:
-    return MemoryData(example_items())
+def stores() -> Stores:
+    return Stores(MemoryData(example_items()), MemoryOverlay())

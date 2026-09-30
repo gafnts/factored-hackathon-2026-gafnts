@@ -1,7 +1,7 @@
 """
 The read tools' Lambda, a Gateway target. The Gateway passes the tool as `<target>___<tool>` in the invocation's client
 context, and the arguments as the event (ADR-0004, Where the tools run). It reads the table Terraform created from the
-chosen export, named in TOOLS_DATA_TABLE.
+chosen export, named in TOOLS_DATA_TABLE, and the sandbox's overlay, named in OVERLAY_TABLE.
 """
 
 import os
@@ -13,9 +13,10 @@ import boto3
 
 from banking_agent.tools import check_output, invalid_input
 from banking_agent.tools.cards import get_card, list_cards
-from banking_agent.tools.store import DynamoData, ToolsData
+from banking_agent.tools.sandbox import DynamoOverlay, Stores
+from banking_agent.tools.store import DynamoData
 
-TOOLS: dict[str, Callable[[ToolsData, dict[str, Any]], dict[str, Any]]] = {
+TOOLS: dict[str, Callable[[Stores, dict[str, Any]], dict[str, Any]]] = {
     "list_cards": list_cards,
     "get_card": get_card,
 }
@@ -30,21 +31,25 @@ def tool_name(context: Any) -> str:
 
 
 @cache
-def tools_data() -> ToolsData:
-    return DynamoData(boto3.client("dynamodb"), os.environ["TOOLS_DATA_TABLE"])
+def stores() -> Stores:
+    client = boto3.client("dynamodb")
+    return Stores(
+        data=DynamoData(client, os.environ["TOOLS_DATA_TABLE"]),
+        overlay=DynamoOverlay(client, os.environ["OVERLAY_TABLE"]),
+    )
 
 
-def answer(tool: str, arguments: Any, data: Callable[[], ToolsData]) -> dict[str, Any]:
+def answer(tool: str, arguments: Any, opened: Callable[[], Stores]) -> dict[str, Any]:
     """
-    The data is opened only for an input that passes, so a refusal reads nothing.
+    The stores are opened only for an input that passes, so a refusal reads nothing.
     """
     refused = invalid_input(tool, arguments)
     if refused is not None:
         return refused
-    output = TOOLS[tool](data(), arguments)
+    output = TOOLS[tool](opened(), arguments)
     check_output(tool, output)
     return output
 
 
 def handler(event: Any, context: Any) -> dict[str, Any]:
-    return answer(tool_name(context), event, tools_data)
+    return answer(tool_name(context), event, stores)
