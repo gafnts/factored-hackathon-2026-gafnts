@@ -53,7 +53,7 @@ def mcp(
 def call(
     outputs: dict[str, Any], token: str, tool: str, arguments: dict[str, Any]
 ) -> dict[str, Any]:
-    name = f"{outputs['gateway_target']}___{tool}"
+    name = f"{outputs['gateway_targets'][tool]}___{tool}"
     status, body = mcp(
         outputs, token, "tools/call", {"name": name, "arguments": arguments}
     )
@@ -199,7 +199,7 @@ def test_the_gateway_turns_away_a_missing_id_or_staff_token(
     ] in (401, 403)
 
 
-def test_a_customer_lists_the_read_tools(
+def test_a_customer_lists_the_read_tools_and_the_block(
     outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
 ) -> None:
     access = sign_in(users["customer"], "customer")["access"]
@@ -208,8 +208,16 @@ def test_a_customer_lists_the_read_tools(
 
     assert status == 200
     names = {tool["name"] for tool in body["result"]["tools"]}
-    target = outputs["gateway_target"]
-    assert names == {f"{target}___list_cards", f"{target}___get_card"}
+    assert names == {
+        "reads___list_cards",
+        "reads___get_card",
+        "block___block_card",
+    }
+    assert outputs["gateway_targets"] == {
+        "list_cards": "reads",
+        "get_card": "reads",
+        "block_card": "block",
+    }
 
 
 def test_a_customers_own_call_reaches_the_tool_which_validates_it(

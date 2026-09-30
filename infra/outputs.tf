@@ -33,8 +33,17 @@ output "gateway_url" {
   value = module.gateway.gateway_url
 }
 
-output "gateway_target" {
-  value = module.gateway.target
+output "gateway_targets" {
+  description = "Each tool's target; a tool's action is named <target>___<tool>"
+  value       = module.gateway.targets
+}
+
+output "sandbox_tables" {
+  description = "The sandbox's overlay and the confirmations"
+  value = {
+    overlay       = module.sandbox.overlay.name
+    confirmations = module.sandbox.confirmations.name
+  }
 }
 
 output "tools_data" {
