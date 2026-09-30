@@ -23,8 +23,16 @@ if TYPE_CHECKING:
 # Crockford's base32: no I, L, O, or U (ADR-0007).
 ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 REFERENCE = "REF#"
+RANKS = {"urgent": 1, "normal": 0}
 
 Filed = Literal["filed", "case_taken", "reference_taken"]
+
+
+def queue_order(priority: str, filed_at: str) -> str:
+    """
+    The queue index's sort key: read in descending order, urgent cases come first, and each priority's newest first.
+    """
+    return f"{RANKS[priority]}#{filed_at}"
 
 
 def draw_reference() -> str:

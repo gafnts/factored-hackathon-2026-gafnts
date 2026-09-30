@@ -463,6 +463,17 @@ def test_every_filed_example_case_holds_a_valid_handoff() -> None:
         assert case["record"]["sign_in"] == case["payload"]["session_id"]
 
 
+def test_a_cases_rank_in_the_queue_is_its_priority() -> None:
+    filed = copy.deepcopy(cases()[1])
+    later = f"0#{filed['filed_at']}"
+
+    assert filed["queue_order"] == later
+    assert invalid("handoff-case", None, {**filed, "priority": "urgent"})
+    urgent = {**filed, "priority": "urgent", "queue_order": f"1#{filed['filed_at']}"}
+    assert not invalid("handoff-case", None, urgent)
+    assert invalid("handoff-case", None, {**filed, "queue_order": filed["filed_at"]})
+
+
 def test_a_case_is_in_the_queue_its_reason_names() -> None:
     filed = copy.deepcopy(cases()[1])
 
