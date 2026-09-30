@@ -204,7 +204,13 @@ class Entrypoint:
             "policy": POLICY_VERSION,
             "prompts": {
                 name: prompt_version(name)
-                for name in ("route", "resolve_card", "reply", "handoff")
+                for name in (
+                    "route",
+                    "resolve_card",
+                    "find_transaction",
+                    "reply",
+                    "handoff",
+                )
             },
             "schemas": {name: version(name) for name in NAMES},
             "snapshot": settings.stamp["snapshot"],

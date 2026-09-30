@@ -98,6 +98,34 @@ def test_facts_are_the_named_cards_fields_each_from_its_latest_read() -> None:
     assert (status["value"], status["evidence"]) == ("Blocked", "call-2")
 
 
+def test_a_named_transaction_states_its_fields_and_its_cards_id() -> None:
+    window = call(
+        "call-4",
+        {
+            "outcome": "ok",
+            "card_id": CARD,
+            "transactions": [
+                {
+                    "transaction_id": "TRX-EXAMPLE0000000000003",
+                    "amount": 189.9,
+                    "currency": "USD",
+                    "response_meaning": None,
+                },
+                {"transaction_id": "TRX-EXAMPLE0000000000002", "amount": 1200},
+            ],
+        },
+        "find_transactions",
+    )
+
+    facts = facts_of([window], CUSTOMER, [], ["TRX-EXAMPLE0000000000003"])
+
+    assert {(f["id"], f["field"], f["value"]) for f in facts} == {
+        ("TRX-EXAMPLE0000000000003", "amount", 189.9),
+        ("TRX-EXAMPLE0000000000003", "currency", "USD"),
+        ("TRX-EXAMPLE0000000000003", "product_id", CARD),
+    }
+
+
 def test_a_block_states_its_read_back_as_the_cards_status() -> None:
     block = call(
         "call-3",

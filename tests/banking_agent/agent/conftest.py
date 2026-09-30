@@ -29,7 +29,13 @@ from banking_agent.agent.confirmations import MemoryConfirmations
 from banking_agent.agent.filing import Filing
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
-from banking_agent.agent.models import MODEL, BlockDetails, HandoffText, RouterOutput
+from banking_agent.agent.models import (
+    MODEL,
+    BlockDetails,
+    HandoffText,
+    RouterOutput,
+    TransactionChoice,
+)
 from banking_agent.tools import handoff
 from banking_agent.tools.cases import MemoryCases, MemoryFlags
 from banking_agent.tools.file_handoff import HandoffStores
@@ -64,6 +70,16 @@ def list_cards_output() -> dict[str, Any]:
     text = (
         files("banking_agent.contracts")
         .joinpath("examples/tools.list_cards_output.json")
+        .read_text(encoding="utf-8")
+    )
+    output: dict[str, Any] = next(o for o in json.loads(text) if o["outcome"] == "ok")
+    return output
+
+
+def find_transactions_output() -> dict[str, Any]:
+    text = (
+        files("banking_agent.contracts")
+        .joinpath("examples/tools.find_transactions_output.json")
         .read_text(encoding="utf-8")
     )
     output: dict[str, Any] = next(o for o in json.loads(text) if o["outcome"] == "ok")
@@ -113,6 +129,7 @@ class Bank:
 
     def __init__(self) -> None:
         self.listed = list_cards_output()
+        self.window = find_transactions_output()
         self.blocked: set[str] = set()
         self.verified = True
 
@@ -128,6 +145,17 @@ class Bank:
         stamped = {k: self.listed[k] for k in ("stamp", "clock")}
         if tool == "list_cards":
             return tool_result({**self.listed, "cards": self.cards()})
+        if tool == "find_transactions":
+            # The example window is the first card's; the others have none.
+            own = arguments["card_id"] == self.window["card_id"]
+            return tool_result(
+                {
+                    **self.window,
+                    "card_id": arguments["card_id"],
+                    "transactions": self.window["transactions"] if own else [],
+                    "next_cursor": None,
+                }
+            )
         card = next(c for c in self.cards() if c["card_id"] == arguments["card_id"])
         if tool == "get_card":
             detail = {
@@ -300,12 +328,15 @@ class Script:
         }
     )
     handoff_error: Exception | None = None
+    fitting: list[int] = field(default_factory=lambda: [1])
+    choose_error: Exception | None = None
     gateway: Callable[[httpx.Request], httpx.Response] | None = None
     model_inputs: dict[str, list[list[BaseMessage]]] = field(
         default_factory=lambda: {
             "route": [],
             "extract": [],
             "reply": [],
+            "choose": [],
             "handoff_text": [],
         }
     )
@@ -405,6 +436,18 @@ class Harness:
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
+        async def choose(messages: list[BaseMessage]) -> dict[str, Any]:
+            script.model_inputs["choose"].append(messages)
+            if script.choose_error is not None:
+                raise script.choose_error
+            raw = AIMessage(
+                content="{}",
+                usage_metadata=USAGE,
+                response_metadata={"model_name": MODEL},
+            )
+            parsed = TransactionChoice(fitting=script.fitting)
+            return {"raw": raw, "parsed": parsed, "parsing_error": None}
+
         async def handoff_text(messages: list[BaseMessage]) -> dict[str, Any]:
             script.model_inputs["handoff_text"].append(messages)
             if script.handoff_error is not None:
@@ -431,6 +474,7 @@ class Harness:
             chosen = {
                 "route": route,
                 "extract": extract,
+                "choose": choose,
                 "handoff_text": handoff_text,
             }.get(purpose, reply)
             return RunnableLambda(chosen)

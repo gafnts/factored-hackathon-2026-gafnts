@@ -54,6 +54,7 @@ def required(
     reported: str | None = None,
     handoff_id: str | None = None,
     outcome: str = "hand_off",
+    transactions: Sequence[str] = (),
 ) -> dict[str, Any]:
     """
     A handoff the policy requires, as a node hands it to the handoff node: the calls whose results hold its facts, the
@@ -69,6 +70,7 @@ def required(
         "outcome": outcome,
         "calls": list(calls),
         "cards": list(cards),
+        "transactions": list(transactions),
         "actions": [dict(a) for a in actions],
         "reported": reported,
         "handoff_id": handoff_id,
@@ -110,11 +112,14 @@ def scalar(value: Any) -> bool:
 
 
 def facts_of(
-    calls: Sequence[Mapping[str, Any]], customer_id: str, cards: Sequence[str]
+    calls: Sequence[Mapping[str, Any]],
+    customer_id: str,
+    cards: Sequence[str],
+    transactions: Sequence[str] = (),
 ) -> list[dict[str, Any]]:
     """
-    Every field of the customer and of the named cards that the calls read, each once, from the latest call that read
-    it, so a card read again after a block states its new status.
+    Every field of the customer and of the named cards and transactions that the calls read, each once, from the latest
+    call that read it, so a card read again after a block states its new status.
     """
     found: dict[tuple[str, str, str], dict[str, Any]] = {}
 
@@ -140,11 +145,15 @@ def facts_of(
                         "customer", customer_id, field, customer[field], call["call_id"]
                     )
         for row in rows(result):
-            if "transaction_id" in row or row.get("card_id") not in cards:
+            if row.get("transaction_id") in transactions:
+                subject, record = "transaction", row["transaction_id"]
+            elif "transaction_id" not in row and row.get("card_id") in cards:
+                subject, record = "card", row["card_id"]
+            else:
                 continue
-            for field in FIELDS["card"]:
+            for field in FIELDS[subject]:
                 if field in row:
-                    keep("card", row["card_id"], field, row[field], call["call_id"])
+                    keep(subject, record, field, row[field], call["call_id"])
     return list(found.values())[:FACTS]
 
 
@@ -164,7 +173,9 @@ def built(
     The payload but its free text, which falls back to the reason code's until written() fills it in.
     """
     code = request["reason_code"]
-    facts = facts_of(cited, customer_id, request["cards"])
+    facts = facts_of(
+        cited, customer_id, request["cards"], request.get("transactions", [])
+    )
     payload: dict[str, Any] = {
         "schema_version": 1,
         "handoff_id": handoff_id,

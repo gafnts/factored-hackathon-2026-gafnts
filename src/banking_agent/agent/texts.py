@@ -48,6 +48,36 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿Cuál quiere bloquear?",
         "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nQual você quer bloquear?",
     },
+    # POL-14 and POL-16, for a charge the customer doesn't recognize.
+    "which_card_charge": {
+        "es": "¿En cuál de estas tarjetas está el cargo que no reconoce?\n\n{cards}",
+        "pt": "Em qual destes cartões está a cobrança que você não reconhece?\n\n{cards}",
+    },
+    "no_matching_card_charge": {
+        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿En cuál está el cargo que no reconoce?",
+        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nEm qual está a cobrança que você não reconhece?",
+    },
+    # POL-39, as in POL-27: the charge is looked for in any status, and whether it is fraud is never said.
+    "charge_found": {
+        "es": "Encontré este cargo en su {card}: {transaction}.",
+        "pt": "Encontrei esta cobrança no seu {card}: {transaction}.",
+    },
+    "which_charge": {
+        "es": "Encontré más de un cargo en su {card} que podría ser el que me indica. ¿Cuál es?\n\n{transactions}",
+        "pt": "Encontrei mais de uma cobrança no seu {card} que pode ser a que você indicou. Qual é?\n\n{transactions}",
+    },
+    "charge_not_found": {
+        "es": "No encontré en los últimos 90 días de su {card} un cargo que coincida con lo que me indica.",
+        "pt": "Não encontrei nos últimos 90 dias do seu {card} uma cobrança que corresponda ao que você indicou.",
+    },
+    "charge_unread": {
+        "es": "En este momento no pude consultar los movimientos de su {card}.",
+        "pt": "No momento não consegui consultar as transações do seu {card}.",
+    },
+    "records_unavailable": {
+        "es": "En este momento no pude consultar sus tarjetas.",
+        "pt": "No momento não consegui consultar seus cartões.",
+    },
     "no_cards": {
         "es": "No encuentro tarjetas a su nombre.",
         "pt": "Não encontrei cartões em seu nome.",
@@ -156,6 +186,7 @@ CARD_TYPES = {
     },
 }
 ENDING = {"es": "terminada en", "pt": "final"}
+UNRECORDED = {"es": "comercio no registrado", "pt": "estabelecimento não registrado"}
 STATUSES = {
     "es": {
         "Active": "activa",
@@ -190,6 +221,18 @@ def card_name(card: dict[str, Any], language: str) -> str:
     return f"{CARD_TYPES[language][card['product_type']]} {ENDING[language]} {card['last_four']}"
 
 
+def transaction_name(transaction: dict[str, Any], language: str) -> str:
+    """
+    A transaction as the customer sees it: its date, its merchant ("not recorded" when missing), and its amount with
+    the card's currency code (POL-20, POL-25).
+    """
+    merchant = transaction["merchant_name"] or UNRECORDED[language]
+    return (
+        f"{transaction['transaction_date'][:16]}, {merchant}, "
+        f"{transaction['amount']:.2f} {transaction['currency']}"
+    )
+
+
 def render(name: str, language: str, facts: dict[str, Any]) -> str:
     values: dict[str, str] = {}
     if "card" in facts:
@@ -205,4 +248,10 @@ def render(name: str, language: str, facts: dict[str, Any]) -> str:
         values["last_four"] = facts["last_four"]
     if "reference" in facts:
         values["reference"] = facts["reference"]
+    if "transaction" in facts:
+        values["transaction"] = transaction_name(facts["transaction"], language)
+    if "transactions" in facts:
+        values["transactions"] = "\n".join(
+            f"- {transaction_name(t, language)}" for t in facts["transactions"]
+        )
     return FIXED[name][language].format(**values)

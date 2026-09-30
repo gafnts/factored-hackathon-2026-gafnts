@@ -81,6 +81,17 @@ class BlockDetails(BaseModel):
     )
 
 
+class TransactionChoice(BaseModel):
+    """
+    The transactions listed that fit what the customer says about a charge they don't recognize, by their number in
+    the list the model reads, never by ID (POL-27, POL-39). Code keeps only numbers in the list.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    fitting: list[int] = Field(max_length=10)
+
+
 class HandoffText(BaseModel):
     """
     A handoff's free text, in Spanish (POL-46). Its lengths and its text rule are checked in code, which falls back to
@@ -97,6 +108,7 @@ class HandoffText(BaseModel):
 OUTPUTS: dict[str, type[BaseModel]] = {
     "route": RouterOutput,
     "extract": BlockDetails,
+    "choose": TransactionChoice,
     "handoff_text": HandoffText,
 }
 
@@ -193,15 +205,24 @@ class Models:
         self.record = record
 
     async def call(
-        self, node: str, purpose: str, messages: Sequence[BaseMessage]
+        self,
+        node: str,
+        purpose: str,
+        messages: Sequence[BaseMessage],
+        output: str | None = None,
     ) -> tuple[AIMessage | None, Any]:
+        """
+        output names the structured output, when it isn't the purpose's own: the record knows a transaction's choice as
+        an extraction.
+        """
         started = time.perf_counter()
         raw: AIMessage | None = None
         parsed: Any = None
         outcome = "ok"
+        typed = output or purpose
         try:
-            answer = await self.factory(purpose).ainvoke(list(messages))
-            if purpose in OUTPUTS:
+            answer = await self.factory(typed).ainvoke(list(messages))
+            if typed in OUTPUTS:
                 raw, parsed = answer["raw"], answer["parsed"]
                 if answer.get("parsing_error") is not None or parsed is None:
                     outcome = "invalid_output"
@@ -236,6 +257,9 @@ class Models:
             entry["output"] = parsed.model_dump()
         if outcome == "ok" and isinstance(parsed, BlockDetails):
             entry["output"] = {"extracted": parsed.model_dump()}
+        if outcome == "ok" and isinstance(parsed, TransactionChoice):
+            fitting = ",".join(str(n) for n in parsed.fitting)
+            entry["output"] = {"extracted": {"fitting": fitting or None}}
         await self.record("model_call", **entry)
         if outcome != "ok":
             raise ModelFailedError(f"the {node} call ended {outcome}")
@@ -260,6 +284,19 @@ class Models:
         )
         details: BlockDetails = parsed
         return details
+
+    async def choose(self, text: str, listing: str) -> TransactionChoice:
+        system = SystemMessage(
+            [
+                {"type": "text", "text": prompt("find_transaction")},
+                {"type": "text", "text": listing},
+            ]
+        )
+        _, parsed = await self.call(
+            "find_transaction", "extract", [system, HumanMessage(text)], "choose"
+        )
+        chosen: TransactionChoice = parsed
+        return chosen
 
     async def handoff_text(self, conversation: str, context: str) -> HandoffText:
         """

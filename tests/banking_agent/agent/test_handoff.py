@@ -208,10 +208,16 @@ def test_a_block_the_read_back_doesnt_show_is_handed_off_with_its_outcome(
             "evidence": calls["get_card"]["call_id"],
         }
     ]
-    assert case["record"] == {
-        "sign_in": chat.who.origin_jti,
-        "turns": [chat.entries()[0]["entry_key"].rsplit("#", 1)[0]],
-    }
+    # The turn that showed the control holds the listing that settled the card; this one, the block and the read.
+    turns = sorted(
+        {
+            e["entry_key"].rsplit("#", 1)[0]
+            for e in harness.records.of(chat.who.origin_jti)
+            if e["kind"] == "tool_call" and e["tool"] != "file_handoff"
+        }
+    )
+    assert case["record"] == {"sign_in": chat.who.origin_jti, "turns": turns}
+    assert len(turns) == 2
     assert case["flagged"] is False
 
 

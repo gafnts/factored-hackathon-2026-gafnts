@@ -1,7 +1,9 @@
 """
 The graph (ADR-0004, The graph). A new message is routed by POL-05's order: a block goes through resolve_card,
-ask_reason, and confirm to the confirm control, and every other request reads list_cards through the Gateway first,
-since the customer's status comes before the request (POL-12). The card listing is answered from it, a customer not
+ask_reason, and confirm to the confirm control; a charge the customer doesn't recognize goes through resolve_card and
+find_transaction to the same control when the card is Active, and to dispute intake however that ends (POL-39); and
+every other request reads list_cards through the Gateway first, since the customer's status comes before the request
+(POL-12). The card listing is answered from it, a customer not
 served in full or one who asks for a person is handed off (POL-12, POL-44), and the rest get fixed text until their
 nodes land. An answer to the agent's own question goes back to resolve_card, and a pending control's answer, or a
 message typed while it shows, resumes await_control (POL-06). Code decides every step: the model labels the request,
@@ -79,6 +81,9 @@ OFFERED = "handoff_control"
 CITED = 40
 # file_handoff reads at most this many of the sign-in's turns.
 TURNS = 20
+# The window's pages a charge is looked for in, and the transactions listed for the customer to choose (POL-27).
+PAGES = 3
+SHOWN = 5
 
 
 class ChatState(TypedDict):
@@ -121,7 +126,11 @@ def routing(routed: RouterOutput) -> dict[str, Any]:
     if not routed.has_request:
         return {"label": None, "case": "no_request"}
     label = next((label for label in ORDER if label in routed.requests), "unsupported")
-    cases = {"card_status": "cards", "block_card": "block"}
+    cases = {
+        "card_status": "cards",
+        "block_card": "block",
+        "unrecognized_charge": "block",
+    }
     return {
         "label": label,
         "case": cases.get(label, "status"),
@@ -134,10 +143,13 @@ def said(*parts: tuple[str, dict[str, Any]]) -> list[list[Any]]:
 
 
 def decided(
-    outcome_class: str, rules: list[str], awaiting: str = "none"
+    outcome_class: str,
+    rules: list[str],
+    awaiting: str = "none",
+    label: str = "block_card",
 ) -> dict[str, Any]:
     return {
-        "request_label": "block_card",
+        "request_label": label,
         "outcome_class": outcome_class,
         "awaiting": awaiting,
         "rules": rules,
@@ -279,7 +291,9 @@ async def list_cards(state: State) -> dict[str, Any]:
     return {"cards": [{k: c[k] for k in CARD_FACTS} for c in call.result["cards"]]}
 
 
-def extraction_context(asking: dict[str, Any], cards: list[dict[str, Any]]) -> str:
+def extraction_context(
+    asking: dict[str, Any], cards: list[dict[str, Any]], label: str
+) -> str:
     if asking.get("detail") == "card":
         listed = "\n".join(
             f"- {'credit' if c['product_type'] == TYPES['credit'] else 'debit'} card ending in {c['last_four']}"
@@ -289,6 +303,10 @@ def extraction_context(asking: dict[str, Any], cards: list[dict[str, Any]]) -> s
         return f"The customer is answering which of these cards they mean:\n{listed}"
     if asking.get("detail") == "reason":
         return "The customer is answering why they want to block the card."
+    if label == "unrecognized_charge":
+        return (
+            "The customer reports a charge they don't recognize on one of their cards."
+        )
     return "The customer is asking to block a card."
 
 
@@ -338,16 +356,32 @@ def question(
 ) -> dict[str, Any]:
     """
     Asks for a detail, or stops once two questions haven't settled it and offers a handoff (POL-17), citing the listing
-    and the cards the questions were about (offer).
+    and the cards the questions were about (offer). For a charge the customer doesn't recognize, a card that can't be
+    settled goes to dispute intake at once instead, since that is the request's only handoff (POL-39).
     """
     asked = asked or {}
     before = asked.get("questions", 0) if asked.get("detail") == detail else 0
+    label = kept.get("label") or "block_card"
     if before >= QUESTIONS:
         listed, cards = offer
         stopped = [*rules, "POL-17"]
+        say = [*state.get("say", []), *said(("clarification_stopped", {}))]
+        if label == "unrecognized_charge":
+            return {
+                "case": "handoff",
+                "asking": None,
+                "say": say,
+                "handoff": required(
+                    "unrecognized_charge",
+                    label,
+                    [*stopped, "POL-39"],
+                    calls=[listed] if listed else [],
+                    cards=cards,
+                ),
+            }
         request = offered(
             "clarification_failed",
-            "block_card",
+            label,
             ["POL-17"],
             stopped,
             calls=[listed] if listed else [],
@@ -356,53 +390,104 @@ def question(
         return {
             "case": "fixed",
             "asking": None,
-            "say": [
-                *state.get("say", []),
-                *said(("clarification_stopped", {}), ("handoff_offer", {})),
-            ],
+            "say": [*say, *said(("handoff_offer", {}))],
             "offer": offering(request, "abstain"),
-            "decision": decided("abstain", stopped, OFFERED),
+            "decision": decided("abstain", stopped, OFFERED, label),
         }
     return {
         "case": "fixed",
         "asking": {"detail": detail, "questions": before + 1, **kept},
         "say": [*state.get("say", []), *said((name, facts))],
-        "decision": decided("clarify", rules, "card" if detail == "card" else "reason"),
+        "decision": decided(
+            "clarify", rules, "card" if detail == "card" else "reason", label
+        ),
     }
 
 
 async def resolve_card(state: State) -> dict[str, Any]:
+    """
+    The card a block, or a charge the customer doesn't recognize, is about (POL-13 to POL-17). For a charge, the
+    customer's status comes first (POL-12), no reason is asked, the card is settled whatever its status, and what can't
+    be settled or read goes into the charge's handoff rather than one of its own (POL-39).
+    """
     scope = SCOPE.get()
     asked = state.get("asking") or {}
-    turn: dict[str, Any] = {"label": "block_card", "case": "fixed"}
+    label = asked.get("label") or state.get("label") or "block_card"
+    charge = label == "unrecognized_charge"
+    turn: dict[str, Any] = {"label": label, "case": "fixed"}
+    say = state.get("say", [])
     call = await tool(scope, "list_cards")
     if call.outcome == "denied":
         return {**turn, "case": "refused", "asking": None}
     if call.outcome != "ok" or call.result is None:
-        return {**turn, "case": "unavailable", "asking": None}
+        if not charge:
+            return {**turn, "case": "unavailable", "asking": None}
+        return {
+            **turn,
+            "case": "handoff",
+            "asking": None,
+            "say": [*say, *said(("records_unavailable", {}))],
+            "handoff": required(
+                "unrecognized_charge", label, ["POL-39", "POL-48"], calls=[call.call_id]
+            ),
+        }
     turn["listed"] = call.call_id
     cards: list[dict[str, Any]] = call.result["cards"]
+    ids = [c["card_id"] for c in cards]
+    if charge and not call.result["customer"]["served_in_full"]:
+        return {
+            **turn,
+            "case": "handoff",
+            "asking": None,
+            "handoff": required(
+                "customer_not_active",
+                label,
+                ["POL-12"],
+                calls=[call.call_id],
+                cards=ids,
+            ),
+        }
     details = state.get("details")
     if details is None:
         try:
             extracted = await scope.models.extract(
-                latest_text(state), extraction_context(asked, cards)
+                latest_text(state), extraction_context(asked, cards, label)
             )
+            details = extracted.model_dump()
         except ModelFailedError:
-            return {**turn, "case": "unavailable", "asking": None}
-        details = extracted.model_dump()
+            if not charge:
+                return {**turn, "case": "unavailable", "asking": None}
+            # A charge's card can still be asked for.
+            details = {"card_type": None, "last_four": None, "block_reason": None}
     card_type, last_four = hints(details)
-    reason = details.get("block_reason") or asked.get("reason")
+    reason = (
+        "unrecognized_charge"
+        if charge
+        else details.get("block_reason") or asked.get("reason")
+    )
     settled = next((c for c in cards if c["card_id"] == asked.get("card_id")), None)
     if settled is None or not fits(settled, card_type, last_four):
         card_type = card_type or asked.get("card_type")
         last_four = last_four or asked.get("last_four")
         found, meant = match(cards, card_type, last_four)
         if found == "no_cards":
+            if charge:
+                return {
+                    **turn,
+                    "case": "handoff",
+                    "asking": None,
+                    "say": [*say, *said(("no_cards", {}))],
+                    "handoff": required(
+                        "unrecognized_charge",
+                        label,
+                        ["POL-13", "POL-39"],
+                        calls=[call.call_id],
+                    ),
+                }
             return {
                 **turn,
                 "asking": None,
-                "say": [*state.get("say", []), *said(("no_cards", {}))],
+                "say": [*say, *said(("no_cards", {}))],
                 "decision": decided("decline", ["POL-13", "POL-16"]),
             }
         if found == "ambiguous":
@@ -410,14 +495,11 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 **turn,
                 "case": "handoff",
                 "asking": None,
-                "say": [
-                    *state.get("say", []),
-                    *said(("ambiguous_card", {"last_four": last_four})),
-                ],
+                "say": [*say, *said(("ambiguous_card", {"last_four": last_four}))],
                 "handoff": required(
-                    "ambiguous_card",
-                    "block_card",
-                    ["POL-13", "POL-15"],
+                    "unrecognized_charge" if charge else "ambiguous_card",
+                    label,
+                    ["POL-13", "POL-15", "POL-39"] if charge else ["POL-13", "POL-15"],
                     calls=[call.call_id],
                     cards=[c["card_id"] for c in meant],
                     reported=reason,
@@ -429,6 +511,8 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 "which_type": ("which_type", ["POL-13", "POL-15"]),
                 "which_card": ("which_card", ["POL-13", "POL-14"]),
             }[found]
+            if charge and found != "which_type":
+                name = f"{name}_charge"
             facts = {"cards": [card_facts(c) for c in meant], "last_four": last_four}
             return {
                 **turn,
@@ -444,9 +528,17 @@ async def resolve_card(state: State) -> dict[str, Any]:
                     card_type=card_type if found == "which_card" else None,
                     last_four=last_four if found != "no_match" else None,
                     reason=reason,
+                    label=label,
                 ),
             }
         settled = meant[0]
+    target = {
+        **settled,
+        "served_in_full": call.result["customer"]["served_in_full"],
+        "listed": call.call_id,
+    }
+    if charge:
+        return {**turn, "case": "find", "asking": None, "target": target}
     if settled["product_status"] != "Active":
         name = (
             "already_blocked"
@@ -456,16 +548,151 @@ async def resolve_card(state: State) -> dict[str, Any]:
         return {
             **turn,
             "asking": None,
-            "say": [
-                *state.get("say", []),
-                *said((name, {"card": card_facts(settled)})),
-            ],
+            "say": [*say, *said((name, {"card": card_facts(settled)}))],
             "decision": decided("decline", ["POL-13", "POL-34"]),
         }
-    target = {**settled, "served_in_full": call.result["customer"]["served_in_full"]}
     if reason is None:
         return {**turn, "case": "ask_reason", "target": target}
     return {**turn, "case": "confirm", "target": {**target, "reason": reason}}
+
+
+def listing(transactions: list[dict[str, Any]]) -> str:
+    """
+    The window's transactions as the model reads them: numbered, never by ID.
+    """
+    return "\n".join(
+        f"{n}. {t['transaction_date']}, {t['transaction_type']}, {t['amount']} {t['currency']}, "
+        f"{t['merchant_name'] or 'merchant not recorded'}, {t['transaction_status']}, {t['transaction_country']}"
+        for n, t in enumerate(transactions, 1)
+    )
+
+
+def shown(transaction: dict[str, Any]) -> dict[str, Any]:
+    return {
+        k: transaction[k]
+        for k in ("transaction_date", "merchant_name", "amount", "currency")
+    }
+
+
+async def find_transaction(state: State) -> dict[str, Any]:
+    """
+    Looks for the charge the customer doesn't recognize among the card's transactions in the 90-day window, in any
+    status (POL-39, as in POL-27). The model reads them numbered and says which fit what the customer said: one is the
+    charge, several are listed, newest first and five at most, for the customer to choose, and none is said so. A read
+    that fails, or a choice not settled after two questions, is recorded in the handoff. An Active card is offered the
+    block next; any other card's charge goes to dispute intake at once.
+    """
+    scope = SCOPE.get()
+    asked = state.get("asking") or {}
+    answering = asked.get("detail") == "transaction"
+    target = asked["target"] if answering else state["target"]
+    assert target is not None
+    label: str = (
+        asked["label"] if answering else state.get("label")
+    ) or "unrecognized_charge"
+    say = state.get("say", [])
+    turn: dict[str, Any] = {"label": label, "case": "fixed", "asking": None}
+    card = card_facts(target)
+    failed = False
+    if answering:
+        calls, candidates = asked["calls"], asked["candidates"]
+        context = (
+            "The customer is answering which of these transactions they mean:\n"
+            + listing(candidates)
+        )
+    else:
+        calls, candidates, cursor = [], [], None
+        for _ in range(PAGES):
+            call = await tool(
+                scope,
+                "find_transactions",
+                card_id=target["card_id"],
+                **({} if cursor is None else {"cursor": cursor}),
+            )
+            calls.append(call.call_id)
+            if call.outcome == "denied":
+                return {**turn, "case": "refused"}
+            if call.outcome != "ok" or call.result is None:
+                failed = True
+                break
+            candidates += call.result["transactions"]
+            cursor = call.result.get("next_cursor")
+            if cursor is None:
+                break
+        context = listing(candidates)
+    fitting: list[dict[str, Any]] = []
+    if candidates:
+        try:
+            chosen = await scope.models.choose(latest_text(state), context)
+            fitting = [
+                candidates[n - 1]
+                for n in dict.fromkeys(chosen.fitting)
+                if 1 <= n <= len(candidates)
+            ]
+        except ModelFailedError:
+            failed = True
+    rules = ["POL-27", "POL-39"]
+    before = asked.get("questions", 0) if answering else 0
+    if len(fitting) > 1 and before < QUESTIONS:
+        listed = fitting[:SHOWN]
+        return {
+            **turn,
+            "asking": {
+                "detail": "transaction",
+                "questions": before + 1,
+                "label": label,
+                "target": target,
+                "candidates": listed,
+                "calls": calls,
+            },
+            "say": [
+                *say,
+                *said(
+                    (
+                        "which_charge",
+                        {"card": card, "transactions": [shown(t) for t in listed]},
+                    )
+                ),
+            ],
+            "decision": decided("clarify", rules, "transaction", label),
+        }
+    found = fitting[0] if len(fitting) == 1 else None
+    if len(fitting) > 1:
+        lead, rules = said(("clarification_stopped", {})), [*rules, "POL-17"]
+    elif found is not None:
+        lead = said(("charge_found", {"card": card, "transaction": shown(found)}))
+    elif failed:
+        lead = said(("charge_unread", {"card": card}))
+    else:
+        lead = said(("charge_not_found", {"card": card}))
+    charge = {
+        "calls": calls,
+        "transactions": [] if found is None else [found["transaction_id"]],
+    }
+    if target["product_status"] == "Active":
+        return {
+            **turn,
+            "case": "confirm",
+            "say": [*say, *lead],
+            "rules": rules,
+            "target": {**target, "reason": "unrecognized_charge", "charge": charge},
+        }
+    name = (
+        "already_blocked" if target["product_status"] == "Blocked" else "not_blockable"
+    )
+    return {
+        **turn,
+        "case": "handoff",
+        "say": [*say, *lead, *said((name, {"card": card}))],
+        "handoff": required(
+            "unrecognized_charge",
+            label,
+            [*rules, "POL-34"],
+            calls=[target["listed"], *calls],
+            cards=[target["card_id"]],
+            transactions=charge["transactions"],
+        ),
+    }
 
 
 async def ask_reason(state: State) -> dict[str, Any]:
@@ -510,7 +737,12 @@ async def confirm(state: State) -> dict[str, Any]:
     if target["reason"] in DRAFTED:
         handoff_id = await drafted(scope, state["language"], target, confirmation_id)
     facts = {"card": card_facts(target), "reason": target["reason"]}
-    rules = ["POL-13", "POL-35", "POL-36"]
+    label = state.get("label") or "block_card"
+    rules = (
+        ["POL-13", "POL-36", "POL-39"]
+        if label == "unrecognized_charge"
+        else ["POL-13", "POL-35", "POL-36"]
+    )
     say = said(("confirm_prompt", facts))
     if target["past_expiration"]:
         say = [*said(("past_expiration", facts)), *say]
@@ -528,12 +760,13 @@ async def confirm(state: State) -> dict[str, Any]:
             "expires_at": record["expires_at"],
             "origin_jti": scope.claims.origin_jti,
             "typed": 0,
-            "listed": state.get("listed"),
-            "label": state.get("label") or "block_card",
+            "listed": state.get("listed") or target.get("listed"),
+            "label": label,
+            "charge": target.get("charge"),
             "handoff_id": handoff_id,
         },
         "say": [*state.get("say", []), *say],
-        "decision": decided("block", rules, CONTROL),
+        "decision": decided("block", rules, CONTROL, label),
     }
 
 
@@ -655,6 +888,23 @@ def unused(pending: dict[str, Any], outcome: str = "lapsed") -> dict[str, Any]:
     }
 
 
+def cited(pending: dict[str, Any], *calls: str) -> dict[str, Any]:
+    """
+    What a handoff about the pending confirmation cites: the listing that settled its card, a charge's window reads
+    and the charge found, if any, and the calls named.
+    """
+    charge = pending.get("charge") or {}
+    return {
+        "calls": [
+            *([pending["listed"]] if pending.get("listed") else []),
+            *charge.get("calls", []),
+            *calls,
+        ],
+        "cards": [pending["card_id"]],
+        "transactions": charge.get("transactions", []),
+    }
+
+
 def owed(
     pending: dict[str, Any], cause: str, rules: list[str]
 ) -> dict[str, Any] | None:
@@ -673,8 +923,7 @@ def owed(
         code,
         pending.get("label") or "block_card",
         list(dict.fromkeys([*rules, rule])),
-        calls=[pending["listed"]] if pending.get("listed") else [],
-        cards=[pending["card_id"]],
+        **cited(pending),
         actions=[
             unused(pending, "declined_by_customer" if cause == "control" else "lapsed")
         ],
@@ -989,7 +1238,10 @@ async def typed_to_confirmation(
             "say": said(("unavailable", {})),
             "decision": decided("abstain", ["POL-48"], CONTROL),
         }
-    if routed["case"] not in ("block", "no_request"):
+    if routed["case"] not in ("block", "no_request") or routed["label"] not in (
+        None,
+        "block_card",
+    ):
         moved: dict[str, Any] = {
             "pending": None,
             "offer": None,
@@ -1167,8 +1419,7 @@ async def verify(state: State) -> dict[str, Any]:
                     "unrecognized_charge",
                     pending.get("label") or "block_card",
                     rules,
-                    calls=[done["call_id"], call.call_id],
-                    cards=[pending["card_id"]],
+                    **cited(pending, done["call_id"], call.call_id),
                     actions=actions,
                     handoff_id=pending.get("handoff_id"),
                     outcome="block",
@@ -1184,8 +1435,7 @@ async def verify(state: State) -> dict[str, Any]:
             "unrecognized_charge" if charge else "action_not_verified",
             pending.get("label") or "block_card",
             ["POL-37", "POL-39"] if charge else ["POL-37"],
-            calls=[done["call_id"], call.call_id],
-            cards=[pending["card_id"]],
+            **cited(pending, done["call_id"], call.call_id),
             actions=actions,
             reported=pending["reason"],
             handoff_id=pending.get("handoff_id"),
@@ -1398,7 +1648,10 @@ async def hold(state: State) -> dict[str, Any]:
 
 
 def after_begin(state: State) -> str:
-    return "resolve_card" if state.get("asking") else "route"
+    asking = state.get("asking")
+    if asking is None:
+        return "route"
+    return "find_transaction" if asking["detail"] == "transaction" else "resolve_card"
 
 
 def after_route(state: State) -> str:
@@ -1413,8 +1666,13 @@ def after_resolve(state: State) -> str:
     return {
         "confirm": "confirm",
         "ask_reason": "ask_reason",
+        "find": "find_transaction",
         "handoff": "handoff",
     }.get(state["case"], "reply")
+
+
+def after_find(state: State) -> str:
+    return {"confirm": "confirm", "handoff": "handoff"}.get(state["case"], "reply")
 
 
 def onward(state: State) -> str:
@@ -1454,18 +1712,25 @@ def build(
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     graph = StateGraph(State, input_schema=ChatState, output_schema=ChatState)
     for node in (
-        begin, route, list_cards, resolve_card, ask_reason, confirm,
-        await_control, hold, block, verify, handoff, reply,
+        begin, route, list_cards, resolve_card, find_transaction, ask_reason,
+        confirm, await_control, hold, block, verify, handoff, reply,
     ):  # fmt: skip
         graph.add_node(node.__name__, citing(node))
     graph.add_edge(START, "begin")
-    graph.add_conditional_edges("begin", after_begin, ["route", "resolve_card"])
+    graph.add_conditional_edges(
+        "begin", after_begin, ["route", "resolve_card", "find_transaction"]
+    )
     graph.add_conditional_edges(
         "route", after_route, ["list_cards", "resolve_card", "reply"]
     )
     graph.add_conditional_edges("list_cards", onward, ["handoff", "reply"])
     graph.add_conditional_edges(
-        "resolve_card", after_resolve, ["confirm", "ask_reason", "handoff", "reply"]
+        "resolve_card",
+        after_resolve,
+        ["confirm", "ask_reason", "find_transaction", "handoff", "reply"],
+    )
+    graph.add_conditional_edges(
+        "find_transaction", after_find, ["confirm", "handoff", "reply"]
     )
     graph.add_edge("ask_reason", "reply")
     graph.add_edge("confirm", "reply")
