@@ -39,6 +39,11 @@ infra/iam/iam.tfvars
 # Sets AWS_PROFILE (written by scripts/bootstrap.sh)
 .envrc
 
+# dbt's working directories, when it runs by hand in pipeline/
+/pipeline/target/
+/pipeline/logs/
+/pipeline/dbt_packages/
+
 # Hackathon material (organizer-provided)
 /data/
 /docs/hackathon/

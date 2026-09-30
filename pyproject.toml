@@ -56,6 +56,12 @@ eda = [
   "pyarrow>=25.0.1",
   "scikit-learn>=1.9.1",
 ]
+pipeline = [
+  "dbt-core>=1.12.5",
+  "dbt-duckdb>=1.11",
+  "pyyaml>=6.0.3",
+  "types-pyyaml>=6.0.12",
+]
 tools = [
   "boto3>=1.43.103",
   "jsonschema>=4.26",
@@ -63,7 +69,7 @@ tools = [
 ]
 
 [tool.uv]
-default-groups = [ "agent", "dev", "eda", "tools" ]
+default-groups = [ "agent", "dev", "eda", "pipeline", "tools" ]
 
 [tool.ruff]
 src = [ "src" ]
