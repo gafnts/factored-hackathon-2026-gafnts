@@ -265,12 +265,17 @@ class RecordedTurns:
     def __init__(self, records: "MemoryRecords") -> None:
         self.records = records
 
-    def turns(self, sign_in: str, prefixes: Any) -> list[dict[str, Any]]:
-        return [
+    def turns(
+        self, sign_in: str, prefixes: Any, attributes: Any = None
+    ) -> list[dict[str, Any]]:
+        found = [
             e
             for e in self.records.of(sign_in)
             if any(e["entry_key"].startswith(f"{p}#") for p in prefixes)
         ]
+        if attributes is None:
+            return found
+        return [{k: e[k] for k in attributes if k in e} for e in found]
 
 
 class FileHandoffLambda:

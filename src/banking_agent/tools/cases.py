@@ -1,7 +1,7 @@
 """
-The handoff cases table as file_handoff writes it (ADR-0007, Handoffs as cases, and its amendments of 2026-09-30): a
-case saved as a draft and later filed, and a reference item, put in the transaction that files its case, so no two cases
-share a reference. Every write is conditional: a case passes from draft to filed once, and never to another customer.
+The handoff cases table as file_handoff writes it and the console reads it (ADR-0007, Handoffs as cases, and its
+amendments of 2026-09-30): a case saved as a draft and later filed, and a reference item, put in the transaction that
+files its case, so no two cases share a reference and the console finds a case by its reference. Every write is conditional: a case passes from draft to filed once, and never to another customer.
 Transactions' is_fraud is read here too, from each transaction's own item, which only file_handoff's role may read
 whole (POL-40). The in-memory stores serve the tests with the same logic the Lambda runs.
 """
@@ -102,6 +102,18 @@ class DynamoCases:
         )
         return found
 
+    def holder(self, reference: str) -> str | None:
+        """
+        The handoff ID whose case took the reference, read strongly consistent, so a case filed a moment ago is found.
+        """
+        item = self._client.get_item(
+            TableName=self._table,
+            Key={"pk": {"S": f"{REFERENCE}{reference}"}},
+            ConsistentRead=True,
+            ProjectionExpression="handoff_id",
+        ).get("Item")
+        return None if item is None else item["handoff_id"]["S"]
+
     def save_draft(self, item: Record) -> bool:
         try:
             self._client.put_item(
@@ -193,6 +205,10 @@ class MemoryCases:
     def case(self, handoff_id: str) -> Record | None:
         found = self.items.get(handoff_id)
         return None if found is None else json.loads(json.dumps(found))
+
+    def holder(self, reference: str) -> str | None:
+        found = self.items.get(f"{REFERENCE}{reference}")
+        return None if found is None else str(found["handoff_id"])
 
     def _open(self, pk: str, customer_id: str) -> bool:
         held = self.items.get(pk)

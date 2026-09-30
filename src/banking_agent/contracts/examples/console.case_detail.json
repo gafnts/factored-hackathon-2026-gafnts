@@ -181,7 +181,7 @@
         "recorded": true,
         "tool": "find_transactions",
         "via": "gateway",
-        "attempt": 1,
+        "attempt": 2,
         "called_at": "2026-10-02T15:40:51Z",
         "latency_ms": 318,
         "request_id": "gw-3e4f5a6b7c8d",
