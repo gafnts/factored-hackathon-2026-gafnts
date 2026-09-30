@@ -12,7 +12,7 @@ sources:
         description: One file, branches.csv; keyed by branch_id.
         config:
           meta:
-            external_location: "read_csv('$root/branches.csv', columns = {'branch_id': 'VARCHAR', 'branch_code': 'VARCHAR', 'branch_name': 'VARCHAR', 'branch_type': 'VARCHAR', 'address': 'VARCHAR', 'city': 'VARCHAR', 'state': 'VARCHAR', 'country': 'VARCHAR', 'postal_code': 'VARCHAR', 'geographic_zone': 'VARCHAR', 'phone': 'VARCHAR', 'email': 'VARCHAR', 'opening_time': 'TIME', 'closing_time': 'TIME', 'has_atms': 'BOOLEAN', 'atm_count': 'INTEGER', 'has_teller_windows': 'BOOLEAN', 'teller_window_count': 'INTEGER', 'latitude': 'DECIMAL(10,7)', 'longitude': 'DECIMAL(10,7)', 'branch_opening_date': 'DATE', 'branch_status': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/branches.csv', columns = {'branch_id': 'VARCHAR', 'branch_code': 'VARCHAR', 'branch_name': 'VARCHAR', 'branch_type': 'VARCHAR', 'address': 'VARCHAR', 'city': 'VARCHAR', 'state': 'VARCHAR', 'country': 'VARCHAR', 'postal_code': 'VARCHAR', 'geographic_zone': 'VARCHAR', 'phone': 'VARCHAR', 'email': 'VARCHAR', 'opening_time': 'TIME', 'closing_time': 'TIME', 'has_atms': 'BOOLEAN', 'atm_count': 'INTEGER', 'has_teller_windows': 'BOOLEAN', 'teller_window_count': 'INTEGER', 'latitude': 'DECIMAL(10,7)', 'longitude': 'DECIMAL(10,7)', 'branch_opening_date': 'DATE', 'branch_status': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: branch_id
             data_type: VARCHAR
@@ -150,7 +150,7 @@ sources:
         description: One file, customers.csv; keyed by customer_id.
         config:
           meta:
-            external_location: "read_csv('$root/customers.csv', columns = {'customer_id': 'VARCHAR', 'document_number': 'VARCHAR', 'document_type': 'VARCHAR', 'first_name': 'VARCHAR', 'last_name': 'VARCHAR', 'date_of_birth': 'DATE', 'gender': 'VARCHAR', 'email': 'VARCHAR', 'mobile_phone': 'VARCHAR', 'landline_phone': 'VARCHAR', 'address': 'VARCHAR', 'city': 'VARCHAR', 'state': 'VARCHAR', 'country': 'VARCHAR', 'postal_code': 'VARCHAR', 'detected_accent': 'VARCHAR', 'segment': 'VARCHAR', 'credit_score': 'INTEGER', 'estimated_monthly_income': 'DECIMAL(12,2)', 'occupation': 'VARCHAR', 'marital_status': 'VARCHAR', 'education_level': 'VARCHAR', 'registration_date': 'TIMESTAMP', 'registration_branch_id': 'VARCHAR', 'customer_status': 'VARCHAR', 'last_updated': 'TIMESTAMP', 'accepts_marketing': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/customers.csv', columns = {'customer_id': 'VARCHAR', 'document_number': 'VARCHAR', 'document_type': 'VARCHAR', 'first_name': 'VARCHAR', 'last_name': 'VARCHAR', 'date_of_birth': 'DATE', 'gender': 'VARCHAR', 'email': 'VARCHAR', 'mobile_phone': 'VARCHAR', 'landline_phone': 'VARCHAR', 'address': 'VARCHAR', 'city': 'VARCHAR', 'state': 'VARCHAR', 'country': 'VARCHAR', 'postal_code': 'VARCHAR', 'detected_accent': 'VARCHAR', 'segment': 'VARCHAR', 'credit_score': 'INTEGER', 'estimated_monthly_income': 'DECIMAL(12,2)', 'occupation': 'VARCHAR', 'marital_status': 'VARCHAR', 'education_level': 'VARCHAR', 'registration_date': 'TIMESTAMP', 'registration_branch_id': 'VARCHAR', 'customer_status': 'VARCHAR', 'last_updated': 'TIMESTAMP', 'accepts_marketing': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: customer_id
             data_type: VARCHAR
@@ -318,7 +318,7 @@ sources:
         description: One file, products.csv; keyed by product_id.
         config:
           meta:
-            external_location: "read_csv('$root/products.csv', columns = {'product_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'product_type': 'VARCHAR', 'product_number': 'VARCHAR', 'currency': 'VARCHAR', 'current_balance': 'DECIMAL(15,2)', 'credit_limit': 'DECIMAL(15,2)', 'interest_rate': 'DECIMAL(5,2)', 'opening_date': 'DATE', 'expiration_date': 'DATE', 'opening_branch_id': 'VARCHAR', 'product_status': 'VARCHAR', 'opening_channel': 'VARCHAR', 'has_linked_app': 'BOOLEAN', 'days_past_due': 'INTEGER', 'last_transaction_date': 'TIMESTAMP', 'last_updated': 'TIMESTAMP'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/products.csv', columns = {'product_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'product_type': 'VARCHAR', 'product_number': 'VARCHAR', 'currency': 'VARCHAR', 'current_balance': 'DECIMAL(15,2)', 'credit_limit': 'DECIMAL(15,2)', 'interest_rate': 'DECIMAL(5,2)', 'opening_date': 'DATE', 'expiration_date': 'DATE', 'opening_branch_id': 'VARCHAR', 'product_status': 'VARCHAR', 'opening_channel': 'VARCHAR', 'has_linked_app': 'BOOLEAN', 'days_past_due': 'INTEGER', 'last_transaction_date': 'TIMESTAMP', 'last_updated': 'TIMESTAMP'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: product_id
             data_type: VARCHAR
@@ -426,7 +426,7 @@ sources:
         description: One file, service_agents.csv; keyed by agent_id.
         config:
           meta:
-            external_location: "read_csv('$root/service_agents.csv', columns = {'agent_id': 'VARCHAR', 'employee_code': 'VARCHAR', 'first_name': 'VARCHAR', 'last_name': 'VARCHAR', 'email': 'VARCHAR', 'phone': 'VARCHAR', 'native_accent': 'VARCHAR', 'country_of_origin': 'VARCHAR', 'assigned_branch_id': 'VARCHAR', 'agent_type': 'VARCHAR', 'experience_level': 'VARCHAR', 'languages': 'VARCHAR', 'specialty': 'VARCHAR', 'hire_date': 'DATE', 'avg_csat': 'DECIMAL(3,2)', 'total_monthly_interactions': 'INTEGER', 'agent_status': 'VARCHAR', 'work_shift': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/service_agents.csv', columns = {'agent_id': 'VARCHAR', 'employee_code': 'VARCHAR', 'first_name': 'VARCHAR', 'last_name': 'VARCHAR', 'email': 'VARCHAR', 'phone': 'VARCHAR', 'native_accent': 'VARCHAR', 'country_of_origin': 'VARCHAR', 'assigned_branch_id': 'VARCHAR', 'agent_type': 'VARCHAR', 'experience_level': 'VARCHAR', 'languages': 'VARCHAR', 'specialty': 'VARCHAR', 'hire_date': 'DATE', 'avg_csat': 'DECIMAL(3,2)', 'total_monthly_interactions': 'INTEGER', 'agent_status': 'VARCHAR', 'work_shift': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: agent_id
             data_type: VARCHAR
@@ -540,7 +540,7 @@ sources:
         description: One file, marketing_campaigns.csv; keyed by campaign_id.
         config:
           meta:
-            external_location: "read_csv('$root/marketing_campaigns.csv', columns = {'campaign_id': 'VARCHAR', 'campaign_name': 'VARCHAR', 'description': 'VARCHAR', 'campaign_type': 'VARCHAR', 'campaign_objective': 'VARCHAR', 'promoted_product': 'VARCHAR', 'target_segment': 'VARCHAR', 'target_country': 'VARCHAR', 'start_date': 'DATE', 'end_date': 'DATE', 'budget': 'DECIMAL(12,2)', 'campaign_status': 'VARCHAR', 'expected_conversion_rate': 'DECIMAL(5,2)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/marketing_campaigns.csv', columns = {'campaign_id': 'VARCHAR', 'campaign_name': 'VARCHAR', 'description': 'VARCHAR', 'campaign_type': 'VARCHAR', 'campaign_objective': 'VARCHAR', 'promoted_product': 'VARCHAR', 'target_segment': 'VARCHAR', 'target_country': 'VARCHAR', 'start_date': 'DATE', 'end_date': 'DATE', 'budget': 'DECIMAL(12,2)', 'campaign_status': 'VARCHAR', 'expected_conversion_rate': 'DECIMAL(5,2)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: campaign_id
             data_type: VARCHAR
@@ -624,7 +624,7 @@ sources:
         description: One file, daily_exchange_rates.csv; keyed by date, source_currency, target_currency.
         config:
           meta:
-            external_location: "read_csv('$root/daily_exchange_rates.csv', columns = {'date': 'DATE', 'source_currency': 'VARCHAR', 'target_currency': 'VARCHAR', 'exchange_rate': 'DECIMAL(12,6)', 'buy_rate': 'DECIMAL(12,6)', 'sell_rate': 'DECIMAL(12,6)', 'source': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/daily_exchange_rates.csv', columns = {'date': 'DATE', 'source_currency': 'VARCHAR', 'target_currency': 'VARCHAR', 'exchange_rate': 'DECIMAL(12,6)', 'buy_rate': 'DECIMAL(12,6)', 'sell_rate': 'DECIMAL(12,6)', 'source': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: date
             data_type: DATE
@@ -672,7 +672,7 @@ sources:
         description: Daily partitions, transactions/year=/month=/day=/transactions_YYYYMMDD.csv; keyed by transaction_id.
         config:
           meta:
-            external_location: "read_csv('$root/transactions/**/*.csv', columns = {'transaction_id': 'VARCHAR', 'transaction_date': 'TIMESTAMP', 'process_date': 'DATE', 'product_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'transaction_type': 'VARCHAR', 'transaction_category': 'VARCHAR', 'amount': 'DECIMAL(15,2)', 'currency': 'VARCHAR', 'amount_usd': 'DECIMAL(15,2)', 'channel': 'VARCHAR', 'branch_id': 'VARCHAR', 'merchant_name': 'VARCHAR', 'merchant_category': 'VARCHAR', 'transaction_country': 'VARCHAR', 'transaction_city': 'VARCHAR', 'transaction_status': 'VARCHAR', 'response_code': 'VARCHAR', 'is_fraud': 'BOOLEAN', 'fraud_score': 'DECIMAL(5,2)', 'latitude': 'DECIMAL(10,7)', 'longitude': 'DECIMAL(10,7)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/transactions/**/*.csv', columns = {'transaction_id': 'VARCHAR', 'transaction_date': 'TIMESTAMP', 'process_date': 'DATE', 'product_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'transaction_type': 'VARCHAR', 'transaction_category': 'VARCHAR', 'amount': 'DECIMAL(15,2)', 'currency': 'VARCHAR', 'amount_usd': 'DECIMAL(15,2)', 'channel': 'VARCHAR', 'branch_id': 'VARCHAR', 'merchant_name': 'VARCHAR', 'merchant_category': 'VARCHAR', 'transaction_country': 'VARCHAR', 'transaction_city': 'VARCHAR', 'transaction_status': 'VARCHAR', 'response_code': 'VARCHAR', 'is_fraud': 'BOOLEAN', 'fraud_score': 'DECIMAL(5,2)', 'latitude': 'DECIMAL(10,7)', 'longitude': 'DECIMAL(10,7)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: transaction_id
             data_type: VARCHAR
@@ -810,7 +810,7 @@ sources:
         description: Daily partitions, call_center_interactions/year=/month=/day=/call_center_interactions_YYYYMMDD.csv; keyed by interaction_id.
         config:
           meta:
-            external_location: "read_csv('$root/call_center_interactions/**/*.csv', columns = {'interaction_id': 'VARCHAR', 'interaction_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'interaction_type': 'VARCHAR', 'channel': 'VARCHAR', 'contact_reason': 'VARCHAR', 'reason_category': 'VARCHAR', 'duration_seconds': 'INTEGER', 'wait_time_seconds': 'INTEGER', 'was_resolved': 'BOOLEAN', 'requires_followup': 'BOOLEAN', 'detected_sentiment': 'VARCHAR', 'sentiment_score': 'DECIMAL(3,2)', 'customer_detected_accent': 'VARCHAR', 'agent_used_accent': 'VARCHAR', 'was_escalated': 'BOOLEAN', 'mentioned_products': 'VARCHAR', 'has_transcript': 'BOOLEAN', 'has_recording': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/call_center_interactions/**/*.csv', columns = {'interaction_id': 'VARCHAR', 'interaction_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'interaction_type': 'VARCHAR', 'channel': 'VARCHAR', 'contact_reason': 'VARCHAR', 'reason_category': 'VARCHAR', 'duration_seconds': 'INTEGER', 'wait_time_seconds': 'INTEGER', 'was_resolved': 'BOOLEAN', 'requires_followup': 'BOOLEAN', 'detected_sentiment': 'VARCHAR', 'sentiment_score': 'DECIMAL(3,2)', 'customer_detected_accent': 'VARCHAR', 'agent_used_accent': 'VARCHAR', 'was_escalated': 'BOOLEAN', 'mentioned_products': 'VARCHAR', 'has_transcript': 'BOOLEAN', 'has_recording': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: interaction_id
             data_type: VARCHAR
@@ -942,7 +942,7 @@ sources:
         description: Daily partitions, call_transcripts/year=/month=/day=/call_transcripts_YYYYMMDD.csv; keyed by transcript_id.
         config:
           meta:
-            external_location: "read_csv('$root/call_transcripts/**/*.csv', columns = {'transcript_id': 'VARCHAR', 'interaction_id': 'VARCHAR', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'full_text': 'VARCHAR', 'customer_text': 'VARCHAR', 'agent_text': 'VARCHAR', 'detected_language': 'VARCHAR', 'detected_accent': 'VARCHAR', 'accent_confidence': 'DECIMAL(3,2)', 'detected_keywords': 'VARCHAR', 'mentioned_entities': 'VARCHAR', 'detected_intents': 'VARCHAR', 'main_topics': 'VARCHAR', 'transcription_model': 'VARCHAR', 'audio_quality': 'VARCHAR', 'duration_seconds': 'INTEGER'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/call_transcripts/**/*.csv', columns = {'transcript_id': 'VARCHAR', 'interaction_id': 'VARCHAR', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'full_text': 'VARCHAR', 'customer_text': 'VARCHAR', 'agent_text': 'VARCHAR', 'detected_language': 'VARCHAR', 'detected_accent': 'VARCHAR', 'accent_confidence': 'DECIMAL(3,2)', 'detected_keywords': 'VARCHAR', 'mentioned_entities': 'VARCHAR', 'detected_intents': 'VARCHAR', 'main_topics': 'VARCHAR', 'transcription_model': 'VARCHAR', 'audio_quality': 'VARCHAR', 'duration_seconds': 'INTEGER'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: transcript_id
             data_type: VARCHAR
@@ -1056,7 +1056,7 @@ sources:
         description: Daily partitions, satisfaction_surveys/year=/month=/day=/satisfaction_surveys_YYYYMMDD.csv; keyed by survey_id.
         config:
           meta:
-            external_location: "read_csv('$root/satisfaction_surveys/**/*.csv', columns = {'survey_id': 'VARCHAR', 'survey_date': 'TIMESTAMP', 'process_date': 'DATE', 'interaction_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'survey_type': 'VARCHAR', 'send_channel': 'VARCHAR', 'main_score': 'INTEGER', 'nps_category': 'VARCHAR', 'question_1_text': 'VARCHAR', 'question_1_response': 'INTEGER', 'question_2_text': 'VARCHAR', 'question_2_response': 'INTEGER', 'question_3_text': 'VARCHAR', 'question_3_response': 'INTEGER', 'open_comments': 'VARCHAR', 'comment_sentiment': 'VARCHAR', 'response_time_hours': 'DECIMAL(8,2)', 'campaign_response_rate': 'DECIMAL(5,2)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/satisfaction_surveys/**/*.csv', columns = {'survey_id': 'VARCHAR', 'survey_date': 'TIMESTAMP', 'process_date': 'DATE', 'interaction_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'survey_type': 'VARCHAR', 'send_channel': 'VARCHAR', 'main_score': 'INTEGER', 'nps_category': 'VARCHAR', 'question_1_text': 'VARCHAR', 'question_1_response': 'INTEGER', 'question_2_text': 'VARCHAR', 'question_2_response': 'INTEGER', 'question_3_text': 'VARCHAR', 'question_3_response': 'INTEGER', 'open_comments': 'VARCHAR', 'comment_sentiment': 'VARCHAR', 'response_time_hours': 'DECIMAL(8,2)', 'campaign_response_rate': 'DECIMAL(5,2)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: survey_id
             data_type: VARCHAR
@@ -1182,7 +1182,7 @@ sources:
         description: Daily partitions, complaints/year=/month=/day=/complaints_YYYYMMDD.csv; keyed by complaint_id.
         config:
           meta:
-            external_location: "read_csv('$root/complaints/**/*.csv', columns = {'complaint_id': 'VARCHAR', 'creation_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'case_type': 'VARCHAR', 'category': 'VARCHAR', 'subcategory': 'VARCHAR', 'reception_channel': 'VARCHAR', 'affected_product_id': 'VARCHAR', 'related_branch_id': 'VARCHAR', 'origin_interaction_id': 'VARCHAR', 'description': 'VARCHAR', 'claimed_amount': 'DECIMAL(15,2)', 'currency': 'VARCHAR', 'priority': 'VARCHAR', 'status': 'VARCHAR', 'assigned_agent_id': 'VARCHAR', 'assignment_date': 'TIMESTAMP', 'first_response_date': 'TIMESTAMP', 'resolution_date': 'TIMESTAMP', 'closing_date': 'TIMESTAMP', 'sla_breached': 'BOOLEAN', 'resolution_days': 'INTEGER', 'resolution': 'VARCHAR', 'compensation_granted': 'DECIMAL(15,2)', 'resolution_satisfaction': 'INTEGER', 'is_repeat_complainer': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/complaints/**/*.csv', columns = {'complaint_id': 'VARCHAR', 'creation_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'case_type': 'VARCHAR', 'category': 'VARCHAR', 'subcategory': 'VARCHAR', 'reception_channel': 'VARCHAR', 'affected_product_id': 'VARCHAR', 'related_branch_id': 'VARCHAR', 'origin_interaction_id': 'VARCHAR', 'description': 'VARCHAR', 'claimed_amount': 'DECIMAL(15,2)', 'currency': 'VARCHAR', 'priority': 'VARCHAR', 'status': 'VARCHAR', 'assigned_agent_id': 'VARCHAR', 'assignment_date': 'TIMESTAMP', 'first_response_date': 'TIMESTAMP', 'resolution_date': 'TIMESTAMP', 'closing_date': 'TIMESTAMP', 'sla_breached': 'BOOLEAN', 'resolution_days': 'INTEGER', 'resolution': 'VARCHAR', 'compensation_granted': 'DECIMAL(15,2)', 'resolution_satisfaction': 'INTEGER', 'is_repeat_complainer': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: complaint_id
             data_type: VARCHAR
@@ -1350,7 +1350,7 @@ sources:
         description: Daily partitions, digital_events/year=/month=/day=/digital_events_YYYYMMDD.csv; keyed by event_id.
         config:
           meta:
-            external_location: "read_csv('$root/digital_events/**/*.csv', columns = {'event_id': 'VARCHAR', 'event_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'session_id': 'VARCHAR', 'event_type': 'VARCHAR', 'event_category': 'VARCHAR', 'channel': 'VARCHAR', 'platform': 'VARCHAR', 'browser': 'VARCHAR', 'app_version': 'VARCHAR', 'page_url': 'VARCHAR', 'page_title': 'VARCHAR', 'action': 'VARCHAR', 'element_id': 'VARCHAR', 'product_id': 'VARCHAR', 'event_value': 'DECIMAL(15,2)', 'duration_seconds': 'INTEGER', 'ip_address': 'VARCHAR', 'ip_country': 'VARCHAR', 'ip_city': 'VARCHAR', 'is_mobile': 'BOOLEAN', 'referrer': 'VARCHAR', 'utm_source': 'VARCHAR', 'utm_medium': 'VARCHAR', 'utm_campaign': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/digital_events/**/*.csv', columns = {'event_id': 'VARCHAR', 'event_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'session_id': 'VARCHAR', 'event_type': 'VARCHAR', 'event_category': 'VARCHAR', 'channel': 'VARCHAR', 'platform': 'VARCHAR', 'browser': 'VARCHAR', 'app_version': 'VARCHAR', 'page_url': 'VARCHAR', 'page_title': 'VARCHAR', 'action': 'VARCHAR', 'element_id': 'VARCHAR', 'product_id': 'VARCHAR', 'event_value': 'DECIMAL(15,2)', 'duration_seconds': 'INTEGER', 'ip_address': 'VARCHAR', 'ip_country': 'VARCHAR', 'ip_city': 'VARCHAR', 'is_mobile': 'BOOLEAN', 'referrer': 'VARCHAR', 'utm_source': 'VARCHAR', 'utm_medium': 'VARCHAR', 'utm_campaign': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: event_id
             data_type: VARCHAR
@@ -1512,7 +1512,7 @@ sources:
         description: Daily partitions, campaign_sends/year=/month=/day=/campaign_sends_YYYYMMDD.csv; keyed by send_id.
         config:
           meta:
-            external_location: "read_csv('$root/campaign_sends/**/*.csv', columns = {'send_id': 'VARCHAR', 'send_date': 'TIMESTAMP', 'process_date': 'DATE', 'campaign_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'send_channel': 'VARCHAR', 'template_used': 'VARCHAR', 'subject': 'VARCHAR', 'send_status': 'VARCHAR', 'was_delivered': 'BOOLEAN', 'was_opened': 'BOOLEAN', 'open_date': 'TIMESTAMP', 'was_clicked': 'BOOLEAN', 'click_date': 'TIMESTAMP', 'click_count': 'INTEGER', 'had_conversion': 'BOOLEAN', 'conversion_date': 'TIMESTAMP', 'conversion_value': 'DECIMAL(15,2)', 'open_device': 'VARCHAR', 'open_country': 'VARCHAR', 'failure_reason': 'VARCHAR', 'send_cost': 'DECIMAL(10,4)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+            external_location: "read_csv('$root/campaign_sends/**/*.csv', columns = {'send_id': 'VARCHAR', 'send_date': 'TIMESTAMP', 'process_date': 'DATE', 'campaign_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'send_channel': 'VARCHAR', 'template_used': 'VARCHAR', 'subject': 'VARCHAR', 'send_status': 'VARCHAR', 'was_delivered': 'BOOLEAN', 'was_opened': 'BOOLEAN', 'open_date': 'TIMESTAMP', 'was_clicked': 'BOOLEAN', 'click_date': 'TIMESTAMP', 'click_count': 'INTEGER', 'had_conversion': 'BOOLEAN', 'conversion_date': 'TIMESTAMP', 'conversion_value': 'DECIMAL(15,2)', 'open_device': 'VARCHAR', 'open_country': 'VARCHAR', 'failure_reason': 'VARCHAR', 'send_cost': 'DECIMAL(10,4)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, hive_partitioning = false, filename = true)"
         columns:
           - name: send_id
             data_type: VARCHAR
@@ -1646,3 +1646,11 @@ sources:
             config:
               meta:
                 personal_data: none
+  - name: checks
+    description: "What the build loads before dbt reads a file: the lock's files, and each file's records as Python's csv module counts them."
+    schema: checks
+    tables:
+      - name: lock_files
+        description: Every file the lock lists.
+      - name: record_counts
+        description: "Each locked file's records, counted apart from DuckDB's reader."

@@ -8,10 +8,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from banking_agent.analysis.source import AnalysisError, check_local
+from banking_agent.analysis.source import AnalysisError
 from banking_agent.dataset.lock import LockError, read_lock
 from banking_agent.dataset.snapshot import snapshot_dir
-from banking_agent.pipeline import contracts, runner
+from banking_agent.pipeline import build, checks, contracts, runner
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,14 +33,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "contracts":
-            print(f"Wrote {contracts.write(contracts.build())}")
+            print(f"Wrote {contracts.write(contracts.build())}/")
             return 0
         lock = read_lock(args.lock)
-        root = snapshot_dir(args.data_dir, lock.snapshot_id)
-        check_local(lock, root)
         space = runner.workspace(args.data_dir, lock.snapshot_id)
-        space.reset()
-        results = runner.dbt(["build"], space, {"snapshot_root": str(root.resolve())})
+        results = build.build(
+            lock, snapshot_dir(args.data_dir, lock.snapshot_id), space
+        )
+        named = checks.failing_files(space.database, results)
     except (
         AnalysisError,
         LockError,
@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     ) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
-    print("\n".join(runner.summarize(results, space.logs)))
+    print("\n".join(runner.summarize(results, space.logs, named)))
     if runner.failed(results):
         return 1
     print(f"Built {space.database}")

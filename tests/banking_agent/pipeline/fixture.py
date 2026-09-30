@@ -699,7 +699,12 @@ TRANSCRIPTS = {
     ],
 }
 SURVEYS = {
-    "2026-05-01": [_survey(1, "2026-05-01 12:00:00", "2026-05-01", 1)],
+    "2026-05-01": [
+        _survey(1, "2026-05-01 12:00:00", "2026-05-01", 1),
+        _survey(
+            3, "2026-05-03 09:00:00", "2026-05-01", 3, interaction_id="INT-TEAM000001"
+        ),
+    ],
     "2026-06-17": [_survey(2, "2026-06-18 20:00:00", "2026-06-17", 3)],
 }
 COMPLAINTS = {
@@ -797,6 +802,19 @@ def install(version: str, into: Path) -> tuple[Path, Path, Lock]:
     lock = read_lock(source / LOCK)
     shutil.copytree(source / FILES, snapshot_dir(into / "data", lock.snapshot_id))
     shutil.copy(source / LOCK, into / LOCK)
+    return into / LOCK, into / "data", lock
+
+
+def install_files(files: Mapping[str, str], into: Path) -> tuple[Path, Path, Lock]:
+    """
+    Like install, for a version a test changes: the files as given, under a lock of their own.
+    """
+    lock = lock_for(files)
+    root = snapshot_dir(into / "data", lock.snapshot_id)
+    for key, body in files.items():
+        (root / key).parent.mkdir(parents=True, exist_ok=True)
+        (root / key).write_bytes(body.encode())
+    (into / LOCK).write_text(render(lock))
     return into / LOCK, into / "data", lock
 
 

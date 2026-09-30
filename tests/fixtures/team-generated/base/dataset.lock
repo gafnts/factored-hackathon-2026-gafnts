@@ -1,7 +1,7 @@
 # A team-generated miniature snapshot, not the organizers' data (tests/fixtures/team-generated/README.md).
 # Written by python -m tests.banking_agent.pipeline.fixture; do not edit.
 # source: team-generated:tests/fixtures/team-generated/
-# snapshot: 1651d3dbdd1b3704
+# snapshot: d83fc1da1bb59895
 # key	size	etag	sha256
 branches.csv	901	97f43bc0cf0bcc2036a1c308cf2b8b9a	12c021636bb34ae3ead9ad33839a7b954170949d8971f44e53b89a8c651a9785
 call_center_interactions/year=2026/month=05/day=01/call_center_interactions_20260501.csv	529	4e5624c5e404ce59f72024e9750279d6	a00dcc2299417b966e6c4d236340aeb1001b923c0dbfb09e57da1b4591d65302
@@ -18,7 +18,7 @@ digital_events/year=2026/month=05/day=01/digital_events_20260501.csv	472	654e124
 digital_events/year=2026/month=06/day=17/digital_events_20260617.csv	676	003037dfde223cee6e28f7220caa05d1	98035e7f205bcae8665b897aa5521dcecbbf5aed1c96914d6b66e3326f7ae2a1
 marketing_campaigns.csv	340	5791575eb97a64c31faa04b775016c9a	45d3185e35e809e735050966e17621c0c920808fdaa715bef07dd9b6b0cb5559
 products.csv	3075	24c126ed5a2846be44a700391f443813	532e516bf633616f0018fae789589fcf65f5fde8e38e56b2f12d9e9e5f120726
-satisfaction_surveys/year=2026/month=05/day=01/satisfaction_surveys_20260501.csv	465	7cebb29e13ba6c7fbb76d90566547dde	89fb3ed39443f9b558b243ead2fcac611256cc96e76ac9b60a6b163b45311595
+satisfaction_surveys/year=2026/month=05/day=01/satisfaction_surveys_20260501.csv	624	ac8a2c561c85e7d35118fc635bdc2c33	85c1de4c6c571375e463a7785828d344ef26c1fca723c1e8d4db046450f2779a
 satisfaction_surveys/year=2026/month=06/day=17/satisfaction_surveys_20260617.csv	465	a898ce5fc4d286fc60f90d2b3d21c286	fd988d9aa5c46f3d913b58972e9fd82dbee5aed0b0f5df63ca8eb45a770d795c
 service_agents.csv	572	4c17bbea3653942e490eda9538ff82a4	3653a8f17e392544678462ce57189807fbfb26a2bd8e8c583cbdcb831a21979c
 transactions/year=2026/month=01/day=15/transactions_20260115.csv	482	7e3b676341df199aa098bd9118323d78	3bfa722c6f6b75b426e82af2e88287136f614c08569cd33fe533e4c79b4951c3

@@ -6,6 +6,7 @@ run_results.json, which names each check and counts its rows (SEC-03).
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,12 @@ from typing import Any
 
 PROJECT = Path(__file__).resolve().parents[3] / "pipeline"
 PASSED = ("success", "pass")
+_CSV_LINE = re.compile(r"CSV Error on Line: (\d+)")
+_CSV_FILE = re.compile(r"^\s*file = (.+)$", re.M)
+_CONVERSION = re.compile(
+    r'converting column "([^"]+)"\. Could not convert string .* to \'([^\']+)\''
+)
+_WIDTH = re.compile(r"Expected Number of Columns: (\d+) Found: (\d+)")
 
 Result = Mapping[str, Any]
 
@@ -86,14 +93,35 @@ def dbt(
 
 
 def node_name(result: Result) -> str:
-    return str(result["unique_id"]).split(".", 2)[-1]
+    # A test's ID ends in a hash its name doesn't need.
+    return str(result["unique_id"]).split(".")[2]
 
 
 def failed(results: Sequence[Result]) -> list[Result]:
     return [r for r in results if r["status"] not in (*PASSED, "warn")]
 
 
-def summarize(results: Sequence[Result], log: Path) -> list[str]:
+def reason(message: str | None) -> str | None:
+    """
+    Why DuckDB couldn't read a file, by its line, column, and type: its own message quotes the line and the value.
+    """
+    line = _CSV_LINE.search(message or "")
+    path = _CSV_FILE.search(message or "")
+    if message is None or not line or not path:
+        return None
+    where = f"line {line[1]} of {path[1].strip()}"
+    if conversion := _CONVERSION.search(message):
+        return f"{where}: a value in {conversion[1]} isn't a {conversion[2]}"
+    if width := _WIDTH.search(message):
+        return f"{where}: {width[2]} columns where the contract has {width[1]}"
+    return f"{where} doesn't read as its contract says"
+
+
+def summarize(
+    results: Sequence[Result],
+    log: Path,
+    named: Mapping[str, Sequence[str]] | None = None,
+) -> list[str]:
     statuses = Counter(str(r["status"]) for r in results)
     lines = [", ".join(f"{n} {status}" for status, n in sorted(statuses.items()))]
     for r in sorted(results, key=node_name):
@@ -101,6 +129,9 @@ def summarize(results: Sequence[Result], log: Path) -> list[str]:
             continue
         rows = f" ({r['failures']:,} rows)" if r.get("failures") else ""
         lines.append(f"  {r['status']}: {node_name(r)}{rows}")
+        if r["status"] == "error" and (why := reason(r.get("message"))):
+            lines.append(f"    {why}")
+        lines += [f"    {key}" for key in (named or {}).get(str(r["unique_id"]), ())]
     if failed(results):
         lines.append(f"dbt's messages are in {log}")
     return lines

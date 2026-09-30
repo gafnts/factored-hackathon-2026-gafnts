@@ -12,6 +12,8 @@ from banking_agent.dataset.lock import Lock, write_lock
 from banking_agent.pipeline import runner
 from banking_agent.pipeline.__main__ import main
 
+from . import fixture
+
 
 def test_the_project_parses_with_usage_stats_off(tmp_path: Path) -> None:
     space = runner.workspace(tmp_path, "0123456789abcdef")
@@ -66,22 +68,19 @@ def test_the_summary_names_each_check_that_didnt_pass(tmp_path: Path) -> None:
 
     assert lines == [
         "1 fail, 1 pass, 1 success, 1 warn",
-        "  warn: not_null_x.1a (1,204 rows)",
-        "  fail: unique_y.2b (3 rows)",
+        "  warn: not_null_x (1,204 rows)",
+        "  fail: unique_y (3 rows)",
         f"dbt's messages are in {tmp_path / 'logs'}",
     ]
     assert runner.failed(results) == [results[2]]
 
 
+@pytest.mark.xdist_group("pipeline")
 def test_make_pipeline_builds_into_data_pipeline(
-    tmp_path: Path,
-    persona_bank: tuple[Lock, Path],
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    lock, _ = persona_bank
-    write_lock(tmp_path / "dataset.lock", lock)
-    args = ["--lock", str(tmp_path / "dataset.lock")]
-    args += ["--data-dir", str(tmp_path / "data")]
+    lock_path, data_dir, lock = fixture.install("base", tmp_path)
+    args = ["--lock", str(lock_path), "--data-dir", str(data_dir)]
 
     assert main([*args, "build"]) == 0
 

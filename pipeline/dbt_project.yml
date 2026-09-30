@@ -11,3 +11,9 @@ clean-targets: [target, logs]
 
 flags:
   send_anonymous_usage_stats: false
+
+models:
+  pipeline:
+    bronze:
+      +schema: bronze
+      +materialized: table

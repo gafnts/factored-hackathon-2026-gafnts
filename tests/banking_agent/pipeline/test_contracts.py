@@ -3,6 +3,7 @@ The bronze contracts come from the dictionary and the profile's corrections, eac
 by the personal data it holds (DML-02, POL-11, SEC-03).
 """
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -11,16 +12,22 @@ from typing import Any
 
 import duckdb
 import pytest
+import yaml
 
 from banking_agent.analysis.catalog import TABLES, table
 from banking_agent.pipeline import contracts
 from banking_agent.pipeline.__main__ import main
 
 
-def test_the_committed_contracts_are_the_generators() -> None:
-    assert contracts.SOURCES.read_text(encoding="utf-8") == contracts.render(
-        contracts.build()
-    ), "run python -m banking_agent.pipeline contracts"
+def test_the_committed_bronze_is_the_generators() -> None:
+    committed = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in contracts.MODELS.iterdir()
+    }
+
+    assert committed == contracts.render(contracts.build()), (
+        "run python -m banking_agent.pipeline contracts"
+    )
 
 
 def test_every_table_and_column_of_the_dictionary_has_a_contract_in_its_order() -> None:
@@ -104,6 +111,7 @@ def test_the_typed_read_never_infers_or_forgives() -> None:
         read = contracts.location(contract)
 
         assert "auto_detect = false" in read
+        assert "hive_partitioning = false" in read
         assert "header = true" in read
         for lenient in ("all_varchar", "union_by_name", "try_cast", "ignore_errors"):
             assert lenient not in read.lower()
@@ -154,13 +162,54 @@ def test_the_typed_read_types_each_value_by_its_contract(tmp_path: Path) -> None
         duckdb.sql(f"select * from {read}").fetchall()
 
 
-def test_make_contracts_rewrites_the_yaml(
+def test_make_contracts_rewrites_bronze_and_removes_what_it_no_longer_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    committed = contracts.SOURCES.read_text(encoding="utf-8")
-    path = tmp_path / "models" / "bronze" / "_sources.yml"
-    monkeypatch.setattr(contracts, "SOURCES", path)
+    directory = tmp_path / "models" / "bronze"
+    directory.mkdir(parents=True)
+    (directory / "bronze_accounts.sql").write_text("select 1\n")
+    monkeypatch.setattr(contracts, "MODELS", directory)
 
     assert main(["contracts"]) == 0
 
-    assert path.read_text(encoding="utf-8") == committed
+    assert {p.name: p.read_text(encoding="utf-8") for p in directory.iterdir()} == (
+        contracts.render(contracts.build())
+    )
+
+
+def test_only_the_rules_adr_0006_names_stop_the_build() -> None:
+    document = yaml.safe_load(
+        (contracts.MODELS / contracts.BRONZE).read_text(encoding="utf-8")
+    )
+    errors = set()
+    for model in document["models"]:
+        tests = list(model["data_tests"])
+        tests += [t for c in model["columns"] for t in c.get("data_tests", [])]
+        for test in tests:
+            [(kind, entry)] = test.items()
+            if entry.get("config", {}).get("severity") != "warn":
+                errors.add(entry["name"].removeprefix(model["name"] + "_"))
+    kinds = {
+        re.sub(
+            r"^.*?_(key_not_null|key_unique|accepted_values|references_\w+)$", r"\1", e
+        )
+        for e in errors
+        if not e.endswith(
+            ("processed_on_its_day", "files_match_the_lock", "rows_match_the_records")
+        )
+    }
+
+    assert kinds == {
+        "key_not_null",
+        "key_unique",
+        "accepted_values",
+        "references_products",
+        "references_customers",
+    }
+    assert {e for e in errors if "references" in e} == {
+        "product_id_references_products",
+        "customer_id_references_customers",
+    }
+    assert {e for e in errors if e.endswith("accepted_values")} == {
+        f"{column}_accepted_values" for _, column in contracts.REQUIRED_VALUES
+    }

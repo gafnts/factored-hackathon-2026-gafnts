@@ -47,6 +47,14 @@ corrections:
       nullable: true
       reason: 24,029 rows hold no duration, which the dictionary says every transcript has.
 
+# A daily table's rows are dated on their process date or the next morning, before its processing day's cutoff
+# (ADR-0003), except where listed here.
+dated_after_processing:
+  satisfaction_surveys:
+    days: 2
+    reason: Surveys are dated when answered, up to 36 hours after they're sent, so 12,241 rows fall on the second day
+      after their process date (measured by the pipeline's check; the profile counted only the next morning's).
+
 # Columns not listed are tagged none. identity: identifies a person, or is free text that may (a document, a name, a
 # birth date, a transcript or comment); contact: reaches a person; financial: a person's money or credit; card_number:
 # a full card or account number (POL-11). customer_id is none of these, since every tool reads it (ADR-0006).
