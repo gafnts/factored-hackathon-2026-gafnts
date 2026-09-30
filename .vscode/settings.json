@@ -10,5 +10,11 @@
     "tests"
   ],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "typescript.tsdk": "web/node_modules/typescript/lib",
+  "eslint.workingDirectories": ["web"],
+  "prettier.requireConfig": true,
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.formatOnSave": true },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.formatOnSave": true },
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" }
 }

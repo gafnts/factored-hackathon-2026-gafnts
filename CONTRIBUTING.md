@@ -1,6 +1,6 @@
 # Hello, Factored! 👋
 
-This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
+This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package, the web app, and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
 
 Setup commands are idempotent, so re-running one after a failure is always safe, and `make doctor` tells you at any point which steps are done and which are left.
 
@@ -99,6 +99,8 @@ The operations that can hurt are hard to trigger by mistake:
 | Tool | Version | Needed for |
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | Recent | Python 3.13 (uv installs it from `.python-version`), dependencies, pre-commit |
+| [Node.js](https://nodejs.org) | 24.21.0 (`.nvmrc`; with [nvm](https://github.com/nvm-sh/nvm), `nvm install` in the repository) | The web app in `web/`, and its hooks |
+| [pnpm](https://pnpm.io) | Recent; it runs the version `web/package.json` pins | The web app's dependencies |
 | [Terraform](https://developer.hashicorp.com/terraform/install) | 1.16.x (`.terraform-version`) | Infrastructure, and the Terraform hooks |
 | [tflint](https://github.com/terraform-linters/tflint#installation) | CI uses v0.64.0 | Terraform lint hook. On Homebrew, install from `terraform-linters/tap/tflint`: since v0.63, homebrew-core no longer gets new releases |
 | [trivy](https://github.com/aquasecurity/trivy) | CI uses v0.74.0 | Terraform security scan (pre-push hook) |
@@ -109,18 +111,18 @@ The operations that can hurt are hard to trigger by mistake:
 Then install the dependencies and hooks, and run every check once:
 
 ```bash
-make install   # Python deps, pre-commit hooks for both stages, tflint plugins
+make install   # Python and web deps, pre-commit hooks for both stages, tflint plugins
 make check     # Every hook against every file: the same command CI runs
 ```
 
-If `make check` passes, your machine matches CI. Re-run `make install` after pulling changes to `pyproject.toml`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
+If `make check` passes, your machine matches CI. Re-run `make install` after pulling changes to `pyproject.toml`, `web/package.json`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
 
 From now on, hooks run on their own:
 
 | Stage | What runs | When |
 |---|---|---|
-| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy` | On `git commit` |
-| `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor) | On `git push` |
+| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy`; for the web app, Prettier, ESLint, and `tsc` | On `git commit` |
+| `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor); for the web app, Vitest (with the same floor) and a production build | On `git push` |
 
 ### 2. Connect to the dataset
 
@@ -317,7 +319,7 @@ A few habits keep PRs quick to review:
 
 - Write commit subjects in the imperative mood, as the history does ("Add IAM bootstrap module for deploy roles").
 - Cite the requirement IDs from [docs/hackathon-requirements.md](docs/hackathon-requirements.md) (for example `SEC-05`) in the PR description and in the tests that cover them, so every change traces back to what the organizers score.
-- Mirror the package in `tests/`: the tests for `src/banking_agent/<path>/<module>.py` live in `tests/banking_agent/<path>/test_<module>.py`, and fixtures shared by a folder go in its `conftest.py`.
+- Mirror the package in `tests/`: the tests for `src/banking_agent/<path>/<module>.py` live in `tests/banking_agent/<path>/test_<module>.py`, and fixtures shared by a folder go in its `conftest.py`. The web app's tests mirror `web/src/` in `web/tests/` the same way (`<module>.test.ts`).
 - Add an ADR when the change makes a decision someone could reasonably question later (see [Record decisions](#record-decisions)).
 
 ### Run the quality gates
@@ -326,15 +328,17 @@ Hooks run on commit and push, and you can run them on demand:
 
 ```bash
 make check        # Every hook against every file (both stages)
-make format       # Apply ruff lint fixes and formatting to src and tests
-make lint         # Run ruff check on src and tests
-make type         # Run mypy on src and tests
-make test         # Run pytest with coverage
+make format       # Apply ruff's fixes and formatting, and Prettier's and ESLint's to the web app
+make lint         # Run ruff check, and ESLint on the web app
+make type         # Run mypy, and tsc on the web app
+make test         # Run pytest and Vitest, each with its coverage floor
 make integration  # Test ENV's deployed stack (needs credentials, the model key, and make personas; deselected by default)
 make tf-format    # Format all Terraform files
 ```
 
 `make check` is exactly what the CI quality gates run, so a green local run predicts a green PR. In an emergency, skip a single hook with `SKIP=<hook-id> git commit`; CI still runs it.
+
+Inside `web/`, each tool runs on its own: `pnpm lint`, `pnpm format`, `pnpm typecheck`, `pnpm test`, and `pnpm build`, and `pnpm vitest` watches the tests as you work. The chat's TypeScript types are generated from its contract, `src/banking_agent/contracts/chat.schema.json`: after changing the contract, run `pnpm --dir web contracts` and commit `web/src/contracts/chat.ts`, or a test fails.
 
 ### Iterate on infrastructure
 
@@ -406,6 +410,8 @@ Run `make doctor` first; most setup problems show up there.
 | `make apply` fails creating the API key credential provider: `can't find the specified secret value for staging label: AWSCURRENT` | The model key isn't stored. Run `make model-key`, then `make plan` and `make apply` again. |
 | The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.7](#37-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
 | A test says `infra/modules/gateway/tools.json` is stale | The tools' contract changed. Run `make build` and commit the file. |
+| A web test says `web/src/contracts/chat.ts` is stale | The chat's contract changed. Run `pnpm --dir web contracts` and commit the file. |
+| `pnpm install` says `Unsupported engine` | Another Node version is active. Run `nvm use` in the repository, which reads `.nvmrc`. |
 
 ---
 
@@ -449,6 +455,9 @@ Run `make help` for every target.
 |---|---|
 | Python 3.13 | `.python-version`, and `requires-python` in `pyproject.toml` |
 | Python dependencies | `uv.lock` |
+| Node 24.21.0 | `.nvmrc`, and `engines` in `web/package.json` (pnpm won't install on another version) |
+| pnpm | `packageManager` in `web/package.json` |
+| Web dependencies | Exact versions in `web/package.json`, locked in `web/pnpm-lock.yaml`, and only releases a week old (`web/pnpm-workspace.yaml`) |
 | Dataset snapshot | `dataset.lock` |
 | Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
 | AWS provider | Exactly 6.66.0 in `infra/terraform.tf`, and `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
@@ -457,7 +466,7 @@ Run `make help` for every target.
 | GitHub Actions | Commit SHAs in `.github/workflows/`, with the release in a trailing comment |
 | CI tool versions | `env` blocks in `.github/workflows/` |
 
-Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR into `develop` for each of: Python dependencies, hook versions, GitHub Actions and the AWS provider. It skips releases younger than a week. Python, Terraform and the CI tool versions are still bumped by hand.
+Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR into `develop` for each of: Python dependencies, the web app's dependencies, hook versions, GitHub Actions and the AWS provider. It skips releases younger than a week. Python, Node, Terraform and the CI tool versions are still bumped by hand.
 
 ### Files
 
@@ -467,6 +476,7 @@ Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
 - `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make integration` reads
+- `web/node_modules/`, `web/dist/`, `web/coverage/`: the web app's dependencies, its build, and its coverage report
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables

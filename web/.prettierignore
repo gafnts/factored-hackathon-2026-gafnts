@@ -1,0 +1,5 @@
+dist/
+coverage/
+pnpm-lock.yaml
+# Generated from the contracts by pnpm contracts.
+src/contracts/

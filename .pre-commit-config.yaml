@@ -8,6 +8,8 @@ repos:
       - id: trailing-whitespace
         exclude: ^docs/analysis/figures/.*\.svg$
       - id: check-yaml
+        # pnpm's lockfile holds its own dependencies in a second document.
+        args: [--allow-multiple-documents]
       - id: check-merge-conflict
       - id: check-added-large-files
         # One line per dataset file, about 1.5 MB.
@@ -92,5 +94,42 @@ repos:
         language: system
         types: [python]
         entry: uv run pytest --cov --cov-report=term-missing
+        pass_filenames: false
+        stages: [pre-push]
+
+      # The web app's tools run from web/node_modules, as ruff and mypy run from .venv; ESLint and Prettier find
+      # web/'s configuration from each file, but Prettier reads ignores from where it runs.
+      - id: prettier
+        name: prettier (web)
+        entry: web/node_modules/.bin/prettier --write --ignore-unknown --ignore-path web/.prettierignore
+        language: system
+        files: ^web/
+
+      - id: eslint
+        name: eslint (web)
+        entry: web/node_modules/.bin/eslint --fix
+        language: system
+        files: ^web/.*\.(js|ts|tsx)$
+
+      - id: tsc
+        name: tsc (web)
+        entry: pnpm --dir web typecheck
+        language: system
+        files: ^(web/|src/banking_agent/contracts/)
+        pass_filenames: false
+
+      - id: vitest
+        name: vitest (web)
+        entry: pnpm --dir web test
+        language: system
+        files: ^(web/|src/banking_agent/contracts/)
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: vite-build
+        name: vite build (web)
+        entry: pnpm --dir web build
+        language: system
+        files: ^web/
         pass_filenames: false
         stages: [pre-push]
