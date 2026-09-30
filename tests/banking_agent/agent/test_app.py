@@ -564,8 +564,11 @@ def test_a_token_that_isnt_a_customers_is_refused_and_recorded(
     ]
 
 
+# Named because the token carries a fresh sub, and pytest-xdist needs every worker to collect the same ids.
 @pytest.mark.parametrize(
-    "token", [None, "not-a-token", customer().token(origin_jti=None)]
+    "token",
+    [None, "not-a-token", customer().token(origin_jti=None)],
+    ids=["missing", "malformed", "no-sign-in"],
 )
 def test_a_token_without_a_sign_in_is_refused_and_logged_only(
     harness: Harness, token: str | None

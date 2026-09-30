@@ -79,7 +79,7 @@ tf-format: ## Format all Terraform files
 ##@ Testing
 
 test: ## Run pytest and Vitest, each with its coverage floor
-	uv run pytest --cov --cov-report=term-missing
+	uv run pytest -n auto --cov --cov-report=term-missing
 	pnpm --dir web test
 
 integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)

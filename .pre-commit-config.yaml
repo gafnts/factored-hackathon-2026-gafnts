@@ -95,7 +95,7 @@ repos:
         name: pytest
         language: system
         types: [python]
-        entry: uv run pytest --cov --cov-report=term-missing
+        entry: uv run pytest -n auto --cov --cov-report=term-missing
         pass_filenames: false
         stages: [pre-push]
 
