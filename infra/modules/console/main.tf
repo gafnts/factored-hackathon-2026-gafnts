@@ -58,8 +58,8 @@ resource "aws_iam_role" "function" {
   permissions_boundary = var.permissions_boundary_arn
 }
 
-# The queue index alone, naming its projection, and the demo's partitions only (EVL-13). Whether IAM applies
-# LeadingKeys to an index's key is a first-deploy item (ADR-0004); the code builds every key from demo either way.
+# The queue index alone, naming its projection, and the demo's partitions only (EVL-13): IAM applies LeadingKeys to
+# the index's key (ADR-0004), and the code builds every key from demo besides.
 data "aws_iam_policy_document" "queue" {
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]

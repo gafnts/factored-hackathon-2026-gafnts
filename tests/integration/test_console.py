@@ -291,9 +291,9 @@ def test_each_console_lambda_reads_what_its_route_needs_and_writes_nothing(
         records: {"dynamodb:Query"},
     }
     iam: Any = boto3.client("iam")
-    for role, resource, named in (
-        ("console-queue", "by_queue", PROJECTED),
-        ("console-case", records, CALL),
+    for role, resource, named, partitions in (
+        ("console-queue", "by_queue", PROJECTED, "demo#*"),
+        ("console-case", records, CALL, None),
     ):
         document = iam.get_role_policy(RoleName=f"{prefix}-{role}", PolicyName=role)[
             "PolicyDocument"
@@ -305,6 +305,8 @@ def test_each_console_lambda_reads_what_its_route_needs_and_writes_nothing(
         allowed = conditions["ForAllValues:StringEquals"]["dynamodb:Attributes"]
         assert sorted(allowed) == sorted(named)
         assert conditions["StringEquals"]["dynamodb:Select"] == "SPECIFIC_ATTRIBUTES"
+        leading = conditions.get("ForAllValues:StringLike", {})
+        assert leading.get("dynamodb:LeadingKeys") == partitions
     # No message, reply, or model output can be read into the console (CTL-05).
     assert not {"input", "text", "output"} & set(CALL)
 
