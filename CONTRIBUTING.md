@@ -344,6 +344,7 @@ make init                # Initialize the local backend (safe to re-run)
 make plan                # Build, preview changes, and save the plan to build/local.tfplan
 make apply               # Apply the saved plan
 make integration         # Test the deployed stack with throwaway users
+make probe               # Time the Runtime per persona and check what it stores and traces
 make destroy ENV=local   # Tear down your local resources
 ```
 
