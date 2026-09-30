@@ -56,3 +56,20 @@ from counted
 full join read on counted.key = read.key
 where coalesce(counted.records, 0) <> coalesce(read.rows, 0)
 {% endtest %}
+
+{# A warning's rows: counted, never fixed (ADR-0006, Quality checks). #}
+{% test counted(model, condition) %}
+select 1 from {{ model }} where {{ condition }}
+{% endtest %}
+
+{# Rows whose value a layer changed from the one delivered, counted before anything reads the change. #}
+{% test changed_from(model, column_name, delivered, key) %}
+select m.{{ key }}
+from {{ model }} as m
+inner join {{ delivered }} as d on m.{{ key }} = d.{{ key }}
+where m.{{ column_name }} is distinct from d.{{ column_name }}
+{% endtest %}
+
+{% test one_row(model) %}
+select n from (select count(*) as n from {{ model }}) where n <> 1
+{% endtest %}

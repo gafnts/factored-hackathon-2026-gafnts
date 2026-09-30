@@ -64,7 +64,7 @@ def test_the_checks_that_stop_the_build_pass_and_warnings_are_counted_in_rows(
     warned = {
         runner.node_name(r): r["failures"]
         for r in base.results
-        if r["status"] == "warn"
+        if r["status"] == "warn" and runner.node_name(r).startswith("bronze_")
     }
 
     assert warned == WARNINGS
