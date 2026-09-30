@@ -1,8 +1,10 @@
 name: Quality gates
 
+# Every commit reaches main through a pull request from develop, which checks the same tree
+# a push to develop would; the push to main is the post-merge check and warms the caches PRs restore.
 on:
   push:
-    branches: [develop, main]
+    branches: [main]
   pull_request:
     branches: [develop, main]
 
