@@ -164,7 +164,7 @@ PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
     ),
     "not_served_in_full": (
         {"gateway": not_served_in_full},
-        {"outcome_class": "decline", "rules": []},
+        {"outcome_class": "hand_off", "rules": ["POL-12", "POL-45"]},
     ),
     "route_failed": (
         {"route_error": RuntimeError("provider down")},
@@ -210,7 +210,9 @@ def test_every_path_sends_only_what_the_chats_contract_allows(
     assert entries[-1]["outcome"] == "finished"
 
 
-def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text(harness: Harness) -> None:
+def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text_after_the_status(
+    harness: Harness,
+) -> None:
     harness.script.requests = ["available_credit"]
     who = customer()
 
@@ -219,7 +221,9 @@ def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text(harness: Harness) ->
     )
 
     assert events[2]["delta"] == FIXED["not_yet_served"]["pt"]
-    assert harness.script.tool_calls == []
+    assert [c["params"]["name"] for c in harness.script.tool_calls] == [
+        "reads___list_cards"
+    ]
     assert harness.script.model_inputs["reply"] == []
     reply = harness.records.of(who.origin_jti)[-3]
     assert (reply["language"], reply["fixed_texts"]) == ("pt", ["not_yet_served"])

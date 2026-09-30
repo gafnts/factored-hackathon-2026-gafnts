@@ -1,7 +1,7 @@
 """
 The graph's model calls: Claude Haiku 4.5 through Anthropic's API with the key from AgentCore Identity (ADR-0004,
-Models, as amended). The router's and the extraction's outputs are typed through structured output, each field among
-the values its step allows, and a reply is plain text read whole.
+Models, as amended). The router's, the extraction's, and the handoff text's outputs are typed through structured output,
+each field among the values its step allows, and a reply is plain text read whole.
 Every call is one attempt, recorded as a model_call entry, and runs with emit-messages and emit-tool-calls off and
 streaming disabled, so nothing it writes reaches the chat unchecked (ADR-0004, What the chat receives). The client's
 own retries are off too, since each attempt is recorded (decision 18).
@@ -56,13 +56,15 @@ Record = Callable[..., Any]
 
 class RouterOutput(BaseModel):
     """
-    Every supported request the message holds, and whether it holds one at all (S5).
+    Every supported request the message holds, whether it holds one at all (S5), and whether it is a complaint, which
+    POL-44 hands off under its own reason code (ADR-0004's amendment of 2026-09-30).
     """
 
     model_config = ConfigDict(extra="forbid")
 
     requests: list[Label] = Field(max_length=8)
     has_request: bool
+    complaint: bool
 
 
 class BlockDetails(BaseModel):
@@ -79,7 +81,24 @@ class BlockDetails(BaseModel):
     )
 
 
-OUTPUTS: dict[str, type[BaseModel]] = {"route": RouterOutput, "extract": BlockDetails}
+class HandoffText(BaseModel):
+    """
+    A handoff's free text, in Spanish (POL-46). Its lengths and its text rule are checked in code, which falls back to
+    fixed text, so the model's output is never refused for them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    customer_statements: list[str]
+    unresolved_questions: list[str]
+
+
+OUTPUTS: dict[str, type[BaseModel]] = {
+    "route": RouterOutput,
+    "extract": BlockDetails,
+    "handoff_text": HandoffText,
+}
 
 
 class ModelFailedError(RuntimeError):
@@ -241,6 +260,22 @@ class Models:
         )
         details: BlockDetails = parsed
         return details
+
+    async def handoff_text(self, conversation: str, context: str) -> HandoffText:
+        """
+        The conversation reaches the model as one message of data, never as turns it could continue.
+        """
+        system = SystemMessage(
+            [
+                {"type": "text", "text": prompt("handoff")},
+                {"type": "text", "text": context},
+            ]
+        )
+        _, parsed = await self.call(
+            "handoff", "handoff_text", [system, HumanMessage(conversation)]
+        )
+        text: HandoffText = parsed
+        return text
 
     async def reply(
         self, conversation: Sequence[BaseMessage], facts: str, language_name: str

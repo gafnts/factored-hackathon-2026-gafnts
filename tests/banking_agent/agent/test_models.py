@@ -84,7 +84,7 @@ def test_the_calls_run_on_haiku_without_retries_streaming_or_emitted_events() ->
 
 
 def test_a_route_call_records_its_output_usage_and_cost() -> None:
-    parsed = RouterOutput(requests=["card_status"], has_request=True)
+    parsed = RouterOutput(requests=["card_status"], has_request=True, complaint=False)
     raw = answer(content="{}", usage_metadata=USAGE)
     made, entries = recorded({"raw": raw, "parsed": parsed, "parsing_error": None})
 
@@ -92,7 +92,11 @@ def test_a_route_call_records_its_output_usage_and_cost() -> None:
 
     (entry,) = entries
     assert entry_fits(entry)
-    assert entry["output"] == {"requests": ["card_status"], "has_request": True}
+    assert entry["output"] == {
+        "requests": ["card_status"],
+        "has_request": True,
+        "complaint": False,
+    }
     assert entry["usage"] == {
         "input_tokens": 1_000,
         "output_tokens": 100,

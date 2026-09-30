@@ -65,10 +65,10 @@ from banking_agent.agent.request import (
 from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.sessions import Bindings, DynamoBindings
 from banking_agent.contracts import NAMES, version
+from banking_agent.policy import POLICY_VERSION
 
 # Spike S4 saw the workload access token under either name, depending on the SDK that sent it.
 WORKLOAD_TOKEN_HEADERS = ("workloadaccesstoken", "x-amz-bedrock-agentcore-identity-wat")
-POLICY_VERSION = 1
 CHECKPOINTS_KEPT = timedelta(days=7)
 CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{7,64}$")
 # One attempt per invocation: Filing retries under the same call ID and records each attempt.
@@ -204,7 +204,7 @@ class Entrypoint:
             "policy": POLICY_VERSION,
             "prompts": {
                 name: prompt_version(name)
-                for name in ("route", "resolve_card", "reply")
+                for name in ("route", "resolve_card", "reply", "handoff")
             },
             "schemas": {name: version(name) for name in NAMES},
             "snapshot": settings.stamp["snapshot"],
@@ -366,6 +366,8 @@ class Entrypoint:
                     models=Models(services.models(model_key), turn.write),
                     confirmations=services.confirmations,
                     filing=services.filing,
+                    snapshot=services.settings.stamp["snapshot"],
+                    business_date=services.settings.clock["business_date"],
                     now=services.now,
                 )
             )

@@ -1,6 +1,6 @@
 """
 What a request's graph run needs besides its state: the claims, the customer's token, the thread's key, the turn's
-record, the clients, and the wall clock. It lives in a context variable for the request only, never in the graph's
+record, the clients, the snapshot and business date a handoff states, and the wall clock. It lives in a context variable for the request only, never in the graph's
 config, which LangGraph writes into checkpoints (spike S4).
 """
 
@@ -27,6 +27,8 @@ class Scope:
     models: Models
     confirmations: Confirmations
     filing: Filing
+    snapshot: str
+    business_date: str
     now: Callable[[], datetime]
 
 

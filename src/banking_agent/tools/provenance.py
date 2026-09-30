@@ -82,7 +82,7 @@ class MemoryRecords:
         ]
 
 
-def _rows(node: Any, card_id: Any = None) -> Iterator[dict[str, Any]]:
+def rows(node: Any, card_id: Any = None) -> Iterator[dict[str, Any]]:
     """
     Every record a tool's result holds, a transaction with its card's ID as product_id, and a block's read-back as the
     card's status.
@@ -96,10 +96,10 @@ def _rows(node: Any, card_id: Any = None) -> Iterator[dict[str, Any]]:
             row.setdefault("product_status", node["read_back"])
         yield row
         for value in node.values():
-            yield from _rows(value, card_id)
+            yield from rows(value, card_id)
     elif isinstance(node, list):
         for value in node:
-            yield from _rows(value, card_id)
+            yield from rows(value, card_id)
 
 
 def holds(call: Entry, fact: Mapping[str, Any]) -> bool:
@@ -116,7 +116,7 @@ def holds(call: Entry, fact: Mapping[str, Any]) -> bool:
     key = KEYS.get(subject)
     return key is not None and any(
         row.get(key) == fact["id"] and field in row and row[field] == value
-        for row in _rows(result)
+        for row in rows(result)
     )
 
 

@@ -29,7 +29,7 @@ from banking_agent.agent.confirmations import MemoryConfirmations
 from banking_agent.agent.filing import Filing
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
-from banking_agent.agent.models import MODEL, BlockDetails, RouterOutput
+from banking_agent.agent.models import MODEL, BlockDetails, HandoffText, RouterOutput
 from banking_agent.tools import handoff
 from banking_agent.tools.cases import MemoryCases, MemoryFlags
 from banking_agent.tools.file_handoff import HandoffStores
@@ -286,14 +286,28 @@ class MemoryBindings:
 class Script:
     requests: list[str] = field(default_factory=lambda: ["card_status"])
     has_request: bool = True
+    complaint: bool = False
     route_error: Exception | None = None
     extracted: dict[str, Any] = field(default_factory=dict)
     extract_error: Exception | None = None
     reply: str = "Estas son sus tarjetas."
     reply_error: Exception | None = None
+    handoff_text: dict[str, Any] = field(
+        default_factory=lambda: {
+            "summary": "El cliente pidió hablar con una persona del banco.",
+            "customer_statements": ["El cliente quiere que lo atienda una persona."],
+            "unresolved_questions": [],
+        }
+    )
+    handoff_error: Exception | None = None
     gateway: Callable[[httpx.Request], httpx.Response] | None = None
     model_inputs: dict[str, list[list[BaseMessage]]] = field(
-        default_factory=lambda: {"route": [], "extract": [], "reply": []}
+        default_factory=lambda: {
+            "route": [],
+            "extract": [],
+            "reply": [],
+            "handoff_text": [],
+        }
     )
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
 
@@ -368,7 +382,11 @@ class Harness:
                 response_metadata={"model_name": MODEL},
             )
             parsed = RouterOutput.model_validate(
-                {"requests": script.requests, "has_request": script.has_request}
+                {
+                    "requests": script.requests,
+                    "has_request": script.has_request,
+                    "complaint": script.complaint,
+                }
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
@@ -387,6 +405,18 @@ class Harness:
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
+        async def handoff_text(messages: list[BaseMessage]) -> dict[str, Any]:
+            script.model_inputs["handoff_text"].append(messages)
+            if script.handoff_error is not None:
+                raise script.handoff_error
+            raw = AIMessage(
+                content="{}",
+                usage_metadata=USAGE,
+                response_metadata={"model_name": MODEL},
+            )
+            parsed = HandoffText.model_validate(script.handoff_text)
+            return {"raw": raw, "parsed": parsed, "parsing_error": None}
+
         async def reply(messages: list[BaseMessage]) -> AIMessage:
             script.model_inputs["reply"].append(messages)
             if script.reply_error is not None:
@@ -398,7 +428,11 @@ class Harness:
             )
 
         def make(purpose: str) -> Runnable[Any, Any]:
-            chosen = {"route": route, "extract": extract}.get(purpose, reply)
+            chosen = {
+                "route": route,
+                "extract": extract,
+                "handoff_text": handoff_text,
+            }.get(purpose, reply)
             return RunnableLambda(chosen)
 
         return make

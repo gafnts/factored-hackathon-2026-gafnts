@@ -2,8 +2,9 @@
 The replies code gives in fixed text, in each of the chat's languages (POL-50), named as the execution record's reply
 entry names them. A block's questions and outcomes are all fixed text: code chooses each from the tools' results and
 the confirmation, and fills in the card's type, last four digits, and status, so the model never reports an action
-(ADR-0004, decision 8; AI-05). Where the policy hands a case to a person, handoff_unavailable says the chat can't pass
-it on yet, until file_handoff lands.
+(ADR-0004, decision 8; AI-05). A filed handoff's reference reaches the customer here too (POL-45). Where the policy
+requires a handoff once a confirmation ends, handoff_unavailable says the chat can't pass it on yet, until the drafts
+land.
 """
 
 from typing import Any
@@ -32,6 +33,11 @@ FIXED: dict[str, dict[str, str]] = {
     "which_card": {
         "es": "¿Cuál de estas tarjetas quiere bloquear?\n\n{cards}",
         "pt": "Qual destes cartões você quer bloquear?\n\n{cards}",
+    },
+    # POL-15: two cards of the same type share the last four digits.
+    "ambiguous_card": {
+        "es": "Tiene más de una tarjeta del mismo tipo terminada en {last_four}, así que no puedo saber a cuál se refiere.",
+        "pt": "Você tem mais de um cartão do mesmo tipo final {last_four}, então não consigo saber a qual se refere.",
     },
     # POL-15.
     "which_type": {
@@ -102,7 +108,17 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Su {card} está {status}, así que no se puede bloquear.",
         "pt": "Seu {card} está {status}, então não pode ser bloqueado.",
     },
-    # Where the policy hands the case to a person (POL-15, POL-37, POL-38, POL-39), until file_handoff lands.
+    # POL-45: a person follows up, with no outcome or time promised.
+    "handoff_filed": {
+        "es": "Pasé su caso a una persona del banco, que le dará seguimiento. La referencia de su caso es {reference}.",
+        "pt": "Passei seu caso para uma pessoa do banco, que vai dar continuidade a ele. A referência do seu caso é {reference}.",
+    },
+    # POL-48: the case couldn't be filed.
+    "handoff_failed": {
+        "es": "Este caso lo debe atender una persona del banco, pero en este momento no pude pasárselo. Por favor, inténtelo de nuevo en unos minutos.",
+        "pt": "Este caso precisa ser atendido por uma pessoa do banco, mas no momento não consegui encaminhá-lo. Por favor, tente novamente em alguns minutos.",
+    },
+    # Where the policy requires a handoff once a confirmation ends (POL-38, POL-39), until the drafts land.
     "handoff_unavailable": {
         "es": "Este caso lo debe atender una persona del banco, y desde este chat todavía no puedo pasárselo.",
         "pt": "Este caso precisa ser atendido por uma pessoa do banco, e por este chat ainda não consigo encaminhá-lo.",
@@ -175,4 +191,6 @@ def render(name: str, language: str, facts: dict[str, Any]) -> str:
         values["reason"] = REASONS[language][facts["reason"]]
     if "last_four" in facts:
         values["last_four"] = facts["last_four"]
+    if "reference" in facts:
+        values["reference"] = facts["reference"]
     return FIXED[name][language].format(**values)

@@ -478,21 +478,22 @@ def test_a_block_the_read_back_doesnt_show_is_never_reported_as_done(
 
     done = chat.press("confirm", control_shown(chat))
 
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
     assert reply(done).split("\n\n") == [
         FIXED["block_not_verified"]["es"].format(
             card="tarjeta de crédito terminada en 4821"
         ),
-        FIXED["handoff_unavailable"]["es"],
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
     ]
     assert "quedó bloqueada" not in reply(done)
-    assert chat.decision()["outcome_class"] == "abstain"
-    assert chat.decision()["rules"] == ["POL-37"]
+    assert chat.decision()["outcome_class"] == "hand_off"
+    assert chat.decision()["rules"] == ["POL-37", "POL-45"]
 
 
 @pytest.mark.parametrize(
     ("answer", "outcome"),
     [
-        ("error", "abstain"),
+        ("error", "hand_off"),
         ("denied", "decline"),
     ],
 )
@@ -589,10 +590,10 @@ def test_last_four_digits_that_match_no_card_list_the_customers_cards(
     ("other_type", "outcome", "rules"),
     [
         ("Tarjeta Débito", "clarify", ["POL-13", "POL-15"]),
-        ("Tarjeta Crédito", "abstain", ["POL-13", "POL-15"]),
+        ("Tarjeta Crédito", "hand_off", ["POL-13", "POL-15", "POL-45"]),
     ],
 )
-def test_last_four_digits_two_active_cards_share_ask_for_the_type_or_stop(
+def test_last_four_digits_two_active_cards_share_ask_for_the_type_or_hand_off(
     harness: Harness, other_type: str, outcome: str, rules: list[str]
 ) -> None:
     twin = {
@@ -607,8 +608,12 @@ def test_last_four_digits_two_active_cards_share_ask_for_the_type_or_stop(
 
     assert chat.decision()["outcome_class"] == outcome
     assert chat.decision()["rules"] == rules
-    if outcome == "abstain":
-        assert reply(answered) == FIXED["handoff_unavailable"]["es"]
+    if outcome == "hand_off":
+        (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+        assert reply(answered).split("\n\n") == [
+            FIXED["ambiguous_card"]["es"].format(last_four="4821"),
+            FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
+        ]
 
 
 def test_a_customer_not_served_in_full_can_still_block(harness: Harness) -> None:

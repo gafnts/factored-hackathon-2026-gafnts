@@ -1,11 +1,15 @@
 """
-The graph (ADR-0004, The graph). A new message is routed by POL-05's order: the card listing reads list_cards through
-the Gateway, a block goes through resolve_card, ask_reason, and confirm to the confirm control, and every other request
-gets fixed text until its nodes land. An answer to the agent's own question goes back to resolve_card, and a pending
-control's answer, or a message typed while it shows, resumes await_control (POL-06). Code decides every step: the model
-labels the request, extracts a card's hints and a block's reason among the values each allows, and writes the card
-listing's reply, while a block's questions and outcomes are fixed text code chooses (decision 8). Only the control
-confirms a block, and block_card acts only under the confirmation it confirmed (POL-36).
+The graph (ADR-0004, The graph). A new message is routed by POL-05's order: a block goes through resolve_card,
+ask_reason, and confirm to the confirm control, and every other request reads list_cards through the Gateway first,
+since the customer's status comes before the request (POL-12). The card listing is answered from it, a customer not
+served in full or one who asks for a person is handed off (POL-12, POL-44), and the rest get fixed text until their
+nodes land. An answer to the agent's own question goes back to resolve_card, and a pending control's answer, or a
+message typed while it shows, resumes await_control (POL-06). Code decides every step: the model labels the request,
+extracts a card's hints and a block's reason among the values each allows, writes the card listing's reply, and writes a
+handoff's free text, while a block's questions and outcomes and a handoff's reference are fixed text code chooses
+(decision 8). Only the control confirms a block, and block_card acts only under the confirmation it confirmed (POL-36).
+A handoff the policy requires is filed by the handoff node, from the evidence the thread's tool calls left in state
+(POL-45 to POL-47).
 
 The public state is the conversation alone: the graph's input and output schemas hold messages only, and what a turn
 keeps for its own steps never reaches the chat (What the chat receives). The turn's decision is handed to its record,
@@ -31,6 +35,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import interrupt
 
 from banking_agent.agent.confirmations import new_record
+from banking_agent.agent.filing import new_call_id
 from banking_agent.agent.gateway import ToolCall
 from banking_agent.agent.language import DEFAULT, detect
 from banking_agent.agent.models import (
@@ -38,10 +43,18 @@ from banking_agent.agent.models import (
     ModelFailedError,
     RouterOutput,
 )
+from banking_agent.agent.payload import (
+    built,
+    context,
+    required,
+    transcript,
+    written,
+)
 from banking_agent.agent.records import wall_time
 from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.texts import FIXED, LANGUAGE_NAMES, render
 from banking_agent.masking import has_digit_run
+from banking_agent.policy import POLICY_VERSION
 from banking_agent.tools.provenance import OUTCOMES
 
 # What the reply's model may see of each card; the ID and the update flag stay with code.
@@ -58,6 +71,8 @@ MISSING = ("lost", "stolen")
 CONTROL = "confirm_control"
 # The tool calls a handoff may cite, the thread's latest first to go; a payload holds 60 at most.
 CITED = 40
+# file_handoff reads at most this many of the sign-in's turns.
+TURNS = 20
 
 
 class ChatState(TypedDict):
@@ -81,6 +96,8 @@ class State(ChatState, total=False):
     target: dict[str, Any] | None
     pending: dict[str, Any] | None
     block: dict[str, Any] | None
+    complaint: bool
+    handoff: dict[str, Any] | None
     evidence: Annotated[list[dict[str, Any]], kept]
 
 
@@ -96,7 +113,11 @@ def routing(routed: RouterOutput) -> dict[str, Any]:
         return {"label": None, "case": "no_request"}
     label = next((label for label in ORDER if label in routed.requests), "unsupported")
     cases = {"card_status": "cards", "block_card": "block"}
-    return {"label": label, "case": cases.get(label, "not_yet_served")}
+    return {
+        "label": label,
+        "case": cases.get(label, "status"),
+        "complaint": routed.complaint,
+    }
 
 
 def said(*parts: tuple[str, dict[str, Any]]) -> list[list[Any]]:
@@ -110,6 +131,17 @@ def decided(
         "request_label": "block_card",
         "outcome_class": outcome_class,
         "awaiting": awaiting,
+        "rules": rules,
+    }
+
+
+def concluded(
+    label: str | None, outcome_class: str, rules: list[str]
+) -> dict[str, Any]:
+    return {
+        "request_label": label,
+        "outcome_class": outcome_class,
+        "awaiting": "none",
         "rules": rules,
     }
 
@@ -144,6 +176,7 @@ async def tool(scope: Scope, name: str, **arguments: Any) -> ToolCall:
             "called_at": call.called_at,
             "outcome": OUTCOMES[call.outcome],
             "turn": scope.turn.prefix,
+            "sign_in": scope.claims.origin_jti,
             "result": call.result,
         }
     )
@@ -180,6 +213,8 @@ async def begin(state: State) -> dict[str, Any]:
         "details": None,
         "target": None,
         "block": None,
+        "complaint": False,
+        "handoff": None,
     }
 
 
@@ -193,13 +228,41 @@ async def route(state: State) -> dict[str, Any]:
 
 
 async def list_cards(state: State) -> dict[str, Any]:
+    """
+    Reads the customer's cards and whether they are served in full, which every request but a block needs first
+    (POL-12). A customer who isn't is handed off without the status being named, and so is one who asks for a person
+    or complains (POL-44); both handoffs cite the cards read.
+    """
     call = await tool(SCOPE.get(), "list_cards")
     if call.outcome == "denied":
         return {"case": "refused"}
     if call.outcome != "ok" or call.result is None:
         return {"case": "unavailable"}
-    # POL-12's handoff lands with the handoff node; until then the status stays unnamed.
+    label = state.get("label")
+    cards = [c["card_id"] for c in call.result["cards"]]
     if not call.result["customer"]["served_in_full"]:
+        return {
+            "case": "handoff",
+            "handoff": required(
+                "customer_not_active",
+                label,
+                ["POL-12"],
+                calls=[call.call_id],
+                cards=cards,
+            ),
+        }
+    if label == "talk_to_human":
+        return {
+            "case": "handoff",
+            "handoff": required(
+                "complaint" if state.get("complaint") else "customer_request",
+                label,
+                ["POL-44"],
+                calls=[call.call_id],
+                cards=cards,
+            ),
+        }
+    if state["case"] == "status":
         return {"case": "not_yet_served"}
     return {"cards": [{k: c[k] for k in CARD_FACTS} for c in call.result["cards"]]}
 
@@ -316,9 +379,20 @@ async def resolve_card(state: State) -> dict[str, Any]:
         if found == "ambiguous":
             return {
                 **turn,
+                "case": "handoff",
                 "asking": None,
-                "say": [*state.get("say", []), *said(("handoff_unavailable", {}))],
-                "decision": decided("abstain", ["POL-13", "POL-15"]),
+                "say": [
+                    *state.get("say", []),
+                    *said(("ambiguous_card", {"last_four": last_four})),
+                ],
+                "handoff": required(
+                    "ambiguous_card",
+                    "block_card",
+                    ["POL-13", "POL-15"],
+                    calls=[call.call_id],
+                    cards=[c["card_id"] for c in meant],
+                    reported=reason,
+                ),
             }
         if found != "settled":
             name, rules = {
@@ -502,6 +576,7 @@ async def await_control(state: State) -> dict[str, Any]:
         "details": None,
         "target": None,
         "block": None,
+        "handoff": None,
         "cards": [],
     }
     if answer["kind"] == "message":
@@ -521,8 +596,9 @@ async def await_control(state: State) -> dict[str, Any]:
             "decision": decided("block", ["POL-36"], CONTROL),
         }
     to = "confirmed" if answer["kind"] == "confirm" else "cancelled"
+    at = scope.now()
     refusal = await asyncio.to_thread(
-        scope.confirmations.answer, confirmation_id, to, bound(scope), scope.now()
+        scope.confirmations.answer, confirmation_id, to, bound(scope), at
     )
     await scope.turn.write(
         "resume",
@@ -533,7 +609,11 @@ async def await_control(state: State) -> dict[str, Any]:
     )
     if refusal is None and to == "confirmed":
         await ended(scope, pending, "confirmed", "control")
-        return {**turn, "case": "blocking"}
+        return {
+            **turn,
+            "case": "blocking",
+            "pending": {**pending, "confirmed_at": wall_time(at)},
+        }
     if refusal is None:
         await ended(scope, pending, "cancelled", "control")
         return {
@@ -661,13 +741,20 @@ async def block(state: State) -> dict[str, Any]:
             block_outcome=call.result["block_outcome"],
             **{"from": "confirmed"},
         )
-    return {"block": {"outcome": call.outcome, "result": call.result}}
+    return {
+        "block": {
+            "call_id": call.call_id,
+            "outcome": call.outcome,
+            "result": call.result,
+        }
+    }
 
 
 async def verify(state: State) -> dict[str, Any]:
     """
-    Reads the card again for the reply's evidence. The reply says it is blocked only when the block's read-back and
-    this read both show it (POL-37, AI-05).
+    Reads the card again for the reply's and the handoff's evidence. The reply says it is blocked only when the block's
+    read-back and this read both show it; otherwise the case is handed off, with the block's outcome as its action when
+    the block returned one (POL-37, AI-05).
     """
     scope = SCOPE.get()
     pending, done = state["pending"], state["block"]
@@ -700,9 +787,107 @@ async def verify(state: State) -> dict[str, Any]:
             say += said(("handoff_unavailable", {}))
             rules.append("POL-39")
         return turn | {"say": say, "decision": decided("block", rules)}
+    actions = []
+    if result.get("block_outcome") is not None:
+        actions.append(
+            {
+                "action": "block_card",
+                "card_id": pending["card_id"],
+                "reason": pending["reason"],
+                "confirmation_id": pending["confirmation_id"],
+                "outcome": result["block_outcome"],
+                "confirmed_at": pending["confirmed_at"],
+                "evidence": [done["call_id"]],
+            }
+        )
     return turn | {
-        "say": said(("block_not_verified", facts), ("handoff_unavailable", {})),
-        "decision": decided("abstain", ["POL-37"]),
+        "case": "handoff",
+        "say": said(("block_not_verified", facts)),
+        "handoff": required(
+            "action_not_verified",
+            "block_card",
+            ["POL-37"],
+            calls=[done["call_id"], call.call_id],
+            cards=[pending["card_id"]],
+            actions=actions,
+            reported=pending["reason"],
+        ),
+    }
+
+
+async def handoff(state: State) -> dict[str, Any]:
+    """
+    Files the handoff a node required. Code builds the payload from the evidence the thread's tool calls left in state,
+    the model writes its free text, and file_handoff files it under the customer's own token, three attempts at most
+    under one handoff ID. The reply gives the case's reference in fixed text, or says it couldn't be passed on (POL-45
+    to POL-48).
+    """
+    scope = SCOPE.get()
+    request = state["handoff"]
+    assert request is not None
+    cited = [
+        c
+        for c in state.get("evidence", [])
+        if c["call_id"] in request["calls"]
+        and c.get("sign_in") == scope.claims.origin_jti
+    ]
+    payload = built(
+        request,
+        cited,
+        handoff_id=str(uuid.uuid4()),
+        created_at=wall_time(scope.now()),
+        customer_id=scope.claims.customer_id,
+        session_id=scope.claims.origin_jti,
+        versions={"policy": POLICY_VERSION, "snapshot": scope.snapshot},
+        business_date=scope.business_date,
+        language=state["language"],
+    )
+    try:
+        text = await scope.models.handoff_text(
+            transcript(state["messages"]), context(request)
+        )
+    except ModelFailedError:
+        text = None
+    turns = sorted({c["turn"] for c in cited} - {scope.turn.prefix})
+    call = await scope.filing.file(
+        {
+            "customer_id": scope.claims.customer_id,
+            "origin_jti": scope.claims.origin_jti,
+            "call_id": new_call_id(),
+            "mode": "file",
+            "payload": written(payload, text),
+            "turns": [*turns[-(TURNS - 1) :], scope.turn.prefix],
+        },
+        scope.token,
+        scope.turn.write,
+    )
+    result = call.result or {}
+    say = state.get("say", [])
+    label, rules = request["label"], request["decided"]
+    if call.outcome != "ok" or result.get("status") not in ("filed", "already_filed"):
+        return {
+            "case": "fixed",
+            "handoff": None,
+            "say": [*say, *said(("handoff_failed", {}))],
+            "decision": concluded(label, "abstain", [*rules, "POL-48"]),
+        }
+    await scope.turn.write(
+        "handoff",
+        handoff_id=payload["handoff_id"],
+        reference=result["reference"],
+        reason_code=request["reason_code"],
+        trigger=request["trigger"],
+        queue=result["queue"],
+        priority=result["priority"],
+        status=result["status"],
+        flagged=result["flagged"],
+        validation_errors=result["validation_errors"],
+    )
+    return {
+        "case": "fixed",
+        "handoff": None,
+        "say": [*say, *said(("handoff_filed", {"reference": result["reference"]}))],
+        "decision": concluded(label, "hand_off", [*rules, "POL-45"]),
     }
 
 
@@ -811,13 +996,23 @@ def after_begin(state: State) -> str:
 
 
 def after_route(state: State) -> str:
-    return {"cards": "list_cards", "block": "resolve_card"}.get(state["case"], "reply")
+    return {
+        "cards": "list_cards",
+        "status": "list_cards",
+        "block": "resolve_card",
+    }.get(state["case"], "reply")
 
 
 def after_resolve(state: State) -> str:
-    return {"confirm": "confirm", "ask_reason": "ask_reason"}.get(
-        state["case"], "reply"
-    )
+    return {
+        "confirm": "confirm",
+        "ask_reason": "ask_reason",
+        "handoff": "handoff",
+    }.get(state["case"], "reply")
+
+
+def onward(state: State) -> str:
+    return "handoff" if state["case"] == "handoff" else "reply"
 
 
 def after_reply(state: State) -> str:
@@ -829,6 +1024,7 @@ def after_control(state: State) -> str:
     return {
         "blocking": "block",
         "cards": "list_cards",
+        "status": "list_cards",
         "block": "resolve_card",
         "again": "hold",
     }.get(state["case"], "reply")
@@ -840,7 +1036,7 @@ def build(
     graph = StateGraph(State, input_schema=ChatState, output_schema=ChatState)
     for node in (
         begin, route, list_cards, resolve_card, ask_reason, confirm,
-        await_control, hold, block, verify, reply,
+        await_control, hold, block, verify, handoff, reply,
     ):  # fmt: skip
         graph.add_node(node.__name__, citing(node))
     graph.add_edge(START, "begin")
@@ -848,9 +1044,9 @@ def build(
     graph.add_conditional_edges(
         "route", after_route, ["list_cards", "resolve_card", "reply"]
     )
-    graph.add_edge("list_cards", "reply")
+    graph.add_conditional_edges("list_cards", onward, ["handoff", "reply"])
     graph.add_conditional_edges(
-        "resolve_card", after_resolve, ["confirm", "ask_reason", "reply"]
+        "resolve_card", after_resolve, ["confirm", "ask_reason", "handoff", "reply"]
     )
     graph.add_edge("ask_reason", "reply")
     graph.add_edge("confirm", "reply")
@@ -862,5 +1058,6 @@ def build(
     )
     graph.add_edge("hold", "await_control")
     graph.add_edge("block", "verify")
-    graph.add_edge("verify", "reply")
+    graph.add_conditional_edges("verify", onward, ["handoff", "reply"])
+    graph.add_edge("handoff", "reply")
     return graph.compile(checkpointer=checkpointer)
