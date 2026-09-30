@@ -82,12 +82,13 @@ test: ## Run pytest and Vitest, each with its coverage floor
 	uv run pytest -n auto --cov --cov-report=term-missing
 	pnpm --dir web test
 
+# Short tracebacks against a deployed stack: a long one prints a failing helper's arguments, tokens included.
 integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
-	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser" -v
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser" -v --tb=short
 
 browser: _check-profile outputs ## Play a customer's journey in Chromium against ENV's deployed site (prints no text or IDs)
 	uv run playwright install chromium
-	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v --tb=short
 
 probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe

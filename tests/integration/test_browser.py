@@ -2,10 +2,11 @@
 The chat in a real browser, against the deployed site (ADR-0004, To verify on the first deploy: the chat in a real
 browser; ADR-0007): a persona signs in through the form with SRP, asks about their cards, and reads a reply sent whole,
 with the turn in the sign-in's execution record; a persona blocks a card with the confirm control, which a typed yes
-doesn't confirm; another customer's ID, a staff user, and another sign-in's runtime session get nothing; and signing
-out revokes the sign-in's refresh token (SEC-04, SEC-05, POL-09, POL-11, POL-36, POL-37, CTL-02, EVL-04, OPS-02).
-Assertions count and compare without printing a reply, a token, or an ID, and nothing the page shows is saved: no
-trace, screenshot, or video.
+doesn't confirm, and is offered the replacement with the handoff control; the README's journey runs, from a charge the
+customer doesn't recognize to the case's reference, urgent when the block is cancelled; another customer's ID, a staff
+user, and another sign-in's runtime session get nothing; and signing out revokes the sign-in's refresh token (SEC-04,
+SEC-05, POL-09, POL-11, POL-27, POL-36 to POL-39, POL-45, POL-47, CTL-02, EVL-04, OPS-02). Assertions count and compare
+without printing a reply, a token, or an ID, and nothing the page shows is saved: no trace, screenshot, or video.
 """
 
 import re
@@ -20,8 +21,11 @@ from botocore.exceptions import ClientError
 from mypy_boto3_cognito_idp import CognitoIdentityProviderClient
 from playwright.sync_api import Browser, Page, Request, expect, sync_playwright
 
+from banking_agent.agent.texts import FIXED, render, transaction_name
+
 from .conftest import SignIn, User, claims
 from .test_agent import records
+from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
 
 pytestmark = [pytest.mark.integration, pytest.mark.browser, pytest.mark.timeout(300)]
@@ -41,6 +45,8 @@ TEXTS = {
     "pt": {
         "control": "Confirmar o bloqueio",
         "block": "Bloquear",
+        "cancel": "Cancelar",
+        "offer": "Encaminhar seu caso para uma pessoa",
         "locale": "pt-BR",
         "username": "Usuário",
         "password": "Senha",
@@ -236,8 +242,9 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
     )
 
     expect(controls).to_have_count(1)
-    assert card["last_four"] in controls.first.inner_text()
-    assert "Motivo: perda" in controls.first.inner_text()
+    shown = controls.first.inner_text()
+    labelled = card["last_four"] in shown and "Motivo: perda" in shown
+    assert labelled, "the control doesn't name the card and the reason"
 
     customer.ask(outputs, "Sim, pode bloquear.")
 
@@ -254,8 +261,13 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
         outputs, lambda: controls.last.get_by_role("button", name=block).click()
     )
 
-    assert f"final {card['last_four']} está bloqueado" in done
+    blocked = f"final {card['last_four']} está bloqueado" in done
+    assert blocked, "the reply doesn't say the card is blocked"
     expect(controls.last.get_by_role("button", name=block)).to_be_disabled()
+    # A lost card's replacement is a person's to arrange (POL-38).
+    expect(
+        customer.page.get_by_role("group", name=customer.texts["offer"])
+    ).to_have_count(1)
     read = tool_output(
         call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
     )
@@ -264,6 +276,129 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
     resumes = [e["resume_kind"] for e in entries if e["kind"] == "resume"]
     assert resumes == ["message", "confirm"]
     assert [e["kind"] for e in entries].count("request_refused") == 0
+    assert (customer.violations, customer.errors) == ([], 0)
+
+
+def charged(
+    outputs: dict[str, Any], users: dict[str, User], site: str, customer: Tab
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """
+    The Portuguese persona, signed in, with their credit card and the charge they won't recognize.
+    """
+    customer.sign_in(site, users["other_customer"])
+    expect(customer.page.get_by_label(customer.texts["message"])).to_be_visible()
+    warmed_up(outputs, customer)
+    access = customer.stored(".accessToken")
+    assert access is not None
+    listed = tool_output(call(outputs, access, "list_cards", arguments(access)))
+    card: dict[str, Any] = next(
+        c
+        for c in listed["cards"]
+        if c["product_status"] == "Active" and c["product_type"] == "Tarjeta Crédito"
+    )
+    return access, card, disputed(window(outputs, access, card["card_id"]))
+
+
+def case_filed(
+    outputs: dict[str, Any], access: str, reply: str, saved: list[str]
+) -> dict[str, Any]:
+    filed = [
+        e
+        for e in records(outputs, claims(access)["origin_jti"])
+        if e["kind"] == "handoff" and e["status"] == "filed"
+    ]
+    saved += [e["handoff_id"] for e in filed]
+    once = len(filed) == 1
+    assert once, "the sign-in didn't file exactly one case"
+    shown = render("handoff_filed", "pt", {"reference": filed[0]["reference"]}) in reply
+    assert shown, "the reply doesn't give the case's reference"
+    return filed[0]
+
+
+def test_the_readmes_journey_blocks_the_card_and_files_the_charge_to_dispute_intake(
+    outputs: dict[str, Any],
+    users: dict[str, User],
+    site: str,
+    tab: Callable[[str], Tab],
+    saved: list[str],
+) -> None:
+    customer = tab("pt")
+    access, card, charge = charged(outputs, users, site, customer)
+    controls = customer.page.get_by_role("group", name=customer.texts["control"])
+
+    listed = customer.ask(outputs, "Não reconheço uma compra no meu cartão.")
+
+    # Nothing in the message tells the charges apart, so the newest are listed (POL-27).
+    which = FIXED["which_charge"]["pt"].split("{card}")[0]
+    offered = which in listed and transaction_name(charge, "pt") in listed
+    assert offered, "the reply doesn't list the card's charges"
+    expect(controls).to_have_count(0)
+
+    found = customer.ask(outputs, f"É {named(charge)}.")
+
+    shown = render("charge_found", "pt", {"card": card, "transaction": charge}) in found
+    assert shown, "the reply doesn't name the charge the customer chose"
+    expect(controls).to_have_count(1)
+    reason = "Motivo: cobrança não reconhecida" in controls.first.inner_text()
+    assert reason, "the control doesn't name the reason"
+
+    done = customer.turn(
+        outputs,
+        lambda: controls.first.get_by_role(
+            "button", name=customer.texts["block"]
+        ).click(),
+    )
+
+    blocked = f"final {card['last_four']} está bloqueado" in done
+    assert blocked, "the reply doesn't say the card is blocked"
+    filed = case_filed(outputs, access, done, saved)
+    assert (filed["queue"], filed["priority"], filed["flagged"]) == (
+        "dispute_intake",
+        "normal",
+        False,
+    )
+    read = tool_output(
+        call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
+    )
+    assert read["card"]["product_status"] == "Blocked"
+    assert (customer.violations, customer.errors) == ([], 0)
+
+
+def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
+    outputs: dict[str, Any],
+    users: dict[str, User],
+    site: str,
+    tab: Callable[[str], Tab],
+    saved: list[str],
+) -> None:
+    customer = tab("pt")
+    access, card, charge = charged(outputs, users, site, customer)
+    controls = customer.page.get_by_role("group", name=customer.texts["control"])
+    customer.ask(
+        outputs,
+        f"Não reconheço {named(charge)}, no meu cartão de crédito final {card['last_four']}.",
+    )
+    expect(controls).to_have_count(1)
+
+    done = customer.turn(
+        outputs,
+        lambda: controls.first.get_by_role(
+            "button", name=customer.texts["cancel"]
+        ).click(),
+    )
+
+    kept = f"não bloqueei seu cartão de crédito final {card['last_four']}" in done
+    assert kept, "the reply doesn't say the card was left unblocked"
+    filed = case_filed(outputs, access, done, saved)
+    assert (filed["queue"], filed["priority"], filed["flagged"]) == (
+        "dispute_intake",
+        "urgent",
+        False,
+    )
+    read = tool_output(
+        call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
+    )
+    assert read["card"]["product_status"] == "Active"
     assert (customer.violations, customer.errors) == ([], 0)
 
 
