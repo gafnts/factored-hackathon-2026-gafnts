@@ -1,0 +1,48 @@
+[
+  {
+    "outcome": "ok",
+    "status": "draft_saved",
+    "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50"
+  },
+  {
+    "outcome": "ok",
+    "status": "filed",
+    "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50",
+    "reference": "7K2M-9QXA",
+    "queue": "dispute_intake",
+    "priority": "normal",
+    "added_facts": [
+      {
+        "subject": "transaction",
+        "id": "TRX-EXAMPLE0000000000003",
+        "field": "is_fraud",
+        "value": false,
+        "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+      },
+      {
+        "subject": "customer",
+        "id": "CLI-EXAMPLE00001",
+        "field": "customer_status",
+        "value": "Active",
+        "evidence": "71f0d3a6-5c2e-4b89-b7d4-3e9a1c6f8b52"
+      }
+    ],
+    "flagged": false,
+    "validation_errors": []
+  },
+  {
+    "outcome": "ok",
+    "status": "already_filed",
+    "handoff_id": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50",
+    "reference": "7K2M-9QXA",
+    "queue": "dispute_intake",
+    "priority": "normal",
+    "added_facts": [],
+    "flagged": false,
+    "validation_errors": []
+  },
+  {
+    "outcome": "refused",
+    "refusal": "customer_mismatch"
+  }
+]

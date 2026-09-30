@@ -121,7 +121,8 @@ def test_a_customers_access_token_carries_their_customer_id_and_group(
 ) -> None:
     token = claims(sign_in(users["customer"], "customer")["access"])
 
-    assert token["customer_id"] == users["customer"].customer_id
+    own = token["customer_id"] == users["customer"].customer_id
+    assert own, "the token doesn't carry the customer's own ID"
     assert "customer" in token["cognito:groups"]
 
 
@@ -178,10 +179,11 @@ def test_a_customer_cant_rewrite_their_customer_id(
     stored = cognito.admin_get_user(
         UserPoolId=outputs["user_pool_id"], Username=customer.username
     )["UserAttributes"]
-    assert {"Name": "custom:customer_id", "Value": customer.customer_id} in stored
-    assert claims(sign_in(customer, "customer")["access"])["customer_id"] == (
-        customer.customer_id
-    )
+    kept = {"Name": "custom:customer_id", "Value": customer.customer_id} in stored
+    assert kept, "the user's customer_id changed"
+    token = claims(sign_in(customer, "customer")["access"])
+    carried = token["customer_id"] == customer.customer_id
+    assert carried, "the token's customer_id changed"
 
 
 # The Gateway and Cedar (ADR-0004, spike S3)
@@ -211,11 +213,13 @@ def test_a_customer_lists_the_read_tools_and_the_block(
     assert names == {
         "reads___list_cards",
         "reads___get_card",
+        "reads___find_transactions",
         "block___block_card",
     }
     assert outputs["gateway_targets"] == {
         "list_cards": "reads",
         "get_card": "reads",
+        "find_transactions": "reads",
         "block_card": "block",
     }
 
@@ -259,7 +263,8 @@ def test_cedar_denies_another_sign_ins_origin_jti(
 ) -> None:
     access = sign_in(users["customer"], "customer")["access"]
     earlier = claims(sign_in(users["customer"], "customer")["access"])["origin_jti"]
-    assert earlier != claims(access)["origin_jti"]
+    another = earlier != claims(access)["origin_jti"]
+    assert another, "two sign-ins share an origin_jti"
 
     for origin_jti in (earlier, str(uuid.uuid4())):
         body = call(
@@ -325,7 +330,8 @@ def test_a_customer_reads_each_of_their_cards(
         )
         assert fits("get_card", output)
         assert output["outcome"] == "ok"
-        assert {k: output["card"][k] for k in listed} == listed
+        same = {k: output["card"][k] for k in listed} == listed
+        assert same, "get_card and list_cards disagree on a card"
 
 
 def test_another_customers_card_reads_as_a_card_that_doesnt_exist(
@@ -364,6 +370,66 @@ def test_two_customers_share_no_card(
     assert not mine & theirs
 
 
+def pages(outputs: dict[str, Any], access: str, card_id: str) -> list[dict[str, Any]]:
+    found = [
+        tool_output(
+            call(
+                outputs, access, "find_transactions", arguments(access, card_id=card_id)
+            )
+        )
+    ]
+    while found[-1].get("next_cursor"):
+        more = arguments(access, card_id=card_id, cursor=found[-1]["next_cursor"])
+        found.append(tool_output(call(outputs, access, "find_transactions", more)))
+    return found
+
+
+@pytest.mark.parametrize("role", ["customer", "other_customer"])
+def test_a_customer_lists_each_cards_transactions_in_the_window(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn, role: str
+) -> None:
+    access = sign_in(users[role], "customer")["access"]
+
+    found = [
+        page
+        for card in own_cards(outputs, access)["cards"]
+        for page in pages(outputs, access, card["card_id"])
+    ]
+
+    assert all(fits("find_transactions", p) and p["outcome"] == "ok" for p in found)
+    listed = [t for page in found for t in page["transactions"]]
+    assert listed, "each persona has transactions in the window"
+    window = {"from": "2026-03-20 06:00:00", "to": "2026-06-18 06:00:00"}
+    assert all(window["from"] < t["transaction_date"] <= window["to"] for t in listed)
+    for t in listed:
+        explained = t["transaction_status"] == "Declined" and t["response_code"] in (
+            "05",
+            "14",
+            "51",
+            "54",
+        )
+        assert (t["response_meaning"] is not None) is explained
+
+
+def test_another_customers_card_has_no_transactions_to_read(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
+) -> None:
+    access = sign_in(users["customer"], "customer")["access"]
+    theirs = own_cards(outputs, sign_in(users["other_customer"], "customer")["access"])
+
+    for card in theirs["cards"]:
+        output = tool_output(
+            call(
+                outputs,
+                access,
+                "find_transactions",
+                arguments(access, card_id=card["card_id"]),
+            )
+        )
+        assert output["outcome"] == "not_found"
+        assert set(output) == {"outcome", "stamp", "clock"}
+
+
 def test_no_output_carries_what_the_customer_mustnt_see(
     outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
 ) -> None:
@@ -376,7 +442,11 @@ def test_no_output_carries_what_the_customer_mustnt_see(
         for c in listed["cards"]
     ]
 
-    text = json.dumps([listed, *read])
+    found = [
+        page for c in listed["cards"] for page in pages(outputs, access, c["card_id"])
+    ]
+
+    text = json.dumps([listed, *read, *found])
     for withheld in ("is_fraud", "customer_status", "current_balance", "credit_limit"):
         assert withheld not in text
     assert not re.search(r"\d{13,}", text)
@@ -446,6 +516,11 @@ def test_the_read_tools_may_name_every_attribute_but_is_fraud(
         reads["Condition"]["StringEquals"]["dynamodb:Select"] == "SPECIFIC_ATTRIBUTES"
     )
     assert "dynamodb:Scan" not in reads["Action"]
+    index = next(
+        s for s in document["Statement"] if "/index/by_card" in str(s["Resource"])
+    )
+    assert index["Action"] in ("dynamodb:Query", ["dynamodb:Query"])
+    assert index["Condition"] == reads["Condition"]
 
 
 def dynamodb_grants(role: str, policy: str) -> dict[str, set[str]]:

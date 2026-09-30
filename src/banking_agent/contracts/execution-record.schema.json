@@ -358,13 +358,14 @@
           "description": "The structured output of a routing or extraction call that succeeded. A reply's or a handoff's text isn't kept here.",
           "oneOf": [
             {
-              "description": "The router: every supported request it finds, and whether the message holds one at all (S5).",
+              "description": "The router: every supported request it finds, whether the message holds one at all (S5), and whether it is a complaint (POL-44; ADR-0004's amendment of 2026-09-30).",
               "type": "object",
               "additionalProperties": false,
-              "required": ["requests", "has_request"],
+              "required": ["requests", "has_request", "complaint"],
               "properties": {
                 "requests": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/label" } },
-                "has_request": { "type": "boolean" }
+                "has_request": { "type": "boolean" },
+                "complaint": { "type": "boolean" }
               }
             },
             {

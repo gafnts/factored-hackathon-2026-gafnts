@@ -2,8 +2,8 @@
 The replies code gives in fixed text, in each of the chat's languages (POL-50), named as the execution record's reply
 entry names them. A block's questions and outcomes are all fixed text: code chooses each from the tools' results and
 the confirmation, and fills in the card's type, last four digits, and status, so the model never reports an action
-(ADR-0004, decision 8; AI-05). Where the policy hands a case to a person, handoff_unavailable says the chat can't pass
-it on yet, until file_handoff lands.
+(ADR-0004, decision 8; AI-05). An offered handoff and a filed handoff's reference reach the customer here too
+(POL-45).
 """
 
 from typing import Any
@@ -18,7 +18,7 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Por ahora puedo mostrarle sus tarjetas y el estado de cada una, y bloquear una tarjeta. Con esta solicitud todavía no puedo ayudarle.",
         "pt": "Por enquanto posso mostrar seus cartões e o status de cada um, e bloquear um cartão. Ainda não posso ajudar com este pedido.",
     },
-    # POL-48, without the handoff offer until the controls land.
+    # POL-48; a routed request's failure is followed by handoff_offer.
     "unavailable": {
         "es": "En este momento no puedo ayudarle con eso. Por favor, inténtelo de nuevo en unos minutos.",
         "pt": "No momento não posso ajudar com isso. Por favor, tente novamente em alguns minutos.",
@@ -33,6 +33,11 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "¿Cuál de estas tarjetas quiere bloquear?\n\n{cards}",
         "pt": "Qual destes cartões você quer bloquear?\n\n{cards}",
     },
+    # POL-15: two cards of the same type share the last four digits.
+    "ambiguous_card": {
+        "es": "Tiene más de una tarjeta del mismo tipo terminada en {last_four}, así que no puedo saber a cuál se refiere.",
+        "pt": "Você tem mais de um cartão do mesmo tipo final {last_four}, então não consigo saber a qual se refere.",
+    },
     # POL-15.
     "which_type": {
         "es": "Tiene más de una tarjeta terminada en {last_four}. ¿Es la de crédito o la de débito?",
@@ -43,6 +48,36 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿Cuál quiere bloquear?",
         "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nQual você quer bloquear?",
     },
+    # POL-14 and POL-16, for a charge the customer doesn't recognize.
+    "which_card_charge": {
+        "es": "¿En cuál de estas tarjetas está el cargo que no reconoce?\n\n{cards}",
+        "pt": "Em qual destes cartões está a cobrança que você não reconhece?\n\n{cards}",
+    },
+    "no_matching_card_charge": {
+        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿En cuál está el cargo que no reconoce?",
+        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nEm qual está a cobrança que você não reconhece?",
+    },
+    # POL-39, as in POL-27: the charge is looked for in any status, and whether it is fraud is never said.
+    "charge_found": {
+        "es": "Encontré este cargo en su {card}: {transaction}.",
+        "pt": "Encontrei esta cobrança no seu {card}: {transaction}.",
+    },
+    "which_charge": {
+        "es": "Encontré más de un cargo en su {card} que podría ser el que me indica. ¿Cuál es?\n\n{transactions}",
+        "pt": "Encontrei mais de uma cobrança no seu {card} que pode ser a que você indicou. Qual é?\n\n{transactions}",
+    },
+    "charge_not_found": {
+        "es": "No encontré en los últimos 90 días de su {card} un cargo que coincida con lo que me indica.",
+        "pt": "Não encontrei nos últimos 90 dias do seu {card} uma cobrança que corresponda ao que você indicou.",
+    },
+    "charge_unread": {
+        "es": "En este momento no pude consultar los movimientos de su {card}.",
+        "pt": "No momento não consegui consultar as transações do seu {card}.",
+    },
+    "records_unavailable": {
+        "es": "En este momento no pude consultar sus tarjetas.",
+        "pt": "No momento não consegui consultar seus cartões.",
+    },
     "no_cards": {
         "es": "No encuentro tarjetas a su nombre.",
         "pt": "Não encontrei cartões em seu nome.",
@@ -52,7 +87,7 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "¿Por qué quiere bloquear su {card}? Puede ser por pérdida, por robo, por un cargo que no reconoce o por otro motivo; si prefiere no decirlo, también puedo bloquearla.",
         "pt": "Por que você quer bloquear seu {card}? Pode ser por perda, por roubo, por uma cobrança que você não reconhece ou por outro motivo; se preferir não dizer, também posso bloqueá-lo.",
     },
-    # POL-17, without the handoff offer until the handoff control lands.
+    # POL-17, followed by handoff_offer.
     "clarification_stopped": {
         "es": "No logré precisar su solicitud con estas preguntas, así que no voy a seguir preguntando.",
         "pt": "Não consegui entender seu pedido com estas perguntas, então não vou continuar perguntando.",
@@ -88,7 +123,7 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "No pude confirmar que su {card} quedara bloqueada, así que no puedo darla por bloqueada.",
         "pt": "Não consegui confirmar que seu {card} foi bloqueado, então não posso dá-lo como bloqueado.",
     },
-    # POL-38, without the handoff offer until the handoff control lands.
+    # POL-38, followed by handoff_offer.
     "replacement_by_person": {
         "es": "La reposición de la tarjeta la gestiona una persona del banco.",
         "pt": "A reposição do cartão é feita por uma pessoa do banco.",
@@ -102,10 +137,33 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Su {card} está {status}, así que no se puede bloquear.",
         "pt": "Seu {card} está {status}, então não pode ser bloqueado.",
     },
-    # Where the policy hands the case to a person (POL-15, POL-37, POL-38, POL-39), until file_handoff lands.
-    "handoff_unavailable": {
-        "es": "Este caso lo debe atender una persona del banco, y desde este chat todavía no puedo pasárselo.",
-        "pt": "Este caso precisa ser atendido por uma pessoa do banco, e por este chat ainda não consigo encaminhá-lo.",
+    # POL-45: a person follows up, with no outcome or time promised.
+    "handoff_filed": {
+        "es": "Pasé su caso a una persona del banco, que le dará seguimiento. La referencia de su caso es {reference}.",
+        "pt": "Passei seu caso para uma pessoa do banco, que vai dar continuidade a ele. A referência do seu caso é {reference}.",
+    },
+    # POL-45: the handoff control shows below it, and only the control accepts.
+    "handoff_offer": {
+        "es": "Si lo prefiere, puedo pasar su caso a una persona del banco: acéptelo con el botón.",
+        "pt": "Se preferir, posso encaminhar seu caso para uma pessoa do banco: aceite no botão.",
+    },
+    "offer_pointer": {
+        "es": "Para pasar su caso a una persona del banco, use el botón: un mensaje escrito no lo acepta. Si prefiere no hacerlo, puede rechazarlo con el botón.",
+        "pt": "Para encaminhar seu caso para uma pessoa do banco, use o botão: uma mensagem escrita não o aceita. Se preferir não fazer isso, pode recusar no botão.",
+    },
+    "offer_declined": {
+        "es": "De acuerdo: no pasé su caso a una persona del banco.",
+        "pt": "Certo: não encaminhei seu caso para uma pessoa do banco.",
+    },
+    # POL-09: an offer lapses with the session.
+    "offer_lapsed": {
+        "es": "La oferta de pasar su caso a una persona del banco ya no está vigente.",
+        "pt": "A oferta de encaminhar seu caso para uma pessoa do banco não está mais válida.",
+    },
+    # POL-48: the case couldn't be filed.
+    "handoff_failed": {
+        "es": "Este caso lo debe atender una persona del banco, pero en este momento no pude pasárselo. Por favor, inténtelo de nuevo en unos minutos.",
+        "pt": "Este caso precisa ser atendido por uma pessoa do banco, mas no momento não consegui encaminhá-lo. Por favor, tente novamente em alguns minutos.",
     },
 }
 
@@ -128,6 +186,7 @@ CARD_TYPES = {
     },
 }
 ENDING = {"es": "terminada en", "pt": "final"}
+UNRECORDED = {"es": "comercio no registrado", "pt": "estabelecimento não registrado"}
 STATUSES = {
     "es": {
         "Active": "activa",
@@ -162,6 +221,18 @@ def card_name(card: dict[str, Any], language: str) -> str:
     return f"{CARD_TYPES[language][card['product_type']]} {ENDING[language]} {card['last_four']}"
 
 
+def transaction_name(transaction: dict[str, Any], language: str) -> str:
+    """
+    A transaction as the customer sees it: its date, its merchant ("not recorded" when missing), and its amount with
+    the card's currency code (POL-20, POL-25).
+    """
+    merchant = transaction["merchant_name"] or UNRECORDED[language]
+    return (
+        f"{transaction['transaction_date'][:16]}, {merchant}, "
+        f"{transaction['amount']:.2f} {transaction['currency']}"
+    )
+
+
 def render(name: str, language: str, facts: dict[str, Any]) -> str:
     values: dict[str, str] = {}
     if "card" in facts:
@@ -175,4 +246,12 @@ def render(name: str, language: str, facts: dict[str, Any]) -> str:
         values["reason"] = REASONS[language][facts["reason"]]
     if "last_four" in facts:
         values["last_four"] = facts["last_four"]
+    if "reference" in facts:
+        values["reference"] = facts["reference"]
+    if "transaction" in facts:
+        values["transaction"] = transaction_name(facts["transaction"], language)
+    if "transactions" in facts:
+        values["transactions"] = "\n".join(
+            f"- {transaction_name(t, language)}" for t in facts["transactions"]
+        )
     return FIXED[name][language].format(**values)

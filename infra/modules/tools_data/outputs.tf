@@ -6,6 +6,11 @@ output "table_arn" {
   value = aws_dynamodb_table.this.arn
 }
 
+output "attributes" {
+  description = "Every attribute of the tools' data, is_fraud included, which file_handoff alone may name"
+  value       = local.attributes
+}
+
 output "readable_attributes" {
   description = "Every attribute the read tools may name"
   value       = local.readable

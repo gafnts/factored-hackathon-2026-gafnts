@@ -71,6 +71,21 @@ class Turn:
         self.output_tokens = 0
         self.cost_usd: float | None = 0.0
         self.decision: dict[str, Any] | None = None
+        self.cited: list[dict[str, Any]] = []
+
+    @property
+    def prefix(self) -> str:
+        """
+        What begins each of the turn's entry keys, by which a handoff names the turns its evidence is in.
+        """
+        return f"{wall_time(self.started)}#{self.turn_id}"
+
+    def drain(self) -> list[dict[str, Any]]:
+        """
+        The tool calls made since the last drain, which a node hands to the graph's state as evidence a handoff may cite.
+        """
+        drained, self.cited = self.cited, []
+        return drained
 
     def decide(self, **fields: Any) -> None:
         """

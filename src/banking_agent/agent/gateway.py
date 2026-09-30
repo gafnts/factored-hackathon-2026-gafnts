@@ -35,13 +35,15 @@ class ToolCall:
     outcome: str
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
+    via: str = "gateway"
+    attempt: int = 1
 
     def entry(self) -> dict[str, Any]:
         fields: dict[str, Any] = {
             "call_id": self.call_id,
             "tool": self.tool,
-            "via": "gateway",
-            "attempt": 1,
+            "via": self.via,
+            "attempt": self.attempt,
             "called_at": self.called_at,
             "latency_ms": self.latency_ms,
             "request_id": self.request_id,

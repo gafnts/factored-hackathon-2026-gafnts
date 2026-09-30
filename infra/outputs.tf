@@ -56,6 +56,14 @@ output "tools_data" {
   }
 }
 
+output "handoff" {
+  description = "The handoff cases and the Lambda that files them"
+  value = {
+    cases_table = module.handoff.cases_table.name
+    function    = module.handoff.function.name
+  }
+}
+
 output "runtime_arn" {
   value = module.runtime.runtime_arn
 }

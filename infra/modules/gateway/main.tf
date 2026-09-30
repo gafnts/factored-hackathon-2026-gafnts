@@ -146,6 +146,20 @@ data "aws_iam_policy_document" "reads" {
     }
   }
   statement {
+    actions   = ["dynamodb:Query"]
+    resources = ["${var.tools_data_table_arn}/index/by_card"]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = var.tools_data_attributes
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:Select"
+      values   = ["SPECIFIC_ATTRIBUTES"]
+    }
+  }
+  statement {
     actions   = ["dynamodb:GetItem", "dynamodb:Query"]
     resources = [var.overlay_table.arn]
   }

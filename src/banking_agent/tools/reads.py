@@ -1,7 +1,7 @@
 """
 The read tools' Lambda, a Gateway target. The Gateway passes the tool as `<target>___<tool>` in the invocation's client
 context, and the arguments as the event (ADR-0004, Where the tools run). It reads the table Terraform created from the
-chosen export, named in TOOLS_DATA_TABLE, and the sandbox's overlay, named in OVERLAY_TABLE.
+chosen export, named in TOOLS_DATA_TABLE, its by_card index, and the sandbox's overlay, named in OVERLAY_TABLE.
 """
 
 import os
@@ -15,10 +15,12 @@ from banking_agent.tools import check_output, gateway_tool, invalid_input
 from banking_agent.tools.cards import get_card, list_cards
 from banking_agent.tools.sandbox import DynamoOverlay, Stores
 from banking_agent.tools.store import DynamoData
+from banking_agent.tools.transactions import find_transactions
 
 TOOLS: dict[str, Callable[[Stores, dict[str, Any]], dict[str, Any]]] = {
     "list_cards": list_cards,
     "get_card": get_card,
+    "find_transactions": find_transactions,
 }
 
 

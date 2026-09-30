@@ -6,6 +6,7 @@ import { Chat } from "../../src/chat/chat";
 import { shownIn } from "../../src/chat/control";
 import type {
   BlockConfirmation,
+  HandoffOffer,
   InterruptValue,
 } from "../../src/contracts/chat";
 import { TEXTS } from "../../src/texts";
@@ -30,15 +31,25 @@ interface Request {
   forwardedProps?: { warmup?: boolean };
 }
 
-function value(minutes = 5): InterruptValue {
-  const [shown] = example<InterruptValue>("interrupt_value");
-  if (!shown) throw new Error("the examples hold no interrupt value");
+// The contract's examples: the confirm control, the handoff control, and both in one interrupt.
+function value(minutes = 5, index = 0): InterruptValue {
+  const shown = example<InterruptValue>("interrupt_value")[index];
+  if (!shown) throw new Error("the examples hold no such interrupt value");
   const expiresAt = new Date(Date.now() + minutes * 60_000).toISOString();
-  const controls = shown.controls.map((control) => ({
-    ...control,
-    expires_at: expiresAt,
-  })) as InterruptValue["controls"];
+  const controls = shown.controls.map((control) =>
+    control.kind === "block_confirmation"
+      ? { ...control, expires_at: expiresAt }
+      : control,
+  ) as InterruptValue["controls"];
   return { ...shown, controls };
+}
+
+function offered(shown: InterruptValue): HandoffOffer {
+  const found = shown.controls.find(
+    (control): control is HandoffOffer => control.kind === "handoff_offer",
+  );
+  if (!found) throw new Error("the interrupt value holds no offer");
+  return found;
 }
 
 let turns = 0;
@@ -258,4 +269,121 @@ test("a payload the chat can't read shows no control", () => {
   ).toBeNull();
   expect(shownIn([{ id: "interrupt-1", reason: "tool_call" }])).toBeNull();
   expect(shownIn(undefined)).toBeNull();
+});
+
+test("shows the handoff control from the interrupt's payload, in fixed text in its language (POL-45)", async () => {
+  const shown = value(5, 1);
+  runtime((request) =>
+    run(request, "Uma pessoa do banco cuida da reposição.", shown),
+  );
+
+  await send("Roubaram meu cartão de crédito.");
+
+  const offer = await screen.findByRole("group", {
+    name: TEXTS.pt.offer.label,
+  });
+  expect(
+    within(offer).getByText(TEXTS.pt.offer.reason("unsupported_request")),
+  ).toBeInTheDocument();
+  expect(
+    within(offer).getByRole("button", { name: TEXTS.pt.offer.accept }),
+  ).toBeEnabled();
+  expect(
+    screen.queryByRole("group", { name: TEXTS.pt.control.label }),
+  ).not.toBeInTheDocument();
+});
+
+test("accepting sends the offer's answer as the contract's resume, and leaves it disabled", async () => {
+  const shown = value(5, 1);
+  const requests = runtime((request) =>
+    request.resume
+      ? run(request, "Passei seu caso para uma pessoa do banco.")
+      : run(request, "Uma pessoa do banco cuida da reposição.", shown),
+  );
+  await send("Roubaram meu cartão de crédito.");
+  const offer = await screen.findByRole("group", {
+    name: TEXTS.pt.offer.label,
+  });
+
+  await userEvent
+    .setup()
+    .click(within(offer).getByRole("button", { name: TEXTS.pt.offer.accept }));
+
+  await screen.findByText("Passei seu caso para uma pessoa do banco.");
+  const resumed = requests.at(-1);
+  expect(errors("request", resumed)).toEqual([]);
+  expect(resumed?.resume).toEqual([
+    {
+      interruptId: "interrupt-1",
+      status: "resolved",
+      payload: { kind: "accept", offer_id: offered(shown).offer_id },
+    },
+  ]);
+  const accept = within(
+    screen.getByRole("group", { name: TEXTS.pt.offer.label }),
+  ).getByRole("button", { name: TEXTS.pt.offer.accept });
+  expect(accept).toBeDisabled();
+  expect(accept).toHaveAttribute("aria-pressed", "true");
+});
+
+test("both controls of one interrupt show together, and answering one disables both (POL-36)", async () => {
+  const shown = value(5, 2);
+  const requests = runtime((request) =>
+    request.resume
+      ? run(request, "De acuerdo: no pasé su caso a una persona del banco.")
+      : run(request, "Para bloquear la tarjeta, use el botón.", shown),
+  );
+  await send("sí");
+  const confirmation = await screen.findByRole("group", {
+    name: TEXTS.es.control.label,
+  });
+  const offer = screen.getByRole("group", { name: TEXTS.es.offer.label });
+
+  await userEvent
+    .setup()
+    .click(within(offer).getByRole("button", { name: TEXTS.es.offer.decline }));
+
+  await screen.findByText(
+    "De acuerdo: no pasé su caso a una persona del banco.",
+  );
+  expect(requests.at(-1)?.resume?.[0]?.payload).toEqual({
+    kind: "decline",
+    offer_id: offered(shown).offer_id,
+  });
+  expect(
+    within(confirmation).getByRole("button", {
+      name: TEXTS.es.control.confirm,
+    }),
+  ).toBeDisabled();
+  expect(
+    within(offer).getByRole("button", { name: TEXTS.es.offer.accept }),
+  ).toBeDisabled();
+});
+
+test("an interrupt with a control the chat can't read shows none of its controls", () => {
+  const shown = value(5, 2);
+  const controls = shown.controls.map((control) =>
+    control.kind === "handoff_offer"
+      ? { ...control, reason_code: "fraud_review" }
+      : control,
+  );
+
+  expect(
+    shownIn([
+      {
+        id: "interrupt-1",
+        reason: "controls",
+        metadata: { language: "es", controls },
+      },
+    ]),
+  ).toBeNull();
+  expect(
+    shownIn([
+      {
+        id: "interrupt-1",
+        reason: "controls",
+        metadata: { language: "es", controls: [] },
+      },
+    ]),
+  ).toBeNull();
 });

@@ -262,6 +262,11 @@ data "aws_iam_policy_document" "runtime" {
     actions   = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
     resources = [var.confirmations_table.arn]
   }
+  # Handoffs are filed through file_handoff, so the Runtime writes no case itself.
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [var.file_handoff_function.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "runtime" {
@@ -331,6 +336,7 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
     SESSION_BINDINGS_TABLE  = aws_dynamodb_table.session_bindings.name
     EXECUTION_RECORDS_TABLE = aws_dynamodb_table.execution_records.name
     CONFIRMATIONS_TABLE     = var.confirmations_table.name
+    FILE_HANDOFF_FUNCTION   = var.file_handoff_function.name
     MODEL_KEY_PROVIDER      = aws_bedrockagentcore_api_key_credential_provider.model.name
     # The SDK then fails without a workload token instead of making a local workload identity (spike S4).
     DOCKER_CONTAINER = "1"

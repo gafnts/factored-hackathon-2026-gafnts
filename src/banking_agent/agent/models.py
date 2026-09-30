@@ -1,7 +1,7 @@
 """
 The graph's model calls: Claude Haiku 4.5 through Anthropic's API with the key from AgentCore Identity (ADR-0004,
-Models, as amended). The router's and the extraction's outputs are typed through structured output, each field among
-the values its step allows, and a reply is plain text read whole.
+Models, as amended). The router's, the extraction's, and the handoff text's outputs are typed through structured output,
+each field among the values its step allows, and a reply is plain text read whole.
 Every call is one attempt, recorded as a model_call entry, and runs with emit-messages and emit-tool-calls off and
 streaming disabled, so nothing it writes reaches the chat unchecked (ADR-0004, What the chat receives). The client's
 own retries are off too, since each attempt is recorded (decision 18).
@@ -56,13 +56,15 @@ Record = Callable[..., Any]
 
 class RouterOutput(BaseModel):
     """
-    Every supported request the message holds, and whether it holds one at all (S5).
+    Every supported request the message holds, whether it holds one at all (S5), and whether it is a complaint, which
+    POL-44 hands off under its own reason code (ADR-0004's amendment of 2026-09-30).
     """
 
     model_config = ConfigDict(extra="forbid")
 
     requests: list[Label] = Field(max_length=8)
     has_request: bool
+    complaint: bool
 
 
 class BlockDetails(BaseModel):
@@ -79,7 +81,36 @@ class BlockDetails(BaseModel):
     )
 
 
-OUTPUTS: dict[str, type[BaseModel]] = {"route": RouterOutput, "extract": BlockDetails}
+class TransactionChoice(BaseModel):
+    """
+    The transactions listed that fit what the customer says about a charge they don't recognize, by their number in
+    the list the model reads, never by ID (POL-27, POL-39). Code keeps only numbers in the list.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    fitting: list[int] = Field(max_length=10)
+
+
+class HandoffText(BaseModel):
+    """
+    A handoff's free text, in Spanish (POL-46). Its lengths and its text rule are checked in code, which falls back to
+    fixed text, so the model's output is never refused for them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    customer_statements: list[str]
+    unresolved_questions: list[str]
+
+
+OUTPUTS: dict[str, type[BaseModel]] = {
+    "route": RouterOutput,
+    "extract": BlockDetails,
+    "choose": TransactionChoice,
+    "handoff_text": HandoffText,
+}
 
 
 class ModelFailedError(RuntimeError):
@@ -174,15 +205,24 @@ class Models:
         self.record = record
 
     async def call(
-        self, node: str, purpose: str, messages: Sequence[BaseMessage]
+        self,
+        node: str,
+        purpose: str,
+        messages: Sequence[BaseMessage],
+        output: str | None = None,
     ) -> tuple[AIMessage | None, Any]:
+        """
+        output names the structured output, when it isn't the purpose's own: the record knows a transaction's choice as
+        an extraction.
+        """
         started = time.perf_counter()
         raw: AIMessage | None = None
         parsed: Any = None
         outcome = "ok"
+        typed = output or purpose
         try:
-            answer = await self.factory(purpose).ainvoke(list(messages))
-            if purpose in OUTPUTS:
+            answer = await self.factory(typed).ainvoke(list(messages))
+            if typed in OUTPUTS:
                 raw, parsed = answer["raw"], answer["parsed"]
                 if answer.get("parsing_error") is not None or parsed is None:
                     outcome = "invalid_output"
@@ -217,6 +257,9 @@ class Models:
             entry["output"] = parsed.model_dump()
         if outcome == "ok" and isinstance(parsed, BlockDetails):
             entry["output"] = {"extracted": parsed.model_dump()}
+        if outcome == "ok" and isinstance(parsed, TransactionChoice):
+            fitting = ",".join(str(n) for n in parsed.fitting)
+            entry["output"] = {"extracted": {"fitting": fitting or None}}
         await self.record("model_call", **entry)
         if outcome != "ok":
             raise ModelFailedError(f"the {node} call ended {outcome}")
@@ -241,6 +284,35 @@ class Models:
         )
         details: BlockDetails = parsed
         return details
+
+    async def choose(self, text: str, listing: str) -> TransactionChoice:
+        system = SystemMessage(
+            [
+                {"type": "text", "text": prompt("find_transaction")},
+                {"type": "text", "text": listing},
+            ]
+        )
+        _, parsed = await self.call(
+            "find_transaction", "extract", [system, HumanMessage(text)], "choose"
+        )
+        chosen: TransactionChoice = parsed
+        return chosen
+
+    async def handoff_text(self, conversation: str, context: str) -> HandoffText:
+        """
+        The conversation reaches the model as one message of data, never as turns it could continue.
+        """
+        system = SystemMessage(
+            [
+                {"type": "text", "text": prompt("handoff")},
+                {"type": "text", "text": context},
+            ]
+        )
+        _, parsed = await self.call(
+            "handoff", "handoff_text", [system, HumanMessage(conversation)]
+        )
+        text: HandoffText = parsed
+        return text
 
     async def reply(
         self, conversation: Sequence[BaseMessage], facts: str, language_name: str
