@@ -83,10 +83,10 @@ test: ## Run pytest and Vitest, each with its coverage floor
 	pnpm --dir web test
 
 # Short tracebacks against a deployed stack: a long one prints a failing helper's arguments, tokens included.
-integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
-	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser" -v --tb=short
+integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials; SLOW=1 adds those that wait out a token)
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser$(if $(SLOW),, and not slow)" -v --tb=short
 
-browser: _check-profile outputs ## Play a customer's journey in Chromium against ENV's deployed site (prints no text or IDs)
+browser: _check-profile outputs ## Play the chat and the console in Chromium against ENV's deployed site (prints no text or IDs)
 	uv run playwright install chromium
 	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v --tb=short
 
@@ -110,7 +110,8 @@ site: _check-profile outputs web ## Build the web app and upload it to ENV's sit
 web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack, with the config.json its site holds
 	@mkdir -p web/public
 	uv run python -c 'import json, sys; json.dump(json.load(open(sys.argv[1]))["site"]["value"]["config"], sys.stdout)' $(OUTPUTS) > web/public/config.json
-	pnpm --dir web dev
+	SITE_URL=$$(uv run python -c 'import json, sys; print(json.load(open(sys.argv[1]))["site"]["value"]["url"])' $(OUTPUTS)) \
+		pnpm --dir web dev
 
 
 ##@ Bootstrap

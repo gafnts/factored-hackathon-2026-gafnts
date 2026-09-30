@@ -29,3 +29,8 @@ variable "attach_domain" {
     error_message = "attach_domain needs domain_name."
   }
 }
+
+variable "api_origin" {
+  description = "The console API's own domain, served under /api on the site's origin, so the page calls it without CORS"
+  type        = string
+}

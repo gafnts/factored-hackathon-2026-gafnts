@@ -64,6 +64,17 @@ output "handoff" {
   }
 }
 
+output "console" {
+  description = "The console API, as the site serves it under /api and on its own domain, and each route's Lambda"
+  value = {
+    url              = "${module.site.url}/api"
+    api_endpoint     = module.console.api_endpoint
+    api_id           = module.console.api_id
+    functions        = module.console.functions
+    access_log_group = module.console.access_log_group
+  }
+}
+
 output "runtime_arn" {
   value = module.runtime.runtime_arn
 }

@@ -139,7 +139,9 @@ def test_a_staff_token_carries_no_customer_id(
     ("role", "client"),
     [
         ("customer", "staff"),
+        ("evaluation", "staff"),
         ("staff", "customer"),
+        ("ai_team", "customer"),
         ("no_group", "customer"),
         ("no_group", "staff"),
     ],
@@ -625,6 +627,7 @@ def test_every_log_group_of_the_stack_keeps_a_retention(
         f"/aws/lambda/{outputs['prefix']}-",
         outputs["runtime_log_group"].removesuffix("-DEFAULT"),
         "/aws-dynamodb/imports",
+        outputs["console"]["access_log_group"],
     ]
     groups = [
         group
@@ -638,5 +641,7 @@ def test_every_log_group_of_the_stack_keeps_a_retention(
     assert {g["logGroupName"] for g in groups} >= {
         outputs["runtime_log_group"],
         "/aws-dynamodb/imports",
+        outputs["console"]["access_log_group"],
+        *(f"/aws/lambda/{f}" for f in outputs["console"]["functions"].values()),
     }
     assert [g["logGroupName"] for g in groups if "retentionInDays" not in g] == []

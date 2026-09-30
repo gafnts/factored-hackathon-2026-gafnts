@@ -22,6 +22,7 @@ from banking_agent.tools.cases import (
     Cases,
     FraudFlags,
     draw_reference,
+    queue_order,
     reference_item,
 )
 from banking_agent.tools.identity import Caller, Verifier
@@ -208,6 +209,7 @@ def file_case(
     if payload["priority"] == "normal" and urgent(payload):
         payload["priority"] = "urgent"
         errors.append(failure(["priority"], "policy"))
+    filed_at = wall_time(now)
     case = {
         "pk": handoff_id,
         "kind": "case",
@@ -221,7 +223,8 @@ def file_case(
         "source": caller.source,
         "status": "filed",
         "queue_key": f"{caller.source}#{payload['queue']}#filed",
-        "filed_at": wall_time(now),
+        "queue_order": queue_order(payload["priority"], filed_at),
+        "filed_at": filed_at,
         "flagged": bool(errors),
         "validation_errors": errors[:MAX_ERRORS],
         "record": {"sign_in": caller.origin_jti, "turns": arguments["turns"]},

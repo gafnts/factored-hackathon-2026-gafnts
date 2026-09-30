@@ -143,6 +143,7 @@ def test_a_case_is_filed_with_the_facts_only_this_tool_reads(
     assert held[f"REF#{output['reference']}"]["handoff_id"] == case["handoff_id"]
     assert case["reference"] == output["reference"]
     assert case["queue_key"] == "demo#dispute_intake#filed"
+    assert case["queue_order"] == f"0#{case['filed_at']}"
     assert case["record"] == {"sign_in": SIGN_IN, "turns": arguments["turns"]}
     assert all(f in case["payload"]["verified_facts"] for f in output["added_facts"])
     own = [e for e in case["payload"]["evidence"] if e["call_id"] == call_id]
@@ -396,4 +397,7 @@ def test_a_priority_the_payload_shows_should_be_urgent_is_raised(
 
     assert output["priority"] == "urgent"
     assert {"path": "/priority", "rule": "policy"} in output["validation_errors"]
-    assert stored(stores)[arguments["payload"]["handoff_id"]]["priority"] == "urgent"
+    case = stored(stores)[arguments["payload"]["handoff_id"]]
+    assert case["priority"] == "urgent"
+    # The queue sorts the raised priority, not the one the payload arrived with.
+    assert case["queue_order"] == f"1#{case['filed_at']}"

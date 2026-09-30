@@ -1,0 +1,11 @@
+[
+  {
+    "error": "forbidden"
+  },
+  {
+    "error": "not_found"
+  },
+  {
+    "error": "invalid_request"
+  }
+]

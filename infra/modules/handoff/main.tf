@@ -24,15 +24,16 @@ resource "aws_dynamodb_table" "cases" {
   }
 
   attribute {
-    name = "filed_at"
+    name = "queue_order"
     type = "S"
   }
 
-  # Only filed cases carry queue_key, so drafts and reference items stay out of the queue.
+  # Only filed cases carry queue_key, so drafts and reference items stay out of the queue. Read in descending order,
+  # queue_order lists urgent cases first and each priority's newest first.
   global_secondary_index {
     name               = "by_queue"
     projection_type    = "INCLUDE"
-    non_key_attributes = ["reference", "priority", "reason_code", "language", "flagged"]
+    non_key_attributes = ["reference", "priority", "reason_code", "language", "filed_at", "flagged"]
 
     key_schema {
       attribute_name = "queue_key"
@@ -40,7 +41,7 @@ resource "aws_dynamodb_table" "cases" {
     }
 
     key_schema {
-      attribute_name = "filed_at"
+      attribute_name = "queue_order"
       key_type       = "RANGE"
     }
   }

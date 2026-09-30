@@ -248,22 +248,31 @@ def unmatched(case: dict[str, Any], entries: list[dict[str, Any]]) -> list[str]:
     return problems
 
 
+Dispute = tuple[Conversation, dict[str, Any], dict[str, Any]]
+
+
+def dispute(outputs: dict[str, Any], access: str) -> Dispute:
+    """
+    A conversation in Portuguese on a new sign-in, the persona's active credit card, and a charge on it to dispute.
+    """
+    listed = tool_output(call(outputs, access, "list_cards", arguments(access)))
+    card: dict[str, Any] = next(
+        c
+        for c in listed["cards"]
+        if c["product_status"] == "Active"
+        and c["product_type"] == "Tarjeta Crédito"
+        and not c["past_expiration"]
+    )
+    charge = disputed(window(outputs, access, card["card_id"]))
+    return Conversation(outputs, access, "pt"), card, charge
+
+
 @pytest.fixture
 def disputing(
     outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn
-) -> Callable[[], tuple[Conversation, dict[str, Any], dict[str, Any]]]:
-    def start() -> tuple[Conversation, dict[str, Any], dict[str, Any]]:
-        access = sign_in(users["other_customer"], "customer")["access"]
-        listed = tool_output(call(outputs, access, "list_cards", arguments(access)))
-        card: dict[str, Any] = next(
-            c
-            for c in listed["cards"]
-            if c["product_status"] == "Active"
-            and c["product_type"] == "Tarjeta Crédito"
-            and not c["past_expiration"]
-        )
-        charge = disputed(window(outputs, access, card["card_id"]))
-        return Conversation(outputs, access, "pt"), card, charge
+) -> Callable[[], Dispute]:
+    def start() -> Dispute:
+        return dispute(outputs, sign_in(users["other_customer"], "customer")["access"])
 
     return start
 

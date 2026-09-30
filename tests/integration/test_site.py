@@ -103,8 +103,18 @@ def test_config_json_names_the_stack_and_nothing_else(
         "region": "us-east-1",
         "user_pool_id": outputs["user_pool_id"],
         "customer_client_id": outputs["customer_client_id"],
+        "staff_client_id": outputs["staff_client_id"],
         "runtime_url": outputs["invoke_url"],
     }
+
+
+def test_the_console_api_answers_under_api_on_the_sites_own_origin(site: str) -> None:
+    # The API's own answer, not the app's shell, under the site's headers (ADR-0007's amendment of 2026-09-30).
+    response = httpx.get(f"{site}/api/cases?queue=dispute_intake", timeout=30)
+
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.headers["x-content-type-options"] == "nosniff"
 
 
 def test_no_persona_reaches_the_site(site: str, persona_ids: dict[str, str]) -> None:

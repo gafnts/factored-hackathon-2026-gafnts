@@ -108,7 +108,7 @@
       }
     },
     "filed_case": {
-      "description": "A filed case, which the queue lists by its source, queue, and status (the by_queue index), newest first. flagged says that parts of the payload failed a check and were left out or replaced, each named by its path and the rule it broke, never its value, so the console shows the case as flagged (ADR-0004, The handoff).",
+      "description": "A filed case, which the queue lists by its source, queue, and status (the by_queue index), urgent cases first and each priority's newest first. flagged says that parts of the payload failed a check and were left out or replaced, each named by its path and the rule it broke, never its value, so the console shows the case as flagged (ADR-0004, The handoff).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -125,6 +125,7 @@
         "source",
         "status",
         "queue_key",
+        "queue_order",
         "filed_at",
         "flagged",
         "validation_errors",
@@ -152,6 +153,11 @@
           "description": "The source, the queue, and the status, joined by #: the by_queue index's key, which a draft doesn't carry.",
           "type": "string",
           "pattern": "^(demo|evaluation)#(customer_service|dispute_intake)#(filed|claimed|resolved)$"
+        },
+        "queue_order": {
+          "description": "The priority's rank, 1 for urgent and 0 for normal, and the filing time, joined by #: the by_queue index's sort key, so a descending query lists urgent cases first and each priority's newest first (ADR-0007's amendment of 2026-09-30).",
+          "type": "string",
+          "pattern": "^[01]#[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
         },
         "saved_at": {
           "description": "When the case was saved as a draft, if it was one first.",
@@ -207,6 +213,11 @@
           "if": { "properties": { "reason_code": { "const": "unrecognized_charge" } } },
           "then": { "properties": { "queue": { "const": "dispute_intake" } } },
           "else": { "properties": { "queue": { "const": "customer_service" } } }
+        },
+        {
+          "if": { "properties": { "priority": { "const": "urgent" } } },
+          "then": { "properties": { "queue_order": { "pattern": "^1#" } } },
+          "else": { "properties": { "queue_order": { "pattern": "^0#" } } }
         },
         {
           "if": { "properties": { "flagged": { "const": true } } },

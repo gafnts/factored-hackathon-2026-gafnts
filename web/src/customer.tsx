@@ -41,7 +41,7 @@ export function Customer({ language }: { language: Language }) {
         if (!unmounted.signal.aborted) setState({ kind: "broken" });
         return;
       }
-      configureAuth(config);
+      configureAuth(config, "customers");
       const signedIn = await currentSignIn();
       if (unmounted.signal.aborted) return;
       if (!signedIn) setState({ kind: "signed-out", config, ended: false });

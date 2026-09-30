@@ -1,15 +1,21 @@
 """
-The shared contracts: JSON Schemas that the tools, the pipeline's export, the chat, the graph, and the evaluation are
-checked against (ADR-0004, decisions 9 and 16). The schemas are the source of truth; code is tested against them.
+The shared contracts: JSON Schemas that the tools, the pipeline's export, the chat, the console, the graph, and the
+evaluation are checked against (ADR-0004, decisions 9 and 16). The schemas are the source of truth; code is tested
+against them. A contract may refer to another, or to the handoff schema, by its ID.
 """
 
 import json
+from functools import cache
 from importlib.resources import files
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from referencing import Registry
+from referencing.jsonschema import DRAFT202012
 
-NAMES = ("chat", "execution-record", "handoff-case", "tools", "tools-data")
+from banking_agent.policy import handoff_schema
+
+NAMES = ("chat", "console", "execution-record", "handoff-case", "tools", "tools-data")
 
 TOOLS = (
     "list_cards",
@@ -62,8 +68,17 @@ def definition(name: str, ref: str) -> dict[str, Any]:
     return {**kept, "$ref": f"#/$defs/{ref}"}
 
 
+@cache
+def registry() -> Registry:
+    return Registry().with_resources(
+        (loaded["$id"], DRAFT202012.create_resource(loaded))
+        for loaded in (*(schema(name) for name in NAMES), handoff_schema())
+    )
+
+
 def validator(name: str, ref: str | None = None) -> Draft202012Validator:
     return Draft202012Validator(
         schema(name) if ref is None else definition(name, ref),
         format_checker=Draft202012Validator.FORMAT_CHECKER,
+        registry=registry(),
     )

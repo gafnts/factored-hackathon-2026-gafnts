@@ -1,4 +1,5 @@
-# The web app: a private bucket that CloudFront reads through origin access control (ADR-0007).
+# The web app: a private bucket that CloudFront reads through origin access control, and the console API under /api on
+# the same origin (ADR-0007).
 
 data "aws_caller_identity" "current" {}
 
@@ -186,6 +187,15 @@ data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
 }
 
+data "aws_cloudfront_cache_policy" "disabled" {
+  name = "Managed-CachingDisabled"
+}
+
+# Every viewer header but Host reaches the API, Authorization among them; API Gateway needs its own Host.
+data "aws_cloudfront_origin_request_policy" "api" {
+  name = "Managed-AllViewerExceptHostHeader"
+}
+
 # Access logs and a WAF are production work (OPS-11).
 #trivy:ignore:AVD-AWS-0010
 #trivy:ignore:AVD-AWS-0011
@@ -200,6 +210,32 @@ resource "aws_cloudfront_distribution" "site" {
     origin_id                = "site"
     domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.site.id
+  }
+
+  # The console API on the site's own origin (ADR-0007's amendment of 2026-09-30): no CORS, and the CSP's 'self'.
+  origin {
+    origin_id   = "console"
+    domain_name = var.api_origin
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  # Never cached: each answer depends on the caller's token, and the API sends no-store.
+  ordered_cache_behavior {
+    path_pattern               = "/api/*"
+    target_origin_id           = "console"
+    viewer_protocol_policy     = "https-only"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.api.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.site.id
   }
 
   # Objects carry their own Cache-Control: hashed assets are immutable, index.html and config.json revalidate.

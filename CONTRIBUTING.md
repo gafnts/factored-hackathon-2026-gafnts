@@ -336,7 +336,7 @@ make lint         # Run ruff check, and ESLint on the web app
 make type         # Run mypy, and tsc on the web app
 make test         # Run pytest and Vitest, each with its coverage floor
 make integration  # Test ENV's deployed stack (needs credentials, the model key, and make personas; deselected by default)
-make browser      # Play a customer's journey in Chromium against ENV's deployed site (same needs; installs Chromium)
+make browser      # Play the chat and the console in Chromium against ENV's deployed site (same needs; installs Chromium)
 make tf-format    # Format all Terraform files
 ```
 
@@ -353,10 +353,10 @@ make init                # Initialize the local backend (safe to re-run)
 make plan                # Build, preview changes, and save the plan to build/local.tfplan
 make apply               # Apply the saved plan
 make site                # Build the web app, upload it to the site, and invalidate the distribution's cache
-make integration         # Test the deployed stack with throwaway users
-make browser             # Sign in, chat, and sign out in Chromium against the deployed site
+make integration         # Test the deployed stack with throwaway users (SLOW=1 also waits out a token, 15 minutes)
+make browser             # Play the chat and the console in Chromium against the deployed site
 make probe               # Time the Runtime per persona and check what it stores and traces
-make web-dev             # Serve the web app on localhost:5173 against the deployed stack
+make web-dev             # Serve the web app on localhost:5173 against the deployed stack, /api included
 make destroy ENV=local   # Tear down your local resources
 ```
 
@@ -364,11 +364,11 @@ make destroy ENV=local   # Tear down your local resources
 
 `make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
 
-The site's `config.json`, which names the user pool, the customers' app client, and the Runtime, is written by Terraform at every apply, so `make site` uploads only the build and leaves it alone. `make outputs` writes the site's URL under `site.url` in `build/<env>.outputs.json`.
+The site's `config.json`, which names the user pool, both app clients, and the Runtime, is written by Terraform at every apply, so `make site` uploads only the build and leaves it alone. The console API is served under `/api` on the site's own origin, so the page reaches it without a cross-origin call, and `make web-dev` passes `/api` on to the deployed site. `make outputs` writes the site's URL under `site.url` in `build/<env>.outputs.json`, and the console API's under `console.url`.
 
 A custom domain is optional ([ADR-0007](docs/adr/0007-role-gated-web-app.md#hosting-and-the-domain)); without one, the site runs on its CloudFront domain. Setting `domain_name` in `infra/envs/<env>.tfvars` requests a certificate in us-east-1, and after that apply `make outputs` lists under `site.domain_records` the two CNAMEs the name needs in its DNS: the certificate's validation, which stays so the certificate renews, and the name itself, pointing at the distribution. Once both are in DNS, `attach_domain = true` waits for ACM to issue the certificate (up to 30 minutes), puts the name on the distribution, and makes `site.url` name it. The validation record belongs to the name and the account rather than to one certificate, so with it already in DNS, one change can set both.
 
-`make browser` runs the tests marked `browser`, which `make integration` leaves out: Playwright drives Chromium through the site as a customer would, with throwaway users, and asserts on the page and on the sign-in's execution record. It prints no reply, token, or ID, and saves no trace, screenshot, or video. Run `make site` first, so it tests the build you have.
+`make browser` runs the tests marked `browser`, which `make integration` leaves out: Playwright drives Chromium through the site as a customer and a human agent would, in two tabs, with throwaway users, and asserts on the pages and on the sign-in's execution record. It prints no reply, token, or ID, and saves no trace, screenshot, or video. Run `make site` first, so it tests the build you have.
 
 The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`pipeline/`, `src/banking_agent/pipeline/`, the export's writer, or the tools' data contract, as the [pipeline's README](pipeline/README.md) lists them) gives it a new version: run `make pipeline` and `make export`, which uploads it and prints the value, set it in both files, and commit the manifest it writes under `docs/pipeline/`. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
 

@@ -30,8 +30,8 @@ export function errors(definition: string, value: unknown): string[] {
       );
 }
 
-export function example<T>(name: string): T[] {
-  return read(`examples/chat.${name}.json`) as T[];
+export function example<T>(name: string, contract = "chat"): T[] {
+  return read(`examples/${contract}.${name}.json`) as T[];
 }
 
 export interface Event {

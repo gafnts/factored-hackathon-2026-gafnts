@@ -43,30 +43,43 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-test("keeps the tokens in the tab's sessionStorage, for the customers' app client", () => {
-  const storage = vi.spyOn(cognitoUserPoolsTokenProvider, "setKeyValueStorage");
-  const configure = vi.spyOn(Amplify, "configure");
+test.each([
+  ["customers", "customers-client"],
+  ["staff", "staff-client"],
+] as const)(
+  "keeps the tokens in the tab's sessionStorage, for the %s app client",
+  (side, client) => {
+    const storage = vi.spyOn(
+      cognitoUserPoolsTokenProvider,
+      "setKeyValueStorage",
+    );
+    const configure = vi.spyOn(Amplify, "configure");
 
-  configureAuth({
-    region: "us-east-1",
-    user_pool_id: "us-east-1_pool",
-    customer_client_id: "customers-client",
-    runtime_url: "https://runtime.example",
-  });
+    configureAuth(
+      {
+        region: "us-east-1",
+        user_pool_id: "us-east-1_pool",
+        customer_client_id: "customers-client",
+        staff_client_id: "staff-client",
+        runtime_url: "https://runtime.example",
+      },
+      side,
+    );
 
-  expect(storage).toHaveBeenCalledWith(sessionStorage);
-  expect(configure).toHaveBeenCalledWith(
-    {
-      Auth: {
-        Cognito: {
-          userPoolId: "us-east-1_pool",
-          userPoolClientId: "customers-client",
+    expect(storage).toHaveBeenCalledWith(sessionStorage);
+    expect(configure).toHaveBeenCalledWith(
+      {
+        Auth: {
+          Cognito: {
+            userPoolId: "us-east-1_pool",
+            userPoolClientId: client,
+          },
         },
       },
-    },
-    { Auth: { tokenProvider: cognitoUserPoolsTokenProvider } },
-  );
-});
+      { Auth: { tokenProvider: cognitoUserPoolsTokenProvider } },
+    );
+  },
+);
 
 test("a sign-in ends an hour after it began, whatever the refreshes (POL-09)", async () => {
   session();

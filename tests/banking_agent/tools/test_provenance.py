@@ -201,3 +201,19 @@ def test_the_records_are_read_by_turn_in_the_sign_ins_partition_only(
         read = dynamo.turns(SIGN_IN, prefixes)
         assert sorted(read, key=str) == sorted(memory.turns(SIGN_IN, prefixes), key=str)
     assert len(dynamo.turns(SIGN_IN, turns)) == 3
+
+
+def test_the_records_can_be_read_by_the_attributes_named_only(
+    client: DynamoDBClient,
+) -> None:
+    # The console's role may name a tool call's attributes only (ADR-0007's amendment of 2026-09-30).
+    turns = file_handoff_example()["turns"]
+    named = ("sign_in", "entry_key", "kind", "call_id", "result")
+    dynamo, memory = DynamoRecords(client, RECORDS), MemoryRecords(recorded_example())
+
+    read = dynamo.turns(SIGN_IN, turns, named)
+
+    assert sorted(read, key=str) == sorted(memory.turns(SIGN_IN, turns, named), key=str)
+    assert len(read) == 3
+    assert all(set(entry) <= set(named) for entry in read)
+    assert any("result" in entry for entry in read)

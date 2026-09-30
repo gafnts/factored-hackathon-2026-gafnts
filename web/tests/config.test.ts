@@ -6,6 +6,7 @@ const CONFIG = {
   region: "us-east-1",
   user_pool_id: "us-east-1_example",
   customer_client_id: "client",
+  staff_client_id: "staff",
   runtime_url:
     "https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/r/invocations",
 };

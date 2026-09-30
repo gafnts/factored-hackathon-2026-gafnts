@@ -42,6 +42,7 @@ const CONFIG = {
   region: "us-east-1",
   user_pool_id: "us-east-1_pool",
   customer_client_id: "customers-client",
+  staff_client_id: "staff-client",
   runtime_url: "https://runtime.example",
 };
 const texts = TEXTS.es;
