@@ -1,6 +1,6 @@
 # Hello, Factored! 👋
 
-This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
+This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package, the web app, and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
 
 Setup commands are idempotent, so re-running one after a failure is always safe, and `make doctor` tells you at any point which steps are done and which are left.
 
@@ -53,7 +53,7 @@ No path depends on the maintainers' AWS account or credentials. Resource names a
 Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role is denied any resource tagged for the other environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
 
 > [!NOTE]
-> Tag-based isolation is partial: it doesn't reach untagged resources, or actions that ignore resource tags (S3 object reads and writes among them). The state bucket is covered by explicit denies instead (see [Guardrails](#guardrails)). A separate AWS account per environment is remaining deployment work.
+> Tag-based isolation is partial: it doesn't reach untagged resources, or actions that ignore resource tags (S3 object reads and writes among them). The state bucket, and each environment's own buckets and CloudFront functions, are covered by explicit denies instead (see [Guardrails](#guardrails)). A separate AWS account per environment is remaining deployment work.
 
 ### Branches
 
@@ -75,7 +75,7 @@ The operations that can hurt are hard to trigger by mistake:
 
 | Risk | What stops it |
 |---|---|
-| Applying or destroying `prototype` from a laptop | `make` refuses without `I_KNOW=1`; CI owns `prototype` |
+| Applying or destroying `prototype`, or deploying its site, from a laptop | `make` refuses without `I_KNOW=1`; CI owns `prototype` |
 | A `local` target running as your admin profile | `make` refuses the targets that deploy or test `local` while `AWS_PROFILE` is unset, instead of falling back to the default profile |
 | `make destroy` hitting the wrong environment | It requires an explicit `ENV`, and refuses when Terraform is initialized for a different one |
 | Unfinished work reaching the prototype | A workflow fails any PR into `main` that doesn't come from `develop` |
@@ -83,6 +83,7 @@ The operations that can hurt are hard to trigger by mistake:
 | Write credentials on pull requests | PR plans run under a read-only role, without taking the state lock |
 | CI changing its own permissions | `infra/iam/` is applied by hand with admin credentials; the deploy roles are denied IAM changes to themselves, and every role they create must carry a permissions boundary that excludes IAM |
 | One environment touching another's state | Each role is denied every other prefix in the state bucket (including the IAM and dataset roots'), and any change to the bucket itself; the roles they create are denied the bucket entirely |
+| One environment writing another's site or zips | Each deploy role, and every role it creates, is denied the other environment's buckets and CloudFront functions by name, since S3 object writes ignore tags and functions can't carry them |
 | Bootstrapping with the organizers' keys | `make bootstrap`, `make backend`, and `make teardown` refuse the organizers' account |
 | Deleting shared state | `iam-destroy` and `dataset-destroy` need `I_KNOW=1`, and `make teardown` makes you type the bucket name |
 | Secrets in commits | `gitleaks` and `detect-private-key` run on every commit, and `gitleaks-history` rescans the full history on every push and in CI |
@@ -98,6 +99,8 @@ The operations that can hurt are hard to trigger by mistake:
 | Tool | Version | Needed for |
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | Recent | Python 3.13 (uv installs it from `.python-version`), dependencies, pre-commit |
+| [Node.js](https://nodejs.org) | 24.21.0 (`.nvmrc`; with [nvm](https://github.com/nvm-sh/nvm), `nvm install` in the repository) | The web app in `web/`, and its hooks |
+| [pnpm](https://pnpm.io) | Recent; it runs the version `web/package.json` pins | The web app's dependencies |
 | [Terraform](https://developer.hashicorp.com/terraform/install) | 1.16.x (`.terraform-version`) | Infrastructure, and the Terraform hooks |
 | [tflint](https://github.com/terraform-linters/tflint#installation) | CI uses v0.64.0 | Terraform lint hook. On Homebrew, install from `terraform-linters/tap/tflint`: since v0.63, homebrew-core no longer gets new releases |
 | [trivy](https://github.com/aquasecurity/trivy) | CI uses v0.74.0 | Terraform security scan (pre-push hook) |
@@ -108,18 +111,18 @@ The operations that can hurt are hard to trigger by mistake:
 Then install the dependencies and hooks, and run every check once:
 
 ```bash
-make install   # Python deps, pre-commit hooks for both stages, tflint plugins
+make install   # Python and web deps, pre-commit hooks for both stages, tflint plugins
 make check     # Every hook against every file: the same command CI runs
 ```
 
-If `make check` passes, your machine matches CI. Re-run `make install` after pulling changes to `pyproject.toml`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
+If `make check` passes, your machine matches CI. Re-run `make install` after pulling changes to `pyproject.toml`, `web/package.json`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
 
 From now on, hooks run on their own:
 
 | Stage | What runs | When |
 |---|---|---|
-| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy` | On `git commit` |
-| `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor) | On `git push` |
+| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy`; for the web app, Prettier, ESLint, and `tsc` | On `git commit` |
+| `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor); for the web app, Vitest (with the same floor) and a production build | On `git push` |
 
 ### 2. Connect to the dataset
 
@@ -228,7 +231,7 @@ The deploy workflow needs a `prototype` environment and two repository variables
 
    Or add them under **Settings → Secrets and variables → Actions → Variables**.
 
-The apply job runs on merges to `main` that touch `infra/`. Store `prototype`'s model key before its first deploy ([step 3.7](#37-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
+The apply job runs on merges to `main` that touch the stack's code (`infra/`, `src/`, `web/`), and deploys the site once Terraform has applied; the deployment then links the site's URL from the `prototype` environment, on your fork's own CloudFront domain. Store `prototype`'s model key before its first deploy ([step 3.7](#37-verify-and-deploy-local)), or the apply fails. If `main` already has the infrastructure when you set the variables, trigger the first deploy by hand: **Actions → Deploy · Prototype → Run workflow** on `main`, or `gh workflow run deploy-prototype.yml --ref main`.
 
 #### 3.6 Copy the dataset snapshot and the tools' data
 
@@ -259,6 +262,7 @@ cp .env.example .env   # Then set ANTHROPIC_API_KEY in .env
 make model-key         # Store it in banking-agent-local-anthropic-api-key
 make plan              # Build the zips, preview the local stack, and save the plan
 make apply             # Apply the saved plan
+make site              # Build the web app and upload it to the site
 ```
 
 `make model-key` sends the key straight to Secrets Manager, without printing it or putting it on a command line. Store `prototype`'s key the same way before its first deploy, with `AWS_PROFILE=default make model-key ENV=prototype`, since the local deploy role can't reach its secret; `make doctor` reports both. The secrets outlive `make destroy`, so the key is stored once per environment; `make iam-destroy` deletes them.
@@ -316,7 +320,7 @@ A few habits keep PRs quick to review:
 
 - Write commit subjects in the imperative mood, as the history does ("Add IAM bootstrap module for deploy roles").
 - Cite the requirement IDs from [docs/hackathon-requirements.md](docs/hackathon-requirements.md) (for example `SEC-05`) in the PR description and in the tests that cover them, so every change traces back to what the organizers score.
-- Mirror the package in `tests/`: the tests for `src/banking_agent/<path>/<module>.py` live in `tests/banking_agent/<path>/test_<module>.py`, and fixtures shared by a folder go in its `conftest.py`.
+- Mirror the package in `tests/`: the tests for `src/banking_agent/<path>/<module>.py` live in `tests/banking_agent/<path>/test_<module>.py`, and fixtures shared by a folder go in its `conftest.py`. The web app's tests mirror `web/src/` in `web/tests/` the same way (`<module>.test.ts`).
 - Add an ADR when the change makes a decision someone could reasonably question later (see [Record decisions](#record-decisions)).
 
 ### Run the quality gates
@@ -325,15 +329,18 @@ Hooks run on commit and push, and you can run them on demand:
 
 ```bash
 make check        # Every hook against every file (both stages)
-make format       # Apply ruff lint fixes and formatting to src and tests
-make lint         # Run ruff check on src and tests
-make type         # Run mypy on src and tests
-make test         # Run pytest with coverage
+make format       # Apply ruff's fixes and formatting, and Prettier's and ESLint's to the web app
+make lint         # Run ruff check, and ESLint on the web app
+make type         # Run mypy, and tsc on the web app
+make test         # Run pytest and Vitest, each with its coverage floor
 make integration  # Test ENV's deployed stack (needs credentials, the model key, and make personas; deselected by default)
+make browser      # Play a customer's journey in Chromium against ENV's deployed site (same needs; installs Chromium)
 make tf-format    # Format all Terraform files
 ```
 
 `make check` is exactly what the CI quality gates run, so a green local run predicts a green PR. In an emergency, skip a single hook with `SKIP=<hook-id> git commit`; CI still runs it.
+
+Inside `web/`, each tool runs on its own: `pnpm lint`, `pnpm format`, `pnpm typecheck`, `pnpm test`, and `pnpm build`, and `pnpm vitest` watches the tests as you work. The chat's TypeScript types are generated from its contract, `src/banking_agent/contracts/chat.schema.json`: after changing the contract, run `pnpm --dir web contracts` and commit `web/src/contracts/chat.ts`, or a test fails.
 
 ### Iterate on infrastructure
 
@@ -343,14 +350,21 @@ With `AWS_PROFILE=banking-agent-local` active (direnv sets it when you enter the
 make init                # Initialize the local backend (safe to re-run)
 make plan                # Build, preview changes, and save the plan to build/local.tfplan
 make apply               # Apply the saved plan
+make site                # Build the web app, upload it to the site, and invalidate the distribution's cache
 make integration         # Test the deployed stack with throwaway users
+make browser             # Sign in, chat, and sign out in Chromium against the deployed site
 make probe               # Time the Runtime per persona and check what it stores and traces
+make web-dev             # Serve the web app on localhost:5173 against the deployed stack
 make destroy ENV=local   # Tear down your local resources
 ```
 
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
 
 `make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+
+The site's `config.json`, which names the user pool, the customers' app client, and the Runtime, is written by Terraform at every apply, so `make site` uploads only the build and leaves it alone. `make outputs` writes the site's URL under `site.url` in `build/<env>.outputs.json`.
+
+`make browser` runs the tests marked `browser`, which `make integration` leaves out: Playwright drives Chromium through the site as a customer would, with throwaway users, and asserts on the page and on the sign-in's execution record. It prints no reply, token, or ID, and saves no trace, screenshot, or video. Run `make site` first, so it tests the build you have.
 
 The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`src/banking_agent/export/`, `src/banking_agent/personas.py`, or the tools' data contract) gives it a new version: run `make tiny-export`, which uploads it and prints the value, and set it in both files. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
 
@@ -364,7 +378,7 @@ make lock
 
 ### Promote to prototype
 
-When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/` and `infra/dataset/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype`. Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
+When `develop` is in a state you'd be happy for judges to see, open a PR from `develop` into `main`. If the batch touches `infra/` (outside `infra/iam/` and `infra/dataset/`), CI posts a sticky **Terraform Plan · `prototype`** comment for reviewers. Merging applies the change to `prototype` and deploys the site; the deployment links its URL, the one the submission gives (SUB-02). Merge with **Create a merge commit**: a squash or rebase puts commits on `main` that `develop` never gets, and the next promotion then carries the whole history again.
 
 To redeploy `main` without an infrastructure change, run the workflow by hand: **Actions → Deploy · Prototype → Run workflow**.
 
@@ -405,6 +419,8 @@ Run `make doctor` first; most setup problems show up there.
 | `make apply` fails creating the API key credential provider: `can't find the specified secret value for staging label: AWSCURRENT` | The model key isn't stored. Run `make model-key`, then `make plan` and `make apply` again. |
 | The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.7](#37-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
 | A test says `infra/modules/gateway/tools.json` is stale | The tools' contract changed. Run `make build` and commit the file. |
+| A web test says `web/src/contracts/chat.ts` is stale | The chat's contract changed. Run `pnpm --dir web contracts` and commit the file. |
+| `pnpm install` says `Unsupported engine` | Another Node version is active. Run `nvm use` in the repository, which reads `.nvmrc`. |
 
 ---
 
@@ -448,6 +464,9 @@ Run `make help` for every target.
 |---|---|
 | Python 3.13 | `.python-version`, and `requires-python` in `pyproject.toml` |
 | Python dependencies | `uv.lock` |
+| Node 24.21.0 | `.nvmrc`, and `engines` in `web/package.json` (pnpm won't install on another version) |
+| pnpm | `packageManager` in `web/package.json` |
+| Web dependencies | Exact versions in `web/package.json`, locked in `web/pnpm-lock.yaml`, and only releases a week old (`web/pnpm-workspace.yaml`) |
 | Dataset snapshot | `dataset.lock` |
 | Terraform 1.16.x | `.terraform-version`, and `required_version` in each root |
 | AWS provider | Exactly 6.66.0 in `infra/terraform.tf`, and `.terraform.lock.hcl` in each root (linux/amd64, darwin/amd64, darwin/arm64) |
@@ -456,7 +475,7 @@ Run `make help` for every target.
 | GitHub Actions | Commit SHAs in `.github/workflows/`, with the release in a trailing comment |
 | CI tool versions | `env` blocks in `.github/workflows/` |
 
-Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR into `develop` for each of: Python dependencies, hook versions, GitHub Actions and the AWS provider. It skips releases younger than a week. Python, Terraform and the CI tool versions are still bumped by hand.
+Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR into `develop` for each of: Python dependencies, the web app's dependencies, hook versions, GitHub Actions and the AWS provider. It skips releases younger than a week. Python, Node, Terraform and the CI tool versions are still bumped by hand.
 
 ### Files
 
@@ -466,6 +485,8 @@ Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
 - `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make integration` reads
+- `web/node_modules/`, `web/dist/`, `web/coverage/`: the web app's dependencies, its build, and its coverage report
+- `web/public/config.json`: the configuration `make web-dev` copies from the stack's outputs
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables

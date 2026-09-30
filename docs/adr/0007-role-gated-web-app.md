@@ -6,6 +6,8 @@ Accepted (2026-09-29).
 
 Its open decisions were settled on 2026-09-29, each on the option we leaned towards, and are listed under [Settled at acceptance](#settled-at-acceptance) with the alternatives we didn't take.
 
+Amended (2026-09-29): the content security policy also lets the page connect to the site itself, since the app reads `config.json` from it at load ([Hosting and the domain](#hosting-and-the-domain)). Its other connections stay Cognito's API, the Runtime, and the console API, as [Rendering what others wrote](#rendering-what-others-wrote) lists them.
+
 ## Context
 
 [ADR-0004](0004-agent-architecture-on-agentcore.md) puts the customer chat and two consoles on one static site, gives each role a Cognito group, and leaves the hosting to this record (its decision 15). This record says how the site is served, how each role signs in and what it sees, and what a human agent does with a handoff. Seven forces shape it:

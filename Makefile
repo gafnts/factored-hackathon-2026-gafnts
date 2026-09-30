@@ -22,8 +22,8 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
-	test integration probe \
-	build \
+	test integration browser probe \
+	build web web-dev site \
 	bootstrap backend doctor provision teardown \
 	data snapshot personas tiny-export analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
@@ -42,8 +42,9 @@ help:
 
 ##@ Setup
 
-install: ## Sync deps, install pre-commit hooks (both stages), install tflint plugins
+install: ## Sync Python and web deps, install pre-commit hooks (both stages), install tflint plugins
 	uv sync --all-groups --all-extras
+	pnpm --dir web install --frozen-lockfile
 	uv run pre-commit install
 	uv run pre-commit install --hook-type pre-push
 	tflint --init
@@ -58,15 +59,18 @@ check: ## Run every pre-commit hook against every file (both stages)
 	uv run pre-commit run --all-files --hook-stage pre-commit
 	uv run pre-commit run --all-files --hook-stage pre-push
 
-lint: ## Run ruff check on src and tests
+lint: ## Run ruff check on src and tests, and ESLint on the web app
 	uv run ruff check src tests
+	pnpm --dir web lint
 
-format: ## Apply ruff lint fixes and formatting to src and tests
+format: ## Apply ruff's fixes and formatting to src and tests, and Prettier's and ESLint's to the web app
 	uv run ruff check src tests --fix
 	uv run ruff format src tests
+	pnpm --dir web format
 
-type: ## Run mypy on src and tests
+type: ## Run mypy on src and tests, and tsc on the web app
 	uv run mypy src tests
+	pnpm --dir web typecheck
 
 tf-format: ## Format all Terraform files
 	$(TF) fmt -recursive
@@ -74,11 +78,16 @@ tf-format: ## Format all Terraform files
 
 ##@ Testing
 
-test: ## Run pytest with branch coverage
+test: ## Run pytest and Vitest, each with its coverage floor
 	uv run pytest --cov --cov-report=term-missing
+	pnpm --dir web test
 
 integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
-	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m integration -v
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser" -v
+
+browser: _check-profile outputs ## Play a customer's journey in Chromium against ENV's deployed site (prints no text or IDs)
+	uv run playwright install chromium
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v
 
 probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
@@ -88,6 +97,19 @@ probe: _check-profile outputs ## Time ENV's Runtime per persona and check what i
 
 build: ## Build the Runtime's and the Lambdas' zips into build/, and rewrite the Gateway's tool definitions
 	uv run python -m banking_agent.build
+
+web: ## Build the web app into web/dist
+	pnpm --dir web build
+
+site: _check-profile outputs web ## Build the web app and upload it to ENV's site (refuses prototype unless I_KNOW=1)
+	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
+		echo "Refusing to deploy prototype's site from local. CI owns prototype."; exit 1; fi
+	@bash scripts/site.sh $(OUTPUTS)
+
+web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack, with the config.json its site holds
+	@mkdir -p web/public
+	uv run python -c 'import json, sys; json.dump(json.load(open(sys.argv[1]))["site"]["value"]["config"], sys.stdout)' $(OUTPUTS) > web/public/config.json
+	pnpm --dir web dev
 
 
 ##@ Bootstrap

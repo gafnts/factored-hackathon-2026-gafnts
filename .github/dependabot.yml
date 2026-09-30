@@ -4,7 +4,8 @@
 # security updates ignore the cooldown.
 #
 # Not covered here: the Terraform CLI (.terraform-version), Python
-# (.python-version), and the tool versions in the workflow `env` blocks.
+# (.python-version), Node (.nvmrc), and the tool versions in the workflow
+# `env` blocks.
 
 version: 2
 
@@ -30,6 +31,19 @@ updates:
       semver-major-days: 14
     groups:
       python:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /web
+    target-branch: develop
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      web:
         patterns: ["*"]
         update-types: [minor, patch]
 

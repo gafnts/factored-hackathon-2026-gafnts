@@ -6,6 +6,9 @@ build/
 dist/
 *.egg-info/
 
+# Node, wherever an install lands
+node_modules/
+
 # Tool caches and test reports
 .mypy_cache/
 .ruff_cache/

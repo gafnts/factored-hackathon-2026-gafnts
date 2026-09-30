@@ -67,3 +67,13 @@ output "runtime_log_group" {
 output "runtime_tables" {
   value = module.runtime.tables
 }
+
+output "site" {
+  description = "The site's URL, and the bucket and distribution make site deploys to"
+  value = {
+    url             = module.site.url
+    bucket          = module.site.bucket
+    distribution_id = module.site.distribution_id
+    config          = module.site.config
+  }
+}

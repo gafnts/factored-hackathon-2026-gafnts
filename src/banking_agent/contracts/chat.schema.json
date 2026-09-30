@@ -16,9 +16,9 @@
       "enum": ["unsupported_request", "clarification_failed", "record_conflict", "missing_data", "tool_failure"]
     },
     "id": {
-      "description": "An identifier the chat draws, such as a thread, run, or message ID.",
+      "description": "An identifier the chat draws, such as a thread, run, or message ID. Seven characters at least: assistant-ui draws its run and message IDs as seven characters from a 62-symbol alphabet, which keeps a thread's message IDs apart.",
       "type": "string",
-      "pattern": "^[A-Za-z0-9_-]{8,64}$"
+      "pattern": "^[A-Za-z0-9_-]{7,64}$"
     },
     "request": {
       "description": "The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12). A request that carries none of them, such as a resend of a message the checkpoint already holds, is refused as invalid_request, and so is a resume while no control is pending.",
