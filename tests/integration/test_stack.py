@@ -411,7 +411,8 @@ def test_the_tools_data_holds_exactly_the_export(outputs: dict[str, Any]) -> Non
     assert imported["ImportStatus"] == "COMPLETED"
     assert imported.get("ErrorCount", 0) == 0
     assert imported["ImportedItemCount"] == total
-    assert dynamodb.scan(TableName=table, Select="COUNT")["Count"] == total
+    pages = dynamodb.get_paginator("scan").paginate(TableName=table, Select="COUNT")
+    assert sum(page["Count"] for page in pages) == total
     meta = dynamodb.get_item(
         TableName=table,
         Key={"pk": {"S": "META"}, "sk": {"S": "META"}},

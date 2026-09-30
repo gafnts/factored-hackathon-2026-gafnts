@@ -1,0 +1,425 @@
+models:
+  - name: silver_clock
+    description: The business date and the as-of instant, by ADR-0003's rule over how the daily tables' rows arrived.
+    data_tests:
+      - one_row:
+          name: silver_clock_one_row
+    columns:
+      - name: business_date
+        data_type: date
+        data_tests:
+          - not_null:
+              name: silver_clock_business_date_not_null
+      - name: as_of
+        data_type: timestamp
+        data_tests:
+          - not_null:
+              name: silver_clock_as_of_not_null
+
+  - name: silver_customers
+    description: Customers registered by the as-of instant, as delivered, flagged when updated after it and when held out.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - counted:
+          name: silver_customers_updated_after_as_of
+          arguments:
+            condition: updated_after_as_of
+          config:
+            severity: warn
+    columns:
+      - name: customer_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: primary_key
+      - name: customer_status
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from: &customers_changed
+              name: silver_customers_customer_status_changed
+              arguments:
+                delivered: ref('bronze_customers')
+                key: customer_id
+              config:
+                severity: warn
+      - name: country
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from:
+              <<: *customers_changed
+              name: silver_customers_country_changed
+      - name: segment
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - changed_from:
+              <<: *customers_changed
+              name: silver_customers_segment_changed
+      - name: registration_date
+        data_type: timestamp
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: last_updated
+        data_type: timestamp
+        config:
+          meta:
+            personal_data: none
+      - name: updated_after_as_of
+        data_type: boolean
+        description: Last updated after the as-of instant, so its values are as delivered, not as they were then.
+        config:
+          meta:
+            personal_data: none
+      - name: held_out
+        data_type: boolean
+        description: The MD5 of customer_id, read as an integer, is divisible by 5 (ADR-0003; banking_agent.split).
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+
+  - name: silver_cards
+    description: Credit and debit cards opened by the as-of instant, in any status, as delivered and flagged.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - counted:
+          name: silver_cards_active_past_expiration
+          arguments:
+            condition: product_status = 'Active' and past_expiration
+          config:
+            severity: warn
+      - counted:
+          name: silver_cards_updated_after_as_of
+          arguments:
+            condition: updated_after_as_of
+          config:
+            severity: warn
+    columns:
+      - name: product_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: primary_key
+      - name: customer_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: foreign_key
+            to: ref('silver_customers')
+            to_columns: [customer_id]
+      - name: product_type
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "product_type in ('Tarjeta Crédito', 'Tarjeta Débito')"
+        data_tests:
+          - changed_from: &cards_changed
+              name: silver_cards_product_type_changed
+              arguments:
+                delivered: ref('bronze_products')
+                key: product_id
+              config:
+                severity: warn
+      - name: product_number
+        data_type: varchar
+        description: The full card number, which never leaves this machine (POL-11).
+        config:
+          meta:
+            personal_data: card_number
+        constraints:
+          - type: not_null
+      - name: last_four
+        data_type: varchar
+        config:
+          meta:
+            personal_data: card_number
+        constraints:
+          - type: not_null
+      - name: currency
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from:
+              <<: *cards_changed
+              name: silver_cards_currency_changed
+      - name: current_balance
+        data_type: decimal(15,2)
+        config:
+          meta:
+            personal_data: financial
+        constraints:
+          - type: not_null
+      - name: credit_limit
+        data_type: decimal(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: product_status
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from:
+              <<: *cards_changed
+              name: silver_cards_product_status_changed
+      - name: opening_date
+        data_type: date
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: expiration_date
+        data_type: date
+        config:
+          meta:
+            personal_data: none
+      - name: last_transaction_date
+        data_type: timestamp
+        description: As delivered, and never read (POL-26); silver_cards_last_transaction_date_disagrees counts it.
+        config:
+          meta:
+            personal_data: none
+      - name: last_updated
+        data_type: timestamp
+        config:
+          meta:
+            personal_data: none
+      - name: past_expiration
+        data_type: boolean
+        description: The expiration date is before the business date; false when none is recorded.
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: updated_after_as_of
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+      - name: held_out
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+
+  - name: silver_card_transactions
+    description: Transactions on those cards dated by the as-of instant, with one spelling per country and the conflict flags.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - counted:
+          name: silver_card_transactions_before_card_opening
+          arguments:
+            condition: before_card_opening
+          config:
+            severity: warn
+      - counted:
+          name: silver_card_transactions_after_card_expiration
+          arguments:
+            condition: after_card_expiration
+          config:
+            severity: warn
+    columns:
+      - name: transaction_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: primary_key
+      - name: customer_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: product_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: foreign_key
+            to: ref('silver_cards')
+            to_columns: [product_id]
+      - name: transaction_date
+        data_type: timestamp
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: transaction_type
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from: &transactions_changed
+              name: silver_card_transactions_transaction_type_changed
+              arguments:
+                delivered: ref('bronze_transactions')
+                key: transaction_id
+              config:
+                severity: warn
+      - name: amount
+        data_type: decimal(15,2)
+        config:
+          meta:
+            personal_data: financial
+        constraints:
+          - type: not_null
+      - name: currency
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_currency_changed
+      - name: channel
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_channel_changed
+      - name: merchant_name
+        data_type: varchar
+        description: Text from the bank's records, read as data only (POL-10).
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_merchant_name_changed
+      - name: merchant_category
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_merchant_category_changed
+      - name: transaction_country
+        data_type: varchar
+        description: One spelling per country, so a charge in the customer's own country reads as domestic (ADR-0006).
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "transaction_country <> 'Mexico'"
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_transaction_country_changed
+      - name: transaction_status
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_transaction_status_changed
+      - name: response_code
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - changed_from:
+              <<: *transactions_changed
+              name: silver_card_transactions_response_code_changed
+      - name: is_fraud
+        data_type: boolean
+        description: The bank's own flag, which only file_handoff reads (POL-40).
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: before_card_opening
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: after_card_expiration
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: held_out
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null

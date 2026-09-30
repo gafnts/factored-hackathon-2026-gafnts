@@ -1,0 +1,2 @@
+﻿event_id,event_date,process_date,customer_id,session_id,event_type,event_category,channel,platform,browser,app_version,page_url,page_title,action,element_id,product_id,event_value,duration_seconds,ip_address,ip_country,ip_city,is_mobile,referrer,utm_source,utm_medium,utm_campaign
+EVT-TEAM000001,2026-05-01 10:00:00,2026-05-01,CLI-TEAM00000003,SES-TEAM000001,Login,Authentication,Android App,Android,,1.0.0,/login,Login,login,,,,10,192.0.2.1,México,Team City,True,,,,

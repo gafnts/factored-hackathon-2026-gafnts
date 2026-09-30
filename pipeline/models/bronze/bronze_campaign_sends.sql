@@ -1,0 +1,1 @@
+{{ bronze('campaign_sends') }}

@@ -1,0 +1,6 @@
+﻿transaction_id,transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,amount,currency,amount_usd,channel,branch_id,merchant_name,merchant_category,transaction_country,transaction_city,transaction_status,response_code,is_fraud,fraud_score,latitude,longitude
+TRX-TEAM0000000000000305,2026-06-17 10:00:00,2026-06-17,PRD-TEAM00000031,CLI-TEAM00000003,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000306,2026-06-17 10:00:00,2026-06-17,PRD-TEAM00000034,CLI-TEAM00000003,Deposit,Other,20.00,USD,20.00,Branch,,,,México,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000351,2026-06-17 11:00:00,2026-06-17,PRD-TEAM00000035,CLI-TEAM00000003,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000307,2026-06-18 05:59:00,2026-06-17,PRD-TEAM00000031,CLI-TEAM00000003,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000308,2026-06-18 06:00:00,2026-06-17,PRD-TEAM00000031,CLI-TEAM00000003,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,

@@ -7,6 +7,7 @@ What we decided about Faro, why, and the evidence behind it. Every document cite
 | [adr/](adr/README.md) | The architecture decision records and their index |
 | [architecture.md](architecture.md) | The system on one page: what runs where, a turn, the graph, where each rule holds, the data, and the evaluation |
 | [analysis/](analysis/) | The profiling, traffic, workflow selection, and card support reports, each with its JSON, computed from the pinned snapshot by `make analysis` |
+| [pipeline/](pipeline/) | The manifest of each gold export, from `make export`: the stamp, the clock, rows per model, content hashes, and every check's result ([the pipeline](../pipeline/README.md)) |
 | [policy/](policy/) | The [card support policy](policy/card-support.md): what Faro answers, does, and refuses, one ID per rule (synthetic) |
 | [product/](product/) | The [product brief](product/brief.md), covering the problem, who Faro serves, and the outcomes we intend; and the [identity guide](product/identity.md), covering Faro's name, voice, and look |
 | [hackathon-requirements.md](hackathon-requirements.md) | Everything the organizers evaluate, with stable requirement IDs |

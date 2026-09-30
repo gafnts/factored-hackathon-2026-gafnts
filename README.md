@@ -62,6 +62,7 @@ In another tab, a human agent sees the case arrive within seconds: the request, 
 ### Data
 
 - [docs/analysis/](docs/analysis/): the profiling, traffic, workflow selection, and card support reports, rebuilt by `make analysis`
+- [pipeline/](pipeline/README.md): the dbt project that builds the tools' data from the snapshot, with each export's manifest in [docs/pipeline/](docs/pipeline/)
 - [dataset.lock](dataset.lock): the pinned dataset snapshot every run reads
 
 ---
@@ -90,6 +91,7 @@ make check
 | Path | Contents |
 |---|---|
 | [src/banking_agent/](src/banking_agent/) | The Python package |
+| [pipeline/](pipeline/README.md) | The dbt project: bronze, silver, and gold from the pinned snapshot |
 | [tests/](tests/) | Pytest suite |
 | [infra/](infra/) | Terraform: the service stack per environment, the IAM bootstrap, and the dataset bucket |
 | [scripts/](scripts/) | Account bootstrap, teardown, and setup checks |

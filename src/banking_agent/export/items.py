@@ -1,7 +1,7 @@
 """
-Writes an export as ADR-0006 lays it out: the items in DynamoDB JSON, gzipped, under items/ (DynamoDB imports every
-object under the prefix it is given and fails on anything that isn't an item), and manifest.json beside them, which the
-upload writes last as the completion marker. Every item is checked against the tools' data contract, and its keys
+Writes an export as ADR-0006 lays it out: the items in DynamoDB JSON, gzipped, under items/ in one or more parts
+(DynamoDB imports every object under the prefix it is given and fails on anything that isn't an item), and manifest.json
+beside them, which the upload writes last as the completion marker. Every item is checked against the tools' data contract, and its keys
 against its attributes, before anything is written (DML-02). Nothing here prints an item's values, which are row-level
 data (SEC-03).
 """
@@ -24,7 +24,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 KINDS = ("metadata", "customer", "card", "transaction")
-ITEMS = "items/part-00000.json.gz"
+PART = "items/part-{:05d}.json.gz"
+ITEMS = PART.format(0)
 MANIFEST = "manifest.json"
 CONTRACT = "tools-data"
 
@@ -134,13 +135,26 @@ def write(
     stamp: Mapping[str, str],
     clock: Mapping[str, str],
     producer: str,
+    part_items: int | None = None,
+    run: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """
+    Parts hold part_items items each, in key order, so DynamoDB can import them side by side; run is the build's own
+    record, which the pipeline adds.
+    """
     check(items, stamp)
     ordered = sorted(items, key=lambda item: (item["pk"], item["sk"]))
     lines = [line(item) for item in ordered]
-    body = "".join(f"{text}\n" for text in lines).encode()
-    # mtime 0 and no file name, so the same items give the same bytes.
-    compressed = gzip.compress(body, mtime=0)
+    size = part_items or len(lines)
+    objects: dict[str, dict[str, Any]] = {}
+    for index, start in enumerate(range(0, len(lines), size)):
+        body = "".join(f"{text}\n" for text in lines[start : start + size]).encode()
+        # mtime 0 and no file name, so the same items give the same bytes.
+        compressed = gzip.compress(body, mtime=0)
+        key = PART.format(index)
+        (directory / key).parent.mkdir(parents=True, exist_ok=True)
+        (directory / key).write_bytes(compressed)
+        objects[key] = {"bytes": len(compressed), "sha256": _sha256(compressed)}
     counts = Counter(item["kind"] for item in ordered)
     manifest = {
         "snapshot": stamp["snapshot"],
@@ -158,10 +172,10 @@ def write(
             )
             for kind in KINDS
         },
-        "objects": {ITEMS: {"bytes": len(compressed), "sha256": _sha256(compressed)}},
+        "objects": objects,
     }
-    (directory / ITEMS).parent.mkdir(parents=True, exist_ok=True)
-    (directory / ITEMS).write_bytes(compressed)
+    if run is not None:
+        manifest["run"] = dict(run)
     (directory / MANIFEST).write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     )

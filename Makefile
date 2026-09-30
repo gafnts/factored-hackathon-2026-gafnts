@@ -25,7 +25,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 	test integration browser probe \
 	build web web-dev site \
 	bootstrap backend doctor provision teardown \
-	data snapshot personas tiny-export analysis \
+	data snapshot personas tiny-export pipeline export contracts analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
 	dataset-init dataset-plan dataset-apply dataset-destroy \
 	init model-key plan apply destroy outputs lock \
@@ -150,6 +150,20 @@ personas: ## Choose the development personas from the pinned snapshot into data/
 
 tiny-export: _check-profile ## Build the personas' tiny export and upload it to the data bucket (ADR-0006's amendment)
 	uv run python -m banking_agent.export tiny --upload
+
+##@ Pipeline
+
+# The worktree's own data/ is empty, so point it at the main tree's: make pipeline DATA_DIR=<path>/data
+DATA_DIR ?= data
+
+pipeline: ## Build bronze, silver, and gold from the pinned snapshot into DATA_DIR/pipeline/ (ADR-0006; prints counts, never values)
+	uv run python -m banking_agent.pipeline --data-dir $(DATA_DIR) build
+
+export: _check-profile ## Export the last build's gold, stamped, and upload it to the data bucket (ADR-0006)
+	uv run python -m banking_agent.pipeline --data-dir $(DATA_DIR) export --upload
+
+contracts: ## Rewrite the bronze contracts from the dictionary and pipeline/contracts/corrections.yml
+	uv run python -m banking_agent.pipeline contracts
 
 ##@ Analysis
 

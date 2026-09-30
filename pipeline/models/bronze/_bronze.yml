@@ -1,0 +1,3159 @@
+# Written by `python -m banking_agent.pipeline contracts` from the data dictionary (src/banking_agent/analysis/catalog.py)
+# and contracts/corrections.yml. Don't edit it by hand.
+models:
+  - name: bronze_branches
+    description: Every row of branches, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - files_match_the_lock:
+          name: bronze_branches_files_match_the_lock
+          arguments:
+            table: branches
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_branches_rows_match_the_records
+          arguments:
+            table: branches
+          config:
+            store_failures: true
+    columns:
+      - name: branch_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_branch_id_key_not_null
+          - unique:
+              name: bronze_branches_branch_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: branch_code
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_branch_code_not_null
+              config:
+                severity: warn
+          - unique:
+              name: bronze_branches_branch_code_unique
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: branch_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_branch_name_not_null
+              config:
+                severity: warn
+      - name: branch_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_branch_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_branches_branch_type_dictionary_values
+              arguments:
+                values:
+                  - Main
+                  - Express
+                  - Premium
+                  - Corporate
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: address
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_address_not_null
+              config:
+                severity: warn
+      - name: city
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_city_not_null
+              config:
+                severity: warn
+      - name: state
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_state_not_null
+              config:
+                severity: warn
+      - name: country
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_country_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_branches_country_dictionary_values
+              arguments:
+                values:
+                  - Mexico
+                  - Colombia
+                  - Argentina
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: postal_code
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: geographic_zone
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_geographic_zone_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_branches_geographic_zone_dictionary_values
+              arguments:
+                values:
+                  - Urban
+                  - Suburban
+                  - Rural
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: phone
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_phone_not_null
+              config:
+                severity: warn
+      - name: email
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: opening_time
+        data_type: TIME
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_opening_time_not_null
+              config:
+                severity: warn
+      - name: closing_time
+        data_type: TIME
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_closing_time_not_null
+              config:
+                severity: warn
+      - name: has_atms
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_has_atms_not_null
+              config:
+                severity: warn
+      - name: atm_count
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: has_teller_windows
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_has_teller_windows_not_null
+              config:
+                severity: warn
+      - name: teller_window_count
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: latitude
+        data_type: DECIMAL(10,7)
+        config:
+          meta:
+            personal_data: none
+      - name: longitude
+        data_type: DECIMAL(10,7)
+        config:
+          meta:
+            personal_data: none
+      - name: branch_opening_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_branch_opening_date_not_null
+              config:
+                severity: warn
+      - name: branch_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_branches_branch_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_branches_branch_status_accepted_values
+              arguments:
+                values:
+                  - Active
+                  - Temporarily Closed
+                  - Closed
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_customers
+    description: Every row of customers, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - files_match_the_lock:
+          name: bronze_customers_files_match_the_lock
+          arguments:
+            table: customers
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_customers_rows_match_the_records
+          arguments:
+            table: customers
+          config:
+            store_failures: true
+    columns:
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_customer_id_key_not_null
+          - unique:
+              name: bronze_customers_customer_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: document_number
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_customers_document_number_not_null
+              config:
+                severity: warn
+          - unique:
+              name: bronze_customers_document_number_unique
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: document_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_document_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_customers_document_type_dictionary_values
+              arguments:
+                values:
+                  - DNI
+                  - CURP
+                  - CC
+                  - CE
+                  - Passport
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: first_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_customers_first_name_not_null
+              config:
+                severity: warn
+      - name: last_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_customers_last_name_not_null
+              config:
+                severity: warn
+      - name: date_of_birth
+        data_type: DATE
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_customers_date_of_birth_not_null
+              config:
+                severity: warn
+      - name: gender
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_customers_gender_dictionary_values
+              arguments:
+                values:
+                  - M
+                  - F
+                  - O
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: email
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: mobile_phone
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: landline_phone
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: address
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: city
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_city_not_null
+              config:
+                severity: warn
+      - name: state
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_state_not_null
+              config:
+                severity: warn
+      - name: country
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_country_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_customers_country_dictionary_values
+              arguments:
+                values:
+                  - Mexico
+                  - Colombia
+                  - Argentina
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: postal_code
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: detected_accent
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_customers_detected_accent_dictionary_values
+              arguments:
+                values:
+                  - mexican
+                  - colombian
+                  - argentine
+                  - neutral
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: segment
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_segment_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_customers_segment_dictionary_values
+              arguments:
+                values:
+                  - Premium
+                  - Plus
+                  - Basic
+                  - Student
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: credit_score
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: financial
+      - name: estimated_monthly_income
+        data_type: DECIMAL(12,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: occupation
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: marital_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: education_level
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: registration_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_registration_date_not_null
+              config:
+                severity: warn
+      - name: registration_branch_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_registration_branch_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_customers_registration_branch_id_references_branches
+              arguments:
+                to: "ref('bronze_branches')"
+                field: branch_id
+              config:
+                severity: warn
+      - name: customer_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_customer_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_customers_customer_status_accepted_values
+              arguments:
+                values:
+                  - Active
+                  - Inactive
+                  - Suspended
+                  - Closed
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: last_updated
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_last_updated_not_null
+              config:
+                severity: warn
+      - name: accepts_marketing
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_customers_accepts_marketing_not_null
+              config:
+                severity: warn
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_products
+    description: Every row of products, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - files_match_the_lock:
+          name: bronze_products_files_match_the_lock
+          arguments:
+            table: products
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_products_rows_match_the_records
+          arguments:
+            table: products
+          config:
+            store_failures: true
+    columns:
+      - name: product_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_product_id_key_not_null
+          - unique:
+              name: bronze_products_product_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_products_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+      - name: product_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_product_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_products_product_type_accepted_values
+              arguments:
+                values:
+                  - Cuenta Ahorro
+                  - Cuenta Corriente
+                  - Inversión
+                  - Préstamo Hipotecario
+                  - Préstamo Personal
+                  - Seguro
+                  - Tarjeta Crédito
+                  - Tarjeta Débito
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: product_number
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: card_number
+        data_tests:
+          - not_null:
+              name: bronze_products_product_number_not_null
+              config:
+                severity: warn
+          - unique:
+              name: bronze_products_product_number_unique
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: currency
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_currency_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_products_currency_dictionary_values
+              arguments:
+                values:
+                  - MXN
+                  - COP
+                  - ARS
+                  - USD
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: current_balance
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+        data_tests:
+          - not_null:
+              name: bronze_products_current_balance_not_null
+              config:
+                severity: warn
+      - name: credit_limit
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: interest_rate
+        data_type: DECIMAL(5,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: opening_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_opening_date_not_null
+              config:
+                severity: warn
+      - name: expiration_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+      - name: opening_branch_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_opening_branch_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_products_opening_branch_id_references_branches
+              arguments:
+                to: "ref('bronze_branches')"
+                field: branch_id
+              config:
+                severity: warn
+      - name: product_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_product_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_products_product_status_accepted_values
+              arguments:
+                values:
+                  - Active
+                  - Blocked
+                  - Closed
+                  - Suspended
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: opening_channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_opening_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_products_opening_channel_dictionary_values
+              arguments:
+                values:
+                  - Branch
+                  - Web
+                  - App
+                  - Call Center
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: has_linked_app
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_has_linked_app_not_null
+              config:
+                severity: warn
+      - name: days_past_due
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: financial
+      - name: last_transaction_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: last_updated
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_products_last_updated_not_null
+              config:
+                severity: warn
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_service_agents
+    description: Every row of service_agents, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - files_match_the_lock:
+          name: bronze_service_agents_files_match_the_lock
+          arguments:
+            table: service_agents
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_service_agents_rows_match_the_records
+          arguments:
+            table: service_agents
+          config:
+            store_failures: true
+    columns:
+      - name: agent_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_agent_id_key_not_null
+          - unique:
+              name: bronze_service_agents_agent_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: employee_code
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_employee_code_not_null
+              config:
+                severity: warn
+          - unique:
+              name: bronze_service_agents_employee_code_unique
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: first_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_first_name_not_null
+              config:
+                severity: warn
+      - name: last_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_last_name_not_null
+              config:
+                severity: warn
+      - name: email
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_email_not_null
+              config:
+                severity: warn
+      - name: phone
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: native_accent
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_native_accent_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_service_agents_native_accent_dictionary_values
+              arguments:
+                values:
+                  - mexican
+                  - colombian
+                  - argentine
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: country_of_origin
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_country_of_origin_not_null
+              config:
+                severity: warn
+      - name: assigned_branch_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_service_agents_assigned_branch_id_references_branches
+              arguments:
+                to: "ref('bronze_branches')"
+                field: branch_id
+              config:
+                severity: warn
+      - name: agent_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_agent_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_service_agents_agent_type_dictionary_values
+              arguments:
+                values:
+                  - Phone
+                  - In-Person
+                  - Digital
+                  - Hybrid
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: experience_level
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_experience_level_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_service_agents_experience_level_dictionary_values
+              arguments:
+                values:
+                  - Junior
+                  - Mid-Senior
+                  - Senior
+                  - Specialist
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: languages
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_languages_not_null
+              config:
+                severity: warn
+      - name: specialty
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: hire_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_hire_date_not_null
+              config:
+                severity: warn
+      - name: avg_csat
+        data_type: DECIMAL(3,2)
+        config:
+          meta:
+            personal_data: none
+      - name: total_monthly_interactions
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: agent_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_agent_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_service_agents_agent_status_accepted_values
+              arguments:
+                values:
+                  - Active
+                  - Vacation
+                  - Leave
+                  - Inactive
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: work_shift
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_service_agents_work_shift_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_service_agents_work_shift_dictionary_values
+              arguments:
+                values:
+                  - Morning
+                  - Afternoon
+                  - Night
+                  - Rotating
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_marketing_campaigns
+    description: Every row of marketing_campaigns, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - files_match_the_lock:
+          name: bronze_marketing_campaigns_files_match_the_lock
+          arguments:
+            table: marketing_campaigns
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_marketing_campaigns_rows_match_the_records
+          arguments:
+            table: marketing_campaigns
+          config:
+            store_failures: true
+    columns:
+      - name: campaign_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_campaign_id_key_not_null
+          - unique:
+              name: bronze_marketing_campaigns_campaign_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: campaign_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_campaign_name_not_null
+              config:
+                severity: warn
+      - name: description
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: campaign_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_campaign_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_marketing_campaigns_campaign_type_dictionary_values
+              arguments:
+                values:
+                  - Email
+                  - SMS
+                  - Push
+                  - WhatsApp
+                  - Voice
+                  - Mix
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: campaign_objective
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_campaign_objective_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_marketing_campaigns_campaign_objective_dictionary_values
+              arguments:
+                values:
+                  - Acquisition
+                  - Retention
+                  - Cross-sell
+                  - Up-sell
+                  - Reactivation
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: promoted_product
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: target_segment
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: target_country
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: start_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_start_date_not_null
+              config:
+                severity: warn
+      - name: end_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_end_date_not_null
+              config:
+                severity: warn
+      - name: budget
+        data_type: DECIMAL(12,2)
+        config:
+          meta:
+            personal_data: none
+      - name: campaign_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_marketing_campaigns_campaign_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_marketing_campaigns_campaign_status_accepted_values
+              arguments:
+                values:
+                  - Planned
+                  - Active
+                  - Paused
+                  - Completed
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: expected_conversion_rate
+        data_type: DECIMAL(5,2)
+        config:
+          meta:
+            personal_data: none
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_daily_exchange_rates
+    description: Every row of daily_exchange_rates, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - unique_combination:
+          name: bronze_daily_exchange_rates_key_unique
+          arguments:
+            columns:
+              - date
+              - source_currency
+              - target_currency
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+      - files_match_the_lock:
+          name: bronze_daily_exchange_rates_files_match_the_lock
+          arguments:
+            table: daily_exchange_rates
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_daily_exchange_rates_rows_match_the_records
+          arguments:
+            table: daily_exchange_rates
+          config:
+            store_failures: true
+    columns:
+      - name: date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_daily_exchange_rates_date_key_not_null
+      - name: source_currency
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_daily_exchange_rates_source_currency_key_not_null
+          - accepted_values:
+              name: bronze_daily_exchange_rates_source_currency_dictionary_values
+              arguments:
+                values:
+                  - MXN
+                  - COP
+                  - ARS
+                  - USD
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: target_currency
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_daily_exchange_rates_target_currency_key_not_null
+          - accepted_values:
+              name: bronze_daily_exchange_rates_target_currency_dictionary_values
+              arguments:
+                values:
+                  - MXN
+                  - COP
+                  - ARS
+                  - USD
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: exchange_rate
+        data_type: DECIMAL(12,6)
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_daily_exchange_rates_exchange_rate_not_null
+              config:
+                severity: warn
+      - name: buy_rate
+        data_type: DECIMAL(12,6)
+        config:
+          meta:
+            personal_data: none
+      - name: sell_rate
+        data_type: DECIMAL(12,6)
+        config:
+          meta:
+            personal_data: none
+      - name: source
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_transactions
+    description: Every row of transactions, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_transactions_processed_on_its_day
+          arguments:
+            event_date: transaction_date
+            days_after: 1
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_transactions_files_match_the_lock
+          arguments:
+            table: transactions
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_transactions_rows_match_the_records
+          arguments:
+            table: transactions
+          config:
+            store_failures: true
+    columns:
+      - name: transaction_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_transaction_id_key_not_null
+          - unique:
+              name: bronze_transactions_transaction_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: transaction_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_transaction_date_not_null
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_process_date_not_null
+              config:
+                severity: warn
+      - name: product_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_product_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_transactions_product_id_references_products
+              arguments:
+                to: "ref('bronze_products')"
+                field: product_id
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_transactions_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: transaction_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_transaction_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_transactions_transaction_type_accepted_values
+              arguments:
+                values:
+                  - Deposit
+                  - Withdrawal
+                  - Transfer
+                  - Payment
+                  - Purchase
+                  - Adjustment
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: transaction_category
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_transactions_transaction_category_dictionary_values
+              arguments:
+                values:
+                  - Food
+                  - Transport
+                  - Services
+                  - Entertainment
+                  - Health
+                  - Other
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: amount
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+        data_tests:
+          - not_null:
+              name: bronze_transactions_amount_not_null
+              config:
+                severity: warn
+      - name: currency
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_currency_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_transactions_currency_dictionary_values
+              arguments:
+                values:
+                  - MXN
+                  - COP
+                  - ARS
+                  - USD
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: amount_usd
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_transactions_channel_dictionary_values
+              arguments:
+                values:
+                  - ATM
+                  - Branch
+                  - Web
+                  - App
+                  - POS
+                  - Transfer
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: branch_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_transactions_branch_id_references_branches
+              arguments:
+                to: "ref('bronze_branches')"
+                field: branch_id
+              config:
+                severity: warn
+      - name: merchant_name
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: merchant_category
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: transaction_country
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_transaction_country_not_null
+              config:
+                severity: warn
+      - name: transaction_city
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: transaction_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_transaction_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_transactions_transaction_status_accepted_values
+              arguments:
+                values:
+                  - Approved
+                  - Declined
+                  - Pending
+                  - Reversed
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: response_code
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: is_fraud
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_transactions_is_fraud_not_null
+              config:
+                severity: warn
+      - name: fraud_score
+        data_type: DECIMAL(5,2)
+        config:
+          meta:
+            personal_data: none
+      - name: latitude
+        data_type: DECIMAL(10,7)
+        config:
+          meta:
+            personal_data: none
+      - name: longitude
+        data_type: DECIMAL(10,7)
+        config:
+          meta:
+            personal_data: none
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_call_center_interactions
+    description: Every row of call_center_interactions, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_call_center_interactions_processed_on_its_day
+          arguments:
+            event_date: interaction_date
+            days_after: 1
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_call_center_interactions_files_match_the_lock
+          arguments:
+            table: call_center_interactions
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_call_center_interactions_rows_match_the_records
+          arguments:
+            table: call_center_interactions
+          config:
+            store_failures: true
+    columns:
+      - name: interaction_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_interaction_id_key_not_null
+          - unique:
+              name: bronze_call_center_interactions_interaction_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: interaction_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_interaction_date_not_null
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_process_date_not_null
+              config:
+                severity: warn
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_call_center_interactions_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: agent_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_call_center_interactions_agent_id_references_service_agents
+              arguments:
+                to: "ref('bronze_service_agents')"
+                field: agent_id
+              config:
+                severity: warn
+      - name: interaction_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_interaction_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_call_center_interactions_interaction_type_dictionary_values
+              arguments:
+                values:
+                  - Inbound Call
+                  - Outbound Call
+                  - Chat
+                  - Email
+                  - Video
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_call_center_interactions_channel_dictionary_values
+              arguments:
+                values:
+                  - Phone
+                  - Web Chat
+                  - WhatsApp
+                  - Email
+                  - App
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: contact_reason
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_contact_reason_not_null
+              config:
+                severity: warn
+      - name: reason_category
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_reason_category_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_call_center_interactions_reason_category_dictionary_values
+              arguments:
+                values:
+                  - Transactional
+                  - Product
+                  - Technical
+                  - Commercial
+                  - Complaint
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: duration_seconds
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: wait_time_seconds
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: was_resolved
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+      - name: requires_followup
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_requires_followup_not_null
+              config:
+                severity: warn
+      - name: detected_sentiment
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_call_center_interactions_detected_sentiment_dictionary_values
+              arguments:
+                values:
+                  - Positive
+                  - Neutral
+                  - Negative
+                  - Very Negative
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: sentiment_score
+        data_type: DECIMAL(3,2)
+        config:
+          meta:
+            personal_data: none
+      - name: customer_detected_accent
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: agent_used_accent
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: was_escalated
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_was_escalated_not_null
+              config:
+                severity: warn
+      - name: mentioned_products
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: has_transcript
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_has_transcript_not_null
+              config:
+                severity: warn
+      - name: has_recording
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_center_interactions_has_recording_not_null
+              config:
+                severity: warn
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_call_transcripts
+    description: Every row of call_transcripts, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_call_transcripts_processed_on_its_day
+          arguments:
+            event_date: interaction_date
+            days_after: 1
+            via: interaction_id
+            parent: "ref('bronze_call_center_interactions')"
+            parent_date: interaction_date
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_call_transcripts_files_match_the_lock
+          arguments:
+            table: call_transcripts
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_call_transcripts_rows_match_the_records
+          arguments:
+            table: call_transcripts
+          config:
+            store_failures: true
+    columns:
+      - name: transcript_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_transcript_id_key_not_null
+          - unique:
+              name: bronze_call_transcripts_transcript_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: interaction_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_interaction_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_call_transcripts_interaction_id_references_call_center_interactions
+              arguments:
+                to: "ref('bronze_call_center_interactions')"
+                field: interaction_id
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_process_date_not_null
+              config:
+                severity: warn
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_call_transcripts_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: agent_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_agent_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_call_transcripts_agent_id_references_service_agents
+              arguments:
+                to: "ref('bronze_service_agents')"
+                field: agent_id
+              config:
+                severity: warn
+      - name: full_text
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_full_text_not_null
+              config:
+                severity: warn
+      - name: customer_text
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+      - name: agent_text
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+      - name: detected_language
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_detected_language_not_null
+              config:
+                severity: warn
+      - name: detected_accent
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: accent_confidence
+        data_type: DECIMAL(3,2)
+        config:
+          meta:
+            personal_data: none
+      - name: detected_keywords
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: mentioned_entities
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+      - name: detected_intents
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: main_topics
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: transcription_model
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_transcription_model_not_null
+              config:
+                severity: warn
+      - name: audio_quality
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_call_transcripts_audio_quality_dictionary_values
+              arguments:
+                values:
+                  - High
+                  - Medium
+                  - Low
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: duration_seconds
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_call_transcripts_duration_seconds_not_null
+              config:
+                severity: warn
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_satisfaction_surveys
+    description: Every row of satisfaction_surveys, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_satisfaction_surveys_processed_on_its_day
+          arguments:
+            event_date: survey_date
+            days_after: 2
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_satisfaction_surveys_files_match_the_lock
+          arguments:
+            table: satisfaction_surveys
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_satisfaction_surveys_rows_match_the_records
+          arguments:
+            table: satisfaction_surveys
+          config:
+            store_failures: true
+    columns:
+      - name: survey_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_survey_id_key_not_null
+          - unique:
+              name: bronze_satisfaction_surveys_survey_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: survey_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_survey_date_not_null
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_process_date_not_null
+              config:
+                severity: warn
+      - name: interaction_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_satisfaction_surveys_interaction_id_references_call_center_interactions
+              arguments:
+                to: "ref('bronze_call_center_interactions')"
+                field: interaction_id
+              config:
+                severity: warn
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_satisfaction_surveys_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: agent_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_satisfaction_surveys_agent_id_references_service_agents
+              arguments:
+                to: "ref('bronze_service_agents')"
+                field: agent_id
+              config:
+                severity: warn
+      - name: survey_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_survey_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_satisfaction_surveys_survey_type_dictionary_values
+              arguments:
+                values:
+                  - CSAT
+                  - NPS
+                  - CES
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: send_channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_send_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_satisfaction_surveys_send_channel_dictionary_values
+              arguments:
+                values:
+                  - Email
+                  - SMS
+                  - IVR
+                  - App
+                  - Web
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: main_score
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_satisfaction_surveys_main_score_not_null
+              config:
+                severity: warn
+      - name: nps_category
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_satisfaction_surveys_nps_category_dictionary_values
+              arguments:
+                values:
+                  - Promoter
+                  - Passive
+                  - Detractor
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: question_1_text
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: question_1_response
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: question_2_text
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: question_2_response
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: question_3_text
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: question_3_response
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: open_comments
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+      - name: comment_sentiment
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: response_time_hours
+        data_type: DECIMAL(8,2)
+        config:
+          meta:
+            personal_data: none
+      - name: campaign_response_rate
+        data_type: DECIMAL(5,2)
+        config:
+          meta:
+            personal_data: none
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_complaints
+    description: Every row of complaints, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_complaints_processed_on_its_day
+          arguments:
+            event_date: creation_date
+            days_after: 1
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_complaints_files_match_the_lock
+          arguments:
+            table: complaints
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_complaints_rows_match_the_records
+          arguments:
+            table: complaints
+          config:
+            store_failures: true
+    columns:
+      - name: complaint_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_complaint_id_key_not_null
+          - unique:
+              name: bronze_complaints_complaint_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: creation_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_creation_date_not_null
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_process_date_not_null
+              config:
+                severity: warn
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_complaints_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: case_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_case_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_complaints_case_type_dictionary_values
+              arguments:
+                values:
+                  - Complaint
+                  - Claim
+                  - Request
+                  - Suggestion
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: category
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_category_not_null
+              config:
+                severity: warn
+      - name: subcategory
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: reception_channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_reception_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_complaints_reception_channel_dictionary_values
+              arguments:
+                values:
+                  - Call Center
+                  - Email
+                  - Web
+                  - App
+                  - Branch
+                  - Regulator
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: affected_product_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_complaints_affected_product_id_references_products
+              arguments:
+                to: "ref('bronze_products')"
+                field: product_id
+              config:
+                severity: warn
+      - name: related_branch_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_complaints_related_branch_id_references_branches
+              arguments:
+                to: "ref('bronze_branches')"
+                field: branch_id
+              config:
+                severity: warn
+      - name: origin_interaction_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_complaints_origin_interaction_id_references_call_center_interactions
+              arguments:
+                to: "ref('bronze_call_center_interactions')"
+                field: interaction_id
+              config:
+                severity: warn
+      - name: description
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+        data_tests:
+          - not_null:
+              name: bronze_complaints_description_not_null
+              config:
+                severity: warn
+      - name: claimed_amount
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: currency
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_complaints_currency_dictionary_values
+              arguments:
+                values:
+                  - MXN
+                  - COP
+                  - ARS
+                  - USD
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: priority
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_priority_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_complaints_priority_dictionary_values
+              arguments:
+                values:
+                  - Low
+                  - Medium
+                  - High
+                  - Critical
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_complaints_status_accepted_values
+              arguments:
+                values:
+                  - Open
+                  - In Process
+                  - Escalated
+                  - Resolved
+                  - Closed
+                  - Rejected
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: assigned_agent_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_complaints_assigned_agent_id_references_service_agents
+              arguments:
+                to: "ref('bronze_service_agents')"
+                field: agent_id
+              config:
+                severity: warn
+      - name: assignment_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: first_response_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: resolution_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: closing_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: sla_breached
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_sla_breached_not_null
+              config:
+                severity: warn
+      - name: resolution_days
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: resolution
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: identity
+      - name: compensation_granted
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: resolution_satisfaction
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: is_repeat_complainer
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_complaints_is_repeat_complainer_not_null
+              config:
+                severity: warn
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_digital_events
+    description: Every row of digital_events, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_digital_events_processed_on_its_day
+          arguments:
+            event_date: event_date
+            days_after: 1
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_digital_events_files_match_the_lock
+          arguments:
+            table: digital_events
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_digital_events_rows_match_the_records
+          arguments:
+            table: digital_events
+          config:
+            store_failures: true
+    columns:
+      - name: event_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_event_id_key_not_null
+          - unique:
+              name: bronze_digital_events_event_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: event_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_event_date_not_null
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_process_date_not_null
+              config:
+                severity: warn
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_digital_events_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: session_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_session_id_not_null
+              config:
+                severity: warn
+      - name: event_type
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_event_type_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_digital_events_event_type_dictionary_values
+              arguments:
+                values:
+                  - PageView
+                  - Click
+                  - FormSubmit
+                  - Login
+                  - Logout
+                  - Error
+                  - Purchase
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: event_category
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_event_category_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_digital_events_event_category_dictionary_values
+              arguments:
+                values:
+                  - Navigation
+                  - Transaction
+                  - Authentication
+                  - Product
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_digital_events_channel_dictionary_values
+              arguments:
+                values:
+                  - Android App
+                  - iOS App
+                  - Desktop Web
+                  - Mobile Web
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: platform
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - accepted_values:
+              name: bronze_digital_events_platform_dictionary_values
+              arguments:
+                values:
+                  - Android
+                  - iOS
+                  - Windows
+                  - MacOS
+                  - Linux
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: browser
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: app_version
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: page_url
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: page_title
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: action
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: element_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: product_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - relationships:
+              name: bronze_digital_events_product_id_references_products
+              arguments:
+                to: "ref('bronze_products')"
+                field: product_id
+              config:
+                severity: warn
+      - name: event_value
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: duration_seconds
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: ip_address
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: contact
+      - name: ip_country
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: ip_city
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: is_mobile
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_digital_events_is_mobile_not_null
+              config:
+                severity: warn
+      - name: referrer
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: utm_source
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: utm_medium
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: utm_campaign
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+  - name: bronze_campaign_sends
+    description: Every row of campaign_sends, typed by its contract, with the file it came from and the snapshot; nothing dropped, deduplicated, or corrected.
+    data_tests:
+      - processed_on_its_day:
+          name: bronze_campaign_sends_processed_on_its_day
+          arguments:
+            event_date: send_date
+            days_after: 1
+          config:
+            fail_calc: coalesce(sum(n_records), 0)
+            store_failures: true
+      - files_match_the_lock:
+          name: bronze_campaign_sends_files_match_the_lock
+          arguments:
+            table: campaign_sends
+          config:
+            store_failures: true
+      - rows_match_the_records:
+          name: bronze_campaign_sends_rows_match_the_records
+          arguments:
+            table: campaign_sends
+          config:
+            store_failures: true
+    columns:
+      - name: send_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_send_id_key_not_null
+          - unique:
+              name: bronze_campaign_sends_send_id_key_unique
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: send_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_send_date_not_null
+              config:
+                severity: warn
+      - name: process_date
+        data_type: DATE
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_process_date_not_null
+              config:
+                severity: warn
+      - name: campaign_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_campaign_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_campaign_sends_campaign_id_references_marketing_campaigns
+              arguments:
+                to: "ref('bronze_marketing_campaigns')"
+                field: campaign_id
+              config:
+                severity: warn
+      - name: customer_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_customer_id_not_null
+              config:
+                severity: warn
+          - relationships:
+              name: bronze_campaign_sends_customer_id_references_customers
+              arguments:
+                to: "ref('bronze_customers')"
+                field: customer_id
+              config:
+                severity: warn
+      - name: send_channel
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_send_channel_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_campaign_sends_send_channel_dictionary_values
+              arguments:
+                values:
+                  - Email
+                  - SMS
+                  - Push
+                  - WhatsApp
+                  - Voice
+              config:
+                severity: warn
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: template_used
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: subject
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: send_status
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_send_status_not_null
+              config:
+                severity: warn
+          - accepted_values:
+              name: bronze_campaign_sends_send_status_accepted_values
+              arguments:
+                values:
+                  - Sent
+                  - Failed
+                  - Bounced
+                  - Blocked
+              config:
+                fail_calc: coalesce(sum(n_records), 0)
+      - name: was_delivered
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_was_delivered_not_null
+              config:
+                severity: warn
+      - name: was_opened
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+      - name: open_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: was_clicked
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+      - name: click_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: click_count
+        data_type: INTEGER
+        config:
+          meta:
+            personal_data: none
+      - name: had_conversion
+        data_type: BOOLEAN
+        config:
+          meta:
+            personal_data: none
+        data_tests:
+          - not_null:
+              name: bronze_campaign_sends_had_conversion_not_null
+              config:
+                severity: warn
+      - name: conversion_date
+        data_type: TIMESTAMP
+        config:
+          meta:
+            personal_data: none
+      - name: conversion_value
+        data_type: DECIMAL(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: open_device
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: open_country
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: failure_reason
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none
+      - name: send_cost
+        data_type: DECIMAL(10,4)
+        config:
+          meta:
+            personal_data: none
+      - name: source_file
+        data_type: VARCHAR
+        description: "The file's key in the lock, which ties the row to its SHA-256 and the organizers' object (ADR-0006, Lineage)."
+        config:
+          meta:
+            personal_data: none
+      - name: snapshot_id
+        data_type: VARCHAR
+        config:
+          meta:
+            personal_data: none

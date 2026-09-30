@@ -1,0 +1,63 @@
+unit_tests:
+  - name: silver_reads_customers_registered_by_the_as_of_instant_and_splits_them
+    model: silver_customers
+    given:
+      - input: ref('bronze_customers')
+        rows:
+          - {customer_id: CLI-TEAM00000001, customer_status: Active, country: " Colombia ", registration_date: "2026-06-18 06:00:00", last_updated: "2026-06-18 06:00:00"}
+          - {customer_id: CLI-TEAM00000002, customer_status: Active, country: México, registration_date: "2020-01-01 00:00:00", last_updated: "2026-06-18 06:00:01"}
+          - {customer_id: CLI-TEAM00000003, customer_status: Active, country: México, registration_date: "2026-06-18 06:00:01", last_updated: "2026-06-18 06:00:01"}
+      - input: ref('silver_clock')
+        rows:
+          - {business_date: "2026-06-17", as_of: "2026-06-18 06:00:00"}
+    expect:
+      rows:
+        - {customer_id: CLI-TEAM00000001, country: Colombia, updated_after_as_of: false, held_out: false}
+        - {customer_id: CLI-TEAM00000002, country: México, updated_after_as_of: true, held_out: true}
+
+  - name: silver_reads_cards_opened_by_the_as_of_day_and_flags_them
+    model: silver_cards
+    given:
+      - input: ref('bronze_products')
+        rows:
+          - {product_id: PRD-TEAM00000001, customer_id: CLI-TEAM00000001, product_type: Tarjeta Crédito, product_number: "4000000000004821", opening_date: "2026-06-18", expiration_date: "2026-06-16", product_status: Active, last_updated: "2026-06-18 06:00:00"}
+          - {product_id: PRD-TEAM00000002, customer_id: CLI-TEAM00000001, product_type: Tarjeta Débito, product_number: "4000000000000002", opening_date: "2020-01-01", expiration_date: "2026-06-17", product_status: Active, last_updated: "2026-06-18 06:00:01"}
+          - {product_id: PRD-TEAM00000003, customer_id: CLI-TEAM00000001, product_type: Tarjeta Crédito, product_number: "4000000000000003", opening_date: "2020-01-01", product_status: Blocked, last_updated: "2020-01-01 00:00:00"}
+          - {product_id: PRD-TEAM00000004, customer_id: CLI-TEAM00000001, product_type: Tarjeta Crédito, product_number: "4000000000000004", opening_date: "2026-06-19", product_status: Active, last_updated: "2026-06-19 00:00:00"}
+          - {product_id: PRD-TEAM00000005, customer_id: CLI-TEAM00000001, product_type: Cuenta Ahorro, product_number: "1000000005", opening_date: "2020-01-01", product_status: Active, last_updated: "2020-01-01 00:00:00"}
+      - input: ref('silver_customers')
+        rows:
+          - {customer_id: CLI-TEAM00000001, held_out: false}
+      - input: ref('silver_clock')
+        rows:
+          - {business_date: "2026-06-17", as_of: "2026-06-18 06:00:00"}
+    expect:
+      rows:
+        - {product_id: PRD-TEAM00000001, last_four: "4821", past_expiration: true, updated_after_as_of: false}
+        - {product_id: PRD-TEAM00000002, last_four: "0002", past_expiration: false, updated_after_as_of: true}
+        - {product_id: PRD-TEAM00000003, last_four: "0003", past_expiration: false, updated_after_as_of: false}
+
+  - name: silver_spells_each_country_one_way_and_flags_conflicts
+    model: silver_card_transactions
+    given:
+      - input: ref('bronze_transactions')
+        rows:
+          - {transaction_id: TRX-TEAM0000000000000001, product_id: PRD-TEAM00000001, customer_id: CLI-TEAM00000001, transaction_date: "2026-06-18 06:00:00", transaction_country: Mexico, merchant_name: "  "}
+          - {transaction_id: TRX-TEAM0000000000000002, product_id: PRD-TEAM00000001, customer_id: CLI-TEAM00000001, transaction_date: "2019-12-31 23:59:59", transaction_country: " México", merchant_name: " Tienda "}
+          - {transaction_id: TRX-TEAM0000000000000003, product_id: PRD-TEAM00000001, customer_id: CLI-TEAM00000001, transaction_date: "2026-01-02 10:00:00", transaction_country: USA}
+          - {transaction_id: TRX-TEAM0000000000000004, product_id: PRD-TEAM00000002, customer_id: CLI-TEAM00000001, transaction_date: "2026-06-15 10:00:00", transaction_country: Brazil}
+          - {transaction_id: TRX-TEAM0000000000000005, product_id: PRD-TEAM00000001, customer_id: CLI-TEAM00000001, transaction_date: "2026-06-18 06:00:01", transaction_country: México}
+          - {transaction_id: TRX-TEAM0000000000000006, product_id: PRD-TEAM00000009, customer_id: CLI-TEAM00000001, transaction_date: "2026-06-15 10:00:00", transaction_country: México}
+      - input: ref('silver_cards')
+        rows:
+          - {product_id: PRD-TEAM00000001, customer_id: CLI-TEAM00000001, opening_date: "2020-01-01", expiration_date: "2026-01-01", held_out: false}
+          - {product_id: PRD-TEAM00000002, customer_id: CLI-TEAM00000001, opening_date: "2020-01-01", held_out: false}
+      - input: ref('silver_clock')
+        rows:
+          - {business_date: "2026-06-17", as_of: "2026-06-18 06:00:00"}
+    expect:
+      rows:
+        - {transaction_id: TRX-TEAM0000000000000001, transaction_country: México, merchant_name: null, before_card_opening: false, after_card_expiration: true}
+        - {transaction_id: TRX-TEAM0000000000000002, transaction_country: México, merchant_name: Tienda, before_card_opening: true, after_card_expiration: false}
+        - {transaction_id: TRX-TEAM0000000000000003, transaction_country: USA, merchant_name: null, before_card_opening: false, after_card_expiration: true}
+        - {transaction_id: TRX-TEAM0000000000000004, transaction_country: Brazil, merchant_name: null, before_card_opening: false, after_card_expiration: false}

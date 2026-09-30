@@ -10,6 +10,7 @@ from pathlib import Path
 
 import duckdb
 
+from banking_agent import clock
 from banking_agent.analysis import attribution
 from banking_agent.analysis.attribution import Attribution, Cutoff
 from banking_agent.analysis.catalog import Column, Table
@@ -25,9 +26,6 @@ from banking_agent.analysis.source import (
 from banking_agent.dataset.lock import Lock
 
 PLACEHOLDERS = ("", "null", "none", "nan", "n/a", "na")
-COMPLETE = 0.99
-# Rows younger than this may still be arriving, so they stay out of the arrival profile.
-SETTLED_DAYS = 31
 RECENT_DAYS = 14
 TRAILING_DAYS = 28
 LISTED_VALUES = 20
@@ -122,27 +120,25 @@ class Profile:
 
     @property
     def business_date(self) -> date | None:
-        days = [
-            t.arrival.last_complete_day
-            for t in self.tables
-            if t.arrival and t.arrival.last_complete_day
-        ]
-        return min(days) if days else None
+        return clock.business_date(
+            t.arrival.last_complete_day for t in self.tables if t.arrival
+        )
 
     @property
     def as_of(self) -> datetime | None:
         business_date = self.business_date
         if business_date is None:
             return None
-        # A table with no events past midnight closes its processing day at midnight.
-        cutoffs = [
-            time.fromisoformat(t.arrival.next_day_until)
-            if t.arrival.next_day_until
-            else time()
-            for t in self.tables
-            if t.arrival
-        ]
-        return datetime.combine(business_date + timedelta(days=1), min(cutoffs))
+        return clock.as_of(
+            business_date,
+            (
+                time.fromisoformat(t.arrival.next_day_until)
+                if t.arrival.next_day_until
+                else None
+                for t in self.tables
+                if t.arrival
+            ),
+        )
 
 
 def profile(
@@ -387,18 +383,6 @@ def _bucket(lag: int) -> str:
     return LAG_BUCKETS[5]
 
 
-def _p99(settled: Mapping[int, int]) -> int | None:
-    total = sum(n for lag, n in settled.items() if lag >= 0)
-    if not total:
-        return None
-    running = 0
-    for lag in sorted(k for k in settled if k >= 0):
-        running += settled[lag]
-        if running >= COMPLETE * total:
-            return lag
-    raise AssertionError("the cumulative share never reached COMPLETE")
-
-
 def _arrival(
     con: duckdb.DuckDBPyConnection,
     t: Table,
@@ -424,7 +408,7 @@ def _arrival(
             f"max(happened_at::time) filter (where happened - processed = 1)::varchar "
             f"from {table}",
         )
-        settled_before = last - timedelta(days=SETTLED_DAYS)
+        settled_before = clock.settled_before(last)
         lags: dict[str, int] = dict.fromkeys(LAG_BUCKETS, 0)
         settled: dict[int, int] = {}
         for lag, n_settled, n in con.execute(
@@ -444,7 +428,7 @@ def _arrival(
         )
     finally:
         con.execute(f"drop table {table}")
-    p99 = _p99(settled)
+    p99 = clock.lag_p99(settled)
     return Arrival(
         first_partition=first,
         last_partition=last,
@@ -456,7 +440,7 @@ def _arrival(
         lags=lags,
         next_day_until=next_day_until,
         lag_p99=p99,
-        last_complete_day=last - timedelta(days=p99) if p99 is not None else None,
+        last_complete_day=clock.last_complete_day(last, p99),
         recent=_recent(daily, last),
     )
 

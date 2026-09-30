@@ -1,0 +1,5 @@
+﻿transcript_id,interaction_id,process_date,customer_id,agent_id,full_text,customer_text,agent_text,detected_language,detected_accent,accent_confidence,detected_keywords,mentioned_entities,detected_intents,main_topics,transcription_model,audio_quality,duration_seconds
+TRN-TEAM000002,INT-TEAM000002,2026-06-17,CLI-TEAM00000003,AGT-TEAM0001,"Agent: Hello.
+Customer: A question about my card.",A question about my card.,Hello.,es,mexican,0.90,card,,card_question,cards,team-model,High,
+TRN-TEAM000003,INT-TEAM000003,2026-06-17,CLI-TEAM00000005,AGT-TEAM0001,"Agent: Hello.
+Customer: A question about my card.",A question about my card.,Hello.,es,mexican,0.90,card,,card_question,cards,team-model,High,300

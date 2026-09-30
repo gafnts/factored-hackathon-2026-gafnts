@@ -1,0 +1,2 @@
+﻿send_id,send_date,process_date,campaign_id,customer_id,send_channel,template_used,subject,send_status,was_delivered,was_opened,open_date,was_clicked,click_date,click_count,had_conversion,conversion_date,conversion_value,open_device,open_country,failure_reason,send_cost
+SND-TEAM000002,2026-06-18 06:00:00,2026-06-17,CMP-TEAM0001,CLI-TEAM00000004,Email,team-template,Your card,Sent,True,False,,False,,0,False,,,,,,0.0100

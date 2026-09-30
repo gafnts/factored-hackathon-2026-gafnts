@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from banking_agent import clock
 from banking_agent.analysis import __main__ as cli
 from banking_agent.analysis import profile as profiling
 from banking_agent.analysis.cards import CardSupport
@@ -58,7 +59,7 @@ def test_select_writes_the_profile_and_the_selection(
     selection: Selection,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
     monkeypatch.setattr(cli, "select", lambda *args, **kwargs: selection)
 
     assert cli.main([*options(tmp_path), "select"]) == 0
@@ -91,7 +92,7 @@ def test_cards_writes_the_profile_and_the_card_support_analysis(
     card_result: CardSupport,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
     monkeypatch.setattr(cli, "card_support", lambda *args, **kwargs: card_result)
 
     assert cli.main([*options(tmp_path), "cards"]) == 0
@@ -116,7 +117,7 @@ def test_traffic_writes_the_profile_and_the_traffic_analysis(
     traffic_result: Traffic,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
     monkeypatch.setattr(cli, "traffic", lambda *args, **kwargs: traffic_result)
 
     assert cli.main([*options(tmp_path), "traffic"]) == 0
@@ -140,7 +141,7 @@ def test_all_profiles_once_and_writes_every_report(
         profiles.append(args)
         return profiling.profile(*args, **kwargs)
 
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
     monkeypatch.setattr(cli, "profile", counted)
     monkeypatch.setattr(cli, "select", lambda *args, **kwargs: selection)
     monkeypatch.setattr(cli, "card_support", lambda *args, **kwargs: card_result)
@@ -168,7 +169,7 @@ def test_traffic_needs_the_tables_it_reads(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
 
     assert cli.main([*options(tmp_path), "traffic"]) == 1
     assert (
@@ -183,7 +184,7 @@ def test_cards_needs_the_tables_it_reads(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
 
     assert cli.main([*options(tmp_path), "cards"]) == 1
     assert (
@@ -199,7 +200,7 @@ def test_select_needs_the_tables_it_stages(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
 
     assert cli.main([*options(tmp_path), "select"]) == 1
     assert "the selection needs call_center_interactions" in capsys.readouterr().err
