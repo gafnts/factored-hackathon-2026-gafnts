@@ -55,8 +55,8 @@ tflint-init: ## Refresh tflint plugins after a .tflint.hcl version bump
 
 ##@ Quality gates
 
+# A hook without `stages` runs in every stage, so the pre-push stage alone covers both.
 check: ## Run every pre-commit hook against every file (both stages)
-	uv run pre-commit run --all-files --hook-stage pre-commit
 	uv run pre-commit run --all-files --hook-stage pre-push
 
 lint: ## Run ruff check on src and tests, and ESLint on the web app
@@ -79,7 +79,7 @@ tf-format: ## Format all Terraform files
 ##@ Testing
 
 test: ## Run pytest and Vitest, each with its coverage floor
-	uv run pytest --cov --cov-report=term-missing
+	uv run pytest -n auto --cov --cov-report=term-missing
 	pnpm --dir web test
 
 integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)

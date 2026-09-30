@@ -1,7 +1,12 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { SignInEndedError } from "../src/auth";
-import { problemOf, runtimeFetch, warmUp } from "../src/runtime";
+import {
+  problemOf,
+  runtimeFetch,
+  warmUp,
+  withoutSteerAway,
+} from "../src/runtime";
 import { errors } from "./contract";
 
 afterEach(() => {
@@ -65,4 +70,62 @@ test.each([
   [null, "unreachable"],
 ])("classifies %s as %s", (error, problem) => {
   expect(problemOf(error)).toBe(problem);
+});
+
+describe("a message typed while a control shows", () => {
+  const message = { id: "Xk3pQ9a", role: "user" as const, content: "sim" };
+  const input = {
+    threadId: "thread-0001",
+    runId: "run-0001",
+    state: null,
+    messages: [message],
+    tools: [],
+    context: [],
+    forwardedProps: {},
+  };
+
+  test("goes out alone, without steerAway's cancelled entries", () => {
+    const steered = {
+      ...input,
+      resume: [{ interruptId: "interrupt-1", status: "cancelled" as const }],
+    };
+
+    const sent = JSON.parse(
+      JSON.stringify(withoutSteerAway(steered)),
+    ) as Record<string, unknown>;
+
+    expect(sent.resume).toBeUndefined();
+    expect(errors("request", sent)).toEqual([]);
+  });
+
+  test("keeps a control's answer, and anything that isn't steerAway's shape", () => {
+    const answered = {
+      ...input,
+      messages: [],
+      resume: [
+        {
+          interruptId: "interrupt-1",
+          status: "resolved" as const,
+          payload: {
+            kind: "confirm",
+            confirmation_id: "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+          },
+        },
+      ],
+    };
+    const cancelledWithPayload = {
+      ...input,
+      resume: [
+        {
+          interruptId: "interrupt-1",
+          status: "cancelled" as const,
+          payload: {},
+        },
+      ],
+    };
+
+    expect(withoutSteerAway(answered)).toBe(answered);
+    expect(withoutSteerAway(cancelledWithPayload)).toBe(cancelledWithPayload);
+    expect(withoutSteerAway(input)).toBe(input);
+  });
 });

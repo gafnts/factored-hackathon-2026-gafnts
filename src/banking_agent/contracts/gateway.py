@@ -73,5 +73,8 @@ def tool_definition(tool: str) -> dict[str, Any]:
     return {"name": tool, "description": description, "inputSchema": input_schema}
 
 
-def tool_definitions() -> list[dict[str, Any]]:
-    return [tool_definition(tool) for tool in GATEWAY_TOOLS]
+def tool_definitions() -> dict[str, list[dict[str, Any]]]:
+    return {
+        target: [tool_definition(tool) for tool in tools]
+        for target, tools in GATEWAY_TOOLS.items()
+    }

@@ -22,6 +22,14 @@ class OutputContractError(RuntimeError):
         super().__init__(f"{tool}'s output doesn't fit its contract: {broken}")
 
 
+def gateway_tool(context: Any) -> str:
+    """
+    The Gateway names the tool as <target>___<tool> in the invocation's client context.
+    """
+    custom = context.client_context.custom if context.client_context else {}
+    return str(custom.get("bedrockAgentCoreToolName", "")).rpartition("___")[2]
+
+
 def pointer(error: ValidationError) -> str:
     parts = (str(p).replace("~", "~0").replace("/", "~1") for p in error.absolute_path)
     return "".join(f"/{part}" for part in parts)[:MAX_PATH]

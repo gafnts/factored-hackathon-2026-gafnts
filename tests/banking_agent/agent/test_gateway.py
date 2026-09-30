@@ -15,6 +15,7 @@ import pytest
 from banking_agent.agent.gateway import Gateway, ToolCall
 
 URL = "https://gateway.example/mcp"
+TARGETS = {"list_cards": "reads", "get_card": "reads", "block_card": "block"}
 ARGUMENTS = {
     "customer_id": "CLI-EXAMPLE00001",
     "origin_jti": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
@@ -44,7 +45,9 @@ def result_body(output: Any) -> dict[str, Any]:
     }
 
 
-def call(respond: Any, seen: list[httpx.Request] | None = None) -> ToolCall:
+def call(
+    respond: Any, seen: list[httpx.Request] | None = None, tool: str = "list_cards"
+) -> ToolCall:
     def handler(request: httpx.Request) -> httpx.Response:
         if seen is not None:
             seen.append(request)
@@ -55,8 +58,8 @@ def call(respond: Any, seen: list[httpx.Request] | None = None) -> ToolCall:
 
     async def go() -> ToolCall:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await Gateway(URL, "reads", client).call(
-                "list_cards", ARGUMENTS, "customer-token"
+            return await Gateway(URL, TARGETS, client).call(
+                tool, ARGUMENTS, "customer-token"
             )
 
     return asyncio.run(go())
@@ -177,3 +180,11 @@ def test_a_call_the_lambda_never_answered_is_failed(
 
     assert made.outcome == "failed"
     assert made.error == error
+
+
+def test_the_block_is_called_on_its_own_target() -> None:
+    seen: list[httpx.Request] = []
+
+    call(lambda _: httpx.Response(200, json={"jsonrpc": "2.0"}), seen, "block_card")
+
+    assert json.loads(seen[0].content)["params"]["name"] == "block___block_card"

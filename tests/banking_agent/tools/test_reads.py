@@ -10,7 +10,8 @@ import pytest
 
 from banking_agent.tools import OutputContractError, reads
 from banking_agent.tools.reads import answer, handler, tool_name
-from banking_agent.tools.store import MemoryData, ToolsData
+from banking_agent.tools.sandbox import MemoryOverlay, Stores
+from banking_agent.tools.store import MemoryData
 
 from .conftest import OWN, SIGN_IN, example_items
 
@@ -25,8 +26,12 @@ def context(name: str | None) -> Any:
     )
 
 
-def unopened() -> ToolsData:
-    raise AssertionError("the tools' data was opened")
+def unopened() -> Stores:
+    raise AssertionError("the stores were opened")
+
+
+def opened(items: list[dict[str, Any]]) -> Stores:
+    return Stores(MemoryData(items), MemoryOverlay())
 
 
 @pytest.mark.parametrize(
@@ -57,7 +62,7 @@ def test_an_invalid_input_is_answered_without_reading() -> None:
 def test_the_handler_answers_from_the_tools_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(reads, "tools_data", lambda: MemoryData(example_items()))
+    monkeypatch.setattr(reads, "stores", lambda: opened(example_items()))
 
     result = handler(VALID, context("reads___get_card"))
 
@@ -74,7 +79,7 @@ def test_an_output_that_doesnt_fit_the_contract_is_never_returned() -> None:
         answer(
             "list_cards",
             {"customer_id": OWN, "origin_jti": SIGN_IN},
-            lambda: MemoryData(items),
+            lambda: opened(items),
         )
 
     assert "44821" not in str(raised.value)

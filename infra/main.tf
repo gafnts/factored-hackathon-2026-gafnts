@@ -39,6 +39,12 @@ module "tools_data" {
   contract    = "${path.root}/../src/banking_agent/contracts/tools-data.schema.json"
 }
 
+module "sandbox" {
+  source = "./modules/sandbox"
+
+  prefix = local.prefix
+}
+
 module "gateway" {
   source = "./modules/gateway"
 
@@ -47,10 +53,12 @@ module "gateway" {
   log_retention_days       = var.log_retention_days
   discovery_url            = module.identity.discovery_url
   allowed_clients          = [module.identity.customer_client_id]
-  reads_zip                = "${local.build}/reads.zip"
+  tools_zip                = "${local.build}/tools.zip"
   tools_data_table         = module.tools_data.table_name
   tools_data_table_arn     = module.tools_data.table_arn
   tools_data_attributes    = module.tools_data.readable_attributes
+  overlay_table            = module.sandbox.overlay
+  confirmations_table      = module.sandbox.confirmations
 }
 
 module "runtime" {
@@ -64,7 +72,8 @@ module "runtime" {
   customer_client_id       = module.identity.customer_client_id
   required_group           = "customer"
   gateway_url              = module.gateway.gateway_url
-  gateway_target           = module.gateway.target
+  gateway_targets          = module.gateway.targets
+  confirmations_table      = module.sandbox.confirmations
   tools_data               = { stamp = module.tools_data.stamp, clock = module.tools_data.clock }
   runtime_zip              = "${local.build}/runtime.zip"
 }

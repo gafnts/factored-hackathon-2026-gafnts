@@ -1,4 +1,9 @@
-import type { Language, RunError } from "./contracts/chat";
+import type {
+  BlockReason,
+  Language,
+  ProductType,
+  RunError,
+} from "./contracts/chat";
 
 export type RunErrorCode = RunError["code"];
 export type Problem = RunErrorCode | "unreachable";
@@ -29,7 +34,43 @@ export interface Texts {
     working: string;
     problems: Record<Problem, string>;
   };
+  // The confirm control, in the language of the conversation it confirms (POL-36).
+  control: {
+    label: string;
+    card: (type: ProductType, lastFour: string) => string;
+    reason: (reason: BlockReason) => string;
+    undo: string;
+    confirm: string;
+    cancel: string;
+    expired: string;
+  };
 }
+
+const CARD_TYPES: Record<Language, Record<ProductType, string>> = {
+  es: {
+    "Tarjeta Crédito": "tarjeta de crédito",
+    "Tarjeta Débito": "tarjeta de débito",
+  },
+  pt: {
+    "Tarjeta Crédito": "cartão de crédito",
+    "Tarjeta Débito": "cartão de débito",
+  },
+};
+
+const REASONS: Record<Language, Record<BlockReason, string>> = {
+  es: {
+    lost: "pérdida",
+    stolen: "robo",
+    unrecognized_charge: "cargo no reconocido",
+    customer_request: "solicitud del cliente",
+  },
+  pt: {
+    lost: "perda",
+    stolen: "roubo",
+    unrecognized_charge: "cobrança não reconhecida",
+    customer_request: "pedido do cliente",
+  },
+};
 
 export const TEXTS: Record<Language, Texts> = {
   es: {
@@ -75,6 +116,16 @@ export const TEXTS: Record<Language, Texts> = {
         unreachable: "No pudimos comunicarnos con Faro. Inténtelo de nuevo.",
       },
     },
+    control: {
+      label: "Confirmar el bloqueo",
+      card: (type, lastFour) =>
+        `Bloquear ${CARD_TYPES.es[type]} terminada en ${lastFour}`,
+      reason: (reason) => `Motivo: ${REASONS.es[reason]}`,
+      undo: "Solo una persona del banco puede deshacer un bloqueo.",
+      confirm: "Bloquear",
+      cancel: "Cancelar",
+      expired: "El tiempo para confirmar terminó.",
+    },
   },
   pt: {
     assistant: "Faro · assistente automático",
@@ -117,6 +168,16 @@ export const TEXTS: Record<Language, Texts> = {
           "No momento não consigo responder. Por favor, tente novamente em alguns minutos.",
         unreachable: "Não foi possível falar com o Faro. Tente novamente.",
       },
+    },
+    control: {
+      label: "Confirmar o bloqueio",
+      card: (type, lastFour) =>
+        `Bloquear ${CARD_TYPES.pt[type]} final ${lastFour}`,
+      reason: (reason) => `Motivo: ${REASONS.pt[reason]}`,
+      undo: "Só uma pessoa do banco pode desfazer um bloqueio.",
+      confirm: "Bloquear",
+      cancel: "Cancelar",
+      expired: "O tempo para confirmar terminou.",
     },
   },
 };

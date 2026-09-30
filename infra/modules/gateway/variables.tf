@@ -34,7 +34,23 @@ variable "tools_data_attributes" {
   type        = list(string)
 }
 
-variable "reads_zip" {
-  description = "The read tools' zip, written by make build"
+variable "overlay_table" {
+  description = "The sandbox's overlay, which the reads read and the block writes"
+  type = object({
+    name = string
+    arn  = string
+  })
+}
+
+variable "confirmations_table" {
+  description = "The confirmations, which the block uses up"
+  type = object({
+    name = string
+    arn  = string
+  })
+}
+
+variable "tools_zip" {
+  description = "The tools' zip, which both Lambdas run, written by make build"
   type        = string
 }

@@ -17,6 +17,7 @@ from langchain_core.runnables import RunnableLambda
 from banking_agent.agent import models
 from banking_agent.agent.models import (
     MODEL,
+    BlockDetails,
     ModelFailedError,
     Models,
     RouterOutput,
@@ -69,9 +70,9 @@ def entry_fits(fields: dict[str, Any]) -> bool:
 
 def test_the_calls_run_on_haiku_without_retries_streaming_or_emitted_events() -> None:
     make = anthropic_factory("model-key")
-    reply, route = make("reply"), make("route")
+    reply, route, extract = make("reply"), make("route"), make("extract")
 
-    for runnable in (reply, route):
+    for runnable in (reply, route, extract):
         assert runnable.config["metadata"] == {  # type: ignore[attr-defined]
             "emit-messages": False,
             "emit-tool-calls": False,
@@ -166,7 +167,35 @@ def test_usage_and_cost_are_unknown_without_usage() -> None:
     assert cost(counted) is None
 
 
+def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
+    parsed = BlockDetails(card_type="credit", last_four="4821", block_reason="lost")
+    raw = answer(content="{}", usage_metadata=USAGE)
+    made, entries = recorded({"raw": raw, "parsed": parsed, "parsing_error": None})
+
+    found = asyncio.run(made.extract("Perdí la terminada en 4821.", "A block."))
+
+    assert found == parsed
+    (entry,) = entries
+    assert entry_fits(entry)
+    assert (entry["node"], entry["purpose"]) == ("resolve_card", "extract")
+    assert entry["output"] == {
+        "extracted": {
+            "card_type": "credit",
+            "last_four": "4821",
+            "block_reason": "lost",
+        }
+    }
+    assert entry["prompt_version"] == prompt_version("resolve_card")
+
+
+def test_an_extraction_offers_only_the_policys_reasons() -> None:
+    with pytest.raises(ValueError):
+        BlockDetails.model_validate(
+            {"card_type": "credit", "last_four": None, "block_reason": "fraud"}
+        )
+
+
 def test_every_prompt_has_a_version() -> None:
-    for name in ("route", "reply"):
+    for name in ("route", "resolve_card", "reply"):
         assert re.fullmatch("[0-9a-f]{16}", prompt_version(name))
     assert "{language}" in models.prompt("reply")

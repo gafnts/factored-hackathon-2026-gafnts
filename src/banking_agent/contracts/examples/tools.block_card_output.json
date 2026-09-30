@@ -1,0 +1,101 @@
+[
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card_id": "PRD-EXAMPLE00002",
+    "reason": "lost",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "attempts": 1,
+    "block_outcome": "verified",
+    "read_back": "Blocked",
+    "repeated": false
+  },
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card_id": "PRD-EXAMPLE00002",
+    "reason": "lost",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "attempts": 3,
+    "block_outcome": "not_verified",
+    "read_back": "Active",
+    "repeated": false
+  },
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card_id": "PRD-EXAMPLE00002",
+    "reason": "lost",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "attempts": 1,
+    "block_outcome": "verified",
+    "read_back": "Blocked",
+    "repeated": true
+  },
+  {
+    "outcome": "refused",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "refusal": "not_confirmed"
+  },
+  {
+    "outcome": "refused",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "refusal": "not_active",
+    "product_status": "Blocked"
+  },
+  {
+    "outcome": "not_found",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    }
+  },
+  {
+    "outcome": "invalid_input",
+    "errors": [
+      {
+        "path": "/reason",
+        "rule": "enum"
+      }
+    ]
+  }
+]
