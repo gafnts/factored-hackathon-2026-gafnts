@@ -1,8 +1,9 @@
 """
 The pipeline computes the business clock from bronze by the rule the profile uses, so both read a snapshot as of the
-same instant (ADR-0003, ADR-0006 Freshness).
+same instant (ADR-0003, ADR-0006 Freshness); on the pinned snapshot, each committed manifest shows it did.
 """
 
+import json
 from datetime import date, datetime
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import pytest
 
 from banking_agent.analysis.catalog import TABLES
 from banking_agent.analysis.profile import profile
+from banking_agent.dataset.lock import read_lock
 from banking_agent.dataset.snapshot import snapshot_dir
 from banking_agent.pipeline import build, runner
 
@@ -18,6 +20,8 @@ from . import fixture
 from .conftest import Built
 
 pytestmark = pytest.mark.xdist_group("pipeline")
+
+REPO = Path(__file__).resolve().parents[3]
 
 
 def test_the_pipelines_clock_is_the_profiles(base: Built) -> None:
@@ -44,3 +48,21 @@ def test_a_snapshot_without_settled_rows_has_no_clock(tmp_path: Path) -> None:
     [failed] = [r for r in runner.failed(results) if r["status"] == "error"]
     assert runner.node_name(failed) == "silver_clock"
     assert "no daily table has settled rows" in failed["message"]
+
+
+def test_the_pinned_snapshot_reads_as_of_the_profiles_instant_in_every_build() -> None:
+    profiled = json.loads((REPO / "docs" / "analysis" / "profiling.json").read_text())
+    pinned = read_lock(REPO / "dataset.lock").snapshot_id
+    manifests = sorted((REPO / "docs" / "pipeline").glob(f"{pinned}-*.json"))
+
+    assert profiled["snapshot_id"] == pinned == "b3b8b248f604ef9a"
+    assert (profiled["business_date"], profiled["as_of"]) == (
+        "2026-06-17",
+        "2026-06-18 06:00:00",
+    )
+    assert manifests
+    for path in manifests:
+        assert json.loads(path.read_text())["clock"] == {
+            "business_date": profiled["business_date"],
+            "as_of": profiled["as_of"],
+        }, path.name

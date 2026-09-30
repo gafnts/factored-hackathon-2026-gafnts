@@ -24,6 +24,8 @@ from .conftest import Built
 
 pytestmark = pytest.mark.xdist_group("pipeline")
 
+DOCS = Path(__file__).resolve().parents[3] / "docs" / "pipeline"
+
 
 def _decoded(value: dict[str, Any]) -> Any:
     [(kind, inner)] = value.items()
@@ -156,6 +158,22 @@ def test_an_export_refuses_gold_from_other_code_or_no_passing_build(
     monkeypatch.setattr(version, "pipeline_version", lambda root=None: "f" * 16)
     with pytest.raises(writer.ExportError, match="other code"):
         export.export(base.lock, base.data_dir, tmp_path)
+
+
+def test_every_committed_manifest_is_a_passing_builds_and_publishes_only_aggregates() -> (
+    None
+):
+    committed = sorted(DOCS.glob("*.json"))
+
+    assert committed
+    for path in committed:
+        written = json.loads(path.read_text())
+        run = written["run"]
+        numbers = [*run["rows"].values(), *(c["rows"] for c in run["checks"])]
+        assert path.name == f"{written['snapshot']}-{written['pipeline_version']}.json"
+        assert {c["status"] for c in run["checks"]} <= {"pass", "warn"}, path.name
+        assert not [n for n in numbers if isinstance(n, int) and 0 < n < 10]
+        assert not re.search(r"(?<![\w-])[A-Z]{3}-[A-Z0-9]{8}", path.read_text())
 
 
 def test_suppression_hides_counts_from_one_to_nine() -> None:
