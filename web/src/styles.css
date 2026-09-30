@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* The identity guide's Paper mode; Night waits for the mark (D7). */
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-paper: #e3e5dc;
+  --color-paper-raised: #f1f2ec;
+  --color-ink: #161816;
+  --color-ink-muted: #565a53;
+  --color-ember: #a4431a;
+  --color-deep-sea: #2b5a8a;
+  --color-lamp: #ee7a3f;
+  --color-rule: #c5c8be;
+
+  --animate-sweep: sweep 2.4s ease-in-out infinite;
+
+  @keyframes sweep {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-deep-sea;
+  }
+}

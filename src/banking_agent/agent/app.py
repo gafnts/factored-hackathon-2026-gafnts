@@ -61,7 +61,7 @@ from banking_agent.contracts import NAMES, version
 WORKLOAD_TOKEN_HEADERS = ("workloadaccesstoken", "x-amz-bedrock-agentcore-identity-wat")
 POLICY_VERSION = 1
 CHECKPOINTS_KEPT = timedelta(days=7)
-CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{7,64}$")
 
 logger = logging.getLogger(__name__)
 app = AGUIApp()

@@ -68,3 +68,19 @@ module "runtime" {
   tools_data               = { stamp = module.tools_data.stamp, clock = module.tools_data.clock }
   runtime_zip              = "${local.build}/runtime.zip"
 }
+
+module "site" {
+  source = "./modules/site"
+
+  prefix = local.prefix
+  config = {
+    region             = var.aws_region
+    user_pool_id       = module.identity.user_pool_id
+    customer_client_id = module.identity.customer_client_id
+    runtime_url        = module.runtime.invoke_url
+  }
+  connect_src = [
+    "https://cognito-idp.${var.aws_region}.amazonaws.com",
+    "https://bedrock-agentcore.${var.aws_region}.amazonaws.com",
+  ]
+}
