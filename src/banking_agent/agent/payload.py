@@ -52,10 +52,13 @@ def required(
     cards: Sequence[str] = (),
     actions: Sequence[Mapping[str, Any]] = (),
     reported: str | None = None,
+    handoff_id: str | None = None,
+    outcome: str = "hand_off",
 ) -> dict[str, Any]:
     """
     A handoff the policy requires, as a node hands it to the handoff node: the calls whose results hold its facts, the
-    records those facts are about, the actions, the reason the customer gave, and the rules the turn's decision cites.
+    records those facts are about, the actions, the reason the customer gave, the rules the turn's decision cites and
+    its outcome, and the ID of the draft it files, if one was saved.
     """
     return {
         "reason_code": reason_code,
@@ -63,10 +66,12 @@ def required(
         "label": label,
         "rules": list(HANDOFFS[reason_code].rules),
         "decided": decided,
+        "outcome": outcome,
         "calls": list(calls),
         "cards": list(cards),
         "actions": [dict(a) for a in actions],
         "reported": reported,
+        "handoff_id": handoff_id,
     }
 
 
@@ -79,6 +84,7 @@ def offered(
     calls: Sequence[str] = (),
     cards: Sequence[str] = (),
     actions: Sequence[Mapping[str, Any]] = (),
+    handoff_id: str | None = None,
 ) -> dict[str, Any]:
     """
     A handoff the policy offers, filed only if the customer accepts it with the handoff control (POL-45). rules are the
@@ -86,7 +92,13 @@ def offered(
     """
     return {
         **required(
-            reason_code, label, decided, calls=calls, cards=cards, actions=actions
+            reason_code,
+            label,
+            decided,
+            calls=calls,
+            cards=cards,
+            actions=actions,
+            handoff_id=handoff_id,
         ),
         "trigger": "accepted_offer",
         "rules": rules,

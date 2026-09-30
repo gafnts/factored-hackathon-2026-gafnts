@@ -3,8 +3,7 @@ The replies code gives in fixed text, in each of the chat's languages (POL-50), 
 entry names them. A block's questions and outcomes are all fixed text: code chooses each from the tools' results and
 the confirmation, and fills in the card's type, last four digits, and status, so the model never reports an action
 (ADR-0004, decision 8; AI-05). An offered handoff and a filed handoff's reference reach the customer here too
-(POL-45). Where the policy requires a handoff once a confirmation ends, handoff_unavailable says the chat can't pass it
-on yet, until the drafts land.
+(POL-45).
 """
 
 from typing import Any
@@ -135,11 +134,6 @@ FIXED: dict[str, dict[str, str]] = {
     "handoff_failed": {
         "es": "Este caso lo debe atender una persona del banco, pero en este momento no pude pasárselo. Por favor, inténtelo de nuevo en unos minutos.",
         "pt": "Este caso precisa ser atendido por uma pessoa do banco, mas no momento não consegui encaminhá-lo. Por favor, tente novamente em alguns minutos.",
-    },
-    # Where the policy requires a handoff once a confirmation ends (POL-38, POL-39), until the drafts land.
-    "handoff_unavailable": {
-        "es": "Este caso lo debe atender una persona del banco, y desde este chat todavía no puedo pasárselo.",
-        "pt": "Este caso precisa ser atendido por uma pessoa do banco, e por este chat ainda não consigo encaminhá-lo.",
     },
 }
 

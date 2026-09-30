@@ -155,8 +155,10 @@ def test_a_block_asks_which_card_then_why_then_shows_the_control(
     assert reply(shown) == FIXED["confirm_prompt"]["es"].format(
         card="tarjeta de débito terminada en 1177", reason="pérdida"
     )
-    assert kinds(chat.entries())[-5:] == [
+    assert kinds(chat.entries())[-7:] == [
         "confirmation",
+        "tool_call",
+        "handoff",
         "reply",
         "interrupt",
         "decision",
@@ -371,17 +373,19 @@ def test_a_confirm_after_the_time_limit_is_refused_and_nothing_is_blocked(
     late = chat.press("confirm", shown)
 
     assert "block___block_card" not in called(harness)
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
     assert reply(late).split("\n\n") == [
         FIXED["confirmation_lapsed"]["es"].format(
             card="tarjeta de crédito terminada en 4821"
         ),
-        FIXED["handoff_unavailable"]["es"],
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
     ]
     entries = chat.entries()
     assert (entries[1]["accepted"], entries[1]["refusal"]) == (False, "expired")
     assert (entries[2]["to"], entries[2]["cause"]) == ("lapsed", "time_limit")
-    assert chat.decision()["outcome_class"] == "abstain"
-    assert chat.decision()["rules"] == ["POL-36", "POL-38"]
+    assert (filed["reason_code"], filed["priority"]) == ("block_lapsed", "urgent")
+    assert chat.decision()["outcome_class"] == "hand_off"
+    assert chat.decision()["rules"] == ["POL-36", "POL-38", "POL-45"]
 
 
 def test_a_message_after_the_time_limit_ends_the_confirmation_and_is_served(
@@ -534,8 +538,13 @@ def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
         "confirm", control_shown(chat, block_reason="unrecognized_charge")
     )
 
-    assert reply(done).split("\n\n")[-1] == FIXED["handoff_unavailable"]["es"]
-    assert chat.decision()["rules"] == ["POL-36", "POL-37", "POL-39"]
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+    assert reply(done).split("\n\n")[-1] == FIXED["handoff_filed"]["es"].format(
+        reference=filed["reference"]
+    )
+    assert (filed["queue"], filed["priority"]) == ("dispute_intake", "normal")
+    assert chat.decision()["outcome_class"] == "block"
+    assert chat.decision()["rules"] == ["POL-36", "POL-37", "POL-39", "POL-45"]
 
 
 @pytest.mark.parametrize(

@@ -347,9 +347,12 @@ def test_a_confirmation_past_its_time_limit_lapses_unused(
     late = chat.press("confirm", shown)
 
     assert late[-1]["outcome"] == {"type": "success"}
+    # A lost card left unblocked at the time limit goes to a person (POL-38).
+    filed = next(e for e in chat.last_turn() if e["kind"] == "handoff")
+    assert (filed["reason_code"], filed["status"]) == ("block_lapsed", "filed")
     assert reply(late).split("\n\n") == [
         render("confirmation_lapsed", "pt", {"card": card}),
-        FIXED["handoff_unavailable"]["pt"],
+        render("handoff_filed", "pt", {"reference": filed["reference"]}),
     ]
     resume = next(e for e in chat.last_turn() if e["kind"] == "resume")
     assert resume["refusal"] == "expired"

@@ -57,6 +57,7 @@ from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.texts import FIXED, LANGUAGE_NAMES, render
 from banking_agent.masking import has_digit_run
 from banking_agent.policy import POLICY_VERSION
+from banking_agent.policy.handoffs import HANDOFFS
 from banking_agent.tools.provenance import OUTCOMES
 
 # What the reply's model may see of each card; the ID and the update flag stay with code.
@@ -70,6 +71,8 @@ LAST_FOUR = re.compile(r"^[0-9]{4}$")
 QUESTIONS = 2
 # A lost or stolen card left unblocked is handed to a person (POL-38).
 MISSING = ("lost", "stolen")
+# The blocks whose confirmation's end may require a handoff, drafted when the control shows (POL-38, POL-39).
+DRAFTED = (*MISSING, "unrecognized_charge")
 CONTROL = "confirm_control"
 OFFERED = "handoff_control"
 # The tool calls a handoff may cite, the thread's latest first to go; a payload holds 60 at most.
@@ -102,6 +105,7 @@ class State(ChatState, total=False):
     complaint: bool
     listed: str | None
     handoff: dict[str, Any] | None
+    then: dict[str, Any] | None
     offer: dict[str, Any] | None
     evidence: Annotated[list[dict[str, Any]], kept]
 
@@ -221,6 +225,7 @@ async def begin(state: State) -> dict[str, Any]:
         "complaint": False,
         "listed": None,
         "handoff": None,
+        "then": None,
         "offer": None,
     }
 
@@ -501,6 +506,9 @@ async def confirm(state: State) -> dict[str, Any]:
         cause="created",
         **{"from": None},
     )
+    handoff_id = None
+    if target["reason"] in DRAFTED:
+        handoff_id = await drafted(scope, state["language"], target, confirmation_id)
     facts = {"card": card_facts(target), "reason": target["reason"]}
     rules = ["POL-13", "POL-35", "POL-36"]
     say = said(("confirm_prompt", facts))
@@ -521,10 +529,60 @@ async def confirm(state: State) -> dict[str, Any]:
             "origin_jti": scope.claims.origin_jti,
             "typed": 0,
             "listed": state.get("listed"),
+            "label": state.get("label") or "block_card",
+            "handoff_id": handoff_id,
         },
         "say": [*state.get("say", []), *say],
         "decision": decided("block", rules, CONTROL),
     }
+
+
+async def drafted(
+    scope: Scope, language: str, target: dict[str, Any], confirmation_id: str
+) -> str:
+    """
+    Saves a draft of the handoff the confirmation's end may require, through file_handoff, since the Runtime's role
+    writes no case: POL-39's however the confirmation ends, and POL-38's should a lost or stolen card's block lapse. The
+    turn that ends the confirmation files it under the same ID, and a confirmation that ends with no turn leaves it to
+    expire unfiled (ADR-0004, decision 7, deferred; D1). A draft that couldn't be saved is filed all the same.
+    """
+    handoff_id = str(uuid.uuid4())
+    code = (
+        "unrecognized_charge"
+        if target["reason"] == "unrecognized_charge"
+        else "block_lapsed"
+    )
+    call = await scope.filing.file(
+        {
+            "customer_id": scope.claims.customer_id,
+            "origin_jti": scope.claims.origin_jti,
+            "call_id": new_call_id(),
+            "mode": "draft",
+            "draft": {
+                "handoff_id": handoff_id,
+                "language": language,
+                "reason_code": code,
+                "confirmation_id": confirmation_id,
+                "card_id": target["card_id"],
+                "reason": target["reason"],
+            },
+        },
+        scope.token,
+        scope.turn.write,
+    )
+    if call.outcome == "ok" and (call.result or {}).get("status") == "draft_saved":
+        # Urgent while the card isn't blocked (POL-47).
+        await scope.turn.write(
+            "handoff",
+            handoff_id=handoff_id,
+            reason_code=code,
+            trigger="required",
+            queue=HANDOFFS[code].queue,
+            priority="urgent",
+            status="draft_saved",
+            flagged=False,
+        )
+    return handoff_id
 
 
 def controls(state: State) -> dict[str, Any]:
@@ -582,16 +640,46 @@ def offer_waits(offer: dict[str, Any], rules: list[str]) -> dict[str, Any]:
     }
 
 
-def lapsed_action(pending: dict[str, Any]) -> dict[str, Any]:
+def unused(pending: dict[str, Any], outcome: str = "lapsed") -> dict[str, Any]:
+    """
+    A confirmation that ended unused, as a handoff's action: cancelled with the control, or lapsed.
+    """
     return {
         "action": "block_card",
         "card_id": pending["card_id"],
         "reason": pending["reason"],
         "confirmation_id": pending["confirmation_id"],
-        "outcome": "lapsed",
+        "outcome": outcome,
         "confirmed_at": None,
         "evidence": [],
     }
+
+
+def owed(
+    pending: dict[str, Any], cause: str, rules: list[str]
+) -> dict[str, Any] | None:
+    """
+    The handoff a confirmation's unused end requires, which files its draft: POL-39's however it ended, and POL-38's
+    when a lost or stolen card's block lapsed at its time limit or with the sign-in, since the customer left without
+    blocking it. A cancel or a new request needs none for a lost card: the customer is there to decide.
+    """
+    if pending["reason"] == "unrecognized_charge":
+        code, rule = "unrecognized_charge", "POL-39"
+    elif pending["reason"] in MISSING and cause in ("time_limit", "session_end"):
+        code, rule = "block_lapsed", "POL-38"
+    else:
+        return None
+    return required(
+        code,
+        pending.get("label") or "block_card",
+        list(dict.fromkeys([*rules, rule])),
+        calls=[pending["listed"]] if pending.get("listed") else [],
+        cards=[pending["card_id"]],
+        actions=[
+            unused(pending, "declined_by_customer" if cause == "control" else "lapsed")
+        ],
+        handoff_id=pending.get("handoff_id"),
+    )
 
 
 async def ended(scope: Scope, pending: dict[str, Any], to: str, cause: str) -> None:
@@ -608,17 +696,13 @@ async def ended(scope: Scope, pending: dict[str, Any], to: str, cause: str) -> N
 
 async def lapsed(scope: Scope, pending: dict[str, Any], cause: str) -> list[list[Any]]:
     """
-    Ends the confirmation unused, and says so; a lost or stolen card left unblocked at the time limit or with the
-    sign-in is a person's case (POL-38), which the chat can't pass on yet.
+    Ends the confirmation unused, and says so; owed() says whether a person takes the case.
     """
     if await asyncio.to_thread(
         scope.confirmations.lapse, pending["confirmation_id"], cause, scope.now()
     ):
         await ended(scope, pending, "lapsed", cause)
-    say = said(("confirmation_lapsed", {"card": pending["card"]}))
-    if cause != "message" and pending["reason"] in MISSING:
-        say += said(("handoff_unavailable", {}))
-    return say
+    return said(("confirmation_lapsed", {"card": pending["card"]}))
 
 
 def lapse_rules(pending: dict[str, Any], cause: str) -> list[str]:
@@ -646,6 +730,7 @@ async def await_control(state: State) -> dict[str, Any]:
         "target": None,
         "block": None,
         "handoff": None,
+        "then": None,
         "cards": [],
     }
     if answer["kind"] == "message":
@@ -691,22 +776,28 @@ async def await_control(state: State) -> dict[str, Any]:
         }
     if refusal is None:
         await ended(scope, pending, "cancelled", "control")
-        return {
+        cancelled = {
             **turn,
             "pending": None,
             "say": said(("confirmation_cancelled", {"card": pending["card"]})),
-            "decision": decided("answer", ["POL-36"]),
         }
+        request = owed(pending, "control", ["POL-36"])
+        if request is not None:
+            return cancelled | {"case": "handoff", "handoff": request}
+        return cancelled | {"decision": decided("answer", ["POL-36"])}
     cause = {"expired": "time_limit", "other_sign_in": "session_end"}.get(
         refusal, "message"
     )
     rules = lapse_rules(pending, cause)
-    return {
+    ended_unused = {
         **turn,
         "pending": None,
         "say": await lapsed(scope, pending, cause),
-        "decision": decided("abstain" if "POL-38" in rules else "answer", rules),
     }
+    request = owed(pending, cause, rules)
+    if request is not None:
+        return ended_unused | {"case": "handoff", "handoff": request}
+    return ended_unused | {"decision": decided("answer", rules)}
 
 
 async def answered_offer(
@@ -741,18 +832,16 @@ async def answered_offer(
             refusal="other_sign_in",
         )
         say, rules = said(("offer_lapsed", {})), ["POL-09", "POL-45"]
+        update: dict[str, Any] = {"offer": None, "pending": None}
         if pending is not None:
             say = [*(await lapsed(scope, pending, "session_end")), *say]
             rules = [*lapse_rules(pending, "session_end"), "POL-45"]
-        return {
-            "offer": None,
-            "pending": None,
+            request = owed(pending, "session_end", rules)
+            if request is not None:
+                return update | {"say": say, "case": "handoff", "handoff": request}
+        return update | {
             "say": say,
-            "decision": concluded(
-                offer["request"]["label"],
-                "abstain" if "POL-38" in rules else "answer",
-                rules,
-            ),
+            "decision": concluded(offer["request"]["label"], "answer", rules),
         }
     await scope.turn.write(
         "resume",
@@ -770,7 +859,7 @@ async def answered_offer(
             "decision": concluded(offer["request"]["label"], "answer", ["POL-45"])
         }
     request = offer["request"]
-    update: dict[str, Any] = {
+    update = {
         "case": "handoff",
         "offer": None,
         "label": request["label"],
@@ -783,7 +872,12 @@ async def answered_offer(
             scope.now(),
         ):
             await ended(scope, pending, "lapsed", "handoff_accepted")
-        request = {**request, "actions": [*request["actions"], lapsed_action(pending)]}
+        # The accepted handoff files the confirmation's draft, if it had one, so none is left to expire.
+        request = {
+            **request,
+            "actions": [*request["actions"], unused(pending)],
+            "handoff_id": pending.get("handoff_id"),
+        }
         update |= {
             "pending": None,
             "say": said(("confirmation_lapsed", {"card": pending["card"]})),
@@ -877,11 +971,17 @@ async def typed_to_confirmation(
             "say": say,
             "rules": rules,
         }
+        request = owed(pending, cause, rules)
+        if request is not None:
+            # Filed first; a new request in the message is served after it.
+            onward = (
+                None if routed is None or routed["case"] == "no_request" else routed
+            )
+            return update | {"case": "handoff", "handoff": request, "then": onward}
         if routed is None:
             return update | {"case": "unavailable", "label": None}
         if routed["case"] == "no_request":
-            outcome = "abstain" if "POL-38" in rules else "answer"
-            return update | {"decision": decided(outcome, rules)}
+            return update | {"decision": decided("answer", rules)}
         return update | routed
     if routed is None:
         return {
@@ -890,13 +990,16 @@ async def typed_to_confirmation(
             "decision": decided("abstain", ["POL-48"], CONTROL),
         }
     if routed["case"] not in ("block", "no_request"):
-        say = await lapsed(scope, pending, "message")
-        return routed | {
+        moved: dict[str, Any] = {
             "pending": None,
             "offer": None,
-            "say": say,
+            "say": await lapsed(scope, pending, "message"),
             "rules": ["POL-36"],
         }
+        request = owed(pending, "message", ["POL-36"])
+        if request is not None:
+            return moved | {"case": "handoff", "handoff": request, "then": routed}
+        return routed | moved
     try:
         details = (
             await scope.models.extract(
@@ -918,15 +1021,18 @@ async def typed_to_confirmation(
                 "card_type": KINDS[pending["card"]["product_type"]],
                 "last_four": pending["card"]["last_four"],
             }
-        return {
+        another: dict[str, Any] = {
             "pending": None,
             "offer": None,
-            "case": "block",
-            "label": "block_card",
             "say": say,
             "rules": ["POL-36"],
             "details": details | {"block_reason": reason or pending["reason"]},
         }
+        onward = {"case": "block", "label": "block_card"}
+        request = owed(pending, "message", ["POL-36"])
+        if request is not None:
+            return another | {"case": "handoff", "handoff": request, "then": onward}
+        return another | onward
     pointers = pending["typed"] + 1
     rules = ["POL-06", "POL-36"]
     say = said(("control_pointer", {}))
@@ -1043,6 +1149,8 @@ async def verify(state: State) -> dict[str, Any]:
                 calls=[done["call_id"], call.call_id],
                 cards=[pending["card_id"]],
                 actions=actions,
+                # Accepted, it files the block's draft, which is otherwise left to expire.
+                handoff_id=pending.get("handoff_id"),
             )
             return turn | {
                 "say": say,
@@ -1050,20 +1158,37 @@ async def verify(state: State) -> dict[str, Any]:
                 "decision": decided("block", rules, OFFERED),
             }
         if pending["reason"] == "unrecognized_charge":
-            say += said(("handoff_unavailable", {}))
+            # The block is verified, and the charge goes to dispute intake all the same (POL-39).
             rules.append("POL-39")
+            return turn | {
+                "say": say,
+                "case": "handoff",
+                "handoff": required(
+                    "unrecognized_charge",
+                    pending.get("label") or "block_card",
+                    rules,
+                    calls=[done["call_id"], call.call_id],
+                    cards=[pending["card_id"]],
+                    actions=actions,
+                    handoff_id=pending.get("handoff_id"),
+                    outcome="block",
+                ),
+            }
         return turn | {"say": say, "decision": decided("block", rules)}
+    # POL-39's handoff is the request's only one: a block it offered that isn't verified is recorded in it.
+    charge = pending["reason"] == "unrecognized_charge"
     return turn | {
         "case": "handoff",
         "say": said(("block_not_verified", facts)),
         "handoff": required(
-            "action_not_verified",
-            "block_card",
-            ["POL-37"],
+            "unrecognized_charge" if charge else "action_not_verified",
+            pending.get("label") or "block_card",
+            ["POL-37", "POL-39"] if charge else ["POL-37"],
             calls=[done["call_id"], call.call_id],
             cards=[pending["card_id"]],
             actions=actions,
             reported=pending["reason"],
+            handoff_id=pending.get("handoff_id"),
         ),
     }
 
@@ -1072,8 +1197,9 @@ async def handoff(state: State) -> dict[str, Any]:
     """
     Files the handoff a node required. Code builds the payload from the evidence the thread's tool calls left in state,
     the model writes its free text, and file_handoff files it under the customer's own token, three attempts at most
-    under one handoff ID. The reply gives the case's reference in fixed text, or says it couldn't be passed on (POL-45
-    to POL-48).
+    under one handoff ID, the draft's when one was saved. The reply gives the case's reference in fixed text, or says it
+    couldn't be passed on (POL-45 to POL-48). A new request in the message that ended a confirmation is served after
+    it (then).
     """
     scope = SCOPE.get()
     request = state["handoff"]
@@ -1087,7 +1213,7 @@ async def handoff(state: State) -> dict[str, Any]:
     payload = built(
         request,
         cited,
-        handoff_id=str(uuid.uuid4()),
+        handoff_id=request.get("handoff_id") or str(uuid.uuid4()),
         created_at=wall_time(scope.now()),
         customer_id=scope.claims.customer_id,
         session_id=scope.claims.origin_jti,
@@ -1115,32 +1241,40 @@ async def handoff(state: State) -> dict[str, Any]:
         scope.turn.write,
     )
     result = call.result or {}
-    say = state.get("say", [])
-    label, rules = request["label"], request["decided"]
+    say, rules = state.get("say", []), request["decided"]
     if call.outcome != "ok" or result.get("status") not in ("filed", "already_filed"):
+        outcome = "abstain"
+        say, rules = [*say, *said(("handoff_failed", {}))], [*rules, "POL-48"]
+    else:
+        await scope.turn.write(
+            "handoff",
+            handoff_id=payload["handoff_id"],
+            reference=result["reference"],
+            reason_code=request["reason_code"],
+            trigger=request["trigger"],
+            queue=result["queue"],
+            priority=result["priority"],
+            status=result["status"],
+            flagged=result["flagged"],
+            validation_errors=result["validation_errors"],
+        )
+        outcome = request["outcome"]
+        say = [*say, *said(("handoff_filed", {"reference": result["reference"]}))]
+        rules = [*rules, "POL-45"]
+    then = state.get("then")
+    if then is not None:
         return {
-            "case": "fixed",
+            **then,
+            "then": None,
             "handoff": None,
-            "say": [*say, *said(("handoff_failed", {}))],
-            "decision": concluded(label, "abstain", [*rules, "POL-48"]),
+            "say": say,
+            "rules": [*state.get("rules", []), *rules],
         }
-    await scope.turn.write(
-        "handoff",
-        handoff_id=payload["handoff_id"],
-        reference=result["reference"],
-        reason_code=request["reason_code"],
-        trigger=request["trigger"],
-        queue=result["queue"],
-        priority=result["priority"],
-        status=result["status"],
-        flagged=result["flagged"],
-        validation_errors=result["validation_errors"],
-    )
     return {
         "case": "fixed",
         "handoff": None,
-        "say": [*say, *said(("handoff_filed", {"reference": result["reference"]}))],
-        "decision": concluded(label, "hand_off", [*rules, "POL-45"]),
+        "say": say,
+        "decision": concluded(request["label"], outcome, rules),
     }
 
 
@@ -1287,6 +1421,14 @@ def onward(state: State) -> str:
     return "handoff" if state["case"] == "handoff" else "reply"
 
 
+def after_handoff(state: State) -> str:
+    return {
+        "cards": "list_cards",
+        "status": "list_cards",
+        "block": "resolve_card",
+    }.get(state["case"], "reply")
+
+
 def after_reply(state: State) -> str:
     awaiting = (state.get("decision") or {}).get("awaiting")
     if awaiting == CONTROL and state.get("pending"):
@@ -1336,5 +1478,7 @@ def build(
     graph.add_edge("hold", "await_control")
     graph.add_edge("block", "verify")
     graph.add_conditional_edges("verify", onward, ["handoff", "reply"])
-    graph.add_edge("handoff", "reply")
+    graph.add_conditional_edges(
+        "handoff", after_handoff, ["list_cards", "resolve_card", "reply"]
+    )
     return graph.compile(checkpointer=checkpointer)
