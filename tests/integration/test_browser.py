@@ -1,10 +1,11 @@
 """
 The chat in a real browser, against the deployed site (ADR-0004, To verify on the first deploy: the chat in a real
 browser; ADR-0007): a persona signs in through the form with SRP, asks about their cards, and reads a reply sent whole,
-with the turn in the sign-in's execution record; another customer's ID, a staff user, and another sign-in's runtime
-session get nothing; and signing out revokes the sign-in's refresh token (SEC-04, SEC-05, POL-09, POL-11, EVL-04,
-OPS-02). Assertions count and compare without printing a reply, a token, or an ID, and nothing the page shows is saved:
-no trace, screenshot, or video.
+with the turn in the sign-in's execution record; a persona blocks a card with the confirm control, which a typed yes
+doesn't confirm; another customer's ID, a staff user, and another sign-in's runtime session get nothing; and signing
+out revokes the sign-in's refresh token (SEC-04, SEC-05, POL-09, POL-11, POL-36, POL-37, CTL-02, EVL-04, OPS-02).
+Assertions count and compare without printing a reply, a token, or an ID, and nothing the page shows is saved: no
+trace, screenshot, or video.
 """
 
 import re
@@ -38,6 +39,8 @@ TEXTS = {
         "session_refused": "No pudimos continuar esta conversación.",
     },
     "pt": {
+        "control": "Confirmar o bloqueio",
+        "block": "Bloquear",
         "locale": "pt-BR",
         "username": "Usuário",
         "password": "Senha",
@@ -78,20 +81,27 @@ class Tab:
         self.page.get_by_role("button", name=self.texts["submit"]).click()
 
     def ask(self, outputs: dict[str, Any], text: str) -> str:
+        message = self.page.get_by_label(self.texts["message"])
+        expect(message).to_be_visible()
+
+        def send() -> None:
+            message.fill(text)
+            self.page.get_by_role("button", name=self.texts["send"]).click()
+
+        return self.turn(outputs, send)
+
+    def turn(self, outputs: dict[str, Any], act: Callable[[], None]) -> str:
         """
         Waits for the Runtime to close the turn before reading the page: assistant-ui can show the reply's empty
         message a moment before the run is marked running.
         """
-        message = self.page.get_by_label(self.texts["message"])
-        expect(message).to_be_visible()
         access = self.stored(".accessToken")
         assert access is not None
         sign_in = claims(access)["origin_jti"]
         seen = len(records(outputs, sign_in))
         replies = self.page.locator('[data-author="faro"]')
         before = replies.count()
-        message.fill(text)
-        self.page.get_by_role("button", name=self.texts["send"]).click()
+        act()
         deadline = time.time() + 90
         while not (ended := ends(records(outputs, sign_in)[seen:])):
             assert time.time() < deadline, (
@@ -117,7 +127,7 @@ def ends(entries: list[dict[str, Any]]) -> list[str]:
     messages = {
         e["turn_id"]
         for e in entries
-        if e["kind"] == "turn_opened" and e["input"]["kind"] == "message"
+        if e["kind"] == "turn_opened" and e["input"]["kind"] != "warmup"
     }
     return [
         e["kind"] if e["kind"] == "turn_closed" else e["code"]
@@ -198,6 +208,63 @@ def warmed_up(outputs: dict[str, Any], tab: Tab) -> None:
 def cards(outputs: dict[str, Any], access: str) -> set[str]:
     listed = tool_output(call(outputs, access, "list_cards", arguments(access)))
     return {card["last_four"] for card in listed["cards"]}
+
+
+def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
+    outputs: dict[str, Any],
+    users: dict[str, User],
+    site: str,
+    tab: Callable[[str], Tab],
+) -> None:
+    customer = tab("pt")
+    customer.sign_in(site, users["other_customer"])
+    expect(customer.page.get_by_label(customer.texts["message"])).to_be_visible()
+    warmed_up(outputs, customer)
+    access = customer.stored(".accessToken")
+    assert access is not None
+    listed = tool_output(call(outputs, access, "list_cards", arguments(access)))
+    card = next(
+        c
+        for c in listed["cards"]
+        if c["product_status"] == "Active" and c["product_type"] == "Tarjeta Crédito"
+    )
+    controls = customer.page.get_by_role("group", name=customer.texts["control"])
+
+    customer.ask(
+        outputs,
+        f"Perdi meu cartão de crédito final {card['last_four']} e quero bloqueá-lo.",
+    )
+
+    expect(controls).to_have_count(1)
+    assert card["last_four"] in controls.first.inner_text()
+    assert "Motivo: perda" in controls.first.inner_text()
+
+    customer.ask(outputs, "Sim, pode bloquear.")
+
+    expect(controls).to_have_count(2)
+    block = customer.texts["block"]
+    expect(controls.first.get_by_role("button", name=block)).to_be_disabled()
+    expect(controls.last.get_by_role("button", name=block)).to_be_enabled()
+    read = tool_output(
+        call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
+    )
+    assert read["card"]["product_status"] == "Active"
+
+    done = customer.turn(
+        outputs, lambda: controls.last.get_by_role("button", name=block).click()
+    )
+
+    assert f"final {card['last_four']} está bloqueado" in done
+    expect(controls.last.get_by_role("button", name=block)).to_be_disabled()
+    read = tool_output(
+        call(outputs, access, "get_card", arguments(access, card_id=card["card_id"]))
+    )
+    assert read["card"]["product_status"] == "Blocked"
+    entries = records(outputs, claims(access)["origin_jti"])
+    resumes = [e["resume_kind"] for e in entries if e["kind"] == "resume"]
+    assert resumes == ["message", "confirm"]
+    assert [e["kind"] for e in entries].count("request_refused") == 0
+    assert (customer.violations, customer.errors) == ([], 0)
 
 
 def test_a_persona_signs_in_and_reads_a_reply_sent_whole(

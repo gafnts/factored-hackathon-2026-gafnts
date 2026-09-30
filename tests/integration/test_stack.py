@@ -447,6 +447,64 @@ def test_the_read_tools_may_name_every_attribute_but_is_fraud(
     assert "dynamodb:Scan" not in reads["Action"]
 
 
+def dynamodb_grants(role: str, policy: str) -> dict[str, set[str]]:
+    """
+    Each DynamoDB table the role's inline policy names, with the actions it allows there.
+    """
+    iam: Any = boto3.client("iam")
+    document = iam.get_role_policy(RoleName=role, PolicyName=policy)["PolicyDocument"]
+    grants: dict[str, set[str]] = {}
+    for statement in document["Statement"]:
+        actions = statement["Action"]
+        actions = {actions} if isinstance(actions, str) else set(actions)
+        resources = statement["Resource"]
+        resources = [resources] if isinstance(resources, str) else resources
+        for resource in resources:
+            if ":table/" in resource:
+                table = resource.split(":table/")[1]
+                grants.setdefault(table, set()).update(
+                    a for a in actions if a.startswith("dynamodb:")
+                )
+    return grants
+
+
+def test_only_the_block_writes_the_sandbox_and_it_never_reads_is_fraud(
+    outputs: dict[str, Any],
+) -> None:
+    # ADR-0004, Operations: the reads only read, and the Runtime never touches the sandbox.
+    prefix = outputs["prefix"]
+    overlay = outputs["sandbox_tables"]["overlay"]
+    confirmations = outputs["sandbox_tables"]["confirmations"]
+    tools_data = outputs["tools_data"]["table"]
+
+    reads = dynamodb_grants(f"{prefix}-reads", "reads")
+    block = dynamodb_grants(f"{prefix}-block", "block")
+    runtime = dynamodb_grants(f"{prefix}-runtime", "runtime")
+
+    assert reads[overlay] == {"dynamodb:GetItem", "dynamodb:Query"}
+    assert confirmations not in reads
+    assert block == {
+        tools_data: {"dynamodb:GetItem"},
+        overlay: {"dynamodb:GetItem", "dynamodb:PutItem"},
+        confirmations: {"dynamodb:GetItem", "dynamodb:UpdateItem"},
+    }
+    assert overlay not in runtime and tools_data not in runtime
+    assert runtime[confirmations] == {"dynamodb:PutItem", "dynamodb:UpdateItem"}
+    iam: Any = boto3.client("iam")
+    document = iam.get_role_policy(RoleName=f"{prefix}-block", PolicyName="block")
+    statement = next(
+        s
+        for s in document["PolicyDocument"]["Statement"]
+        if tools_data in str(s["Resource"])
+    )
+    allowed = statement["Condition"]["ForAllValues:StringEquals"]["dynamodb:Attributes"]
+    assert "is_fraud" not in allowed
+    assert (
+        statement["Condition"]["StringEquals"]["dynamodb:Select"]
+        == "SPECIFIC_ATTRIBUTES"
+    )
+
+
 # The Runtime (ADR-0004, spike S4)
 
 
