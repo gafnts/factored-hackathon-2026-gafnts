@@ -80,6 +80,11 @@ resource "aws_dynamodb_table" "this" {
     }
   }
 
+  # Create waits for the import, whose time grows with the export; one cut short leaves a tainted table mid-import.
+  timeouts {
+    create = "60m"
+  }
+
   lifecycle {
     create_before_destroy = true
 

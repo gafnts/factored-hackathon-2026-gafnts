@@ -243,14 +243,16 @@ make snapshot
 
 This runs `make data`, then uploads the verified copy to `snapshots/<snapshot-id>/` in the data bucket. S3 checks each file's SHA-256 on arrival and rejects any write that would overwrite an object, and the lock goes up last, so a snapshot in the bucket is complete once `make doctor` sees it. Pipelines and the prototype read this copy with the project's own roles, never the organizers' bucket.
 
-The stack's plan reads an export of the tools' data from the same bucket ([ADR-0006](docs/adr/0006-batch-medallion-pipeline.md)), so upload one before the first deploy. Until the pipeline exists, that export is a tiny one for the development personas:
+The stack's plan reads an export of the tools' data from the same bucket ([ADR-0006](docs/adr/0006-batch-medallion-pipeline.md)), so upload one before the first deploy. The [pipeline](pipeline/README.md) builds it from the snapshot:
 
 ```bash
-make personas      # Choose one development customer per language into data/personas/
-make tiny-export   # Build their items into data/exports/ and upload them under gold/ in the data bucket
+make pipeline      # Build bronze, silver, and gold into data/pipeline/, and run every check
+make export        # Write gold's items into data/exports/ and upload them under gold/ in the data bucket
 ```
 
-Both read the snapshot in `data/` and print counts, never a customer's ID or values; what they write under `data/` stays out of git. `make tiny-export` prints the export's snapshot and pipeline version, which `tools_data_export` in `infra/envs/<env>.tfvars` must name. The version is a hash of the code that shapes the export, so the same code gives the same version on every machine, and the committed value works in your fork once your bucket holds the export. The first import in an account logs to `/aws-dynamodb/imports`, which [step 3.3](#33-create-the-deploy-roles) created with a retention.
+On a recent laptop, `make pipeline` takes under a minute and `make export` about a minute and a half before its upload. Both read the snapshot in `data/` and print counts, never a customer's ID or values; what they write under `data/` stays out of git. `make export` prints the export's snapshot and pipeline version, which `tools_data_export` in `infra/envs/<env>.tfvars` must name. The version is a hash of the code that shapes the export, so the same code gives the same version on every machine, and the committed value works in your fork once your bucket holds the export. The first import in an account logs to `/aws-dynamodb/imports`, which [step 3.3](#33-create-the-deploy-roles) created with a retention.
+
+For a faster first deploy, a tiny export holds only the development personas' items: run `make personas` and `make tiny-export`, and set the version it prints instead. The personas' items are the same in both exports.
 
 #### 3.7 Verify and deploy `local`
 
@@ -366,7 +368,7 @@ The site's `config.json`, which names the user pool, the customers' app client, 
 
 `make browser` runs the tests marked `browser`, which `make integration` leaves out: Playwright drives Chromium through the site as a customer would, with throwaway users, and asserts on the page and on the sign-in's execution record. It prints no reply, token, or ID, and saves no trace, screenshot, or video. Run `make site` first, so it tests the build you have.
 
-The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`src/banking_agent/export/`, `src/banking_agent/personas.py`, or the tools' data contract) gives it a new version: run `make tiny-export`, which uploads it and prints the value, and set it in both files. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
+The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`pipeline/`, `src/banking_agent/pipeline/`, the export's writer, or the tools' data contract, as the [pipeline's README](pipeline/README.md) lists them) gives it a new version: run `make pipeline` and `make export`, which uploads it and prints the value, set it in both files, and commit the manifest it writes under `docs/pipeline/`. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
 
 Add infrastructure as per-concern modules under `infra/modules/`, wired into `infra/main.tf`. The deploy roles have `PowerUserAccess`, which covers almost any AWS service. IAM is the exception: a deploy role can only manage roles named `banking-agent-<env>-*` that carry the environment's permissions boundary, so name Lambda and task execution roles accordingly and set `permissions_boundary = local.permissions_boundary_arn` on each (pass it into modules as a variable). The boundary allows everything except IAM and other environments' resources.
 
@@ -414,7 +416,8 @@ Run `make doctor` first; most setup problems show up there.
 | `make data` deleted files that didn't match | A download was corrupted or a local file was edited. Run `make data` again; it downloads only the deleted files. |
 | `make plan` stops at `aws configure export-credentials` | Your sign-in session ended, or `AWS_PROFILE` names a profile that doesn't exist. Run `aws login`, or finish [step 3.4](#34-configure-your-local-deploy-profile). |
 | `make apply` says there is no saved plan | Run `make plan` first; `make apply` applies only what it saved. |
-| `make plan` fails reading `gold/<snapshot>/<version>/manifest.json` | The export that `tools_data_export` names isn't in the data bucket. Run `make tiny-export` ([step 3.6](#36-copy-the-dataset-snapshot-and-the-tools-data)) and check that it printed the same version. |
+| `make plan` fails reading `gold/<snapshot>/<version>/manifest.json` | The export that `tools_data_export` names isn't in the data bucket. Run `make pipeline` and `make export` ([step 3.6](#36-copy-the-dataset-snapshot-and-the-tools-data)) and check that it printed the same version. |
+| `make export` says gold was built from other code | The code that shapes the export changed since the last `make pipeline`. Run `make pipeline` again. |
 | `make plan` can't find the secret `banking-agent-<env>-anthropic-api-key` | The IAM root predates it. Run `make iam-apply`, then `make model-key` ([step 3.7](#37-verify-and-deploy-local)). |
 | `make apply` fails creating the API key credential provider: `can't find the specified secret value for staging label: AWSCURRENT` | The model key isn't stored. Run `make model-key`, then `make plan` and `make apply` again. |
 | The Runtime answers every run with `RUN_ERROR` | The model key was removed from its secret, or is wrong. Run `make model-key` again ([step 3.7](#37-verify-and-deploy-local)); `make doctor` checks that each secret holds a key. |
@@ -479,7 +482,7 @@ Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR
 
 ### Files
 
-The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, and `infra/modules/gateway/tools.json` by `make build`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
+The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, the manifests in `docs/pipeline/` by `make export`, bronze's YAML in `pipeline/models/bronze/` by `make contracts`, and `infra/modules/gateway/tools.json` by `make build`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
 
 Gitignored files worth knowing about:
 
@@ -490,5 +493,5 @@ Gitignored files worth knowing about:
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables
-- `data/`: the dataset snapshots `make data` downloads, the personas `make personas` chooses, and the exports `make tiny-export` builds, none of which may ever be committed
+- `data/`: the dataset snapshots `make data` downloads, the personas `make personas` chooses, the pipeline's DuckDB file `make pipeline` builds, and the exports `make export` and `make tiny-export` write, none of which may ever be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys
