@@ -361,6 +361,37 @@ def test_unknown_contracts_and_definitions_are_refused() -> None:
         definition("tools", "file_handoff_input")
 
 
+def test_a_code_has_a_meaning_only_on_a_declined_transaction() -> None:
+    # POL-28: Pending and Reversed transactions carry the same codes as declines.
+    page = first("tools.find_transactions_output.json")
+    approved, declined, pending = page["transactions"]
+
+    approved["response_meaning"] = "do_not_honor"
+    assert invalid("tools", "find_transactions_output", page)
+    approved["response_meaning"] = None
+    declined["response_meaning"] = None
+    assert not invalid("tools", "find_transactions_output", page)
+    pending["response_meaning"] = "do_not_honor"
+    assert invalid("tools", "find_transactions_output", page)
+
+
+def test_a_page_holds_ten_transactions_at_most() -> None:
+    page = first("tools.find_transactions_output.json")
+    page["transactions"] = [page["transactions"][0]] * 11
+
+    assert invalid("tools", "find_transactions_output", page)
+
+
+def test_a_cursor_is_a_transactions_place_in_the_index() -> None:
+    call = copy.deepcopy(examples("tools.find_transactions_input.json")[1])
+
+    assert invalid(
+        "tools",
+        "find_transactions_input",
+        {**call, "cursor": "TRX-EXAMPLE0000000000001"},
+    )
+
+
 def test_a_block_needs_a_confirmation_and_one_of_the_policys_reasons() -> None:
     call = first("tools.block_card_input.json")
 
