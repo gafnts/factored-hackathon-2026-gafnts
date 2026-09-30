@@ -135,11 +135,7 @@ def test_rows_duckdb_read_apart_from_the_records_counted_stop_the_build(
     space.reset()
     checks.load(space.database, lock, records)
 
-    results = runner.dbt(
-        ["build"],
-        space,
-        {"snapshot_root": str(root.resolve()), "snapshot_id": lock.snapshot_id},
-    )
+    results = runner.dbt(["build"], space, build.variables(lock, root))
 
     named = checks.failing_files(space.database, results)
     failed = {

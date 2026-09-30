@@ -92,6 +92,14 @@ def dbt(
     return loaded
 
 
+def last_results(space: Workspace) -> list[Result]:
+    path = space.target / "run_results.json"
+    if not path.is_file():
+        return []
+    loaded: list[Result] = json.loads(path.read_text())["results"]
+    return loaded
+
+
 def node_name(result: Result) -> str:
     # A test's ID ends in a hash its name doesn't need.
     return str(result["unique_id"]).split(".")[2]

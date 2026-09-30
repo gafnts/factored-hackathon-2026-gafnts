@@ -36,7 +36,6 @@ KINDS = {
 }
 TYPES = {"bank_date": "date", "bank_timestamp": "timestamp", "money": "decimal(15,2)"}
 PERSONAL = {"identity", "contact", "card_number"}
-STAMP = {"snapshot": "", "pipeline_version": "0123456789abcdef"}
 
 
 def _models() -> dict[str, dict[str, Any]]:
@@ -93,7 +92,9 @@ def test_gold_is_the_data_half_of_the_tools_contract() -> None:
                     name,
                 )
     metadata = {c["name"] for c in models["gold_metadata"]["columns"]}
-    assert metadata == {"snapshot_id"} | set(defs["clock"]["properties"])
+    assert metadata == {"snapshot_id", "pipeline_version"} | set(
+        defs["clock"]["properties"]
+    )
 
 
 def test_no_gold_column_holds_an_identity_a_contact_or_a_card_number(
@@ -139,7 +140,7 @@ def test_the_window_check_passed(base: Built) -> None:
 
 
 def test_gold_items_fit_the_tools_data_contract(base: Built) -> None:
-    stamp = {**STAMP, "snapshot": base.lock.snapshot_id}
+    stamp = base.stamp
     with duckdb.connect(str(base.space.database), read_only=True) as con:
         built = export.read_items(con, stamp)
 
@@ -157,7 +158,7 @@ def test_gold_items_fit_the_tools_data_contract(base: Built) -> None:
 
 
 def test_gold_items_are_the_tiny_exports_for_the_same_customers(base: Built) -> None:
-    stamp = {**STAMP, "snapshot": base.lock.snapshot_id}
+    stamp = base.stamp
     with duckdb.connect(str(base.space.database), read_only=True) as con:
         gold = export.read_items(con, stamp)
         clock = export.clock(con)

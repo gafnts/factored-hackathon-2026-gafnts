@@ -6,7 +6,15 @@ file with the lock and the record counts, then dbt's build of every layer and it
 from pathlib import Path
 
 from banking_agent.dataset.lock import Lock
-from banking_agent.pipeline import checks, contracts, runner
+from banking_agent.pipeline import checks, contracts, runner, version
+
+
+def variables(lock: Lock, root: Path) -> dict[str, str]:
+    return {
+        "snapshot_root": str(root.resolve()),
+        "snapshot_id": lock.snapshot_id,
+        "pipeline_version": version.pipeline_version(),
+    }
 
 
 def build(
@@ -17,8 +25,4 @@ def build(
     records = checks.count_records(root, [f.key for f in lock.files], workers)
     space.reset()
     checks.load(space.database, lock, records)
-    return runner.dbt(
-        ["build"],
-        space,
-        {"snapshot_root": str(root.resolve()), "snapshot_id": lock.snapshot_id},
-    )
+    return runner.dbt(["build"], space, variables(lock, root))

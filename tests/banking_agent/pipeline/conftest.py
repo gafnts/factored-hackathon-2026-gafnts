@@ -9,7 +9,7 @@ import pytest
 
 from banking_agent.dataset.lock import Lock
 from banking_agent.dataset.snapshot import snapshot_dir
-from banking_agent.pipeline import build, runner
+from banking_agent.pipeline import build, runner, version
 
 from . import fixture
 
@@ -26,9 +26,16 @@ class Built:
     def root(self) -> Path:
         return snapshot_dir(self.data_dir, self.lock.snapshot_id)
 
+    @property
+    def stamp(self) -> dict[str, str]:
+        return {
+            "snapshot": self.lock.snapshot_id,
+            "pipeline_version": version.pipeline_version(),
+        }
 
-def build_version(version: str, into: Path) -> Built:
-    lock_path, data_dir, lock = fixture.install(version, into)
+
+def build_version(name: str, into: Path) -> Built:
+    lock_path, data_dir, lock = fixture.install(name, into)
     space = runner.workspace(data_dir, lock.snapshot_id)
     results = build.build(lock, snapshot_dir(data_dir, lock.snapshot_id), space)
     return Built(lock, lock_path, data_dir, space, results)

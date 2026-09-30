@@ -21,6 +21,15 @@ models:
           - type: not_null
           - type: check
             expression: "regexp_full_match(snapshot_id, '[0-9a-f]{16}')"
+      - name: pipeline_version
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "regexp_full_match(pipeline_version, '[0-9a-f]{16}')"
       - name: business_date
         data_type: date
         config:
