@@ -24,7 +24,7 @@ import {
   warmUp,
 } from "../runtime";
 import { type Problem, TEXTS } from "../texts";
-import { ConfirmControl, type Shown, ShownControls } from "./control";
+import { Controls, type Shown, ShownControls } from "./control";
 import { Reply } from "./reply";
 
 // The contract's limit on a customer's message.
@@ -56,7 +56,7 @@ function AssistantMessage() {
       className="max-w-[85%] rounded-lg border border-rule bg-paper-raised px-4 py-3 empty:hidden"
     >
       <MessagePrimitive.Parts components={{ Text: ReplyText }} />
-      <ConfirmControl />
+      <Controls />
     </MessagePrimitive.Root>
   );
 }

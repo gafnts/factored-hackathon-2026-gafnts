@@ -2,7 +2,8 @@
 Throwaway users in the deployed stack's pool, signed in through IAM and deleted afterwards. The stack comes from the
 Terraform outputs that make integration writes; passwords and tokens stay in memory and are never printed. The two
 customers are the development personas (make personas), so their cards are in the tools' data; their IDs come from
-data/personas/ and are never printed either. The probe (make probe) makes its users the same way.
+data/personas/ and are never printed either. The probe (make probe) makes its users the same way. The cases a test
+saves or files are deleted afterwards too, each with its reference.
 """
 
 import base64
@@ -25,6 +26,7 @@ from mypy_boto3_cognito_idp.type_defs import AttributeTypeTypeDef
 
 from banking_agent import personas
 from banking_agent.dataset.lock import read_lock
+from banking_agent.tools.cases import REFERENCE, plain
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -159,3 +161,44 @@ def sign_in(outputs: dict[str, Any], cognito: CognitoIdentityProviderClient) -> 
         return signed_in(outputs, cognito, user, client)
 
     return signed
+
+
+def cases(outputs: dict[str, Any]) -> Any:
+    return boto3.resource("dynamodb", region_name="us-east-1").Table(
+        outputs["handoff"]["cases_table"]
+    )
+
+
+def stored(outputs: dict[str, Any], handoff_id: str) -> dict[str, Any] | None:
+    item = cases(outputs).get_item(Key={"pk": handoff_id}, ConsistentRead=True)
+    found: dict[str, Any] | None = plain(item.get("Item"))
+    return found
+
+
+def handoffs(entries: list[dict[str, Any]]) -> list[str]:
+    """
+    Every draft and case a sign-in's turns saved or filed, by handoff ID.
+    """
+    named = [
+        e["result"]["handoff_id"]
+        for e in entries
+        if e["kind"] == "tool_call"
+        and e["tool"] == "file_handoff"
+        and "handoff_id" in (e.get("result") or {})
+    ]
+    named += [e["handoff_id"] for e in entries if e["kind"] == "handoff"]
+    return list(dict.fromkeys(named))
+
+
+@pytest.fixture
+def saved(outputs: dict[str, Any]) -> Iterator[list[str]]:
+    """
+    The handoff IDs a test saves or files, deleted afterwards with their references.
+    """
+    handoff_ids: list[str] = []
+    yield handoff_ids
+    for handoff_id in dict.fromkeys(handoff_ids):
+        case = stored(outputs, handoff_id)
+        if case is not None and "reference" in case:
+            cases(outputs).delete_item(Key={"pk": f"{REFERENCE}{case['reference']}"})
+        cases(outputs).delete_item(Key={"pk": handoff_id})

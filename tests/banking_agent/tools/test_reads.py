@@ -36,7 +36,11 @@ def opened(items: list[dict[str, Any]]) -> Stores:
 
 @pytest.mark.parametrize(
     ("name", "tool"),
-    [("reads___list_cards", "list_cards"), ("reads___get_card", "get_card")],
+    [
+        ("reads___list_cards", "list_cards"),
+        ("reads___get_card", "get_card"),
+        ("reads___find_transactions", "find_transactions"),
+    ],
 )
 def test_the_tool_comes_from_the_gateways_name(name: str, tool: str) -> None:
     assert tool_name(context(name)) == tool

@@ -111,7 +111,8 @@
       "requests": [
         "block_card"
       ],
-      "has_request": true
+      "has_request": true,
+      "complaint": false
     }
   },
   {

@@ -15,6 +15,13 @@ output "runtime_log_group" {
   value = aws_cloudwatch_log_group.runtime.name
 }
 
+output "execution_records_table" {
+  value = {
+    name = aws_dynamodb_table.execution_records.name
+    arn  = aws_dynamodb_table.execution_records.arn
+  }
+}
+
 output "tables" {
   description = "The Runtime's own tables"
   value = {

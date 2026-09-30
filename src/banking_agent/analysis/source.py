@@ -34,6 +34,21 @@ def partition_date(key: str) -> date:
     return datetime.strptime(match[1], "%Y%m%d").date()
 
 
+def unlisted(lock: Lock, root: Path) -> list[str]:
+    """
+    Files under the snapshot's directory that the lock doesn't list; hidden ones, such as the .DS_Store a file browser
+    leaves, aren't the snapshot's.
+    """
+    locked = {f.key for f in lock.files}
+    found = (
+        path.relative_to(root)
+        for path in root.rglob("*")
+        if path.is_file()
+        and not any(part.startswith(".") for part in path.relative_to(root).parts)
+    )
+    return sorted(key.as_posix() for key in found if key.as_posix() not in locked)
+
+
 def check_local(lock: Lock, root: Path) -> None:
     missing = []
     resized = []
@@ -43,10 +58,13 @@ def check_local(lock: Lock, root: Path) -> None:
             missing.append(f.key)
         elif path.stat().st_size != f.size:
             resized.append(f.key)
-    if missing or resized:
+    extra = unlisted(lock, root)
+    if missing or resized or extra:
+        named = "".join(f"\n  not in the lock: {key}" for key in extra[:5])
         raise AnalysisError(
             f"{root} doesn't hold snapshot {lock.snapshot_id}: {len(missing)} files missing, "
-            f"{len(resized)} with the wrong size; run make data"
+            f"{len(resized)} with the wrong size, {len(extra)} not in the lock; run make data, "
+            f"and remove any file the lock doesn't list{named}"
         )
 
 

@@ -23,10 +23,10 @@ A proposed ADR may leave decisions open: each is marked **Open** where it arises
 | [0001](0001-deploy-to-us-east-1.md) | Deploy to us-east-1 | Accepted |
 | [0002](0002-mirror-dataset-into-pinned-snapshots.md) | Mirror the organizer dataset into pinned snapshots | Accepted |
 | [0003](0003-choose-workflow-from-evidence.md) | Choose the workflow from evidence | Accepted; amended by ADR-0004 |
-| [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph workflow on AgentCore, with policy enforced in Gateway tools and Cedar | Accepted; amended 2026-09-29 (decision 7 deferred, the chat's request, the customer's status in cases, Haiku 4.5 without the grid, the model key in our own secret, `is_fraud` kept from the read tools' role, the entrypoint's checks as built) |
-| [0005](0005-offline-scenario-evaluation.md) | Offline scenario evaluation against an independent policy oracle | Accepted; amended 2026-09-29 (no deadline cases, outcome classes, no model grid) |
+| [0004](0004-agent-architecture-on-agentcore.md) | Explicit LangGraph workflow on AgentCore, with policy enforced in Gateway tools and Cedar | Accepted; amended 2026-09-29 (decision 7 deferred, the chat's request, the customer's status in cases, Haiku 4.5 without the grid, the model key in our own secret, `is_fraud` kept from the read tools' role, the entrypoint's checks as built); amended 2026-09-30 (the forwarded token checked through `GetUser`, handoffs checked against the execution record, the router's complaint flag) |
+| [0005](0005-offline-scenario-evaluation.md) | Offline scenario evaluation against an independent policy oracle | Accepted; amended 2026-09-29 (no deadline cases, outcome classes, no model grid); amended 2026-09-30 (no in-process mode) |
 | [0006](0006-batch-medallion-pipeline.md) | Batch medallion pipeline in dbt-duckdb, exported per snapshot to the tools' store | Accepted; amended 2026-09-29 (a tiny export before the pipeline) |
-| [0007](0007-role-gated-web-app.md) | Role-gated web app on one CloudFront origin, with a polled handoff console | Accepted; amended 2026-09-29 (the site's own origin in the content security policy) |
+| [0007](0007-role-gated-web-app.md) | Role-gated web app on one CloudFront origin, with a polled handoff console | Accepted; amended 2026-09-29 (the site's own origin in the content security policy); amended 2026-09-30 (claim and resolve deferred, no `/ops` page, the reference's own item, `source` from the token, `record` across turns) |
 
 ## Template
 

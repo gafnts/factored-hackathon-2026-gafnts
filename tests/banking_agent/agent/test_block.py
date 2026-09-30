@@ -155,8 +155,10 @@ def test_a_block_asks_which_card_then_why_then_shows_the_control(
     assert reply(shown) == FIXED["confirm_prompt"]["es"].format(
         card="tarjeta de débito terminada en 1177", reason="pérdida"
     )
-    assert kinds(chat.entries())[-5:] == [
+    assert kinds(chat.entries())[-7:] == [
         "confirmation",
+        "tool_call",
+        "handoff",
         "reply",
         "interrupt",
         "decision",
@@ -189,11 +191,14 @@ def test_the_control_confirms_and_the_card_is_blocked_and_verified(
 
     done = chat.press("confirm", shown)
 
-    assert done[-1]["outcome"] == {"type": "success"}
+    assert [c["kind"] for c in interrupt(done)["metadata"]["controls"]] == [
+        "handoff_offer"
+    ]
     assert reply(done) == "\n\n".join(
         [
             "Listo: su tarjeta de crédito terminada en 4821 quedó bloqueada.",
             FIXED["replacement_by_person"]["es"],
+            FIXED["handoff_offer"]["es"],
         ]
     )
     assert called(harness)[-2:] == ["block___block_card", "reads___get_card"]
@@ -216,6 +221,7 @@ def test_the_control_confirms_and_the_card_is_blocked_and_verified(
         "confirmation",
         "tool_call",
         "reply",
+        "interrupt",
         "decision",
         "turn_closed",
     ]
@@ -229,10 +235,10 @@ def test_the_control_confirms_and_the_card_is_blocked_and_verified(
     assert chat.decision() == {
         "request_label": "block_card",
         "outcome_class": "block",
-        "awaiting": "none",
+        "awaiting": "handoff_control",
         "rules": ["POL-36", "POL-37", "POL-38"],
     }
-    assert reply(done).count("\n") == 2
+    assert reply(done).count("\n") == 4
 
 
 def test_a_typed_yes_leaves_the_confirmation_pending_and_shows_the_control_again(
@@ -367,17 +373,19 @@ def test_a_confirm_after_the_time_limit_is_refused_and_nothing_is_blocked(
     late = chat.press("confirm", shown)
 
     assert "block___block_card" not in called(harness)
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
     assert reply(late).split("\n\n") == [
         FIXED["confirmation_lapsed"]["es"].format(
             card="tarjeta de crédito terminada en 4821"
         ),
-        FIXED["handoff_unavailable"]["es"],
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
     ]
     entries = chat.entries()
     assert (entries[1]["accepted"], entries[1]["refusal"]) == (False, "expired")
     assert (entries[2]["to"], entries[2]["cause"]) == ("lapsed", "time_limit")
-    assert chat.decision()["outcome_class"] == "abstain"
-    assert chat.decision()["rules"] == ["POL-36", "POL-38"]
+    assert (filed["reason_code"], filed["priority"]) == ("block_lapsed", "urgent")
+    assert chat.decision()["outcome_class"] == "hand_off"
+    assert chat.decision()["rules"] == ["POL-36", "POL-38", "POL-45"]
 
 
 def test_a_message_after_the_time_limit_ends_the_confirmation_and_is_served(
@@ -457,7 +465,7 @@ def test_a_resume_that_doesnt_answer_the_pending_control_changes_nothing(
 
 def test_a_control_answered_once_is_stale_afterwards(harness: Harness) -> None:
     chat = Chat(harness)
-    shown = control_shown(chat)
+    shown = control_shown(chat, block_reason="customer_request")
     chat.press("confirm", shown)
     calls = len(harness.script.tool_calls)
 
@@ -478,21 +486,22 @@ def test_a_block_the_read_back_doesnt_show_is_never_reported_as_done(
 
     done = chat.press("confirm", control_shown(chat))
 
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
     assert reply(done).split("\n\n") == [
         FIXED["block_not_verified"]["es"].format(
             card="tarjeta de crédito terminada en 4821"
         ),
-        FIXED["handoff_unavailable"]["es"],
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
     ]
     assert "quedó bloqueada" not in reply(done)
-    assert chat.decision()["outcome_class"] == "abstain"
-    assert chat.decision()["rules"] == ["POL-37"]
+    assert chat.decision()["outcome_class"] == "hand_off"
+    assert chat.decision()["rules"] == ["POL-37", "POL-45"]
 
 
 @pytest.mark.parametrize(
     ("answer", "outcome"),
     [
-        ("error", "abstain"),
+        ("error", "hand_off"),
         ("denied", "decline"),
     ],
 )
@@ -529,8 +538,13 @@ def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
         "confirm", control_shown(chat, block_reason="unrecognized_charge")
     )
 
-    assert reply(done).split("\n\n")[-1] == FIXED["handoff_unavailable"]["es"]
-    assert chat.decision()["rules"] == ["POL-36", "POL-37", "POL-39"]
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+    assert reply(done).split("\n\n")[-1] == FIXED["handoff_filed"]["es"].format(
+        reference=filed["reference"]
+    )
+    assert (filed["queue"], filed["priority"]) == ("dispute_intake", "normal")
+    assert chat.decision()["outcome_class"] == "block"
+    assert chat.decision()["rules"] == ["POL-36", "POL-37", "POL-39", "POL-45"]
 
 
 @pytest.mark.parametrize(
@@ -565,7 +579,9 @@ def test_two_questions_that_dont_settle_the_card_stop_the_asking(
 
     stopped = chat.say("No recuerdo.", requests=[])
 
-    assert reply(stopped) == FIXED["clarification_stopped"]["es"]
+    assert reply(stopped) == "\n\n".join(
+        [FIXED["clarification_stopped"]["es"], FIXED["handoff_offer"]["es"]]
+    )
     assert chat.decision()["outcome_class"] == "abstain"
     assert "POL-17" in chat.decision()["rules"]
     shown = chat.say(
@@ -589,10 +605,10 @@ def test_last_four_digits_that_match_no_card_list_the_customers_cards(
     ("other_type", "outcome", "rules"),
     [
         ("Tarjeta Débito", "clarify", ["POL-13", "POL-15"]),
-        ("Tarjeta Crédito", "abstain", ["POL-13", "POL-15"]),
+        ("Tarjeta Crédito", "hand_off", ["POL-13", "POL-15", "POL-45"]),
     ],
 )
-def test_last_four_digits_two_active_cards_share_ask_for_the_type_or_stop(
+def test_last_four_digits_two_active_cards_share_ask_for_the_type_or_hand_off(
     harness: Harness, other_type: str, outcome: str, rules: list[str]
 ) -> None:
     twin = {
@@ -607,8 +623,12 @@ def test_last_four_digits_two_active_cards_share_ask_for_the_type_or_stop(
 
     assert chat.decision()["outcome_class"] == outcome
     assert chat.decision()["rules"] == rules
-    if outcome == "abstain":
-        assert reply(answered) == FIXED["handoff_unavailable"]["es"]
+    if outcome == "hand_off":
+        (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+        assert reply(answered).split("\n\n") == [
+            FIXED["ambiguous_card"]["es"].format(last_four="4821"),
+            FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
+        ]
 
 
 def test_a_customer_not_served_in_full_can_still_block(harness: Harness) -> None:

@@ -1,6 +1,7 @@
 import type {
   BlockReason,
   Language,
+  OfferedReasonCode,
   ProductType,
   RunError,
 } from "./contracts/chat";
@@ -44,6 +45,13 @@ export interface Texts {
     cancel: string;
     expired: string;
   };
+  // The handoff control, which alone accepts an offered handoff (POL-45).
+  offer: {
+    label: string;
+    reason: (reason: OfferedReasonCode) => string;
+    accept: string;
+    decline: string;
+  };
 }
 
 const CARD_TYPES: Record<Language, Record<ProductType, string>> = {
@@ -54,6 +62,28 @@ const CARD_TYPES: Record<Language, Record<ProductType, string>> = {
   pt: {
     "Tarjeta Crédito": "cartão de crédito",
     "Tarjeta Débito": "cartão de débito",
+  },
+};
+
+// What a person can do for each offered handoff; the reply before the control says why it's offered.
+const OFFERS: Record<Language, Record<OfferedReasonCode, string>> = {
+  es: {
+    unsupported_request:
+      "Una persona del banco puede ayudarle con esta solicitud.",
+    clarification_failed:
+      "Una persona del banco puede ayudarle a precisar su solicitud.",
+    record_conflict:
+      "Una persona del banco puede revisar los datos de su tarjeta.",
+    missing_data: "Una persona del banco puede revisar el dato que falta.",
+    tool_failure: "Una persona del banco puede atender su solicitud.",
+  },
+  pt: {
+    unsupported_request: "Uma pessoa do banco pode ajudar com este pedido.",
+    clarification_failed:
+      "Uma pessoa do banco pode ajudar a esclarecer seu pedido.",
+    record_conflict: "Uma pessoa do banco pode revisar os dados do seu cartão.",
+    missing_data: "Uma pessoa do banco pode revisar o dado que falta.",
+    tool_failure: "Uma pessoa do banco pode atender seu pedido.",
   },
 };
 
@@ -126,6 +156,12 @@ export const TEXTS: Record<Language, Texts> = {
       cancel: "Cancelar",
       expired: "El tiempo para confirmar terminó.",
     },
+    offer: {
+      label: "Pasar su caso a una persona",
+      reason: (reason) => OFFERS.es[reason],
+      accept: "Pasar a una persona",
+      decline: "Ahora no",
+    },
   },
   pt: {
     assistant: "Faro · assistente automático",
@@ -178,6 +214,12 @@ export const TEXTS: Record<Language, Texts> = {
       confirm: "Bloquear",
       cancel: "Cancelar",
       expired: "O tempo para confirmar terminou.",
+    },
+    offer: {
+      label: "Encaminhar seu caso para uma pessoa",
+      reason: (reason) => OFFERS.pt[reason],
+      accept: "Encaminhar para uma pessoa",
+      decline: "Agora não",
     },
   },
 };

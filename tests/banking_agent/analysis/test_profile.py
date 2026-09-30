@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from banking_agent import clock
 from banking_agent.analysis import profile as profiling
 from banking_agent.analysis.catalog import Table, table
 from banking_agent.analysis.profile import Profile, TableProfile, profile
@@ -20,7 +21,7 @@ def result(
     lock: Lock, root: Path, tables: tuple[Table, ...], monkeypatch: pytest.MonkeyPatch
 ) -> Profile:
     # Every fixture row is recent, so count them all as settled.
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
     monkeypatch.setitem(profiling.COUNTED, "branches", ("zone",))
     return profile(lock, root, tables, log=lambda _: None)
 

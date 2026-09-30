@@ -1,14 +1,17 @@
 """
 The confirmation and the verified block on the deployed stack: a persona asks to block one of their Active cards, gives
 a reason, confirms with the control, and reads in fixed text that the card is blocked, with the read-back showing it
-in that sign-in only and the whole path in the execution record. A typed yes confirms nothing, a stale control and
-another sign-in's changes nothing, a confirmation past its time limit lapses, and block_card called through the
-Gateway without a confirmation blocks nothing (ADR-0004, The confirmation; POL-09, POL-33 to POL-38; CTL-02, CTL-04,
-AI-05, SEC-05, SEC-07, EVL-03, EVL-04, OPS-02). Assertions compare without printing a card, a reply, or an ID.
+in that sign-in only, the handoff control offering the replacement, and the whole path in the execution record. A
+typed yes confirms nothing and a stale control changes nothing; another sign-in's control and the time limit each end
+the confirmation unused, and file the lost card's case; and block_card called through the Gateway without a
+confirmation blocks nothing (ADR-0004, The confirmation; POL-09, POL-33 to POL-38; CTL-02, CTL-04, AI-05, SEC-05,
+SEC-07, EVL-03, EVL-04, OPS-02). Each test deletes the drafts and cases its conversations leave. Assertions compare
+without printing a card, a reply, or an ID.
 """
 
 import time
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,7 +21,7 @@ import pytest
 from banking_agent.agent.texts import FIXED, render
 from banking_agent.contracts import validator
 
-from .conftest import SignIn, User, claims
+from .conftest import SignIn, User, claims, handoffs
 from .test_agent import body, post, records, session_id
 from .test_stack import DENIED, arguments, call, mcp, tool_output
 
@@ -165,13 +168,20 @@ def block_card(
 
 
 @pytest.fixture
-def persona(outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn) -> Any:
+def persona(
+    outputs: dict[str, Any], users: dict[str, User], sign_in: SignIn, saved: list[str]
+) -> Iterator[Any]:
+    started: list[Conversation] = []
+
     def start(role: str = "customer") -> tuple[Conversation, dict[str, Any]]:
         language = "es" if role == "customer" else "pt"
         access = sign_in(users[role], "customer")["access"]
-        return Conversation(outputs, access, language), active_card(outputs, access)
+        started.append(Conversation(outputs, access, language))
+        return started[-1], active_card(outputs, access)
 
-    return start
+    yield start
+    for chat in started:
+        saved.extend(handoffs(chat.entries()))
 
 
 def test_a_persona_blocks_a_card_with_the_control_and_reads_it_back(
@@ -187,10 +197,11 @@ def test_a_persona_blocks_a_card_with_the_control_and_reads_it_back(
     shown = chat.say("La perdí.")
 
     control = control_of(shown)
-    assert control["card"] == {
+    named = control["card"] == {
         "type": card["product_type"],
         "last_four": card["last_four"],
     }
+    assert named, "the control doesn't name the card"
     assert control["reason"] == "lost"
     assert chat.decision() == {
         "request_label": "block_card",
@@ -202,11 +213,21 @@ def test_a_persona_blocks_a_card_with_the_control_and_reads_it_back(
 
     done = chat.press("confirm", shown)
 
-    assert done[-1]["outcome"] == {"type": "success"}
-    facts = {"card": {**card, "product_status": "Blocked"}}
-    assert reply(done) == "\n\n".join(
-        [render("block_verified", "es", facts), FIXED["replacement_by_person"]["es"]]
+    # A replacement is a person's to arrange, so the handoff control offers it (POL-38).
+    offer = control_of(done)
+    assert (offer["kind"], offer["reason_code"]) == (
+        "handoff_offer",
+        "unsupported_request",
     )
+    facts = {"card": {**card, "product_status": "Blocked"}}
+    said = reply(done) == "\n\n".join(
+        [
+            render("block_verified", "es", facts),
+            FIXED["replacement_by_person"]["es"],
+            FIXED["handoff_offer"]["es"],
+        ]
+    )
+    assert said, "the reply isn't the verified block's with the offer"
     assert status(outputs, chat.access, card["card_id"]) == "Blocked"
     turn = chat.last_turn()
     assert [e["kind"] for e in turn] == [
@@ -217,6 +238,7 @@ def test_a_persona_blocks_a_card_with_the_control_and_reads_it_back(
         "confirmation",
         "tool_call",
         "reply",
+        "interrupt",
         "decision",
         "turn_closed",
     ]
@@ -232,7 +254,12 @@ def test_a_persona_blocks_a_card_with_the_control_and_reads_it_back(
         1,
         "verified",
     )
-    assert chat.decision()["outcome_class"] == "block"
+    assert chat.decision() == {
+        "request_label": "block_card",
+        "outcome_class": "block",
+        "awaiting": "handoff_control",
+        "rules": ["POL-36", "POL-37", "POL-38"],
+    }
     record = confirmation(outputs, control["confirmation_id"])
     assert (record["status"], record["outcome"], int(record["attempts"])) == (
         "consumed",
@@ -289,7 +316,10 @@ def test_a_stale_control_changes_nothing(outputs: dict[str, Any], persona: Any) 
     assert again[0]["code"] == "invalid_request"
     refused = chat.entries()[-1]
     assert refused["kind"] == "request_refused"
-    assert refused["errors"] == [{"path": "/resume", "rule": "notPending"}]
+    # What's pending now is the replacement's offer, not the used control (POL-38).
+    assert refused["errors"] == [
+        {"path": "/resume/0/interruptId", "rule": "notPending"}
+    ]
     record = confirmation(outputs, used)
     assert (record["status"], int(record["attempts"])) == ("consumed", 1)
     assert status(outputs, chat.access, card["card_id"]) == "Blocked"
@@ -323,6 +353,11 @@ def test_another_sign_ins_confirmation_is_refused_and_ends(
     assert "no la bloqueé" in reply(refused)
     resume = next(e for e in elsewhere.last_turn() if e["kind"] == "resume")
     assert (resume["accepted"], resume["refusal"]) == (False, "other_sign_in")
+    # The customer left a lost card unblocked with the sign-in, so its case goes to a person (POL-38).
+    filed = [e for e in elsewhere.last_turn() if e["kind"] == "handoff"]
+    assert [(e["reason_code"], e["status"]) for e in filed] == [
+        ("block_lapsed", "filed")
+    ]
     record = confirmation(outputs, control["confirmation_id"])
     assert (record["status"], record["ended_by"]) == ("lapsed", "session_end")
     assert status(outputs, chat.access, card["card_id"]) == "Active"
@@ -347,9 +382,12 @@ def test_a_confirmation_past_its_time_limit_lapses_unused(
     late = chat.press("confirm", shown)
 
     assert late[-1]["outcome"] == {"type": "success"}
+    # A lost card left unblocked at the time limit goes to a person (POL-38).
+    filed = next(e for e in chat.last_turn() if e["kind"] == "handoff")
+    assert (filed["reason_code"], filed["status"]) == ("block_lapsed", "filed")
     assert reply(late).split("\n\n") == [
         render("confirmation_lapsed", "pt", {"card": card}),
-        FIXED["handoff_unavailable"]["pt"],
+        render("handoff_filed", "pt", {"reference": filed["reference"]}),
     ]
     resume = next(e for e in chat.last_turn() if e["kind"] == "resume")
     assert resume["refusal"] == "expired"

@@ -1,0 +1,3 @@
+﻿interaction_id,interaction_date,process_date,customer_id,agent_id,interaction_type,channel,contact_reason,reason_category,duration_seconds,wait_time_seconds,was_resolved,requires_followup,detected_sentiment,sentiment_score,customer_detected_accent,agent_used_accent,was_escalated,mentioned_products,has_transcript,has_recording
+INT-TEAM000002,2026-06-17 10:00:00,2026-06-17,CLI-TEAM00000003,AGT-TEAM0001,Inbound Call,Phone,Card question,Transaccional,300,30,True,False,Negativo,0.10,mexican,mexican,False,Tarjeta Crédito,True,True
+INT-TEAM000003,2026-06-18 08:00:00,2026-06-17,CLI-TEAM00000005,AGT-TEAM0001,Inbound Call,Phone,Card question,Transaccional,300,30,True,False,Neutral,0.10,mexican,mexican,False,Tarjeta Crédito,True,True

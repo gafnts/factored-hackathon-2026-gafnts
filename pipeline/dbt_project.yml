@@ -1,0 +1,25 @@
+name: pipeline
+version: "1.0.0"
+config-version: 2
+profile: pipeline
+require-dbt-version: [">=1.12.5", "<1.13.0"]
+
+model-paths: [models]
+macro-paths: [macros]
+test-paths: [tests]
+clean-targets: [target, logs]
+
+flags:
+  send_anonymous_usage_stats: false
+
+models:
+  pipeline:
+    bronze:
+      +schema: bronze
+      +materialized: table
+    silver:
+      +schema: silver
+      +materialized: table
+    gold:
+      +schema: gold
+      +materialized: table

@@ -3,6 +3,8 @@ The contract's example items plus a second customer, who is Suspended, and two m
 the team, with an empty sandbox.
 """
 
+import json
+from importlib.resources import files
 from typing import Any
 
 import pytest
@@ -77,3 +79,106 @@ def overlay_item(
 @pytest.fixture
 def stores() -> Stores:
     return Stores(MemoryData(example_items()), MemoryOverlay())
+
+
+def _entry(turn: str, seq: int, kind: str, **fields: Any) -> dict[str, Any]:
+    started, turn_id = turn.split("#")
+    return {
+        "sign_in": SIGN_IN,
+        "entry_key": f"{turn}#{seq:04d}",
+        "turn_id": turn_id,
+        "seq": seq,
+        "kind": kind,
+        "at": started,
+        "source": "demo",
+        "expires_at": 1800000000,
+        **fields,
+    }
+
+
+def _call(
+    turn: str,
+    seq: int,
+    call_id: str,
+    tool: str,
+    called_at: str,
+    arguments: dict[str, Any],
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    return _entry(
+        turn,
+        seq,
+        "tool_call",
+        call_id=call_id,
+        tool=tool,
+        via="gateway",
+        attempt=1,
+        called_at=called_at,
+        latency_ms=120,
+        request_id=None,
+        input={"customer_id": OWN, "origin_jti": SIGN_IN, **arguments},
+        outcome=result["outcome"],
+        result=result,
+    )
+
+
+def recorded_example() -> list[dict[str, Any]]:
+    """
+    The tool calls the contract's example handoff cites, as the execution record holds them: the search in one turn, the
+    block and the read-back in the next.
+    """
+    searched, blocked = file_handoff_example()["turns"]
+    stamped = {k: tools_data_example()[0][k] for k in ("stamp", "clock")}
+    page = contract_examples("tools.find_transactions_output.json")[0]
+    block = contract_examples("tools.block_card_output.json")[0]
+    card = contract_examples("tools.get_card_output.json")[0]
+    confirmation = "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37"
+    card_id = "PRD-EXAMPLE00002"
+    return [
+        _call(
+            searched,
+            3,
+            "9d1c4b7e-2f3a-4e58-8b6d-1a0c7e5f3b21",
+            "find_transactions",
+            "2026-10-02T15:40:51Z",
+            {"card_id": card_id},
+            page,
+        ),
+        _call(
+            blocked,
+            2,
+            "4e7a2c9d-8b1f-4d36-a5c0-6f2e9b8d1a47",
+            "block_card",
+            "2026-10-02T15:41:39Z",
+            {
+                "card_id": card_id,
+                "reason": "unrecognized_charge",
+                "confirmation_id": confirmation,
+            },
+            {
+                **block,
+                **stamped,
+                "reason": "unrecognized_charge",
+                "confirmation_id": confirmation,
+            },
+        ),
+        _call(
+            blocked,
+            4,
+            "c2b8e1f4-7a9d-4c05-9e3b-5d1a8f6c2e90",
+            "get_card",
+            "2026-10-02T15:41:40Z",
+            {"card_id": card_id},
+            card,
+        ),
+    ]
+
+
+def contract_examples(name: str) -> list[dict[str, Any]]:
+    text = files("banking_agent.contracts").joinpath(f"examples/{name}").read_text()
+    loaded: list[dict[str, Any]] = json.loads(text)
+    return loaded
+
+
+def file_handoff_example() -> dict[str, Any]:
+    return contract_examples("tools.file_handoff_input.json")[1]

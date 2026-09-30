@@ -1,6 +1,7 @@
 """
 The DynamoDB store reads one partition, names every attribute it asks for, and never names is_fraud, so every request
-it makes is one the read tools' role allows (ADR-0004's amendment of 2026-09-29; POL-40, SEC-05, CTL-04).
+it makes is one the read tools' role allows, on the table and on the by_card index (ADR-0004's amendment of
+2026-09-29; POL-40, SEC-05, CTL-04).
 """
 
 from collections.abc import Iterator
@@ -14,11 +15,13 @@ from mypy_boto3_dynamodb import DynamoDBClient
 
 from banking_agent.contracts import schema
 from banking_agent.export.items import attribute
-from banking_agent.tools.store import CARD, DynamoData, MemoryData
+from banking_agent.tools.store import CARD, TRANSACTION, DynamoData, MemoryData
 
 from .conftest import OTHER, OWN, example_items
 
 TABLE = "banking-agent-local-tools-data-b3b8b248f604ef9a-5e1a9c3b7d2f4a68"
+LATER = "2026-06-15 00:00:00#TRX-EXAMPLE0000000000009"
+EARLIER = "2026-06-14 00:00:00#TRX-EXAMPLE0000000000009"
 KINDS = ("metadata_item", "customer_item", "card_item", "transaction_item")
 
 
@@ -100,6 +103,21 @@ def test_it_answers_as_the_in_memory_store_does(client: DynamoDBClient) -> None:
         )
     assert dynamo.card(OWN, "PRD-EXAMPLE00002") == memory.card(OWN, "PRD-EXAMPLE00002")
     assert dynamo.card(OWN, "PRD-EXAMPLE00008") is None
+    for before in (None, LATER, EARLIER):
+        for customer, card in ((OWN, "PRD-EXAMPLE00002"), (OTHER, "PRD-EXAMPLE00002")):
+            assert dynamo.transactions(
+                customer, card, before, 11
+            ) == memory.transactions(customer, card, before, 11)
+
+
+def test_a_transaction_read_returns_what_find_transactions_uses_without_is_fraud(
+    client: DynamoDBClient,
+) -> None:
+    found = DynamoData(client, TABLE).transactions(OWN, "PRD-EXAMPLE00002", None, 11)
+
+    assert len(found) == 1
+    assert set(found[0]) == set(TRANSACTION)
+    assert "is_fraud" not in TRANSACTION
 
 
 def test_a_card_read_returns_only_what_the_card_tools_use(
@@ -121,13 +139,18 @@ def test_every_request_names_its_attributes_and_none_is_is_fraud(
     data.customer(OWN)
     data.cards(OWN)
     data.card(OWN, "PRD-EXAMPLE00002")
+    data.transactions(OWN, "PRD-EXAMPLE00002", None, 11)
+    data.transactions(OWN, "PRD-EXAMPLE00002", LATER, 11)
 
     assert [name for name, _ in recorder.requests] == [
         "get_item",
         "get_item",
         "query",
         "get_item",
+        "query",
+        "query",
     ]
+    assert [r.get("IndexName") for _, r in recorder.requests[-2:]] == ["by_card"] * 2
     for _, request in recorder.requests:
         named = set(request["ExpressionAttributeNames"].values())
         projected = {

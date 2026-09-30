@@ -1,0 +1,7 @@
+pipeline:
+  target: snapshot
+  outputs:
+    snapshot:
+      type: duckdb
+      path: "{{ env_var('PIPELINE_DATABASE') }}"
+      threads: 4

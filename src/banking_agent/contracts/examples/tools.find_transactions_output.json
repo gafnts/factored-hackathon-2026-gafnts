@@ -1,0 +1,92 @@
+[
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card_id": "PRD-EXAMPLE00002",
+    "window": {
+      "from": "2026-03-20 06:00:00",
+      "to": "2026-06-18 06:00:00"
+    },
+    "transactions": [
+      {
+        "transaction_id": "TRX-EXAMPLE0000000000003",
+        "transaction_date": "2026-06-14 21:07:33",
+        "transaction_type": "Purchase",
+        "transaction_status": "Approved",
+        "response_code": "00",
+        "response_meaning": null,
+        "amount": 189.9,
+        "currency": "USD",
+        "channel": "POS",
+        "merchant_name": "Comercio Ejemplo",
+        "merchant_category": "Retail",
+        "transaction_country": "USA",
+        "before_card_opening": false,
+        "after_card_expiration": true
+      },
+      {
+        "transaction_id": "TRX-EXAMPLE0000000000002",
+        "transaction_date": "2026-06-10 08:15:40",
+        "transaction_type": "Purchase",
+        "transaction_status": "Declined",
+        "response_code": "51",
+        "response_meaning": "insufficient_funds",
+        "amount": 1200,
+        "currency": "USD",
+        "channel": "Web",
+        "merchant_name": null,
+        "merchant_category": null,
+        "transaction_country": "México",
+        "before_card_opening": false,
+        "after_card_expiration": true
+      },
+      {
+        "transaction_id": "TRX-EXAMPLE0000000000001",
+        "transaction_date": "2026-05-30 11:52:04",
+        "transaction_type": "Payment",
+        "transaction_status": "Pending",
+        "response_code": "05",
+        "response_meaning": null,
+        "amount": 45.5,
+        "currency": "USD",
+        "channel": "App",
+        "merchant_name": "Servicio Ejemplo",
+        "merchant_category": "Utilities",
+        "transaction_country": "México",
+        "before_card_opening": false,
+        "after_card_expiration": true
+      }
+    ],
+    "next_cursor": null
+  },
+  {
+    "outcome": "refused",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "refusal": "not_served"
+  },
+  {
+    "outcome": "not_found",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    }
+  }
+]

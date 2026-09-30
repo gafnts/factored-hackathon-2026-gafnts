@@ -93,7 +93,11 @@ PRIVATE = (
     '"label"',
     '"cards"',
     '"language"',
+    '"handoff"',
+    '"offer"',
+    '"evidence"',
     "has_request",
+    "complaint",
     "served_in_full",
     "product_status",
     "past_expiration",
@@ -136,7 +140,11 @@ PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
                 },
             )
         },
-        {"outcome_class": "abstain", "rules": ["POL-48"]},
+        {
+            "outcome_class": "abstain",
+            "rules": ["POL-48"],
+            "awaiting": "handoff_control",
+        },
     ),
     "denied": (
         {
@@ -160,11 +168,15 @@ PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
                 }
             )
         },
-        {"outcome_class": "abstain", "rules": ["POL-48"]},
+        {
+            "outcome_class": "abstain",
+            "rules": ["POL-48"],
+            "awaiting": "handoff_control",
+        },
     ),
     "not_served_in_full": (
         {"gateway": not_served_in_full},
-        {"outcome_class": "decline", "rules": []},
+        {"outcome_class": "hand_off", "rules": ["POL-12", "POL-45"]},
     ),
     "route_failed": (
         {"route_error": RuntimeError("provider down")},
@@ -172,7 +184,11 @@ PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
     ),
     "reply_failed": (
         {"reply_error": RuntimeError("provider down")},
-        {"outcome_class": "abstain", "rules": ["POL-48"]},
+        {
+            "outcome_class": "abstain",
+            "rules": ["POL-48"],
+            "awaiting": "handoff_control",
+        },
     ),
     "digit_run": (
         {"reply": UNCHECKED},
@@ -195,22 +211,34 @@ def test_every_path_sends_only_what_the_chats_contract_allows(
     assert [e["type"] for e in events] == TURN
     for event in events:
         validator("chat", "event").validate(event)
-    sent = json.dumps(events, ensure_ascii=False)
+    # An interrupt's metadata is the contract's interrupt value, which names the language.
+    outside = [
+        {**e, "outcome": {"type": e["outcome"]["type"]}}
+        if e["type"] == "RUN_FINISHED"
+        else e
+        for e in events
+    ]
+    sent = json.dumps(outside, ensure_ascii=False)
     for private in (*PRIVATE, UNCHECKED, "4123456789014821"):
         assert private not in sent, private
     entries = harness.records.of(who.origin_jti)
     for entry in entries:
         validator("execution-record").validate(entry)
+    expected = {"awaiting": "none", **expected}
+    offers = expected["awaiting"] == "handoff_control"
     assert kinds(entries)[0] == "turn_opened"
-    assert kinds(entries)[-3:] == ["reply", "decision", "turn_closed"]
+    tail = ["reply", *(["interrupt"] if offers else []), "decision", "turn_closed"]
+    assert kinds(entries)[-len(tail) :] == tail
     decision = entries[-2]
     assert {k: decision[k] for k in expected} == expected
-    assert decision["awaiting"] == "none"
-    assert entries[-3]["text"] == events[2]["delta"]
-    assert entries[-1]["outcome"] == "finished"
+    (replied,) = [e for e in entries if e["kind"] == "reply"]
+    assert replied["text"] == events[2]["delta"]
+    assert entries[-1]["outcome"] == ("interrupted" if offers else "finished")
 
 
-def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text(harness: Harness) -> None:
+def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text_after_the_status(
+    harness: Harness,
+) -> None:
     harness.script.requests = ["available_credit"]
     who = customer()
 
@@ -219,7 +247,9 @@ def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text(harness: Harness) ->
     )
 
     assert events[2]["delta"] == FIXED["not_yet_served"]["pt"]
-    assert harness.script.tool_calls == []
+    assert [c["params"]["name"] for c in harness.script.tool_calls] == [
+        "reads___list_cards"
+    ]
     assert harness.script.model_inputs["reply"] == []
     reply = harness.records.of(who.origin_jti)[-3]
     assert (reply["language"], reply["fixed_texts"]) == ("pt", ["not_yet_served"])
@@ -723,6 +753,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
         "SESSION_BINDINGS_TABLE": "bindings",
         "EXECUTION_RECORDS_TABLE": "records",
         "CONFIRMATIONS_TABLE": "confirmations",
+        "FILE_HANDOFF_FUNCTION": SETTINGS.file_handoff_function,
         "AWS_REGION": "us-east-1",
     }
     for name, value in variables.items():
@@ -736,6 +767,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
 
     assert built.settings == SETTINGS
     assert built.gateway.targets["block_card"] == "block"
+    assert built.filing.function == SETTINGS.file_handoff_function
     assert set(built.graph.nodes) >= {
         "route",
         "list_cards",

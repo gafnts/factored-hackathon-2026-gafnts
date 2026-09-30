@@ -1,0 +1,4 @@
+﻿branch_id,branch_code,branch_name,branch_type,address,city,state,country,postal_code,geographic_zone,phone,email,opening_time,closing_time,has_atms,atm_count,has_teller_windows,teller_window_count,latitude,longitude,branch_opening_date,branch_status
+BRN-TEAM0001,TEAM1,Team Branch 1,Main,1 Team Avenue,Team City,Team State,México,00000,Urbana,+00 000 000 1001,branch1@team-generated.example,09:00:00,17:00:00,True,2,True,3,19.4326000,-99.1332000,2010-01-01,Active
+BRN-TEAM0002,TEAM2,Team Branch 2,Main,2 Team Avenue,Team City,Team State,Colombia,00000,Urbana,+00 000 000 1002,branch2@team-generated.example,09:00:00,17:00:00,True,2,True,3,19.4326000,-99.1332000,2010-01-01,Active
+BRN-TEAM0003,TEAM3,Team Branch 3,Main,3 Team Avenue,Team City,Team State,Argentina,00000,Urbana,+00 000 000 1003,branch3@team-generated.example,09:00:00,17:00:00,True,2,True,3,19.4326000,-99.1332000,2010-01-01,Active

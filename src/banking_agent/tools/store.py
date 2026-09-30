@@ -1,7 +1,8 @@
 """
 The tools' data as the read tools see it (ADR-0004, decision 1 and its amendment of 2026-09-29): one customer's partition
 at a time, naming every attribute a read returns. The read tools' role may name every attribute but is_fraud, and none
-without naming it, so a read here can never return is_fraud. The in-memory store serves the tests and the evaluation's
+without naming it, so a read here can never return is_fraud. A card's transactions are read through the by_card index,
+newest first, which doesn't hold is_fraud either. The in-memory store serves the tests and the evaluation's
 harness with the same logic the Lambda runs.
 """
 
@@ -27,6 +28,27 @@ CARD = (
     "past_expiration",
     "updated_after_as_of",
 )
+TRANSACTION = (
+    "listed_at",
+    "transaction_id",
+    "transaction_date",
+    "transaction_type",
+    "transaction_status",
+    "response_code",
+    "amount",
+    "currency",
+    "channel",
+    "merchant_name",
+    "merchant_category",
+    "transaction_country",
+    "before_card_opening",
+    "after_card_expiration",
+)
+BY_CARD = "by_card"
+
+
+def card_key(customer_id: str, card_id: str) -> str:
+    return f"{customer_id}#{card_id}"
 
 
 class ToolsData(Protocol):
@@ -37,6 +59,14 @@ class ToolsData(Protocol):
     def cards(self, customer_id: str) -> list[Record]: ...
 
     def card(self, customer_id: str, card_id: str) -> Record | None: ...
+
+    def transactions(
+        self, customer_id: str, card_id: str, before: str | None, limit: int
+    ) -> list[Record]:
+        """
+        The card's transactions newest first, up to limit, from before the given listed_at if one is given.
+        """
+        ...
 
 
 def _projection(names: Sequence[str]) -> dict[str, Any]:
@@ -105,6 +135,29 @@ class DynamoData:
     def card(self, customer_id: str, card_id: str) -> Record | None:
         return self._get(customer_id, f"CARD#{card_id}", CARD)
 
+    def transactions(
+        self, customer_id: str, card_id: str, before: str | None, limit: int
+    ) -> list[Record]:
+        projection = _projection(TRANSACTION)
+        names = {**projection["ExpressionAttributeNames"], "#card_key": "card_key"}
+        values: dict[str, Any] = {":card_key": {"S": card_key(customer_id, card_id)}}
+        condition = "#card_key = :card_key"
+        if before is not None:
+            names["#listed_at"] = "listed_at"
+            values[":before"] = {"S": before}
+            condition += " AND #listed_at < :before"
+        response = self._client.query(
+            TableName=self._table,
+            IndexName=BY_CARD,
+            KeyConditionExpression=condition,
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+            ProjectionExpression=projection["ProjectionExpression"],
+            ScanIndexForward=False,
+            Limit=limit,
+        )
+        return [self._record(item) for item in response.get("Items", [])]
+
 
 class MemoryData:
     def __init__(self, items: Iterable[Mapping[str, Any]]) -> None:
@@ -131,3 +184,21 @@ class MemoryData:
 
     def card(self, customer_id: str, card_id: str) -> Record | None:
         return self._get(customer_id, f"CARD#{card_id}", CARD)
+
+    def transactions(
+        self, customer_id: str, card_id: str, before: str | None, limit: int
+    ) -> list[Record]:
+        key = card_key(customer_id, card_id)
+        listed = sorted(
+            (
+                item
+                for item in self._items.values()
+                if item.get("card_key") == key
+                and (before is None or item["listed_at"] < before)
+            ),
+            key=lambda item: item["listed_at"],
+            reverse=True,
+        )
+        return [
+            {n: item[n] for n in TRANSACTION if n in item} for item in listed[:limit]
+        ]

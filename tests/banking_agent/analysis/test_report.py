@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from banking_agent import clock
 from banking_agent.analysis import profile as profiling
 from banking_agent.analysis.attribution import Attribution, Cutoff
 from banking_agent.analysis.catalog import Table
@@ -20,7 +21,7 @@ from banking_agent.dataset.lock import Lock
 def result(
     lock: Lock, root: Path, tables: tuple[Table, ...], monkeypatch: pytest.MonkeyPatch
 ) -> Profile:
-    monkeypatch.setattr(profiling, "SETTLED_DAYS", 0)
+    monkeypatch.setattr(clock, "SETTLED_DAYS", 0)
     monkeypatch.setitem(profiling.COUNTED, "branches", ("zone",))
     return profile(lock, root, tables, log=lambda _: None)
 

@@ -1,0 +1,12 @@
+﻿transaction_id,transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,amount,currency,amount_usd,channel,branch_id,merchant_name,merchant_category,transaction_country,transaction_city,transaction_status,response_code,is_fraud,fraud_score,latitude,longitude
+TRX-TEAM0000000000000302,2026-06-15 21:07:33,2026-06-15,PRD-TEAM00000031,CLI-TEAM00000003,Purchase,Other,189.90,USD,189.90,POS,,Comercio Uno,Retail,Mexico,Team City,Declined,05,True,88.00,,
+TRX-TEAM0000000000000303,2026-06-15 09:00:00,2026-06-15,PRD-TEAM00000032,CLI-TEAM00000003,Purchase,Other,20.00,USD,20.00,Web,,,,USA,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000101,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000011,CLI-TEAM00000001,Purchase,Other,20.00,COP,0.01,POS,,Tienda,Retail,Colombia,Team City,Declined,,False,1.00,,
+TRX-TEAM0000000000000201,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000021,CLI-TEAM00000002,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Declined,51,False,1.00,,
+TRX-TEAM0000000000000202,2026-06-15 11:00:00,2026-06-15,PRD-TEAM00000021,CLI-TEAM00000002,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000203,2026-06-15 12:00:00,2026-06-15,PRD-TEAM00000022,CLI-TEAM00000002,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000401,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000041,CLI-TEAM00000004,Purchase,Other,20.00,ARS,20.00,POS,,Team Shop,Retail,Argentina,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000501,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000051,CLI-TEAM00000005,Purchase,Other,20.00,COP,20.00,POS,,Team Shop,Retail,Colombia,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000601,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000061,CLI-TEAM00000006,Purchase,Other,20.00,COP,20.00,POS,,Team Shop,Retail,Colombia,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000701,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000071,CLI-TEAM00000007,Purchase,Other,20.00,ARS,20.00,POS,,Team Shop,Retail,Argentina,Team City,Approved,00,False,1.00,,
+TRX-TEAM0000000000000801,2026-06-15 10:00:00,2026-06-15,PRD-TEAM00000081,CLI-TEAM00000008,Purchase,Other,20.00,USD,20.00,POS,,Team Shop,Retail,México,Team City,Approved,00,False,1.00,,
