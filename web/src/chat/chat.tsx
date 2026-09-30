@@ -113,6 +113,14 @@ function Thread({
   );
 }
 
+function latch(): { opened: Promise<void>; open: () => void } {
+  let open: () => void = () => undefined;
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { opened, open };
+}
+
 export function Chat({
   url,
   session,
@@ -131,9 +139,16 @@ export function Chat({
     () => given ?? runtimeFetch(session),
     [given, session],
   );
+  // A runtime session whose microVM is still starting turns a request away with an error of AgentCore's own, so
+  // a message waits for the warm-up to answer.
+  const [warm] = useState(latch);
   const agent = useMemo(
-    () => createAgent(url, threadId, fetcher),
-    [url, threadId, fetcher],
+    () =>
+      createAgent(url, threadId, async (to, init) => {
+        await warm.opened;
+        return fetcher(to, init);
+      }),
+    [url, threadId, fetcher, warm],
   );
   const [problem, setProblem] = useState<Problem | null>(null);
 
@@ -148,10 +163,12 @@ export function Chat({
   const runtime = useAgUiRuntime({ agent, onError });
 
   useEffect(() => {
-    warmUp(url, threadId, fetcher).catch((error: unknown) => {
-      if (problemOf(error) === "signed_out") onSignInEnded();
-    });
-  }, [url, threadId, fetcher, onSignInEnded]);
+    warmUp(url, threadId, fetcher)
+      .catch((error: unknown) => {
+        if (problemOf(error) === "signed_out") onSignInEnded();
+      })
+      .finally(warm.open);
+  }, [url, threadId, fetcher, onSignInEnded, warm]);
 
   useEffect(() => {
     const { unsubscribe } = agent.subscribe({

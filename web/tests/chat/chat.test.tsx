@@ -70,13 +70,16 @@ function turn(request: Request, masked: string): Event[] {
   return events;
 }
 
-function runtime(answer: (request: Request) => Response | Promise<Response>) {
+function runtime(
+  answer: (request: Request) => Response | Promise<Response>,
+  warm: Promise<void> = Promise.resolve(),
+) {
   const calls: Call[] = [];
   const fetch = vi.fn((url: string, init: RequestInit) => {
     const body = JSON.parse(init.body as string) as Request;
     calls.push({ url, headers: new Headers(init.headers), body });
     if (body.forwardedProps?.warmup) {
-      return Promise.resolve(
+      return warm.then(() =>
         sse([
           { type: "RUN_STARTED", threadId: body.threadId, runId: body.runId },
           { type: "RUN_FINISHED", threadId: body.threadId, runId: body.runId },
@@ -162,6 +165,25 @@ describe("a turn", () => {
       ).toBe(SESSION);
     }
     expect(warmup?.body.threadId).toBe(message?.body.threadId);
+  });
+
+  test("waits for the warm-up to answer, since a runtime session still starting turns a message away", async () => {
+    let answerWarmUp: (() => void) | undefined;
+    const calls = runtime(
+      (request) => sse(turn(request, "Quais cartões eu tenho?")),
+      new Promise<void>((resolve) => {
+        answerWarmUp = resolve;
+      }),
+    );
+    chat();
+
+    await send("Quais cartões eu tenho?");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(calls).toHaveLength(1);
+    answerWarmUp?.();
+
+    expect(await screen.findByText(REPLY.delta)).toBeInTheDocument();
+    expect(calls).toHaveLength(2);
   });
 });
 
