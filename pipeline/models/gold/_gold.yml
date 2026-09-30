@@ -1,0 +1,320 @@
+# Gold is the data half of the tools' contract (ADR-0006, Contracts): each model holds one kind of item's attributes in
+# src/banking_agent/contracts/tools-data.schema.json, with customer_id for the partition, and the checks below restate
+# its enums, patterns, and lengths. tests/banking_agent/pipeline/test_gold.py holds the two to each other.
+
+models:
+  - name: gold_metadata
+    description: The snapshot and the business clock, published as the export's metadata item.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - one_row:
+          name: gold_metadata_one_row
+    columns:
+      - name: snapshot_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "regexp_full_match(snapshot_id, '[0-9a-f]{16}')"
+      - name: business_date
+        data_type: date
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: as_of
+        data_type: timestamp
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+
+  - name: gold_customers
+    description: Every customer registered by the as-of instant.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: primary_key
+          - type: check
+            expression: "regexp_full_match(customer_id, 'CLI-[A-Z0-9]{12}')"
+      - name: customer_status
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "customer_status in ('Active', 'Inactive', 'Suspended', 'Closed')"
+      - name: country
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "country in ('Argentina', 'Colombia', 'México')"
+      - name: updated_after_as_of
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+
+  - name: gold_cards
+    description: Every card opened by the as-of instant, by its last four digits.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: foreign_key
+            to: ref('gold_customers')
+            to_columns: [customer_id]
+      - name: card_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: primary_key
+          - type: check
+            expression: "regexp_full_match(card_id, 'PRD-[A-Z0-9]{12}')"
+      - name: product_type
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "product_type in ('Tarjeta Crédito', 'Tarjeta Débito')"
+      - name: last_four
+        data_type: varchar
+        description: The only part of the card number that leaves the machine (POL-11).
+        config:
+          meta:
+            personal_data: card_number
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "regexp_full_match(last_four, '[0-9]{4}')"
+      - name: currency
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "currency in ('ARS', 'COP', 'MXN', 'USD')"
+      - name: current_balance
+        data_type: decimal(15,2)
+        config:
+          meta:
+            personal_data: financial
+        constraints:
+          - type: not_null
+      - name: credit_limit
+        data_type: decimal(15,2)
+        config:
+          meta:
+            personal_data: financial
+      - name: product_status
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "product_status in ('Active', 'Blocked', 'Closed', 'Suspended')"
+      - name: opening_date
+        data_type: date
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: expiration_date
+        data_type: date
+        config:
+          meta:
+            personal_data: none
+      - name: past_expiration
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: updated_after_as_of
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+
+  - name: gold_transactions
+    description: The cards' transactions in the 90 days that end at the as-of instant.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: transaction_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: primary_key
+          - type: check
+            expression: "regexp_full_match(transaction_id, 'TRX-[A-Z0-9]{20}')"
+      - name: card_id
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: foreign_key
+            to: ref('gold_cards')
+            to_columns: [card_id]
+      - name: transaction_date
+        data_type: timestamp
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: transaction_type
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "transaction_type in ('Deposit', 'Withdrawal', 'Transfer', 'Payment', 'Purchase', 'Adjustment')"
+      - name: amount
+        data_type: decimal(15,2)
+        config:
+          meta:
+            personal_data: financial
+        constraints:
+          - type: not_null
+      - name: currency
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "currency in ('ARS', 'COP', 'MXN', 'USD')"
+      - name: channel
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "channel in ('ATM', 'Branch', 'Web', 'App', 'POS', 'Transfer')"
+      - name: merchant_name
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: check
+            expression: "length(merchant_name) between 1 and 150"
+      - name: merchant_category
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: check
+            expression: "length(merchant_category) between 1 and 150"
+      - name: transaction_country
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "length(transaction_country) between 1 and 50"
+      - name: transaction_status
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "transaction_status in ('Approved', 'Declined', 'Pending', 'Reversed')"
+      - name: response_code
+        data_type: varchar
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: check
+            expression: "regexp_full_match(response_code, '[0-9A-Z]{1,10}')"
+      - name: is_fraud
+        data_type: boolean
+        description: The bank's own flag, which only file_handoff reads (POL-40).
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: before_card_opening
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
+      - name: after_card_expiration
+        data_type: boolean
+        config:
+          meta:
+            personal_data: none
+        constraints:
+          - type: not_null
