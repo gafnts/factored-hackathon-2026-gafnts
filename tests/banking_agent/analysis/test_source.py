@@ -47,6 +47,28 @@ def test_refuses_a_missing_or_resized_file(lock: Lock, root: Path) -> None:
         check_local(lock, root)
 
 
+def test_refuses_a_file_the_lock_doesnt_list_and_names_it(
+    lock: Lock, root: Path
+) -> None:
+    late = root / "receipts/year=2026/month=06/day=18/receipts_20260618.csv"
+    late.parent.mkdir(parents=True)
+    late.write_text("receipt_id\n")
+
+    with pytest.raises(AnalysisError, match="1 not in the lock") as refused:
+        check_local(lock, root)
+
+    assert "receipts/year=2026/month=06/day=18/receipts_20260618.csv" in str(
+        refused.value
+    )
+
+
+def test_ignores_hidden_files_a_file_browser_leaves(lock: Lock, root: Path) -> None:
+    (root / ".DS_Store").write_bytes(b"\x00")
+    (root / "receipts" / ".DS_Store").write_bytes(b"\x00")
+
+    check_local(lock, root)
+
+
 def test_counts_header_versions_without_the_byte_order_mark(
     lock: Lock, root: Path, tables: tuple[Table, ...]
 ) -> None:
