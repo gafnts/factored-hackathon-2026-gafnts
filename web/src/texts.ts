@@ -230,10 +230,6 @@ export const CONSOLES = {
     title: "Consola de agentes",
     body: "La consola de agentes humanos llega en una próxima versión del prototipo.",
   },
-  ops: {
-    title: "Informe de evaluación",
-    body: "El informe de evaluación llega en una próxima versión del prototipo.",
-  },
 } as const;
 
 export function isRunErrorCode(code: unknown): code is RunErrorCode {

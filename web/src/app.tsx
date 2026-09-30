@@ -1,10 +1,15 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
-import { Customer } from "./customer";
 import { browserLanguage } from "./language";
+import { Page } from "./layout";
 import { NotFound, Placeholder } from "./pages/placeholder";
 
-export type Route = "home" | "chat" | "agent" | "ops" | "unknown";
+export type Route = "home" | "chat" | "agent" | "unknown";
+
+// Each route's code is its own chunk, so the console never downloads the chat, nor the chat the console.
+const Customer = lazy(() =>
+  import("./customer").then((module) => ({ default: module.Customer })),
+);
 
 export function routeOf(path: string): Route {
   switch (path.replace(/\/+$/, "")) {
@@ -15,8 +20,6 @@ export function routeOf(path: string): Route {
       return "chat";
     case "/agent":
       return "agent";
-    case "/ops":
-      return "ops";
     default:
       return "unknown";
   }
@@ -31,11 +34,16 @@ export function App({ path }: { path: string }) {
 
   switch (route) {
     case "home":
-    case "chat":
-      return <Customer language={browserLanguage()} />;
+    case "chat": {
+      const language = browserLanguage();
+      return (
+        <Suspense fallback={<Page language={language}>{null}</Page>}>
+          <Customer language={language} />
+        </Suspense>
+      );
+    }
     case "agent":
-    case "ops":
-      return <Placeholder console={route} />;
+      return <Placeholder />;
     case "unknown":
       return <NotFound language={browserLanguage()} />;
   }

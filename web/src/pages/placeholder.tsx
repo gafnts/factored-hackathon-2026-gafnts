@@ -2,8 +2,8 @@ import type { Language } from "../contracts/chat";
 import { Page } from "../layout";
 import { CONSOLES, TEXTS } from "../texts";
 
-export function Placeholder({ console }: { console: keyof typeof CONSOLES }) {
-  const { title, body } = CONSOLES[console];
+export function Placeholder() {
+  const { title, body } = CONSOLES.agent;
   return (
     <Page language="es">
       <section className="py-10">
