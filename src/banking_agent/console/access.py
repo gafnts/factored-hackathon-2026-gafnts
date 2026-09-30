@@ -5,7 +5,6 @@ and hands its claims to the Lambda. Each route then requires an access token of 
 group, so a misconfigured authorizer still lets no customer, and no one on the AI team, read a case.
 """
 
-import re
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -21,13 +20,14 @@ class Staff:
 
 def groups_of(claim: Any) -> list[str] | None:
     """
-    An HTTP API is reported to hand a Lambda a list claim as one string, the groups between brackets (ADR-0004, To
-    verify on the first deploy); a list is read too, and anything else is no groups at all.
+    An HTTP API is reported to hand a Lambda a list claim as one string, the groups between brackets and apart by
+    spaces (ADR-0004, To verify on the first deploy); a list is read too, and anything else is no groups at all. A
+    group's name can hold a comma but no space, so a group named "x,human_agent" is never read as human_agent.
     """
     if isinstance(claim, list) and all(isinstance(group, str) for group in claim):
         return claim
     if isinstance(claim, str) and claim.startswith("[") and claim.endswith("]"):
-        return [group for group in re.split(r"[\s,]+", claim[1:-1]) if group]
+        return claim[1:-1].split()
     return None
 
 

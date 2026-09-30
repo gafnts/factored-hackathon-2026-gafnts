@@ -30,7 +30,6 @@ def event(**claims: Any) -> dict[str, Any]:
     [
         "[human_agent]",
         "[ai_team human_agent]",
-        "[human_agent,ai_team]",
         ["human_agent"],
     ],
 )
@@ -62,6 +61,12 @@ def test_anyone_else_is_refused(claims: dict[str, Any]) -> None:
 @pytest.mark.parametrize("unsigned", [{}, {"requestContext": {}}, None, "claims"])
 def test_an_event_without_claims_is_refused(unsigned: Any) -> None:
     assert staff_of(unsigned, STAFF_CLIENT) is None
+
+
+def test_a_group_whose_name_holds_the_role_is_another_group() -> None:
+    # Cognito allows a comma in a group's name, never a space.
+    for claim in ("[x,human_agent]", "[human_agent,x]", ["x,human_agent"]):
+        assert staff_of(event(**{"cognito:groups": claim}), STAFF_CLIENT) is None
 
 
 def test_groups_are_read_from_a_list_or_a_bracketed_string_only() -> None:
