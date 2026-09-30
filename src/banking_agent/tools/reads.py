@@ -11,7 +11,7 @@ from typing import Any
 
 import boto3
 
-from banking_agent.tools import check_output, invalid_input
+from banking_agent.tools import check_output, gateway_tool, invalid_input
 from banking_agent.tools.cards import get_card, list_cards
 from banking_agent.tools.sandbox import DynamoOverlay, Stores
 from banking_agent.tools.store import DynamoData
@@ -23,8 +23,7 @@ TOOLS: dict[str, Callable[[Stores, dict[str, Any]], dict[str, Any]]] = {
 
 
 def tool_name(context: Any) -> str:
-    custom = context.client_context.custom if context.client_context else {}
-    tool = str(custom.get("bedrockAgentCoreToolName", "")).rpartition("___")[2]
+    tool = gateway_tool(context)
     if tool not in TOOLS:
         raise ValueError(f"not a read tool: {tool!r}")
     return tool
