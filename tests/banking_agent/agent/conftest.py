@@ -30,7 +30,7 @@ SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
 SETTINGS = entrypoint.Settings(
     client_id=CLIENT_ID,
     gateway_url="https://gateway.example/mcp",
-    gateway_target="reads",
+    gateway_targets={"list_cards": "reads", "get_card": "reads", "block_card": "block"},
     stamp={"snapshot": "b3b8b248f604ef9a", "pipeline_version": "5e1a9c3b7d2f4a68"},
     clock={"business_date": "2026-06-17", "as_of": "2026-06-18 06:00:00"},
     app_version="0123456789abcdef0123456789abcdef01234567",
@@ -160,7 +160,7 @@ class Harness:
             models=self.factory,
             gateway=Gateway(
                 SETTINGS.gateway_url,
-                SETTINGS.gateway_target,
+                SETTINGS.gateway_targets,
                 httpx.AsyncClient(transport=transport),
             ),
             now=lambda: datetime.now(UTC),

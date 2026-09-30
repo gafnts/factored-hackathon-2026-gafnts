@@ -71,7 +71,7 @@ app = AGUIApp()
 class Settings:
     client_id: str
     gateway_url: str
-    gateway_target: str
+    gateway_targets: dict[str, str]
     stamp: dict[str, str]
     clock: dict[str, str]
     app_version: str
@@ -82,7 +82,7 @@ class Settings:
         return cls(
             client_id=os.environ["CUSTOMER_CLIENT_ID"],
             gateway_url=os.environ["GATEWAY_URL"],
-            gateway_target=os.environ["GATEWAY_TARGET"],
+            gateway_targets=json.loads(os.environ["GATEWAY_TARGETS"]),
             stamp=tools_data["stamp"],
             clock=tools_data["clock"],
             app_version=os.environ["APP_VERSION"],
@@ -137,7 +137,7 @@ def services() -> Services:
         records=DynamoRecords(records),
         fetch_key=fetch_model_key,
         models=anthropic_factory,
-        gateway=Gateway(settings.gateway_url, settings.gateway_target),
+        gateway=Gateway(settings.gateway_url, settings.gateway_targets),
     )
 
 

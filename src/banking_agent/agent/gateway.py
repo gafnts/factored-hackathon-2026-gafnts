@@ -1,14 +1,15 @@
 """
 Calls the Gateway's tools as the signed-in customer: a stateless MCP tools/call over HTTP with the customer's own access
-token, which the Gateway validates and Cedar checks (ADR-0004, A turn, end to end). Each call becomes one tool_call
-entry of the execution record. A tool's own output is checked against its contract here too, since the record keeps it
-whole; a call the Lambda never answered is failed, and Cedar's JSON-RPC -32002 is denied (POL-49).
+token, which the Gateway validates and Cedar checks (ADR-0004, A turn, end to end). Each tool is named on its own
+target, <target>___<tool>, since the reads and the block are separate Lambdas (Where the tools run). Each call becomes
+one tool_call entry of the execution record. A tool's own output is checked against its contract here too, since the
+record keeps it whole; a call the Lambda never answered is failed, and Cedar's JSON-RPC -32002 is denied (POL-49).
 """
 
 import json
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -103,12 +104,12 @@ class Gateway:
     def __init__(
         self,
         url: str,
-        target: str,
+        targets: Mapping[str, str],
         client: httpx.AsyncClient | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.url = url
-        self.target = target
+        self.targets = targets
         self.client = client
         self.now = now
 
@@ -119,7 +120,10 @@ class Gateway:
             "jsonrpc": "2.0",
             "id": call_id,
             "method": "tools/call",
-            "params": {"name": f"{self.target}___{tool}", "arguments": arguments},
+            "params": {
+                "name": f"{self.targets[tool]}___{tool}",
+                "arguments": arguments,
+            },
         }
         headers = {
             "Authorization": f"Bearer {token}",

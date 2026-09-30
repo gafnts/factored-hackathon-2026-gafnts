@@ -713,7 +713,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
     variables = {
         "CUSTOMER_CLIENT_ID": SETTINGS.client_id,
         "GATEWAY_URL": SETTINGS.gateway_url,
-        "GATEWAY_TARGET": SETTINGS.gateway_target,
+        "GATEWAY_TARGETS": json.dumps(SETTINGS.gateway_targets),
         "TOOLS_DATA": json.dumps({"stamp": SETTINGS.stamp, "clock": SETTINGS.clock}),
         "APP_VERSION": SETTINGS.app_version,
         "CHECKPOINTS_TABLE": "checkpoints",
@@ -731,7 +731,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
         entrypoint.services.cache_clear()
 
     assert built.settings == SETTINGS
-    assert built.gateway.target == "reads"
+    assert built.gateway.targets["block_card"] == "block"
     assert set(built.graph.nodes) >= {"route", "list_cards", "reply"}
 
 
