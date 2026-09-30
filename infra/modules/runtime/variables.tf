@@ -48,6 +48,14 @@ variable "confirmations_table" {
   })
 }
 
+variable "file_handoff_function" {
+  description = "The Lambda the Runtime invokes to file a handoff, off the Gateway"
+  type = object({
+    name = string
+    arn  = string
+  })
+}
+
 variable "tools_data" {
   description = "The stamp and the clock of the export the tools read, which every turn's record carries"
   type = object({

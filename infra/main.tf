@@ -61,6 +61,18 @@ module "gateway" {
   confirmations_table      = module.sandbox.confirmations
 }
 
+module "handoff" {
+  source = "./modules/handoff"
+
+  prefix                   = local.prefix
+  permissions_boundary_arn = local.permissions_boundary_arn
+  log_retention_days       = var.log_retention_days
+  tools_zip                = "${local.build}/tools.zip"
+  tools_data_table         = { name = module.tools_data.table_name, arn = module.tools_data.table_arn }
+  tools_data_attributes    = module.tools_data.attributes
+  customer_client_id       = module.identity.customer_client_id
+}
+
 module "runtime" {
   source = "./modules/runtime"
 
@@ -74,6 +86,7 @@ module "runtime" {
   gateway_url              = module.gateway.gateway_url
   gateway_targets          = module.gateway.targets
   confirmations_table      = module.sandbox.confirmations
+  file_handoff_function    = module.handoff.function
   tools_data               = { stamp = module.tools_data.stamp, clock = module.tools_data.clock }
   runtime_zip              = "${local.build}/runtime.zip"
 }
