@@ -356,7 +356,7 @@ def test_a_refused_resume_says_why() -> None:
 
 def test_unknown_contracts_and_definitions_are_refused() -> None:
     with pytest.raises(KeyError, match="no contract named"):
-        schema("console")
+        schema("ops")
     with pytest.raises(KeyError, match="defines no"):
         definition("tools", "get_available_credit_input")
 
@@ -463,6 +463,17 @@ def test_every_filed_example_case_holds_a_valid_handoff() -> None:
         assert case["record"]["sign_in"] == case["payload"]["session_id"]
 
 
+def test_a_cases_rank_in_the_queue_is_its_priority() -> None:
+    filed = copy.deepcopy(cases()[1])
+    later = f"0#{filed['filed_at']}"
+
+    assert filed["queue_order"] == later
+    assert invalid("handoff-case", None, {**filed, "priority": "urgent"})
+    urgent = {**filed, "priority": "urgent", "queue_order": f"1#{filed['filed_at']}"}
+    assert not invalid("handoff-case", None, urgent)
+    assert invalid("handoff-case", None, {**filed, "queue_order": filed["filed_at"]})
+
+
 def test_a_case_is_in_the_queue_its_reason_names() -> None:
     filed = copy.deepcopy(cases()[1])
 
@@ -555,3 +566,85 @@ def test_only_the_entrypoint_opens_turns() -> None:
     assert invalid("execution-record", None, {**opened, "input": {"kind": "deadline"}})
     for field in ("runtime_session_id", "client_thread_id", "client_run_id"):
         assert invalid("execution-record", None, {**opened, field: None})
+
+
+# The console API (ADR-0007, The console API, and its amendments of 2026-09-30)
+
+
+def test_the_console_takes_its_fields_from_the_case_record_and_the_payload() -> None:
+    detail = first("console.case_detail.json")
+    case = detail["case"]
+
+    assert invalid(
+        "console", "case_detail", {**detail, "case": {**case, "reason_code": "lost"}}
+    )
+    payload = {**case["payload"], "priority": "high"}
+    assert invalid(
+        "console", "case_detail", {**detail, "case": {**case, "payload": payload}}
+    )
+
+
+def test_each_example_case_reads_as_the_case_record_holds_it() -> None:
+    held = {c["reference"]: c for c in cases() if c["status"] != "draft"}
+
+    for detail in examples("console.case_detail.json"):
+        case = detail["case"]
+        assert all(case[k] == held[case["reference"]][k] for k in case)
+
+
+def test_the_queue_never_takes_a_source() -> None:
+    # An evaluation's cases never reach a human agent's queue (EVL-13).
+    query = first("console.list_query.json")
+
+    assert invalid("console", "list_query", {**query, "source": "evaluation"})
+    assert invalid("console", "list_query", {**query, "limit": "51"})
+    assert invalid("console", "list_query", {**query, "limit": "0"})
+
+
+def test_a_queues_row_carries_nothing_of_the_payload() -> None:
+    row = first("console.case_list.json")["cases"][0]
+
+    assert set(schema("console")["$defs"]["case_row"]["properties"]) == set(row)
+    assert invalid("console", "case_row", {**row, "summary": "Texto del cliente."})
+
+
+def test_a_case_names_each_call_its_evidence_names_once() -> None:
+    for detail in examples("console.case_detail.json"):
+        evidence = [e["call_id"] for e in detail["case"]["payload"]["evidence"]]
+        assert [c["call_id"] for c in detail["calls"]] == evidence
+
+
+def test_a_call_not_yet_recorded_carries_nothing_but_its_id() -> None:
+    call = examples("console.case_detail.json")[1]["calls"][0]
+
+    assert not call["recorded"]
+    assert invalid("console", "recorded_call", {**call, "tool": "file_handoff"})
+    assert invalid("console", "recorded_call", {**call, "rows": []})
+
+
+def test_a_recorded_call_never_carries_its_input_or_whole_result() -> None:
+    call = first("console.case_detail.json")["calls"][0]
+
+    assert invalid("console", "recorded_call", {**call, "input": {}})
+    assert invalid("console", "recorded_call", {**call, "result": {}})
+
+
+def test_a_failed_call_names_its_error_and_no_rows() -> None:
+    ok = first("console.case_detail.json")["calls"][0]
+    failed = {**ok, "outcome": "failed", "rows": []}
+
+    assert invalid("console", "recorded_call", failed)
+    assert not invalid("console", "recorded_call", {**failed, "error_code": "timeout"})
+    assert invalid(
+        "console",
+        "recorded_call",
+        {**failed, "error_code": "timeout", "rows": ok["rows"]},
+    )
+    assert invalid("console", "recorded_call", {**ok, "error_code": "timeout"})
+
+
+def test_a_recorded_row_holds_scalar_fields_only() -> None:
+    call = first("console.case_detail.json")["calls"][0]
+    nested = {**call["rows"][0], "stamp": {"snapshot": "b3b8b248f604ef9a"}}
+
+    assert invalid("console", "recorded_call", {**call, "rows": [nested]})

@@ -35,7 +35,16 @@ KEYS = {"card": "card_id", "transaction": "transaction_id"}
 
 
 class Records(Protocol):
-    def turns(self, sign_in: str, prefixes: Sequence[str]) -> list[Entry]: ...
+    def turns(
+        self,
+        sign_in: str,
+        prefixes: Sequence[str],
+        attributes: Sequence[str] | None = None,
+    ) -> list[Entry]:
+        """
+        Every entry of the turns, or only the named attributes of each, which is all the console's role may read.
+        """
+        ...
 
 
 class DynamoRecords:
@@ -44,8 +53,20 @@ class DynamoRecords:
         self._table = table
         self._deserializer = TypeDeserializer()
 
-    def turns(self, sign_in: str, prefixes: Sequence[str]) -> list[Entry]:
+    def turns(
+        self,
+        sign_in: str,
+        prefixes: Sequence[str],
+        attributes: Sequence[str] | None = None,
+    ) -> list[Entry]:
         found: list[Entry] = []
+        projection: dict[str, Any] = {}
+        if attributes is not None:
+            aliases = {f"#a{i}": name for i, name in enumerate(attributes)}
+            projection = {
+                "ProjectionExpression": ", ".join(aliases),
+                "ExpressionAttributeNames": aliases,
+            }
         for prefix in prefixes:
             start: dict[str, Any] = {}
             while True:
@@ -57,6 +78,7 @@ class DynamoRecords:
                         ":turn": {"S": f"{prefix}#"},
                     },
                     ConsistentRead=True,
+                    **projection,
                     **start,
                 )
                 found += [
@@ -73,13 +95,21 @@ class MemoryRecords:
     def __init__(self, entries: Iterable[Mapping[str, Any]] = ()) -> None:
         self.entries = [json.loads(json.dumps(dict(e))) for e in entries]
 
-    def turns(self, sign_in: str, prefixes: Sequence[str]) -> list[Entry]:
-        return [
+    def turns(
+        self,
+        sign_in: str,
+        prefixes: Sequence[str],
+        attributes: Sequence[str] | None = None,
+    ) -> list[Entry]:
+        found = [
             e
             for e in self.entries
             if e["sign_in"] == sign_in
             and any(e["entry_key"].startswith(f"{p}#") for p in prefixes)
         ]
+        if attributes is None:
+            return found
+        return [{k: e[k] for k in attributes if k in e} for e in found]
 
 
 def rows(node: Any, card_id: Any = None) -> Iterator[dict[str, Any]]:

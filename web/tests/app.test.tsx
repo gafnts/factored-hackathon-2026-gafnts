@@ -2,10 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { App, routeOf } from "../src/app";
-import { CONSOLES, TEXTS } from "../src/texts";
 
 vi.mock(import("../src/customer"), () => ({
   Customer: () => <p>the customer's chat</p>,
+}));
+
+vi.mock(import("../src/agent/agent"), () => ({
+  Agent: () => <p>the human agents' console</p>,
 }));
 
 test.each([
@@ -14,40 +17,34 @@ test.each([
   ["/chat", "chat"],
   ["/chat/", "chat"],
   ["/agent", "agent"],
-  ["/ops", "ops"],
+  ["/agent/", "agent"],
+  // The AI team's page isn't built (ADR-0007's amendment of 2026-09-30).
+  ["/ops", "unknown"],
   ["/agent/cases", "unknown"],
   ["/nope", "unknown"],
 ])("%s is the %s route", (path, route) => {
   expect(routeOf(path)).toBe(route);
 });
 
-test("the root opens the chat, at /chat", () => {
+test("the root opens the chat, at /chat", async () => {
   window.history.pushState(null, "", "/");
   render(<App path="/" />);
 
-  expect(screen.getByText("the customer's chat")).toBeInTheDocument();
+  expect(await screen.findByText("the customer's chat")).toBeInTheDocument();
   expect(window.location.pathname).toBe("/chat");
 });
 
-test.each(["agent", "ops"] as const)(
-  "/%s says its console comes later, in Spanish, with the notice",
-  (console) => {
-    render(<App path={`/${console}`} />);
+test("/agent opens the human agents' console, not the chat", async () => {
+  render(<App path="/agent" />);
 
-    expect(screen.getByRole("heading")).toHaveTextContent(
-      CONSOLES[console].title,
-    );
-    expect(screen.getByText(CONSOLES[console].body)).toBeInTheDocument();
-    expect(screen.getByText(TEXTS.es.notice)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: TEXTS.es.toChat })).toHaveAttribute(
-      "href",
-      "/chat",
-    );
-  },
-);
+  expect(
+    await screen.findByText("the human agents' console"),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("the customer's chat")).not.toBeInTheDocument();
+});
 
-test("an unknown path says the page doesn't exist", () => {
-  render(<App path="/nope" />);
+test.each(["/nope", "/ops"])("%s says the page doesn't exist", (path) => {
+  render(<App path={path} />);
 
   expect(screen.getByRole("link")).toHaveAttribute("href", "/chat");
   expect(screen.getByRole("heading")).toBeInTheDocument();

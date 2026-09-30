@@ -2,6 +2,7 @@ export interface Config {
   region: string;
   user_pool_id: string;
   customer_client_id: string;
+  staff_client_id: string;
   runtime_url: string;
 }
 
@@ -9,6 +10,7 @@ const KEYS = [
   "region",
   "user_pool_id",
   "customer_client_id",
+  "staff_client_id",
   "runtime_url",
 ] as const;
 

@@ -1,4 +1,5 @@
-# The web app: a private bucket that CloudFront reads through origin access control (ADR-0007).
+# The web app: a private bucket that CloudFront reads through origin access control, and the console API under /api on
+# the same origin (ADR-0007).
 
 data "aws_caller_identity" "current" {}
 
@@ -160,8 +161,39 @@ resource "aws_cloudfront_response_headers_policy" "site" {
   }
 }
 
+resource "aws_acm_certificate" "site" {
+  count = var.domain_name == null ? 0 : 1
+
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "site" {
+  count = var.attach_domain ? 1 : 0
+
+  certificate_arn = aws_acm_certificate.site[0].arn
+
+  # ACM can take up to 30 minutes once the record is in DNS.
+  timeouts {
+    create = "45m"
+  }
+}
+
 data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
+}
+
+data "aws_cloudfront_cache_policy" "disabled" {
+  name = "Managed-CachingDisabled"
+}
+
+# Every viewer header but Host reaches the API, Authorization among them; API Gateway needs its own Host.
+data "aws_cloudfront_origin_request_policy" "api" {
+  name = "Managed-AllViewerExceptHostHeader"
 }
 
 # Access logs and a WAF are production work (OPS-11).
@@ -172,11 +204,38 @@ resource "aws_cloudfront_distribution" "site" {
   comment         = var.prefix
   http_version    = "http2and3"
   is_ipv6_enabled = true
+  aliases         = var.attach_domain ? [var.domain_name] : []
 
   origin {
     origin_id                = "site"
     domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.site.id
+  }
+
+  # The console API on the site's own origin (ADR-0007's amendment of 2026-09-30): no CORS, and the CSP's 'self'.
+  origin {
+    origin_id   = "console"
+    domain_name = var.api_origin
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  # Never cached: each answer depends on the caller's token, and the API sends no-store.
+  ordered_cache_behavior {
+    path_pattern               = "/api/*"
+    target_origin_id           = "console"
+    viewer_protocol_policy     = "https-only"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.api.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.site.id
   }
 
   # Objects carry their own Cache-Control: hashed assets are immutable, index.html and config.json revalidate.
@@ -202,6 +261,9 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !var.attach_domain
+    acm_certificate_arn            = var.attach_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    ssl_support_method             = var.attach_domain ? "sni-only" : null
+    minimum_protocol_version       = var.attach_domain ? "TLSv1.2_2025" : null
   }
 }

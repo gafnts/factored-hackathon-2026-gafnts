@@ -179,7 +179,7 @@ The mark isn't drawn yet; until it is, the wordmark stands alone. The prototype 
 | Sign-in | Night | The horizon, the mark, and the sign-in form |
 | `/chat` | Paper | LATAM Bank's name in the header, Faro labeled *asistente automático* or *assistente automático*, the persona's card, and the confirm and handoff controls |
 | `/agent` | Paper | The queues; Geist Mono for references, reason codes, rule IDs, and tool calls; urgent cases in `ember`, with the word |
-| `/ops` | Paper | The evaluation report, labeled as an offline measurement in its header (EVL-13) |
+| The evaluation report | Paper | `docs/evaluation/`, labeled as an offline measurement in its header (EVL-13) |
 | Slides and video | Night covers and titles, Paper content | The three numbered paths, and the demo in the chat's own colors |
 
 LATAM Bank's name is set in Geist Medium, in `ink` or `bone`, with no mark: the bank is the organizers' fiction, and we don't invent a brand for it. Every page says it is a prototype over synthetic data (SEC-02, [ADR-0007](../adr/0007-role-gated-web-app.md#routes)).

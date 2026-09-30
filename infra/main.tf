@@ -92,6 +92,19 @@ module "runtime" {
   runtime_zip              = "${local.build}/runtime.zip"
 }
 
+module "console" {
+  source = "./modules/console"
+
+  prefix                   = local.prefix
+  permissions_boundary_arn = local.permissions_boundary_arn
+  log_retention_days       = var.log_retention_days
+  tools_zip                = "${local.build}/tools.zip"
+  issuer                   = module.identity.issuer
+  staff_client_id          = module.identity.staff_client_id
+  cases_table              = module.handoff.cases_table
+  execution_records_table  = module.runtime.execution_records_table
+}
+
 module "site" {
   source = "./modules/site"
 
@@ -100,10 +113,14 @@ module "site" {
     region             = var.aws_region
     user_pool_id       = module.identity.user_pool_id
     customer_client_id = module.identity.customer_client_id
+    staff_client_id    = module.identity.staff_client_id
     runtime_url        = module.runtime.invoke_url
   }
   connect_src = [
     "https://cognito-idp.${var.aws_region}.amazonaws.com",
     "https://bedrock-agentcore.${var.aws_region}.amazonaws.com",
   ]
+  domain_name   = var.domain_name
+  attach_domain = var.attach_domain
+  api_origin    = module.console.origin_domain
 }

@@ -19,11 +19,18 @@ export interface SignedIn {
 
 export type SignInOutcome = "signed_in" | "refused" | "unreachable";
 
-export function configureAuth(config: Config): void {
+// Customers sign in through their app client and staff through theirs; the pre-token trigger refuses a token from the
+// other side's (ADR-0007, Sign-in). Amplify keys a tab's tokens by client, so the two never mix.
+export type Side = "customers" | "staff";
+
+export function configureAuth(config: Config, side: Side): void {
   const auth = {
     Cognito: {
       userPoolId: config.user_pool_id,
-      userPoolClientId: config.customer_client_id,
+      userPoolClientId:
+        side === "customers"
+          ? config.customer_client_id
+          : config.staff_client_id,
     },
   };
   cognitoUserPoolsTokenProvider.setAuthConfig(auth);

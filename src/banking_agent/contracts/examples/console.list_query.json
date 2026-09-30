@@ -1,0 +1,11 @@
+[
+  {
+    "queue": "dispute_intake"
+  },
+  {
+    "queue": "dispute_intake",
+    "status": "filed",
+    "limit": "50",
+    "cursor": "eyJwayI6IjBiNGE5YzNlLTVkMmYtNGU4YS05YzcxLTJmNmQ4ZTFhN2I1MCIsInF1ZXVlX2tleSI6ImRlbW8jZGlzcHV0ZV9pbnRha2UjZmlsZWQiLCJxdWV1ZV9vcmRlciI6IjAjMjAyNi0xMC0wMlQxNTo0MjowOC41MTJaIn0"
+  }
+]

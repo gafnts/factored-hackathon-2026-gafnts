@@ -112,6 +112,17 @@ def test_a_taken_reference_files_nothing(client: DynamoDBClient) -> None:
         assert cases.case(other["handoff_id"]) is None
 
 
+def test_a_reference_leads_to_the_case_that_took_it(client: DynamoDBClient) -> None:
+    _, filed = draft_and_filed()
+    ref = reference_item(filed["reference"], filed["handoff_id"], filed["expires_at"])
+
+    for cases in stores(client):
+        assert cases.holder(filed["reference"]) is None
+        cases.file(filed, ref)
+        assert cases.holder(filed["reference"]) == filed["handoff_id"]
+        assert cases.holder("ZZZZ-9999") is None
+
+
 def test_another_customers_draft_is_neither_overwritten_nor_filed(
     client: DynamoDBClient,
 ) -> None:

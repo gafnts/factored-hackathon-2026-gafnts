@@ -97,6 +97,7 @@ ini_options.addopts = "-m 'not integration' --dist=loadgroup"
 ini_options.markers = [
   "browser: plays the chat in Chromium against the deployed site (make browser)",
   "integration: requires credentials and network access (deselected by default)",
+  "slow: waits out a token's lifetime, so make integration runs it only with SLOW=1",
 ]
 ini_options.timeout = 120
 

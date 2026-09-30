@@ -193,6 +193,7 @@
     "source": "demo",
     "status": "filed",
     "queue_key": "demo#dispute_intake#filed",
+    "queue_order": "0#2026-10-02T15:42:08.512Z",
     "saved_at": "2026-10-02T15:41:02.884Z",
     "filed_at": "2026-10-02T15:42:08.512Z",
     "flagged": false,
@@ -263,6 +264,7 @@
     "source": "demo",
     "status": "filed",
     "queue_key": "demo#customer_service#filed",
+    "queue_order": "0#2026-10-02T15:42:08.512Z",
     "filed_at": "2026-10-02T15:42:08.512Z",
     "flagged": true,
     "validation_errors": [
