@@ -1,12 +1,14 @@
 """
 The entrypoint served as the Runtime serves it, through the SDK's app and the real wrapper, with every outside service
-replaced: an in-memory checkpointer, bindings, record, and confirmations, a scripted model, a clock the tests move, and
-a Gateway answered by a mock transport, which by default serves the contract's example cards and blocks one under any
-confirmation. Tokens are unsigned, since the entrypoint doesn't check a signature the Runtime's authorizer already
-checked.
+replaced: an in-memory checkpointer, bindings, record, and confirmations, a scripted model, a clock the tests move, a
+Gateway answered by a mock transport, which by default serves the contract's example cards and blocks one under any
+confirmation, and a Lambda client that runs file_handoff's own code over in-memory cases and the harness's record.
+Tokens are unsigned, since the entrypoint doesn't check a signature the Runtime's authorizer already checked, and
+file_handoff's check of them through Cognito is replaced by a check of their claims alone.
 """
 
 import base64
+import io
 import json
 import uuid
 from collections.abc import Callable, Iterator
@@ -24,16 +26,28 @@ from starlette.testclient import TestClient
 
 from banking_agent.agent import app as entrypoint
 from banking_agent.agent.confirmations import MemoryConfirmations
+from banking_agent.agent.filing import Filing
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
 from banking_agent.agent.models import MODEL, BlockDetails, RouterOutput
+from banking_agent.tools import handoff
+from banking_agent.tools.cases import MemoryCases, MemoryFlags
+from banking_agent.tools.file_handoff import HandoffStores
+from banking_agent.tools.identity import Caller, caller_of, claims_of
+from banking_agent.tools.store import MemoryData
 
 CLIENT_ID = "customer-client-0001"
 SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
 SETTINGS = entrypoint.Settings(
     client_id=CLIENT_ID,
     gateway_url="https://gateway.example/mcp",
-    gateway_targets={"list_cards": "reads", "get_card": "reads", "block_card": "block"},
+    gateway_targets={
+        "list_cards": "reads",
+        "get_card": "reads",
+        "find_transactions": "reads",
+        "block_card": "block",
+    },
+    file_handoff_function="banking-agent-local-file-handoff",
     stamp={"snapshot": "b3b8b248f604ef9a", "pipeline_version": "5e1a9c3b7d2f4a68"},
     clock={"business_date": "2026-06-17", "as_of": "2026-06-18 06:00:00"},
     app_version="0123456789abcdef0123456789abcdef01234567",
@@ -54,6 +68,16 @@ def list_cards_output() -> dict[str, Any]:
     )
     output: dict[str, Any] = next(o for o in json.loads(text) if o["outcome"] == "ok")
     return output
+
+
+def tools_data_items() -> list[dict[str, Any]]:
+    text = (
+        files("banking_agent.contracts")
+        .joinpath("examples/tools-data.json")
+        .read_text(encoding="utf-8")
+    )
+    items: list[dict[str, Any]] = json.loads(text)
+    return items
 
 
 def tool_error() -> httpx.Response:
@@ -193,6 +217,63 @@ class MemoryRecords:
         )
 
 
+class Claimed:
+    """
+    Cognito's GetUser, answered from the token's own claims.
+    """
+
+    def verify(self, token: str) -> Caller | None:
+        claims = claims_of(token)
+        user = {
+            "UserAttributes": [
+                {"Name": "sub", "Value": claims.get("sub")},
+                {"Name": "custom:customer_id", "Value": claims.get("customer_id")},
+            ]
+        }
+        return caller_of(token, user, CLIENT_ID)
+
+
+class RecordedTurns:
+    def __init__(self, records: "MemoryRecords") -> None:
+        self.records = records
+
+    def turns(self, sign_in: str, prefixes: Any) -> list[dict[str, Any]]:
+        return [
+            e
+            for e in self.records.of(sign_in)
+            if any(e["entry_key"].startswith(f"{p}#") for p in prefixes)
+        ]
+
+
+class FileHandoffLambda:
+    """
+    Invokes file_handoff's handler in process; failures, while any are left, answer as a function error.
+    """
+
+    def __init__(self, stores: HandoffStores, now: Callable[[], datetime]) -> None:
+        self.stores = stores
+        self.now = now
+        self.failures = 0
+        self.events: list[dict[str, Any]] = []
+
+    def invoke(self, **request: Any) -> dict[str, Any]:
+        event = json.loads(request["Payload"])
+        self.events.append(event)
+        metadata = {"RequestId": uuid.uuid4().hex}
+        if self.failures:
+            self.failures -= 1
+            return {
+                "FunctionError": "Unhandled",
+                "Payload": io.BytesIO(b'{"errorMessage": "failed"}'),
+                "ResponseMetadata": metadata,
+            }
+        output = handoff.answer(event, lambda: self.stores, self.now)
+        return {
+            "Payload": io.BytesIO(json.dumps(output).encode()),
+            "ResponseMetadata": metadata,
+        }
+
+
 class MemoryBindings:
     def __init__(self) -> None:
         self.bound: dict[str, str] = {}
@@ -229,6 +310,19 @@ class Harness:
         self.moved = timedelta()
         self.workload_tokens: list[str | None] = []
         self.key_error: Exception | None = None
+        now = lambda: datetime.now(UTC) + self.moved  # noqa: E731
+        data = tools_data_items()
+        self.cases = MemoryCases()
+        self.lambda_client = FileHandoffLambda(
+            HandoffStores(
+                data=MemoryData(data),
+                flags=MemoryFlags(data),
+                cases=self.cases,
+                verifier=Claimed(),
+                records=RecordedTurns(self.records),
+            ),
+            now,
+        )
         transport = httpx.MockTransport(self.answer_tool)
         self.services = entrypoint.Services(
             settings=SETTINGS,
@@ -243,7 +337,8 @@ class Harness:
                 httpx.AsyncClient(transport=transport),
             ),
             confirmations=self.confirmations,
-            now=lambda: datetime.now(UTC) + self.moved,
+            filing=Filing(SETTINGS.file_handoff_function, self.lambda_client, now),
+            now=now,
         )
         monkeypatch.setattr(entrypoint, "services", lambda: self.services)
 

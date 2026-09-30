@@ -35,12 +35,14 @@ from ag_ui_langgraph import LangGraphAgent
 from bedrock_agentcore.runtime import AGUIApp
 from bedrock_agentcore.runtime.context import BedrockAgentCoreContext, RequestContext
 from bedrock_agentcore.services.identity import IdentityClient
+from botocore.config import Config
 from langgraph.graph.state import CompiledStateGraph
 from langgraph_checkpoint_aws import DynamoDBSaver
 
 from banking_agent.agent.claims import Claims, ClaimsRefusedError, read_claims, token_of
 from banking_agent.agent.confirmations import Confirmations, DynamoConfirmations
 from banking_agent.agent.events import SUCCESS, checked, rebuild, run_error
+from banking_agent.agent.filing import Filing
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
 from banking_agent.agent.language import DEFAULT
@@ -69,6 +71,10 @@ WORKLOAD_TOKEN_HEADERS = ("workloadaccesstoken", "x-amz-bedrock-agentcore-identi
 POLICY_VERSION = 1
 CHECKPOINTS_KEPT = timedelta(days=7)
 CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{7,64}$")
+# One attempt per invocation: Filing retries under the same call ID and records each attempt.
+LAMBDA_CONFIG = Config(
+    connect_timeout=5, read_timeout=15, retries={"total_max_attempts": 1}
+)
 
 logger = logging.getLogger(__name__)
 app = AGUIApp()
@@ -79,6 +85,7 @@ class Settings:
     client_id: str
     gateway_url: str
     gateway_targets: dict[str, str]
+    file_handoff_function: str
     stamp: dict[str, str]
     clock: dict[str, str]
     app_version: str
@@ -90,6 +97,7 @@ class Settings:
             client_id=os.environ["CUSTOMER_CLIENT_ID"],
             gateway_url=os.environ["GATEWAY_URL"],
             gateway_targets=json.loads(os.environ["GATEWAY_TARGETS"]),
+            file_handoff_function=os.environ["FILE_HANDOFF_FUNCTION"],
             stamp=tools_data["stamp"],
             clock=tools_data["clock"],
             app_version=os.environ["APP_VERSION"],
@@ -106,6 +114,7 @@ class Services:
     models: Callable[[str], Factory]
     gateway: Gateway
     confirmations: Confirmations
+    filing: Filing
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
 
 
@@ -145,6 +154,10 @@ def services() -> Services:
         models=anthropic_factory,
         gateway=Gateway(settings.gateway_url, settings.gateway_targets),
         confirmations=DynamoConfirmations(client, os.environ["CONFIRMATIONS_TABLE"]),
+        filing=Filing(
+            settings.file_handoff_function,
+            boto3.client("lambda", region_name=region, config=LAMBDA_CONFIG),
+        ),
     )
 
 
@@ -352,6 +365,7 @@ class Entrypoint:
                     gateway=services.gateway,
                     models=Models(services.models(model_key), turn.write),
                     confirmations=services.confirmations,
+                    filing=services.filing,
                     now=services.now,
                 )
             )

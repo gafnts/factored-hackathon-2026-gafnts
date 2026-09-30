@@ -11,6 +11,7 @@ from datetime import datetime
 
 from banking_agent.agent.claims import Claims
 from banking_agent.agent.confirmations import Confirmations
+from banking_agent.agent.filing import Filing
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.models import Models
 from banking_agent.agent.records import Turn
@@ -25,6 +26,7 @@ class Scope:
     gateway: Gateway
     models: Models
     confirmations: Confirmations
+    filing: Filing
     now: Callable[[], datetime]
 
 

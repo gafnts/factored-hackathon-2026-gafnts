@@ -723,6 +723,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
         "SESSION_BINDINGS_TABLE": "bindings",
         "EXECUTION_RECORDS_TABLE": "records",
         "CONFIRMATIONS_TABLE": "confirmations",
+        "FILE_HANDOFF_FUNCTION": SETTINGS.file_handoff_function,
         "AWS_REGION": "us-east-1",
     }
     for name, value in variables.items():
@@ -736,6 +737,7 @@ def test_the_services_are_built_from_the_runtimes_environment(
 
     assert built.settings == SETTINGS
     assert built.gateway.targets["block_card"] == "block"
+    assert built.filing.function == SETTINGS.file_handoff_function
     assert set(built.graph.nodes) >= {
         "route",
         "list_cards",

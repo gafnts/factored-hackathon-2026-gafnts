@@ -13,9 +13,11 @@ and the entrypoint writes it after the controls' interrupt, when there is one.
 """
 
 import asyncio
+import functools
 import json
 import re
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any, TypedDict
 
@@ -40,6 +42,7 @@ from banking_agent.agent.records import wall_time
 from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.texts import FIXED, LANGUAGE_NAMES, render
 from banking_agent.masking import has_digit_run
+from banking_agent.tools.provenance import OUTCOMES
 
 # What the reply's model may see of each card; the ID and the update flag stay with code.
 CARD_FACTS = ("product_type", "last_four", "product_status", "past_expiration")
@@ -53,10 +56,16 @@ QUESTIONS = 2
 # A lost or stolen card left unblocked is handed to a person (POL-38).
 MISSING = ("lost", "stolen")
 CONTROL = "confirm_control"
+# The tool calls a handoff may cite, the thread's latest first to go; a payload holds 60 at most.
+CITED = 40
 
 
 class ChatState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
+
+def kept(held: list[dict[str, Any]], new: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [*held, *new][-CITED:]
 
 
 class State(ChatState, total=False):
@@ -72,6 +81,7 @@ class State(ChatState, total=False):
     target: dict[str, Any] | None
     pending: dict[str, Any] | None
     block: dict[str, Any] | None
+    evidence: Annotated[list[dict[str, Any]], kept]
 
 
 def latest_text(state: State) -> str:
@@ -127,7 +137,35 @@ async def tool(scope: Scope, name: str, **arguments: Any) -> ToolCall:
         scope.token,
     )
     await scope.turn.write("tool_call", **call.entry())
+    scope.turn.cited.append(
+        {
+            "call_id": call.call_id,
+            "tool": call.tool,
+            "called_at": call.called_at,
+            "outcome": OUTCOMES[call.outcome],
+            "turn": scope.turn.prefix,
+            "result": call.result,
+        }
+    )
     return call
+
+
+Node = Callable[..., Awaitable[dict[str, Any]]]
+
+
+def citing(node: Node) -> Node:
+    """
+    Hands the tool calls a node made to the state's evidence, with the turn each is recorded in, so a handoff filed in
+    a later turn can cite them (ADR-0004, The handoff; ADR-0007's amendment of 2026-09-30).
+    """
+
+    @functools.wraps(node)
+    async def run(state: State, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        update = await node(state, *args, **kwargs)
+        calls = SCOPE.get().turn.drain()
+        return {**update, "evidence": calls} if calls else update
+
+    return run
 
 
 async def begin(state: State) -> dict[str, Any]:
@@ -804,7 +842,7 @@ def build(
         begin, route, list_cards, resolve_card, ask_reason, confirm,
         await_control, hold, block, verify, reply,
     ):  # fmt: skip
-        graph.add_node(node.__name__, node)
+        graph.add_node(node.__name__, citing(node))
     graph.add_edge(START, "begin")
     graph.add_conditional_edges("begin", after_begin, ["route", "resolve_card"])
     graph.add_conditional_edges(
