@@ -182,6 +182,95 @@
       "if": { "properties": { "transaction_status": { "const": "Declined" } } },
       "else": { "properties": { "response_meaning": { "const": null } } }
     },
+    "language": {
+      "description": "The conversation's language (POL-50).",
+      "enum": ["es", "pt"]
+    },
+    "reason_code": {
+      "enum": [
+        "unrecognized_charge",
+        "customer_request",
+        "complaint",
+        "unblock_request",
+        "customer_not_active",
+        "ambiguous_card",
+        "action_not_verified",
+        "block_lapsed",
+        "unsupported_request",
+        "clarification_failed",
+        "record_conflict",
+        "missing_data",
+        "tool_failure"
+      ]
+    },
+    "reference": {
+      "description": "A handoff's reference: eight characters of Crockford's base32, in two groups of four (ADR-0007).",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$"
+    },
+    "validation_error": {
+      "description": "A path and the rule it broke, never the value (POL-11).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "rule"],
+      "properties": {
+        "path": { "type": "string", "maxLength": 256 },
+        "rule": { "type": "string", "pattern": "^[A-Za-z]{1,32}$" }
+      }
+    },
+    "turn_prefix": {
+      "description": "A turn's place in the sign-in's execution record: the start and the turn's ID that begin each of its entry keys (ADR-0007's amendment of 2026-09-30).",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "handoff_draft": {
+      "description": "What the graph knows when the confirm control shows a block that POL-38 or POL-39 may need handed off once its confirmation ends. It is filed within a turn, or expires unfiled (ADR-0004's amendment of 2026-09-29).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_id", "language", "reason_code", "confirmation_id", "card_id", "reason"],
+      "properties": {
+        "handoff_id": { "type": "string", "format": "uuid" },
+        "language": { "$ref": "#/$defs/language" },
+        "reason_code": { "enum": ["unrecognized_charge", "block_lapsed"] },
+        "confirmation_id": { "type": "string", "format": "uuid" },
+        "card_id": { "$ref": "#/$defs/product_id" },
+        "reason": { "$ref": "#/$defs/block_reason" }
+      },
+      "if": { "properties": { "reason_code": { "const": "unrecognized_charge" } } },
+      "then": { "properties": { "reason": { "const": "unrecognized_charge" } } },
+      "else": { "properties": { "reason": { "enum": ["lost", "stolen"] } } }
+    },
+    "added_fact": {
+      "description": "A fact file_handoff read from the tools' data itself and added to the case, citing its own call: the customer's status, and each named transaction's is_fraud, which no Gateway tool returns (POL-12, POL-40).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "id", "field", "value", "evidence"],
+      "properties": {
+        "subject": { "enum": ["customer", "transaction"] },
+        "id": { "type": "string" },
+        "field": { "enum": ["customer_status", "is_fraud"] },
+        "value": { "type": ["string", "boolean"] },
+        "evidence": { "type": "string", "format": "uuid" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "subject": { "const": "customer" },
+            "id": { "$ref": "#/$defs/customer_id" },
+            "field": { "const": "customer_status" },
+            "value": { "enum": ["Active", "Inactive", "Suspended", "Closed"] }
+          }
+        },
+        {
+          "properties": {
+            "subject": { "const": "transaction" },
+            "id": { "$ref": "#/$defs/transaction_id" },
+            "field": { "const": "is_fraud" },
+            "value": { "type": "boolean" }
+          }
+        }
+      ]
+    },
     "invalid_input": {
       "description": "The input failed this schema. Each failure names the field's path and the rule it broke, never the value, which may be a card number (POL-11). Retrying the same input fails the same way.",
       "type": "object",
@@ -425,6 +514,113 @@
           }
         },
         { "$ref": "#/$defs/not_found" },
+        { "$ref": "#/$defs/invalid_input" }
+      ]
+    },
+    "file_handoff_input": {
+      "description": "Files a handoff for the signed-in customer, or saves a draft of one, under the customer's own access token, which the Runtime forwards beside this input and the tool validates with Cognito. It is off the Gateway, and only the Runtime's role may invoke it, so no customer can file a case (ADR-0004, Where the tools run, and its amendments of 2026-09-30).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["customer_id", "origin_jti", "call_id", "mode"],
+      "properties": {
+        "customer_id": { "$ref": "#/$defs/customer_id" },
+        "origin_jti": { "$ref": "#/$defs/origin_jti" },
+        "call_id": {
+          "description": "This call's ID in the execution record, drawn by the graph. The facts the tool adds cite it as their evidence, and a retry sends the same one.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "mode": { "enum": ["draft", "file"] },
+        "draft": { "$ref": "#/$defs/handoff_draft" },
+        "payload": {
+          "description": "The handoff, which the tool validates against the handoff schema and checks against the execution record before it files it (POL-46).",
+          "type": "object"
+        },
+        "turns": {
+          "description": "Each turn of the sign-in's execution record whose entries the payload's evidence cites, the filing turn's included.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/turn_prefix" }
+        }
+      },
+      "if": { "properties": { "mode": { "const": "draft" } } },
+      "then": {
+        "required": ["draft"],
+        "not": { "anyOf": [{ "required": ["payload"] }, { "required": ["turns"] }] }
+      },
+      "else": { "required": ["payload", "turns"], "not": { "required": ["draft"] } }
+    },
+    "file_handoff_output": {
+      "oneOf": [
+        {
+          "description": "The draft is saved, by this call or by an earlier one with the same handoff ID.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome", "status", "handoff_id"],
+          "properties": {
+            "outcome": { "const": "ok" },
+            "status": { "const": "draft_saved" },
+            "handoff_id": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "description": "The case is filed, by this call (filed) or by an earlier one with the same handoff ID (already_filed), which this call left as it was and whose reference it returns. added_facts are the facts this call read and added. flagged says that parts of the payload failed a check and were left out or replaced, each named in validation_errors by its path and the rule it broke, never its value (ADR-0004, The handoff, and its amendments of 2026-09-30).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "status",
+            "handoff_id",
+            "reference",
+            "queue",
+            "priority",
+            "added_facts",
+            "flagged",
+            "validation_errors"
+          ],
+          "properties": {
+            "outcome": { "const": "ok" },
+            "status": { "enum": ["filed", "already_filed"] },
+            "handoff_id": { "type": "string", "format": "uuid" },
+            "reference": { "$ref": "#/$defs/reference" },
+            "queue": { "enum": ["customer_service", "dispute_intake"] },
+            "priority": { "enum": ["urgent", "normal"] },
+            "added_facts": {
+              "type": "array",
+              "maxItems": 20,
+              "items": { "$ref": "#/$defs/added_fact" }
+            },
+            "flagged": { "type": "boolean" },
+            "validation_errors": {
+              "type": "array",
+              "maxItems": 60,
+              "items": { "$ref": "#/$defs/validation_error" }
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "status": { "const": "already_filed" } } },
+              "then": { "properties": { "added_facts": { "maxItems": 0 } } }
+            },
+            {
+              "if": { "properties": { "flagged": { "const": true } } },
+              "then": { "properties": { "validation_errors": { "minItems": 1 } } },
+              "else": { "properties": { "validation_errors": { "maxItems": 0 } } }
+            }
+          ]
+        },
+        {
+          "description": "Nothing was saved or filed. token_invalid: the forwarded token isn't a live access token of a customer, from the customers' client. customer_mismatch: the input's, the draft's, or the payload's customer or sign-in isn't the token's, or the handoff ID is another customer's (POL-07, POL-08, SEC-05).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome", "refusal"],
+          "properties": {
+            "outcome": { "const": "refused" },
+            "refusal": { "enum": ["token_invalid", "customer_mismatch"] }
+          }
+        },
         { "$ref": "#/$defs/invalid_input" }
       ]
     }

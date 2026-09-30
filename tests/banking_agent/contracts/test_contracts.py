@@ -356,9 +356,9 @@ def test_a_refused_resume_says_why() -> None:
 
 def test_unknown_contracts_and_definitions_are_refused() -> None:
     with pytest.raises(KeyError, match="no contract named"):
-        schema("handoff-case")
+        schema("console")
     with pytest.raises(KeyError, match="defines no"):
-        definition("tools", "file_handoff_input")
+        definition("tools", "get_available_credit_input")
 
 
 def test_a_code_has_a_meaning_only_on_a_declined_transaction() -> None:
@@ -390,6 +390,123 @@ def test_a_cursor_is_a_transactions_place_in_the_index() -> None:
         "find_transactions_input",
         {**call, "cursor": "TRX-EXAMPLE0000000000001"},
     )
+
+
+def test_a_draft_carries_no_payload_and_a_filing_carries_its_turns() -> None:
+    draft, filing = examples("tools.file_handoff_input.json")
+
+    assert invalid(
+        "tools", "file_handoff_input", {**draft, "payload": filing["payload"]}
+    )
+    assert invalid("tools", "file_handoff_input", {**draft, "mode": "file"})
+    del filing["turns"]
+    assert invalid("tools", "file_handoff_input", filing)
+
+
+def test_a_draft_is_for_the_two_handoffs_a_confirmation_can_leave_owed() -> None:
+    call = first("tools.file_handoff_input.json")
+
+    for reason_code, reason in (
+        ("tool_failure", "lost"),
+        ("block_lapsed", "unrecognized_charge"),
+        ("unrecognized_charge", "stolen"),
+    ):
+        draft = {**call["draft"], "reason_code": reason_code, "reason": reason}
+        assert invalid("tools", "file_handoff_input", {**call, "draft": draft})
+
+
+def test_file_handoff_adds_only_a_customers_status_and_a_transactions_flag() -> None:
+    # POL-12 and POL-40: what no Gateway tool returns, and nothing else.
+    filed = examples("tools.file_handoff_output.json")[1]
+    status, flag = (
+        next(f for f in filed["added_facts"] if f["field"] == field)
+        for field in ("customer_status", "is_fraud")
+    )
+
+    for wrong in (
+        {**status, "field": "is_fraud", "value": True},
+        {**flag, "subject": "customer", "id": status["id"]},
+        {**flag, "field": "merchant_name", "value": "Comercio"},
+    ):
+        assert invalid(
+            "tools", "file_handoff_output", {**filed, "added_facts": [wrong]}
+        )
+
+
+def test_a_case_filed_again_adds_nothing_and_a_flag_names_its_errors() -> None:
+    filed = examples("tools.file_handoff_output.json")[1]
+
+    assert invalid("tools", "file_handoff_output", {**filed, "status": "already_filed"})
+    assert invalid("tools", "file_handoff_output", {**filed, "flagged": True})
+    errors = [{"path": "/customer_statements/0", "rule": "not"}]
+    assert invalid(
+        "tools", "file_handoff_output", {**filed, "validation_errors": errors}
+    )
+
+
+def cases() -> list[dict[str, Any]]:
+    return [c for c in examples("handoff-case.json") if c["kind"] == "case"]
+
+
+def test_every_filed_example_case_holds_a_valid_handoff() -> None:
+    check = Draft202012Validator(
+        handoff_schema(), format_checker=Draft202012Validator.FORMAT_CHECKER
+    )
+    filed = [c for c in cases() if c["status"] != "draft"]
+
+    assert filed
+    for case in filed:
+        check.validate(case["payload"])
+        for field in ("handoff_id", "customer_id", "queue", "priority", "reason_code"):
+            assert case[field] == case["payload"][field]
+        assert case["language"] == case["payload"]["language"]
+        assert case["record"]["sign_in"] == case["payload"]["session_id"]
+
+
+def test_a_case_is_in_the_queue_its_reason_names() -> None:
+    filed = copy.deepcopy(cases()[1])
+
+    assert invalid("handoff-case", None, {**filed, "queue": "customer_service"})
+
+
+def test_a_filed_case_carries_no_claim_and_a_claimed_one_names_who() -> None:
+    # The prototype defers claim and resolve (ADR-0007's amendment of 2026-09-30); the fields stay in the record.
+    filed = copy.deepcopy(cases()[1])
+    claimant = {"sub": "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50", "username": "agente1"}
+    claimed = {
+        **filed,
+        "status": "claimed",
+        "queue_key": "demo#dispute_intake#claimed",
+        "claimed_at": "2026-10-02T16:00:00.000Z",
+        "claimed_by": claimant,
+    }
+
+    assert invalid("handoff-case", None, {**filed, "claimed_by": claimant})
+    assert not invalid("handoff-case", None, claimed)
+    assert invalid("handoff-case", None, {**claimed, "status": "resolved"})
+    del claimed["claimed_by"]
+    assert invalid("handoff-case", None, claimed)
+
+
+def test_a_draft_is_in_no_queue() -> None:
+    draft = copy.deepcopy(cases()[0])
+
+    assert draft["status"] == "draft"
+    assert invalid(
+        "handoff-case", None, {**draft, "queue_key": "demo#dispute_intake#filed"}
+    )
+    assert invalid("handoff-case", None, {**draft, "reference": "7K2M-9QXA"})
+
+
+def test_a_reference_is_crockfords_base32_in_two_groups() -> None:
+    item = next(c for c in examples("handoff-case.json") if c["kind"] == "reference")
+
+    for reference in ("7K2M-9QXU", "7K2M9QXA", "7k2m-9qxa", "7K2M-9QXI"):
+        assert invalid(
+            "handoff-case",
+            None,
+            {**item, "reference": reference, "pk": f"REF#{reference}"},
+        )
 
 
 def test_a_block_needs_a_confirmation_and_one_of_the_policys_reasons() -> None:

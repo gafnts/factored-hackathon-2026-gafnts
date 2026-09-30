@@ -9,7 +9,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-NAMES = ("chat", "execution-record", "tools", "tools-data")
+NAMES = ("chat", "execution-record", "handoff-case", "tools", "tools-data")
 
 TOOLS = (
     "list_cards",
