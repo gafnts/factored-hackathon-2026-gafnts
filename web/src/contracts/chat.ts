@@ -62,6 +62,7 @@ export type Resume =
   | ControlAnswer
   | {
       kind: "message";
+      message_id: Id;
       text: string;
     };
 /**
@@ -99,7 +100,7 @@ export interface CardSupportChat {
   [k: string]: unknown;
 }
 /**
- * The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12). A request that carries none of them, such as a resend of a message the checkpoint already holds, is refused as invalid_request, and so is a resume while no control is pending.
+ * The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12). A request that carries none of them, such as a resend of a message the checkpoint already holds, is refused as invalid_request, and so is a resume that doesn't answer the thread's pending control: one sent while none is pending, or naming another interrupt or another confirmation or offer. A refused resume never reaches the graph, so the pending control stays as it was.
  *
  * This interface was referenced by `CardSupportChat`'s JSON-Schema
  * via the `definition` "request".

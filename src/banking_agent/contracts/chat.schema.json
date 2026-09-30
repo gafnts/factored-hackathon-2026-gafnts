@@ -21,7 +21,7 @@
       "pattern": "^[A-Za-z0-9_-]{7,64}$"
     },
     "request": {
-      "description": "The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12). A request that carries none of them, such as a resend of a message the checkpoint already holds, is refused as invalid_request, and so is a resume while no control is pending.",
+      "description": "The chat's RunAgentInput. A run carries a new message, a resume, or neither (the warm-up), never a message and a resume together. The new message is the last one in messages when it is a user_message whose ID the thread's checkpoint doesn't hold; the earlier messages are ignored, since the checkpoint is the conversation's source of truth. The thread ID is replaced by a key derived from the token's sub before the wrapper sees it (decision 12). A request that carries none of them, such as a resend of a message the checkpoint already holds, is refused as invalid_request, and so is a resume that doesn't answer the thread's pending control: one sent while none is pending, or naming another interrupt or another confirmation or offer. A refused resume never reaches the graph, so the pending control stays as it was.",
       "type": "object",
       "required": ["threadId", "runId", "messages"],
       "properties": {
@@ -106,11 +106,13 @@
       "oneOf": [
         { "$ref": "#/$defs/control_answer" },
         {
+          "description": "message_id is the ID the chat drew for the message, so the checkpoint holds it as it holds any other.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "text"],
+          "required": ["kind", "message_id", "text"],
           "properties": {
             "kind": { "const": "message" },
+            "message_id": { "$ref": "#/$defs/id" },
             "text": { "type": "string", "minLength": 1, "maxLength": 2000 }
           }
         }
