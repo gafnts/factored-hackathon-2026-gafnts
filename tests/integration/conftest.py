@@ -175,6 +175,21 @@ def stored(outputs: dict[str, Any], handoff_id: str) -> dict[str, Any] | None:
     return found
 
 
+def handoffs(entries: list[dict[str, Any]]) -> list[str]:
+    """
+    Every draft and case a sign-in's turns saved or filed, by handoff ID.
+    """
+    named = [
+        e["result"]["handoff_id"]
+        for e in entries
+        if e["kind"] == "tool_call"
+        and e["tool"] == "file_handoff"
+        and "handoff_id" in (e.get("result") or {})
+    ]
+    named += [e["handoff_id"] for e in entries if e["kind"] == "handoff"]
+    return list(dict.fromkeys(named))
+
+
 @pytest.fixture
 def saved(outputs: dict[str, Any]) -> Iterator[list[str]]:
     """
@@ -182,7 +197,7 @@ def saved(outputs: dict[str, Any]) -> Iterator[list[str]]:
     """
     handoff_ids: list[str] = []
     yield handoff_ids
-    for handoff_id in handoff_ids:
+    for handoff_id in dict.fromkeys(handoff_ids):
         case = stored(outputs, handoff_id)
         if case is not None and "reference" in case:
             cases(outputs).delete_item(Key={"pk": f"{REFERENCE}{case['reference']}"})

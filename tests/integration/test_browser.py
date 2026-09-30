@@ -23,7 +23,7 @@ from playwright.sync_api import Browser, Page, Request, expect, sync_playwright
 
 from banking_agent.agent.texts import FIXED, render, transaction_name
 
-from .conftest import SignIn, User, claims
+from .conftest import SignIn, User, claims, handoffs
 from .test_agent import records
 from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
@@ -221,6 +221,7 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
     users: dict[str, User],
     site: str,
     tab: Callable[[str], Tab],
+    saved: list[str],
 ) -> None:
     customer = tab("pt")
     customer.sign_in(site, users["other_customer"])
@@ -273,6 +274,7 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
     )
     assert read["card"]["product_status"] == "Blocked"
     entries = records(outputs, claims(access)["origin_jti"])
+    saved.extend(handoffs(entries))
     resumes = [e["resume_kind"] for e in entries if e["kind"] == "resume"]
     assert resumes == ["message", "confirm"]
     assert [e["kind"] for e in entries].count("request_refused") == 0
