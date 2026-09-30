@@ -20,9 +20,10 @@ from banking_agent.tools.cases import MemoryCases, MemoryFlags
 from banking_agent.tools.file_handoff import HandoffStores
 from banking_agent.tools.handoff import answer, handler
 from banking_agent.tools.identity import Caller
+from banking_agent.tools.provenance import MemoryRecords
 from banking_agent.tools.store import MemoryData
 
-from .conftest import OTHER, OWN, SIGN_IN, example_items
+from .conftest import OTHER, OWN, SIGN_IN, example_items, recorded_example
 
 NOW = datetime(2026, 10, 2, 15, 42, 8, 512000, tzinfo=UTC)
 CUSTOMER = Caller("7d3e1f0a-2b4c-4d6e-8f10-a1b2c3d4e5f6", OWN, SIGN_IN, "demo")
@@ -68,6 +69,7 @@ def stores() -> HandoffStores:
         flags=MemoryFlags(items),
         cases=MemoryCases(),
         verifier=Tokens(),
+        records=MemoryRecords(recorded_example()),
     )
 
 
@@ -378,3 +380,20 @@ def test_the_handler_files_through_its_stores(
     output = handler({"token": "customer-token", "input": draft_input()}, None)
 
     assert output["status"] == "draft_saved"
+
+
+def test_a_priority_the_payload_shows_should_be_urgent_is_raised(
+    stores: HandoffStores,
+) -> None:
+    arguments = file_input()
+    action = arguments["payload"]["actions"][0]
+    action |= {"outcome": "declined_by_customer", "confirmed_at": None, "evidence": []}
+    arguments["payload"]["verified_facts"] = [
+        f for f in arguments["payload"]["verified_facts"] if f["subject"] != "card"
+    ]
+
+    output = run(stores, arguments)
+
+    assert output["priority"] == "urgent"
+    assert {"path": "/priority", "rule": "policy"} in output["validation_errors"]
+    assert stored(stores)[arguments["payload"]["handoff_id"]]["priority"] == "urgent"

@@ -2,8 +2,9 @@
 file_handoff's Lambda, off the Gateway: only the Runtime's role may invoke it, and the event carries the customer's
 access token beside the tool's input (ADR-0004, Where the tools run, and its amendments of 2026-09-30). The token is
 checked before the input, so a caller without one learns nothing about the contract. It reads the tools' data named in
-TOOLS_DATA_TABLE, is_fraud included, writes the cases in CASES_TABLE, and accepts tokens of the app client named in
-CUSTOMER_CLIENT_ID only. Neither the token nor the payload is ever logged.
+TOOLS_DATA_TABLE, is_fraud included, and the turns a case cites from EXECUTION_RECORDS_TABLE, writes the cases in
+CASES_TABLE, and accepts tokens of the app client named in CUSTOMER_CLIENT_ID only. Neither the token nor the payload is
+ever logged.
 """
 
 import os
@@ -18,6 +19,7 @@ from banking_agent.tools import check_output, invalid_input
 from banking_agent.tools.cases import DynamoCases, DynamoFlags
 from banking_agent.tools.file_handoff import HandoffStores, file_handoff, refused
 from banking_agent.tools.identity import CognitoVerifier
+from banking_agent.tools.provenance import DynamoRecords
 from banking_agent.tools.store import DynamoData
 
 TOOL = "file_handoff"
@@ -34,6 +36,7 @@ def stores() -> HandoffStores:
         verifier=CognitoVerifier(
             boto3.client("cognito-idp"), os.environ["CUSTOMER_CLIENT_ID"]
         ),
+        records=DynamoRecords(dynamodb, os.environ["EXECUTION_RECORDS_TABLE"]),
     )
 
 

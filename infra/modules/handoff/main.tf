@@ -99,6 +99,11 @@ data "aws_iam_policy_document" "file_handoff" {
     actions   = ["dynamodb:GetItem", "dynamodb:PutItem"]
     resources = [aws_dynamodb_table.cases.arn]
   }
+  # Reads the turns a case cites, to check its evidence; only the Runtime writes them.
+  statement {
+    actions   = ["dynamodb:Query"]
+    resources = [var.execution_records_table.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "file_handoff" {
@@ -127,9 +132,10 @@ resource "aws_lambda_function" "file_handoff" {
 
   environment {
     variables = {
-      TOOLS_DATA_TABLE   = var.tools_data_table.name
-      CASES_TABLE        = aws_dynamodb_table.cases.name
-      CUSTOMER_CLIENT_ID = var.customer_client_id
+      TOOLS_DATA_TABLE        = var.tools_data_table.name
+      CASES_TABLE             = aws_dynamodb_table.cases.name
+      EXECUTION_RECORDS_TABLE = var.execution_records_table.name
+      CUSTOMER_CLIENT_ID      = var.customer_client_id
     }
   }
 

@@ -63,13 +63,13 @@ def _dynamo(value: Any) -> Any:
     return json.loads(json.dumps(value), parse_float=Decimal)
 
 
-def _plain(value: Any) -> Any:
+def plain(value: Any) -> Any:
     if isinstance(value, Decimal):
         return int(value) if value == value.to_integral_value() else float(value)
     if isinstance(value, dict):
-        return {k: _plain(v) for k, v in value.items()}
+        return {k: plain(v) for k, v in value.items()}
     if isinstance(value, list):
-        return [_plain(v) for v in value]
+        return [plain(v) for v in value]
     return value
 
 
@@ -89,7 +89,7 @@ class DynamoCases:
         ).get("Item")
         if item is None:
             return None
-        found: Record = _plain(
+        found: Record = plain(
             {k: self._deserializer.deserialize(v) for k, v in item.items()}
         )
         return found
@@ -180,7 +180,7 @@ class DynamoFlags:
 
 class MemoryCases:
     def __init__(self, items: Iterable[Mapping[str, Any]] = ()) -> None:
-        self.items = {i["pk"]: _plain(_dynamo(i)) for i in items}
+        self.items = {i["pk"]: plain(_dynamo(i)) for i in items}
 
     def case(self, handoff_id: str) -> Record | None:
         found = self.items.get(handoff_id)
@@ -195,7 +195,7 @@ class MemoryCases:
     def save_draft(self, item: Record) -> bool:
         if not self._open(item["pk"], item["customer_id"]):
             return False
-        self.items[item["pk"]] = _plain(_dynamo(item))
+        self.items[item["pk"]] = plain(_dynamo(item))
         return True
 
     def file(self, case: Record, reference: Record) -> Filed:
@@ -203,8 +203,8 @@ class MemoryCases:
             return "case_taken"
         if reference["pk"] in self.items:
             return "reference_taken"
-        self.items[case["pk"]] = _plain(_dynamo(case))
-        self.items[reference["pk"]] = _plain(_dynamo(reference))
+        self.items[case["pk"]] = plain(_dynamo(case))
+        self.items[reference["pk"]] = plain(_dynamo(reference))
         return "filed"
 
 

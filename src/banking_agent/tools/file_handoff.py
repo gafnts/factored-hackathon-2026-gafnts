@@ -4,7 +4,8 @@ POL-47, CTL-05). It acts for the customer whose token the Runtime forwards, and 
 sign-in, and the payload's, must be the token's. A draft is saved when the confirm control shows a block that may need
 handing off, and a case is filed once: a retry with the same handoff ID files nothing and returns the first filing's
 reference. Before filing, the tool adds what no Gateway tool returns (the customer's status and each named
-transaction's is_fraud, citing this call), checks the payload against the handoff schema, and files what passes,
+transaction's is_fraud, citing this call), checks the payload against the handoff schema and against the turns of the
+execution record it names, raises a priority the payload shows should be urgent (POL-47), and files what passes,
 flagged with each failure's path and rule when anything had to be left out or replaced.
 """
 
@@ -14,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from banking_agent.contracts import validator
+from banking_agent.policy.handoffs import urgent
 from banking_agent.policy.payload import PayloadError, checked, failure
 from banking_agent.tools.cards import CustomerMissingError
 from banking_agent.tools.cases import (
@@ -23,6 +25,7 @@ from banking_agent.tools.cases import (
     reference_item,
 )
 from banking_agent.tools.identity import Caller, Verifier
+from banking_agent.tools.provenance import Records, checked_against
 from banking_agent.tools.sandbox import wall_time
 from banking_agent.tools.store import Record, ToolsData
 
@@ -42,6 +45,7 @@ class HandoffStores:
     flags: FraudFlags
     cases: Cases
     verifier: Verifier
+    records: Records
 
 
 def refused(refusal: str) -> dict[str, Any]:
@@ -196,6 +200,14 @@ def file_case(
         return {"outcome": "invalid_input", "errors": prefixed[:20]}
     errors += [e for e in failures if e not in errors]
     survived = [f for f in added if f in payload["verified_facts"]]
+    entries = stores.records.turns(caller.origin_jti, arguments["turns"])
+    payload, unrecorded = checked_against(
+        payload, entries, arguments["call_id"], survived
+    )
+    errors += unrecorded
+    if payload["priority"] == "normal" and urgent(payload):
+        payload["priority"] = "urgent"
+        errors.append(failure(["priority"], "policy"))
     case = {
         "pk": handoff_id,
         "kind": "case",

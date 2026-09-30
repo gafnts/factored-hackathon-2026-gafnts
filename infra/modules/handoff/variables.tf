@@ -28,6 +28,14 @@ variable "tools_data_attributes" {
   type        = list(string)
 }
 
+variable "execution_records_table" {
+  description = "The execution records, whose turns a case's evidence must be found in"
+  type = object({
+    name = string
+    arn  = string
+  })
+}
+
 variable "customer_client_id" {
   description = "The customers' app client, the only one whose tokens file_handoff accepts"
   type        = string

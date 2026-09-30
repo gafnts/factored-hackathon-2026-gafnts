@@ -71,6 +71,7 @@ module "handoff" {
   tools_data_table         = { name = module.tools_data.table_name, arn = module.tools_data.table_arn }
   tools_data_attributes    = module.tools_data.attributes
   customer_client_id       = module.identity.customer_client_id
+  execution_records_table  = module.runtime.execution_records_table
 }
 
 module "runtime" {

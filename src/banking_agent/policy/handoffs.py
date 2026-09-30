@@ -4,7 +4,11 @@ or offered, the rules behind it, and its queue, with the fixed summary in Spanis
 model's can't be used (ADR-0004, The handoff; OPS-05, POL-46).
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
+
+MISSING = ("lost", "stolen")
 
 
 @dataclass(frozen=True)
@@ -95,3 +99,28 @@ HANDOFFS: dict[str, Reason] = {
         "El chat no pudo consultar los registros del cliente.",
     ),
 }
+
+
+def urgent(payload: Mapping[str, Any]) -> bool:
+    """
+    Whether POL-47 makes the handoff urgent from what its payload shows: a card reported lost or stolen, or a charge the
+    customer doesn't recognize, whose card no verified block or read shows blocked. The graph also knows a reason the
+    customer gave before any block was offered, which the payload holds only in the customer's words.
+    """
+    actions = payload["actions"]
+    facts = payload["verified_facts"]
+    blocked = {a["card_id"] for a in actions if a["outcome"] == "verified"} | {
+        f["id"]
+        for f in facts
+        if f["subject"] == "card"
+        and f["field"] == "product_status"
+        and f["value"] == "Blocked"
+    }
+    if {a["card_id"] for a in actions if a["reason"] in MISSING} - blocked:
+        return True
+    if "unrecognized_charge" in (payload["reason_code"], payload["request"]["label"]):
+        cards = {a["card_id"] for a in actions} or {
+            f["id"] for f in facts if f["subject"] == "card"
+        }
+        return not cards or not cards <= blocked
+    return False
