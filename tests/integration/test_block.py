@@ -188,10 +188,11 @@ def test_a_persona_blocks_a_card_with_the_control_and_reads_it_back(
     shown = chat.say("La perdí.")
 
     control = control_of(shown)
-    assert control["card"] == {
+    named = control["card"] == {
         "type": card["product_type"],
         "last_four": card["last_four"],
     }
+    assert named, "the control doesn't name the card"
     assert control["reason"] == "lost"
     assert chat.decision() == {
         "request_label": "block_card",

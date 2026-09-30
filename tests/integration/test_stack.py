@@ -121,7 +121,8 @@ def test_a_customers_access_token_carries_their_customer_id_and_group(
 ) -> None:
     token = claims(sign_in(users["customer"], "customer")["access"])
 
-    assert token["customer_id"] == users["customer"].customer_id
+    own = token["customer_id"] == users["customer"].customer_id
+    assert own, "the token doesn't carry the customer's own ID"
     assert "customer" in token["cognito:groups"]
 
 
@@ -178,10 +179,11 @@ def test_a_customer_cant_rewrite_their_customer_id(
     stored = cognito.admin_get_user(
         UserPoolId=outputs["user_pool_id"], Username=customer.username
     )["UserAttributes"]
-    assert {"Name": "custom:customer_id", "Value": customer.customer_id} in stored
-    assert claims(sign_in(customer, "customer")["access"])["customer_id"] == (
-        customer.customer_id
-    )
+    kept = {"Name": "custom:customer_id", "Value": customer.customer_id} in stored
+    assert kept, "the user's customer_id changed"
+    token = claims(sign_in(customer, "customer")["access"])
+    carried = token["customer_id"] == customer.customer_id
+    assert carried, "the token's customer_id changed"
 
 
 # The Gateway and Cedar (ADR-0004, spike S3)
@@ -261,7 +263,8 @@ def test_cedar_denies_another_sign_ins_origin_jti(
 ) -> None:
     access = sign_in(users["customer"], "customer")["access"]
     earlier = claims(sign_in(users["customer"], "customer")["access"])["origin_jti"]
-    assert earlier != claims(access)["origin_jti"]
+    another = earlier != claims(access)["origin_jti"]
+    assert another, "two sign-ins share an origin_jti"
 
     for origin_jti in (earlier, str(uuid.uuid4())):
         body = call(
@@ -327,7 +330,8 @@ def test_a_customer_reads_each_of_their_cards(
         )
         assert fits("get_card", output)
         assert output["outcome"] == "ok"
-        assert {k: output["card"][k] for k in listed} == listed
+        same = {k: output["card"][k] for k in listed} == listed
+        assert same, "get_card and list_cards disagree on a card"
 
 
 def test_another_customers_card_reads_as_a_card_that_doesnt_exist(

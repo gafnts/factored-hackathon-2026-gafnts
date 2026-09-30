@@ -436,7 +436,8 @@ def test_a_persona_signs_in_and_reads_a_reply_sent_whole(
         e for e in entries if e["kind"] == "tool_call" and e["tool"] == "list_cards"
     ]
     assert listed
-    assert {e["input"]["customer_id"] for e in listed} == {persona_ids["es"]}
+    own = {e["input"]["customer_id"] for e in listed} == {persona_ids["es"]}
+    assert own, "list_cards read another customer's ID"
     assert re.fullmatch(r"[0-9a-f]{40}", entries[0]["versions"]["app"])
     assert (customer.violations, customer.errors) == ([], 0)
 
@@ -468,7 +469,8 @@ def test_another_customers_id_in_a_message_reads_nothing_of_theirs(
         for e in records(outputs, claims(access)["origin_jti"])
         if e["kind"] == "tool_call"
     ]
-    assert {e["input"]["customer_id"] for e in calls} <= {persona_ids["es"]}
+    own = {e["input"]["customer_id"] for e in calls} <= {persona_ids["es"]}
+    assert own, "a tool call named another customer's ID"
     assert customer.violations == []
 
 

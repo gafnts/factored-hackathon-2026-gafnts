@@ -91,7 +91,8 @@ def test_a_customers_own_token_saves_a_draft_under_their_sign_in(
     owned = item["customer_id"] == users["customer"].customer_id
     assert item["status"] == "draft"
     assert owned
-    assert item["draft"]["sign_in"] == claims(access)["origin_jti"]
+    bound = item["draft"]["sign_in"] == claims(access)["origin_jti"]
+    assert bound, "the draft isn't saved under the token's sign-in"
     assert item["source"] == "demo"
 
 

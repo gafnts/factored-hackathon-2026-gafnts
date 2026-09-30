@@ -185,7 +185,8 @@ def test_a_persona_asks_about_their_cards_and_gets_an_answer_from_their_own(
     opened, tool_call, decision = entries[2], entries[4], entries[7]
     assert entries[0]["input"] == {"kind": "warmup"}
     assert tool_call["outcome"] == "ok"
-    assert tool_call["result"] == own
+    recorded = tool_call["result"] == own
+    assert recorded, "the record's list_cards result isn't the tool's"
     assert (
         decision["request_label"],
         decision["outcome_class"],
@@ -198,7 +199,8 @@ def test_a_persona_asks_about_their_cards_and_gets_an_answer_from_their_own(
     stamp = outputs["tools_data"]["stamp"]
     assert {k: opened["versions"][k] for k in stamp} == stamp
     assert opened["clock"] == outputs["tools_data"]["clock"]
-    assert opened["thread_key"] == thread_key(claims(access)["sub"], sent["threadId"])
+    keyed = opened["thread_key"] == thread_key(claims(access)["sub"], sent["threadId"])
+    assert keyed, "the turn's thread key isn't the sign-in's thread's"
 
 
 @pytest.mark.timeout(300)
@@ -366,7 +368,9 @@ def test_a_sign_in_keeps_its_origin_jti_across_a_refresh(
         AuthParameters={"REFRESH_TOKEN": tokens["refresh"]},
     )["AuthenticationResult"]["AccessToken"]
 
-    assert claims(refreshed)["jti"] != claims(tokens["access"])["jti"]
-    assert claims(refreshed)["origin_jti"] == claims(tokens["access"])["origin_jti"]
+    renewed = claims(refreshed)["jti"] != claims(tokens["access"])["jti"]
+    assert renewed, "the refresh kept the token's jti"
+    kept = claims(refreshed)["origin_jti"] == claims(tokens["access"])["origin_jti"]
+    assert kept, "the refresh changed the sign-in's origin_jti"
     # The chat ends a sign-in an hour after it (POL-09).
     assert claims(refreshed)["auth_time"] == claims(tokens["access"])["auth_time"]
