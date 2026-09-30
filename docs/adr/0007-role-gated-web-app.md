@@ -8,6 +8,10 @@ Its open decisions were settled on 2026-09-29, each on the option we leaned towa
 
 Amended (2026-09-29): the content security policy also lets the page connect to the site itself, since the app reads `config.json` from it at load ([Hosting and the domain](#hosting-and-the-domain)). Its other connections stay Cognito's API, the Runtime, and the console API, as [Rendering what others wrote](#rendering-what-others-wrote) lists them.
 
+Amended (2026-09-30): claim and resolve (decision 3) are deferred from the prototype, for time. The console API serves `GET /cases` and `GET /cases/{reference}` only, every case stays `filed`, and a human agent reads each case with its evidence without changing its status; the lifecycle under [Handoffs as cases](#handoffs-as-cases), the two `POST` routes under [The console API](#the-console-api), and their IAM condition describe the design, not the deployed stack. The case record keeps its `status`, `claimed_by`, and `resolution` fields, so restoring the two routes changes no schema. In a bank the lifecycle belongs to the case system either way ([In a bank](#in-a-bank-ops-11)).
+
+Amended (2026-09-30): the AI team's page, `/ops` (decision 6), isn't built. The evaluation report is a document in `docs/evaluation/`, linked from the README, and carries its own offline label (EVL-13); the site serves `/chat` and `/agent`. The `ai_team` group and the staff app client stay as designed, so the page can be added without a change to identity. Every mention of `/ops` below describes the design, not the deployed site.
+
 ## Context
 
 [ADR-0004](0004-agent-architecture-on-agentcore.md) puts the customer chat and two consoles on one static site, gives each role a Cognito group, and leaves the hosting to this record (its decision 15). This record says how the site is served, how each role signs in and what it sees, and what a human agent does with a handoff. Seven forces shape it:
