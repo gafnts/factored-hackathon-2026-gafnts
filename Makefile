@@ -23,7 +23,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
 	test integration probe \
-	build web \
+	build web web-dev \
 	bootstrap backend doctor provision teardown \
 	data snapshot personas tiny-export analysis \
 	iam-init iam-plan iam-apply iam-output iam-destroy \
@@ -96,6 +96,11 @@ build: ## Build the Runtime's and the Lambdas' zips into build/, and rewrite the
 
 web: ## Build the web app into web/dist
 	pnpm --dir web build
+
+web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack, with the config.json its site holds
+	@mkdir -p web/public
+	uv run python -c 'import json, sys; json.dump(json.load(open(sys.argv[1]))["site"]["value"]["config"], sys.stdout)' $(OUTPUTS) > web/public/config.json
+	pnpm --dir web dev
 
 
 ##@ Bootstrap

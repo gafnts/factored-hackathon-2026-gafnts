@@ -1,3 +1,5 @@
 node_modules/
 dist/
 coverage/
+# Written by make web-dev from the stack's outputs.
+public/config.json

@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 
+import { Customer } from "./customer";
 import { browserLanguage } from "./language";
-import { Page } from "./layout";
 import { NotFound, Placeholder } from "./pages/placeholder";
-import { TEXTS } from "./texts";
 
 export type Route = "home" | "chat" | "agent" | "ops" | "unknown";
 
@@ -32,14 +31,8 @@ export function App({ path }: { path: string }) {
 
   switch (route) {
     case "home":
-    case "chat": {
-      const language = browserLanguage();
-      return (
-        <Page language={language} label={TEXTS[language].assistant}>
-          {null}
-        </Page>
-      );
-    }
+    case "chat":
+      return <Customer language={browserLanguage()} />;
     case "agent":
     case "ops":
       return <Placeholder console={route} />;

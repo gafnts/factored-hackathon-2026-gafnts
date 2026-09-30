@@ -350,6 +350,7 @@ make plan                # Build, preview changes, and save the plan to build/lo
 make apply               # Apply the saved plan
 make integration         # Test the deployed stack with throwaway users
 make probe               # Time the Runtime per persona and check what it stores and traces
+make web-dev             # Serve the web app on localhost:5173 against the deployed stack
 make destroy ENV=local   # Tear down your local resources
 ```
 
@@ -477,6 +478,7 @@ Gitignored files worth knowing about:
 - `.terraform/`: Terraform plugin cache and local state
 - `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make integration` reads
 - `web/node_modules/`, `web/dist/`, `web/coverage/`: the web app's dependencies, its build, and its coverage report
+- `web/public/config.json`: the configuration `make web-dev` copies from the stack's outputs
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables

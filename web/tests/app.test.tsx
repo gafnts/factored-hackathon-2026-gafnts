@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { App, routeOf } from "../src/app";
 import { CONSOLES, TEXTS } from "../src/texts";
+
+vi.mock(import("../src/customer"), () => ({
+  Customer: () => <p>the customer's chat</p>,
+}));
 
 test.each([
   ["/", "home"],
@@ -21,7 +25,7 @@ test("the root opens the chat, at /chat", () => {
   window.history.pushState(null, "", "/");
   render(<App path="/" />);
 
-  expect(screen.getByText(TEXTS.es.assistant)).toBeInTheDocument();
+  expect(screen.getByText("the customer's chat")).toBeInTheDocument();
   expect(window.location.pathname).toBe("/chat");
 });
 
