@@ -22,7 +22,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
-	test integration probe \
+	test integration browser probe \
 	build web web-dev site \
 	bootstrap backend doctor provision teardown \
 	data snapshot personas tiny-export analysis \
@@ -83,7 +83,11 @@ test: ## Run pytest and Vitest, each with its coverage floor
 	pnpm --dir web test
 
 integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials)
-	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m integration -v
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser" -v
+
+browser: _check-profile outputs ## Play a customer's journey in Chromium against ENV's deployed site (prints no text or IDs)
+	uv run playwright install chromium
+	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v
 
 probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe

@@ -368,3 +368,5 @@ def test_a_sign_in_keeps_its_origin_jti_across_a_refresh(
 
     assert claims(refreshed)["jti"] != claims(tokens["access"])["jti"]
     assert claims(refreshed)["origin_jti"] == claims(tokens["access"])["origin_jti"]
+    # The chat ends a sign-in an hour after it (POL-09).
+    assert claims(refreshed)["auth_time"] == claims(tokens["access"])["auth_time"]

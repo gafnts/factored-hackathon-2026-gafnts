@@ -34,7 +34,10 @@ function ReplyText({ text }: TextMessagePartProps) {
 
 function UserMessage() {
   return (
-    <MessagePrimitive.Root className="ml-auto max-w-[85%] rounded-lg bg-ink px-4 py-3 text-paper-raised">
+    <MessagePrimitive.Root
+      data-author="customer"
+      className="ml-auto max-w-[85%] rounded-lg bg-ink px-4 py-3 text-paper-raised"
+    >
       <MessagePrimitive.Parts components={{ Text: UserText }} />
     </MessagePrimitive.Root>
   );
@@ -42,7 +45,10 @@ function UserMessage() {
 
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="max-w-[85%] rounded-lg border border-rule bg-paper-raised px-4 py-3 empty:hidden">
+    <MessagePrimitive.Root
+      data-author="faro"
+      className="max-w-[85%] rounded-lg border border-rule bg-paper-raised px-4 py-3 empty:hidden"
+    >
       <MessagePrimitive.Parts components={{ Text: ReplyText }} />
     </MessagePrimitive.Root>
   );
