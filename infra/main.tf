@@ -106,4 +106,6 @@ module "site" {
     "https://cognito-idp.${var.aws_region}.amazonaws.com",
     "https://bedrock-agentcore.${var.aws_region}.amazonaws.com",
   ]
+  domain_name   = var.domain_name
+  attach_domain = var.attach_domain
 }

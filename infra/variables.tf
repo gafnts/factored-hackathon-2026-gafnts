@@ -29,6 +29,18 @@ variable "tools_data_export" {
   }
 }
 
+variable "domain_name" {
+  description = "A custom hostname for the site; null serves it on its CloudFront domain, as a fork does (ADR-0007)"
+  type        = string
+  default     = null
+}
+
+variable "attach_domain" {
+  description = "Serve the site on domain_name; set it once the certificate's validation record is in DNS (ADR-0007)"
+  type        = bool
+  default     = false
+}
+
 variable "log_retention_days" {
   description = "Retention of every log group the stack creates (ADR-0004, Data retention)"
   type        = number
