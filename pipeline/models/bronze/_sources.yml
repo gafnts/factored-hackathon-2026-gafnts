@@ -1,0 +1,1648 @@
+# Written by `python -m banking_agent.pipeline contracts` from the data dictionary (src/banking_agent/analysis/catalog.py)
+# and contracts/corrections.yml. Don't edit it by hand.
+sources:
+  - name: snapshot
+    description: "The pinned snapshot's files (ADR-0002), each read with its table's contract."
+    config:
+      meta:
+        root: "{{ var('snapshot_root') }}"
+        formatter: template
+    tables:
+      - name: branches
+        description: One file, branches.csv; keyed by branch_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/branches.csv', columns = {'branch_id': 'VARCHAR', 'branch_code': 'VARCHAR', 'branch_name': 'VARCHAR', 'branch_type': 'VARCHAR', 'address': 'VARCHAR', 'city': 'VARCHAR', 'state': 'VARCHAR', 'country': 'VARCHAR', 'postal_code': 'VARCHAR', 'geographic_zone': 'VARCHAR', 'phone': 'VARCHAR', 'email': 'VARCHAR', 'opening_time': 'TIME', 'closing_time': 'TIME', 'has_atms': 'BOOLEAN', 'atm_count': 'INTEGER', 'has_teller_windows': 'BOOLEAN', 'teller_window_count': 'INTEGER', 'latitude': 'DECIMAL(10,7)', 'longitude': 'DECIMAL(10,7)', 'branch_opening_date': 'DATE', 'branch_status': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: branch_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: branch_code
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(10) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: branch_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: branch_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Main, Express, Premium, Corporate).'
+            config:
+              meta:
+                personal_data: none
+          - name: address
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(200) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: city
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: state
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: country
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Mexico, Colombia, Argentina). Corrected: Every Mexican branch is spelled México, with its accent (175 rows).'
+            config:
+              meta:
+                personal_data: none
+          - name: postal_code
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(10).'
+            config:
+              meta:
+                personal_data: none
+          - name: geographic_zone
+            data_type: VARCHAR
+            description: "Dictionary: VARCHAR(50) NOT NULL IN (Urban, Suburban, Rural). Corrected: Every branch's zone is Urbana, in Spanish (350 rows), which the dictionary doesn't list."
+            config:
+              meta:
+                personal_data: none
+          - name: phone
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: email
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: opening_time
+            data_type: TIME
+            description: 'Dictionary: TIME NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: closing_time
+            data_type: TIME
+            description: 'Dictionary: TIME NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: has_atms
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: atm_count
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: has_teller_windows
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: teller_window_count
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: latitude
+            data_type: DECIMAL(10,7)
+            description: 'Dictionary: DECIMAL(10,7).'
+            config:
+              meta:
+                personal_data: none
+          - name: longitude
+            data_type: DECIMAL(10,7)
+            description: 'Dictionary: DECIMAL(10,7).'
+            config:
+              meta:
+                personal_data: none
+          - name: branch_opening_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: branch_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Active, Temporarily Closed, Closed).'
+            config:
+              meta:
+                personal_data: none
+      - name: customers
+        description: One file, customers.csv; keyed by customer_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/customers.csv', columns = {'customer_id': 'VARCHAR', 'document_number': 'VARCHAR', 'document_type': 'VARCHAR', 'first_name': 'VARCHAR', 'last_name': 'VARCHAR', 'date_of_birth': 'DATE', 'gender': 'VARCHAR', 'email': 'VARCHAR', 'mobile_phone': 'VARCHAR', 'landline_phone': 'VARCHAR', 'address': 'VARCHAR', 'city': 'VARCHAR', 'state': 'VARCHAR', 'country': 'VARCHAR', 'postal_code': 'VARCHAR', 'detected_accent': 'VARCHAR', 'segment': 'VARCHAR', 'credit_score': 'INTEGER', 'estimated_monthly_income': 'DECIMAL(12,2)', 'occupation': 'VARCHAR', 'marital_status': 'VARCHAR', 'education_level': 'VARCHAR', 'registration_date': 'TIMESTAMP', 'registration_branch_id': 'VARCHAR', 'customer_status': 'VARCHAR', 'last_updated': 'TIMESTAMP', 'accepts_marketing': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: document_number
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: document_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(10) NOT NULL IN (DNI, CURP, CC, CE, Passport). Corrected: Passports are named Pasaporte, in Spanish (15,062 rows), and no row names CURP.'
+            config:
+              meta:
+                personal_data: none
+          - name: first_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: last_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: date_of_birth
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: gender
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(1) IN (M, F, O).'
+            config:
+              meta:
+                personal_data: none
+          - name: email
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: contact
+          - name: mobile_phone
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20).'
+            config:
+              meta:
+                personal_data: contact
+          - name: landline_phone
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20).'
+            config:
+              meta:
+                personal_data: contact
+          - name: address
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(200).'
+            config:
+              meta:
+                personal_data: contact
+          - name: city
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: state
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: country
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Mexico, Colombia, Argentina). Corrected: Every Mexican customer is spelled México, with its accent (74,907 rows).'
+            config:
+              meta:
+                personal_data: none
+          - name: postal_code
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(10).'
+            config:
+              meta:
+                personal_data: contact
+          - name: detected_accent
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) IN (mexican, colombian, argentine, neutral).'
+            config:
+              meta:
+                personal_data: none
+          - name: segment
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Premium, Plus, Basic, Student).'
+            config:
+              meta:
+                personal_data: none
+          - name: credit_score
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: financial
+          - name: estimated_monthly_income
+            data_type: DECIMAL(12,2)
+            description: 'Dictionary: DECIMAL(12,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: occupation
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: marital_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20).'
+            config:
+              meta:
+                personal_data: none
+          - name: education_level
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: registration_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: registration_branch_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES branches.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Active, Inactive, Suspended, Closed).'
+            config:
+              meta:
+                personal_data: none
+          - name: last_updated
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: accepts_marketing
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+      - name: products
+        description: One file, products.csv; keyed by product_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/products.csv', columns = {'product_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'product_type': 'VARCHAR', 'product_number': 'VARCHAR', 'currency': 'VARCHAR', 'current_balance': 'DECIMAL(15,2)', 'credit_limit': 'DECIMAL(15,2)', 'interest_rate': 'DECIMAL(5,2)', 'opening_date': 'DATE', 'expiration_date': 'DATE', 'opening_branch_id': 'VARCHAR', 'product_status': 'VARCHAR', 'opening_channel': 'VARCHAR', 'has_linked_app': 'BOOLEAN', 'days_past_due': 'INTEGER', 'last_transaction_date': 'TIMESTAMP', 'last_updated': 'TIMESTAMP'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: product_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: product_type
+            data_type: VARCHAR
+            description: "Dictionary: VARCHAR(50) NOT NULL. Corrected: The dictionary's list is cut off (\"Investme\") and in English; the delivery names eight types in Spanish."
+            config:
+              meta:
+                personal_data: none
+          - name: product_number
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: card_number
+          - name: currency
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(3) NOT NULL IN (MXN, COP, ARS, USD).'
+            config:
+              meta:
+                personal_data: none
+          - name: current_balance
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2) NOT NULL.'
+            config:
+              meta:
+                personal_data: financial
+          - name: credit_limit
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: interest_rate
+            data_type: DECIMAL(5,2)
+            description: 'Dictionary: DECIMAL(5,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: opening_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: expiration_date
+            data_type: DATE
+            description: 'Dictionary: DATE.'
+            config:
+              meta:
+                personal_data: none
+          - name: opening_branch_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES branches.'
+            config:
+              meta:
+                personal_data: none
+          - name: product_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Active, Blocked, Closed, Suspended).'
+            config:
+              meta:
+                personal_data: none
+          - name: opening_channel
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Branch, Web, App, Call Center).'
+            config:
+              meta:
+                personal_data: none
+          - name: has_linked_app
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: days_past_due
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: financial
+          - name: last_transaction_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: last_updated
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+      - name: service_agents
+        description: One file, service_agents.csv; keyed by agent_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/service_agents.csv', columns = {'agent_id': 'VARCHAR', 'employee_code': 'VARCHAR', 'first_name': 'VARCHAR', 'last_name': 'VARCHAR', 'email': 'VARCHAR', 'phone': 'VARCHAR', 'native_accent': 'VARCHAR', 'country_of_origin': 'VARCHAR', 'assigned_branch_id': 'VARCHAR', 'agent_type': 'VARCHAR', 'experience_level': 'VARCHAR', 'languages': 'VARCHAR', 'specialty': 'VARCHAR', 'hire_date': 'DATE', 'avg_csat': 'DECIMAL(3,2)', 'total_monthly_interactions': 'INTEGER', 'agent_status': 'VARCHAR', 'work_shift': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: agent_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: employee_code
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(15) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: first_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: last_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: email
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: contact
+          - name: phone
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20).'
+            config:
+              meta:
+                personal_data: contact
+          - name: native_accent
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (mexican, colombian, argentine).'
+            config:
+              meta:
+                personal_data: none
+          - name: country_of_origin
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: assigned_branch_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES branches.'
+            config:
+              meta:
+                personal_data: none
+          - name: agent_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Phone, In-Person, Digital, Hybrid).'
+            config:
+              meta:
+                personal_data: none
+          - name: experience_level
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Junior, Mid-Senior, Senior, Specialist).'
+            config:
+              meta:
+                personal_data: none
+          - name: languages
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: specialty
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: hire_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: avg_csat
+            data_type: DECIMAL(3,2)
+            description: 'Dictionary: DECIMAL(3,2).'
+            config:
+              meta:
+                personal_data: none
+          - name: total_monthly_interactions
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: agent_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Active, Vacation, Leave, Inactive).'
+            config:
+              meta:
+                personal_data: none
+          - name: work_shift
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Morning, Afternoon, Night, Rotating).'
+            config:
+              meta:
+                personal_data: none
+      - name: marketing_campaigns
+        description: One file, marketing_campaigns.csv; keyed by campaign_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/marketing_campaigns.csv', columns = {'campaign_id': 'VARCHAR', 'campaign_name': 'VARCHAR', 'description': 'VARCHAR', 'campaign_type': 'VARCHAR', 'campaign_objective': 'VARCHAR', 'promoted_product': 'VARCHAR', 'target_segment': 'VARCHAR', 'target_country': 'VARCHAR', 'start_date': 'DATE', 'end_date': 'DATE', 'budget': 'DECIMAL(12,2)', 'campaign_status': 'VARCHAR', 'expected_conversion_rate': 'DECIMAL(5,2)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: campaign_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: campaign_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(150) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: description
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: none
+          - name: campaign_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Email, SMS, Push, WhatsApp, Voice, Mix).'
+            config:
+              meta:
+                personal_data: none
+          - name: campaign_objective
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL IN (Acquisition, Retention, Cross-sell, Up-sell, Reactivation).'
+            config:
+              meta:
+                personal_data: none
+          - name: promoted_product
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: target_segment
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: target_country
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: start_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: end_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: budget
+            data_type: DECIMAL(12,2)
+            description: 'Dictionary: DECIMAL(12,2).'
+            config:
+              meta:
+                personal_data: none
+          - name: campaign_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Planned, Active, Paused, Completed).'
+            config:
+              meta:
+                personal_data: none
+          - name: expected_conversion_rate
+            data_type: DECIMAL(5,2)
+            description: 'Dictionary: DECIMAL(5,2).'
+            config:
+              meta:
+                personal_data: none
+      - name: daily_exchange_rates
+        description: One file, daily_exchange_rates.csv; keyed by date, source_currency, target_currency.
+        config:
+          meta:
+            external_location: "read_csv('$root/daily_exchange_rates.csv', columns = {'date': 'DATE', 'source_currency': 'VARCHAR', 'target_currency': 'VARCHAR', 'exchange_rate': 'DECIMAL(12,6)', 'buy_rate': 'DECIMAL(12,6)', 'sell_rate': 'DECIMAL(12,6)', 'source': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: source_currency
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(3) NOT NULL IN (MXN, COP, ARS, USD).'
+            config:
+              meta:
+                personal_data: none
+          - name: target_currency
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(3) NOT NULL IN (MXN, COP, ARS, USD).'
+            config:
+              meta:
+                personal_data: none
+          - name: exchange_rate
+            data_type: DECIMAL(12,6)
+            description: 'Dictionary: DECIMAL(12,6) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: buy_rate
+            data_type: DECIMAL(12,6)
+            description: 'Dictionary: DECIMAL(12,6).'
+            config:
+              meta:
+                personal_data: none
+          - name: sell_rate
+            data_type: DECIMAL(12,6)
+            description: 'Dictionary: DECIMAL(12,6).'
+            config:
+              meta:
+                personal_data: none
+          - name: source
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+      - name: transactions
+        description: Daily partitions, transactions/year=/month=/day=/transactions_YYYYMMDD.csv; keyed by transaction_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/transactions/**/*.csv', columns = {'transaction_id': 'VARCHAR', 'transaction_date': 'TIMESTAMP', 'process_date': 'DATE', 'product_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'transaction_type': 'VARCHAR', 'transaction_category': 'VARCHAR', 'amount': 'DECIMAL(15,2)', 'currency': 'VARCHAR', 'amount_usd': 'DECIMAL(15,2)', 'channel': 'VARCHAR', 'branch_id': 'VARCHAR', 'merchant_name': 'VARCHAR', 'merchant_category': 'VARCHAR', 'transaction_country': 'VARCHAR', 'transaction_city': 'VARCHAR', 'transaction_status': 'VARCHAR', 'response_code': 'VARCHAR', 'is_fraud': 'BOOLEAN', 'fraud_score': 'DECIMAL(5,2)', 'latitude': 'DECIMAL(10,7)', 'longitude': 'DECIMAL(10,7)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: transaction_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: transaction_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: product_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES products.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: transaction_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Deposit, Withdrawal, Transfer, Payment, Purchase, Adjustment).'
+            config:
+              meta:
+                personal_data: none
+          - name: transaction_category
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) IN (Food, Transport, Services, Entertainment, Health, Other).'
+            config:
+              meta:
+                personal_data: none
+          - name: amount
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2) NOT NULL.'
+            config:
+              meta:
+                personal_data: financial
+          - name: currency
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(3) NOT NULL IN (MXN, COP, ARS, USD).'
+            config:
+              meta:
+                personal_data: none
+          - name: amount_usd
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: channel
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (ATM, Branch, Web, App, POS, Transfer).'
+            config:
+              meta:
+                personal_data: none
+          - name: branch_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES branches.'
+            config:
+              meta:
+                personal_data: none
+          - name: merchant_name
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(150).'
+            config:
+              meta:
+                personal_data: none
+          - name: merchant_category
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: transaction_country
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: transaction_city
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: transaction_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Approved, Declined, Pending, Reversed).'
+            config:
+              meta:
+                personal_data: none
+          - name: response_code
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(10).'
+            config:
+              meta:
+                personal_data: none
+          - name: is_fraud
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: fraud_score
+            data_type: DECIMAL(5,2)
+            description: 'Dictionary: DECIMAL(5,2).'
+            config:
+              meta:
+                personal_data: none
+          - name: latitude
+            data_type: DECIMAL(10,7)
+            description: 'Dictionary: DECIMAL(10,7).'
+            config:
+              meta:
+                personal_data: none
+          - name: longitude
+            data_type: DECIMAL(10,7)
+            description: 'Dictionary: DECIMAL(10,7).'
+            config:
+              meta:
+                personal_data: none
+      - name: call_center_interactions
+        description: Daily partitions, call_center_interactions/year=/month=/day=/call_center_interactions_YYYYMMDD.csv; keyed by interaction_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/call_center_interactions/**/*.csv', columns = {'interaction_id': 'VARCHAR', 'interaction_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'interaction_type': 'VARCHAR', 'channel': 'VARCHAR', 'contact_reason': 'VARCHAR', 'reason_category': 'VARCHAR', 'duration_seconds': 'INTEGER', 'wait_time_seconds': 'INTEGER', 'was_resolved': 'BOOLEAN', 'requires_followup': 'BOOLEAN', 'detected_sentiment': 'VARCHAR', 'sentiment_score': 'DECIMAL(3,2)', 'customer_detected_accent': 'VARCHAR', 'agent_used_accent': 'VARCHAR', 'was_escalated': 'BOOLEAN', 'mentioned_products': 'VARCHAR', 'has_transcript': 'BOOLEAN', 'has_recording': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: interaction_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: interaction_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: agent_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES service_agents.'
+            config:
+              meta:
+                personal_data: none
+          - name: interaction_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Inbound Call, Outbound Call, Chat, Email, Video).'
+            config:
+              meta:
+                personal_data: none
+          - name: channel
+            data_type: VARCHAR
+            description: "Dictionary: VARCHAR(30) NOT NULL IN (Phone, Web Chat, WhatsApp, Email, App). Corrected: Web, which the dictionary doesn't list, names 3,395 rows beside Web Chat."
+            config:
+              meta:
+                personal_data: none
+          - name: contact_reason
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: reason_category
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Transactional, Product, Technical, Commercial, Complaint). Corrected: Every category is named in Spanish (686,296 rows), and Retención has no counterpart in the dictionary.'
+            config:
+              meta:
+                personal_data: none
+          - name: duration_seconds
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: wait_time_seconds
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: was_resolved
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN.'
+            config:
+              meta:
+                personal_data: none
+          - name: requires_followup
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: detected_sentiment
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) IN (Positive, Neutral, Negative, Very Negative). Corrected: Sentiments are named in Spanish (226,584 rows besides Neutral, spelled alike), and Muy Positivo has no counterpart in the dictionary.'
+            config:
+              meta:
+                personal_data: none
+          - name: sentiment_score
+            data_type: DECIMAL(3,2)
+            description: 'Dictionary: DECIMAL(3,2).'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_detected_accent
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: agent_used_accent
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: was_escalated
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: mentioned_products
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(200).'
+            config:
+              meta:
+                personal_data: none
+          - name: has_transcript
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: has_recording
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+      - name: call_transcripts
+        description: Daily partitions, call_transcripts/year=/month=/day=/call_transcripts_YYYYMMDD.csv; keyed by transcript_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/call_transcripts/**/*.csv', columns = {'transcript_id': 'VARCHAR', 'interaction_id': 'VARCHAR', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'full_text': 'VARCHAR', 'customer_text': 'VARCHAR', 'agent_text': 'VARCHAR', 'detected_language': 'VARCHAR', 'detected_accent': 'VARCHAR', 'accent_confidence': 'DECIMAL(3,2)', 'detected_keywords': 'VARCHAR', 'mentioned_entities': 'VARCHAR', 'detected_intents': 'VARCHAR', 'main_topics': 'VARCHAR', 'transcription_model': 'VARCHAR', 'audio_quality': 'VARCHAR', 'duration_seconds': 'INTEGER'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: transcript_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: interaction_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL REFERENCES call_center_interactions.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: agent_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES service_agents.'
+            config:
+              meta:
+                personal_data: none
+          - name: full_text
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: customer_text
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: identity
+          - name: agent_text
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: identity
+          - name: detected_language
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(10) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: detected_accent
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: accent_confidence
+            data_type: DECIMAL(3,2)
+            description: 'Dictionary: DECIMAL(3,2).'
+            config:
+              meta:
+                personal_data: none
+          - name: detected_keywords
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(500).'
+            config:
+              meta:
+                personal_data: none
+          - name: mentioned_entities
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: identity
+          - name: detected_intents
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(300).'
+            config:
+              meta:
+                personal_data: none
+          - name: main_topics
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(300).'
+            config:
+              meta:
+                personal_data: none
+          - name: transcription_model
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: audio_quality
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) IN (High, Medium, Low).'
+            config:
+              meta:
+                personal_data: none
+          - name: duration_seconds
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER NOT NULL. Corrected: 24,029 rows hold no duration, which the dictionary says every transcript has.'
+            config:
+              meta:
+                personal_data: none
+      - name: satisfaction_surveys
+        description: Daily partitions, satisfaction_surveys/year=/month=/day=/satisfaction_surveys_YYYYMMDD.csv; keyed by survey_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/satisfaction_surveys/**/*.csv', columns = {'survey_id': 'VARCHAR', 'survey_date': 'TIMESTAMP', 'process_date': 'DATE', 'interaction_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'agent_id': 'VARCHAR', 'survey_type': 'VARCHAR', 'send_channel': 'VARCHAR', 'main_score': 'INTEGER', 'nps_category': 'VARCHAR', 'question_1_text': 'VARCHAR', 'question_1_response': 'INTEGER', 'question_2_text': 'VARCHAR', 'question_2_response': 'INTEGER', 'question_3_text': 'VARCHAR', 'question_3_response': 'INTEGER', 'open_comments': 'VARCHAR', 'comment_sentiment': 'VARCHAR', 'response_time_hours': 'DECIMAL(8,2)', 'campaign_response_rate': 'DECIMAL(5,2)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: survey_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: survey_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: interaction_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) REFERENCES call_center_interactions.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: agent_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES service_agents.'
+            config:
+              meta:
+                personal_data: none
+          - name: survey_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (CSAT, NPS, CES).'
+            config:
+              meta:
+                personal_data: none
+          - name: send_channel
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Email, SMS, IVR, App, Web).'
+            config:
+              meta:
+                personal_data: none
+          - name: main_score
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: nps_category
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) IN (Promoter, Passive, Detractor).'
+            config:
+              meta:
+                personal_data: none
+          - name: question_1_text
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: none
+          - name: question_1_response
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: question_2_text
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: none
+          - name: question_2_response
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: question_3_text
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: none
+          - name: question_3_response
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: open_comments
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: identity
+          - name: comment_sentiment
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20).'
+            config:
+              meta:
+                personal_data: none
+          - name: response_time_hours
+            data_type: DECIMAL(8,2)
+            description: 'Dictionary: DECIMAL(8,2).'
+            config:
+              meta:
+                personal_data: none
+          - name: campaign_response_rate
+            data_type: DECIMAL(5,2)
+            description: 'Dictionary: DECIMAL(5,2).'
+            config:
+              meta:
+                personal_data: none
+      - name: complaints
+        description: Daily partitions, complaints/year=/month=/day=/complaints_YYYYMMDD.csv; keyed by complaint_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/complaints/**/*.csv', columns = {'complaint_id': 'VARCHAR', 'creation_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'case_type': 'VARCHAR', 'category': 'VARCHAR', 'subcategory': 'VARCHAR', 'reception_channel': 'VARCHAR', 'affected_product_id': 'VARCHAR', 'related_branch_id': 'VARCHAR', 'origin_interaction_id': 'VARCHAR', 'description': 'VARCHAR', 'claimed_amount': 'DECIMAL(15,2)', 'currency': 'VARCHAR', 'priority': 'VARCHAR', 'status': 'VARCHAR', 'assigned_agent_id': 'VARCHAR', 'assignment_date': 'TIMESTAMP', 'first_response_date': 'TIMESTAMP', 'resolution_date': 'TIMESTAMP', 'closing_date': 'TIMESTAMP', 'sla_breached': 'BOOLEAN', 'resolution_days': 'INTEGER', 'resolution': 'VARCHAR', 'compensation_granted': 'DECIMAL(15,2)', 'resolution_satisfaction': 'INTEGER', 'is_repeat_complainer': 'BOOLEAN'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: complaint_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: creation_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: case_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Complaint, Claim, Request, Suggestion).'
+            config:
+              meta:
+                personal_data: none
+          - name: category
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: subcategory
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: reception_channel
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Call Center, Email, Web, App, Branch, Regulator).'
+            config:
+              meta:
+                personal_data: none
+          - name: affected_product_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES products.'
+            config:
+              meta:
+                personal_data: none
+          - name: related_branch_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES branches.'
+            config:
+              meta:
+                personal_data: none
+          - name: origin_interaction_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) REFERENCES call_center_interactions.'
+            config:
+              meta:
+                personal_data: none
+          - name: description
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT NOT NULL.'
+            config:
+              meta:
+                personal_data: identity
+          - name: claimed_amount
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: currency
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(3) IN (MXN, COP, ARS, USD).'
+            config:
+              meta:
+                personal_data: none
+          - name: priority
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Low, Medium, High, Critical).'
+            config:
+              meta:
+                personal_data: none
+          - name: status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Open, In Process, Escalated, Resolved, Closed, Rejected).'
+            config:
+              meta:
+                personal_data: none
+          - name: assigned_agent_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES service_agents.'
+            config:
+              meta:
+                personal_data: none
+          - name: assignment_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: first_response_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: resolution_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: closing_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: sla_breached
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: resolution_days
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: resolution
+            data_type: VARCHAR
+            description: 'Dictionary: TEXT.'
+            config:
+              meta:
+                personal_data: identity
+          - name: compensation_granted
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: resolution_satisfaction
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: is_repeat_complainer
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+      - name: digital_events
+        description: Daily partitions, digital_events/year=/month=/day=/digital_events_YYYYMMDD.csv; keyed by event_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/digital_events/**/*.csv', columns = {'event_id': 'VARCHAR', 'event_date': 'TIMESTAMP', 'process_date': 'DATE', 'customer_id': 'VARCHAR', 'session_id': 'VARCHAR', 'event_type': 'VARCHAR', 'event_category': 'VARCHAR', 'channel': 'VARCHAR', 'platform': 'VARCHAR', 'browser': 'VARCHAR', 'app_version': 'VARCHAR', 'page_url': 'VARCHAR', 'page_title': 'VARCHAR', 'action': 'VARCHAR', 'element_id': 'VARCHAR', 'product_id': 'VARCHAR', 'event_value': 'DECIMAL(15,2)', 'duration_seconds': 'INTEGER', 'ip_address': 'VARCHAR', 'ip_country': 'VARCHAR', 'ip_city': 'VARCHAR', 'is_mobile': 'BOOLEAN', 'referrer': 'VARCHAR', 'utm_source': 'VARCHAR', 'utm_medium': 'VARCHAR', 'utm_campaign': 'VARCHAR'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: event_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: event_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: session_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: event_type
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (PageView, Click, FormSubmit, Login, Logout, Error, Purchase).'
+            config:
+              meta:
+                personal_data: none
+          - name: event_category
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50) NOT NULL IN (Navigation, Transaction, Authentication, Product).'
+            config:
+              meta:
+                personal_data: none
+          - name: channel
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Android App, iOS App, Desktop Web, Mobile Web).'
+            config:
+              meta:
+                personal_data: none
+          - name: platform
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) IN (Android, iOS, Windows, MacOS, Linux).'
+            config:
+              meta:
+                personal_data: none
+          - name: browser
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: app_version
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20).'
+            config:
+              meta:
+                personal_data: none
+          - name: page_url
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(300).'
+            config:
+              meta:
+                personal_data: none
+          - name: page_title
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(200).'
+            config:
+              meta:
+                personal_data: none
+          - name: action
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: element_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: product_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) REFERENCES products.'
+            config:
+              meta:
+                personal_data: none
+          - name: event_value
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: duration_seconds
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: ip_address
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(45).'
+            config:
+              meta:
+                personal_data: contact
+          - name: ip_country
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: ip_city
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: is_mobile
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: referrer
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(300).'
+            config:
+              meta:
+                personal_data: none
+          - name: utm_source
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: utm_medium
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: utm_campaign
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+      - name: campaign_sends
+        description: Daily partitions, campaign_sends/year=/month=/day=/campaign_sends_YYYYMMDD.csv; keyed by send_id.
+        config:
+          meta:
+            external_location: "read_csv('$root/campaign_sends/**/*.csv', columns = {'send_id': 'VARCHAR', 'send_date': 'TIMESTAMP', 'process_date': 'DATE', 'campaign_id': 'VARCHAR', 'customer_id': 'VARCHAR', 'send_channel': 'VARCHAR', 'template_used': 'VARCHAR', 'subject': 'VARCHAR', 'send_status': 'VARCHAR', 'was_delivered': 'BOOLEAN', 'was_opened': 'BOOLEAN', 'open_date': 'TIMESTAMP', 'was_clicked': 'BOOLEAN', 'click_date': 'TIMESTAMP', 'click_count': 'INTEGER', 'had_conversion': 'BOOLEAN', 'conversion_date': 'TIMESTAMP', 'conversion_value': 'DECIMAL(15,2)', 'open_device': 'VARCHAR', 'open_country': 'VARCHAR', 'failure_reason': 'VARCHAR', 'send_cost': 'DECIMAL(10,4)'}, header = true, auto_detect = false, delim = ',', quote = '\"', escape = '\"', strict_mode = true, filename = true)"
+        columns:
+          - name: send_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: send_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: process_date
+            data_type: DATE
+            description: 'Dictionary: DATE NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: campaign_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES marketing_campaigns.'
+            config:
+              meta:
+                personal_data: none
+          - name: customer_id
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL REFERENCES customers.'
+            config:
+              meta:
+                personal_data: none
+          - name: send_channel
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30) NOT NULL IN (Email, SMS, Push, WhatsApp, Voice).'
+            config:
+              meta:
+                personal_data: none
+          - name: template_used
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(100).'
+            config:
+              meta:
+                personal_data: none
+          - name: subject
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(200).'
+            config:
+              meta:
+                personal_data: none
+          - name: send_status
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(20) NOT NULL IN (Sent, Failed, Bounced, Blocked).'
+            config:
+              meta:
+                personal_data: none
+          - name: was_delivered
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: was_opened
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN.'
+            config:
+              meta:
+                personal_data: none
+          - name: open_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: was_clicked
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN.'
+            config:
+              meta:
+                personal_data: none
+          - name: click_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: click_count
+            data_type: INTEGER
+            description: 'Dictionary: INTEGER.'
+            config:
+              meta:
+                personal_data: none
+          - name: had_conversion
+            data_type: BOOLEAN
+            description: 'Dictionary: BOOLEAN NOT NULL.'
+            config:
+              meta:
+                personal_data: none
+          - name: conversion_date
+            data_type: TIMESTAMP
+            description: 'Dictionary: TIMESTAMP.'
+            config:
+              meta:
+                personal_data: none
+          - name: conversion_value
+            data_type: DECIMAL(15,2)
+            description: 'Dictionary: DECIMAL(15,2).'
+            config:
+              meta:
+                personal_data: financial
+          - name: open_device
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(30).'
+            config:
+              meta:
+                personal_data: none
+          - name: open_country
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(50).'
+            config:
+              meta:
+                personal_data: none
+          - name: failure_reason
+            data_type: VARCHAR
+            description: 'Dictionary: VARCHAR(200).'
+            config:
+              meta:
+                personal_data: none
+          - name: send_cost
+            data_type: DECIMAL(10,4)
+            description: 'Dictionary: DECIMAL(10,4).'
+            config:
+              meta:
+                personal_data: none

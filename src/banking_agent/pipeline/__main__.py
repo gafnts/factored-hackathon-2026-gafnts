@@ -1,6 +1,7 @@
 """
 Command line for make pipeline: builds the dbt project in pipeline/ from the pinned snapshot into one DuckDB file under
-data/pipeline/, rebuilt whole each time (ADR-0006). It prints check names and counts, never a row's values (SEC-03).
+data/pipeline/, rebuilt whole each time (ADR-0006), and rewrites the bronze contracts. It prints check names and counts,
+never a row's values (SEC-03).
 """
 
 import argparse
@@ -10,7 +11,7 @@ from pathlib import Path
 from banking_agent.analysis.source import AnalysisError, check_local
 from banking_agent.dataset.lock import LockError, read_lock
 from banking_agent.dataset.snapshot import snapshot_dir
-from banking_agent.pipeline import runner
+from banking_agent.pipeline import contracts, runner
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,15 +25,28 @@ def main(argv: list[str] | None = None) -> int:
         "build",
         help="Build bronze, silver, and gold from the pinned snapshot into data/pipeline/",
     )
+    commands.add_parser(
+        "contracts",
+        help="Rewrite the bronze contracts from the dictionary and pipeline/contracts/corrections.yml",
+    )
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "contracts":
+            print(f"Wrote {contracts.write(contracts.build())}")
+            return 0
         lock = read_lock(args.lock)
-        check_local(lock, snapshot_dir(args.data_dir, lock.snapshot_id))
+        root = snapshot_dir(args.data_dir, lock.snapshot_id)
+        check_local(lock, root)
         space = runner.workspace(args.data_dir, lock.snapshot_id)
         space.reset()
-        results = runner.dbt(["build"], space)
-    except (AnalysisError, LockError, runner.PipelineError) as error:
+        results = runner.dbt(["build"], space, {"snapshot_root": str(root.resolve())})
+    except (
+        AnalysisError,
+        LockError,
+        contracts.ContractError,
+        runner.PipelineError,
+    ) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     print("\n".join(runner.summarize(results, space.logs)))

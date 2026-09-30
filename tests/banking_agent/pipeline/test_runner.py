@@ -17,7 +17,7 @@ def test_the_project_parses_with_usage_stats_off(tmp_path: Path) -> None:
     space = runner.workspace(tmp_path, "0123456789abcdef")
     space.reset()
 
-    assert runner.dbt(["parse"], space) == []
+    assert runner.dbt(["parse"], space, {"snapshot_root": str(tmp_path)}) == []
 
     manifest = json.loads((space.target / "manifest.json").read_text())
     assert manifest["metadata"]["send_anonymous_usage_stats"] is False

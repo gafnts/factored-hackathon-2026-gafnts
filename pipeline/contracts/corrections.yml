@@ -1,0 +1,77 @@
+# The bronze contracts' second input, beside the data dictionary (transcribed in src/banking_agent/analysis/catalog.py):
+# where the delivery differs from the dictionary, as the profile measured it on snapshot b3b8b248f604ef9a
+# (docs/analysis/profiling.md), each with its reason; and a personal-data tag per column (ADR-0006, Contracts).
+# `python -m banking_agent.pipeline contracts` writes models/bronze/_sources.yml from both. The quality checks still
+# count what differs from the dictionary, as warnings; a correction describes the delivery, it never hides it.
+
+corrections:
+  branches:
+    country:
+      values: [Argentina, Colombia, México]
+      reason: Every Mexican branch is spelled México, with its accent (175 rows).
+    geographic_zone:
+      values: [Urbana]
+      reason: Every branch's zone is Urbana, in Spanish (350 rows), which the dictionary doesn't list.
+  customers:
+    country:
+      values: [Argentina, Colombia, México]
+      reason: Every Mexican customer is spelled México, with its accent (74,907 rows).
+    document_type:
+      values: [CC, CE, DNI, Pasaporte]
+      reason: Passports are named Pasaporte, in Spanish (15,062 rows), and no row names CURP.
+  products:
+    product_type:
+      values:
+        - Cuenta Ahorro
+        - Cuenta Corriente
+        - Inversión
+        - Préstamo Hipotecario
+        - Préstamo Personal
+        - Seguro
+        - Tarjeta Crédito
+        - Tarjeta Débito
+      reason: The dictionary's list is cut off ("Investme") and in English; the delivery names eight types in Spanish.
+  call_center_interactions:
+    channel:
+      values: [App, Email, Phone, Web, Web Chat, WhatsApp]
+      reason: Web, which the dictionary doesn't list, names 3,395 rows beside Web Chat.
+    reason_category:
+      values: [Comercial, Producto, Queja, Retención, Técnico, Transaccional]
+      reason: Every category is named in Spanish (686,296 rows), and Retención has no counterpart in the dictionary.
+    detected_sentiment:
+      values: [Muy Negativo, Muy Positivo, Negativo, Neutral, Positivo]
+      reason: Sentiments are named in Spanish (226,584 rows besides Neutral, spelled alike), and Muy Positivo has no
+        counterpart in the dictionary.
+  call_transcripts:
+    duration_seconds:
+      nullable: true
+      reason: 24,029 rows hold no duration, which the dictionary says every transcript has.
+
+# Columns not listed are tagged none. identity: identifies a person, or is free text that may (a document, a name, a
+# birth date, a transcript or comment); contact: reaches a person; financial: a person's money or credit; card_number:
+# a full card or account number (POL-11). customer_id is none of these, since every tool reads it (ADR-0006).
+personal_data:
+  customers:
+    identity: [document_number, first_name, last_name, date_of_birth]
+    contact: [email, mobile_phone, landline_phone, address, postal_code]
+    financial: [credit_score, estimated_monthly_income]
+  products:
+    card_number: [product_number]
+    financial: [current_balance, credit_limit, interest_rate, days_past_due]
+  service_agents:
+    identity: [first_name, last_name]
+    contact: [email, phone]
+  transactions:
+    financial: [amount, amount_usd]
+  call_transcripts:
+    identity: [full_text, customer_text, agent_text, mentioned_entities]
+  satisfaction_surveys:
+    identity: [open_comments]
+  digital_events:
+    contact: [ip_address]
+    financial: [event_value]
+  complaints:
+    identity: [description, resolution]
+    financial: [claimed_amount, compensation_granted]
+  campaign_sends:
+    financial: [conversion_value]
