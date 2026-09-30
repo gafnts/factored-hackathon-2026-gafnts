@@ -131,6 +131,20 @@ data "aws_iam_policy_document" "deny_other_envs" {
       values   = ["false"]
     }
   }
+
+  # S3 object actions ignore bucket tags, and CloudFront functions can't be tagged.
+  statement {
+    sid     = "DenyOtherEnvsByName"
+    effect  = "Deny"
+    actions = ["s3:*", "cloudfront:*"]
+    resources = flatten([
+      for env in setsubtract(local.envs, [each.key]) : [
+        "arn:aws:s3:::${var.project_name}-${env}-*",
+        "arn:aws:s3:::${var.project_name}-${env}-*/*",
+        "arn:aws:cloudfront::${local.account_id}:function/${var.project_name}-${env}-*",
+      ]
+    ])
+  }
 }
 
 # Caps the roles a deploy role creates, so it can't escalate through them.
