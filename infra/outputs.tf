@@ -86,11 +86,12 @@ output "runtime_tables" {
 }
 
 output "site" {
-  description = "The site's URL, and the bucket and distribution make site deploys to"
+  description = "The site's URL, the bucket and distribution make site deploys to, and the DNS records a custom domain needs"
   value = {
     url             = module.site.url
     bucket          = module.site.bucket
     distribution_id = module.site.distribution_id
     config          = module.site.config
+    domain_records  = module.site.domain_records
   }
 }

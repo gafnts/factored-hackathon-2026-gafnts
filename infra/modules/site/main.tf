@@ -160,6 +160,28 @@ resource "aws_cloudfront_response_headers_policy" "site" {
   }
 }
 
+resource "aws_acm_certificate" "site" {
+  count = var.domain_name == null ? 0 : 1
+
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "site" {
+  count = var.attach_domain ? 1 : 0
+
+  certificate_arn = aws_acm_certificate.site[0].arn
+
+  # ACM can take up to 30 minutes once the record is in DNS.
+  timeouts {
+    create = "45m"
+  }
+}
+
 data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
 }
@@ -172,6 +194,7 @@ resource "aws_cloudfront_distribution" "site" {
   comment         = var.prefix
   http_version    = "http2and3"
   is_ipv6_enabled = true
+  aliases         = var.attach_domain ? [var.domain_name] : []
 
   origin {
     origin_id                = "site"
@@ -202,6 +225,9 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !var.attach_domain
+    acm_certificate_arn            = var.attach_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    ssl_support_method             = var.attach_domain ? "sni-only" : null
+    minimum_protocol_version       = var.attach_domain ? "TLSv1.2_2025" : null
   }
 }
