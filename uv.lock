@@ -192,10 +192,12 @@ agent = [
     { name = "bedrock-agentcore" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "jsonschema" },
     { name = "langchain" },
     { name = "langchain-anthropic" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-aws" },
+    { name = "rfc3339-validator" },
 ]
 dev = [
     { name = "boto3-stubs", extra = ["cognito-idp", "dynamodb", "logs", "s3", "secretsmanager", "sts"] },
@@ -238,10 +240,12 @@ agent = [
     { name = "bedrock-agentcore", specifier = ">=1.23.1" },
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jsonschema", specifier = ">=4.26" },
     { name = "langchain", specifier = ">=1.4.2" },
     { name = "langchain-anthropic", specifier = ">=1.7.4" },
     { name = "langgraph", specifier = ">=1.2.12" },
     { name = "langgraph-checkpoint-aws", specifier = ">=1.2.3" },
+    { name = "rfc3339-validator", specifier = ">=0.1.4" },
 ]
 dev = [
     { name = "boto3-stubs", extras = ["cognito-idp", "dynamodb", "logs", "s3", "secretsmanager", "sts"], specifier = ">=1.43.103" },

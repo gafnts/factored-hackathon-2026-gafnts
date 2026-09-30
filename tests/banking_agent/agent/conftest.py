@@ -1,0 +1,268 @@
+"""
+The entrypoint served as the Runtime serves it, through the SDK's app and the real wrapper, with every outside service
+replaced: an in-memory checkpointer, bindings, and record, a scripted model, and a Gateway answered by a mock transport.
+Tokens are unsigned, since the entrypoint doesn't check a signature the Runtime's authorizer already checked.
+"""
+
+import base64
+import json
+import uuid
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from importlib.resources import files
+from typing import Any
+
+import httpx
+import pytest
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.runnables import Runnable, RunnableLambda
+from langgraph.checkpoint.memory import InMemorySaver
+from starlette.testclient import TestClient
+
+from banking_agent.agent import app as entrypoint
+from banking_agent.agent.gateway import Gateway
+from banking_agent.agent.graph import build
+from banking_agent.agent.models import MODEL, RouterOutput
+
+CLIENT_ID = "customer-client-0001"
+SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
+SETTINGS = entrypoint.Settings(
+    client_id=CLIENT_ID,
+    gateway_url="https://gateway.example/mcp",
+    gateway_target="reads",
+    stamp={"snapshot": "b3b8b248f604ef9a", "pipeline_version": "5e1a9c3b7d2f4a68"},
+    clock={"business_date": "2026-06-17", "as_of": "2026-06-18 06:00:00"},
+    app_version="0123456789abcdef0123456789abcdef01234567",
+)
+USAGE = {
+    "input_tokens": 120,
+    "output_tokens": 30,
+    "total_tokens": 150,
+    "input_token_details": {"cache_read": 0, "cache_creation": 0},
+}
+
+
+def list_cards_output() -> dict[str, Any]:
+    text = (
+        files("banking_agent.contracts")
+        .joinpath("examples/tools.list_cards_output.json")
+        .read_text(encoding="utf-8")
+    )
+    output: dict[str, Any] = next(o for o in json.loads(text) if o["outcome"] == "ok")
+    return output
+
+
+def tool_result(output: Any) -> httpx.Response:
+    text = output if isinstance(output, str) else json.dumps(output)
+    return httpx.Response(
+        200,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {"content": [{"type": "text", "text": text}], "isError": False},
+        },
+    )
+
+
+@dataclass(frozen=True)
+class Customer:
+    sub: str
+    origin_jti: str
+    customer_id: str
+    groups: tuple[str, ...] = ("customer",)
+    client_id: str = CLIENT_ID
+
+    def token(self, **overrides: Any) -> str:
+        claims: dict[str, Any] = {
+            "sub": self.sub,
+            "origin_jti": self.origin_jti,
+            "customer_id": self.customer_id,
+            "cognito:groups": list(self.groups),
+            "token_use": "access",
+            "client_id": self.client_id,
+            **overrides,
+        }
+        claims = {k: v for k, v in claims.items() if v is not None}
+
+        def part(value: dict[str, Any]) -> str:
+            return (
+                base64.urlsafe_b64encode(json.dumps(value).encode())
+                .decode()
+                .rstrip("=")
+            )
+
+        return f"{part({'alg': 'none'})}.{part(claims)}.signature"
+
+
+def customer(customer_id: str = "CLI-EXAMPLE00001") -> Customer:
+    return Customer(str(uuid.uuid4()), str(uuid.uuid4()), customer_id)
+
+
+class MemoryRecords:
+    def __init__(self) -> None:
+        self.entries: list[dict[str, Any]] = []
+        self.fail_on: str | None = None
+
+    def put(self, entry: dict[str, Any]) -> None:
+        if entry["kind"] == self.fail_on:
+            raise RuntimeError("the record store is down")
+        assert all(e["entry_key"] != entry["entry_key"] for e in self.entries)
+        self.entries.append(entry)
+
+    def of(self, sign_in: str) -> list[dict[str, Any]]:
+        return sorted(
+            (e for e in self.entries if e["sign_in"] == sign_in),
+            key=lambda e: e["entry_key"],
+        )
+
+
+class MemoryBindings:
+    def __init__(self) -> None:
+        self.bound: dict[str, str] = {}
+
+    def bind(self, session_id: str, sub: str, at: datetime) -> bool:
+        return self.bound.setdefault(session_id, sub) == sub
+
+
+@dataclass
+class Script:
+    requests: list[str] = field(default_factory=lambda: ["card_status"])
+    has_request: bool = True
+    route_error: Exception | None = None
+    reply: str = "Estas son sus tarjetas."
+    reply_error: Exception | None = None
+    gateway: Callable[[httpx.Request], httpx.Response] = lambda _: tool_result(
+        list_cards_output()
+    )
+    model_inputs: dict[str, list[list[BaseMessage]]] = field(
+        default_factory=lambda: {"route": [], "reply": []}
+    )
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+
+
+class Harness:
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.script = Script()
+        self.records = MemoryRecords()
+        self.bindings = MemoryBindings()
+        self.saver = InMemorySaver()
+        self.graph = build(self.saver)
+        self.workload_tokens: list[str | None] = []
+        self.key_error: Exception | None = None
+        transport = httpx.MockTransport(self.answer_tool)
+        self.services = entrypoint.Services(
+            settings=SETTINGS,
+            graph=self.graph,
+            bindings=self.bindings,
+            records=self.records,
+            fetch_key=self.fetch_key,
+            models=self.factory,
+            gateway=Gateway(
+                SETTINGS.gateway_url,
+                SETTINGS.gateway_target,
+                httpx.AsyncClient(transport=transport),
+            ),
+            now=lambda: datetime.now(UTC),
+        )
+        monkeypatch.setattr(entrypoint, "services", lambda: self.services)
+
+    async def fetch_key(self, token: str | None) -> str:
+        self.workload_tokens.append(token)
+        if self.key_error is not None:
+            raise self.key_error
+        return "model-key"
+
+    def answer_tool(self, request: httpx.Request) -> httpx.Response:
+        self.script.tool_calls.append(json.loads(request.content))
+        return self.script.gateway(request)
+
+    def factory(self, key: str) -> Callable[[str], Runnable[Any, Any]]:
+        assert key == "model-key"
+        script = self.script
+
+        async def route(messages: list[BaseMessage]) -> dict[str, Any]:
+            script.model_inputs["route"].append(messages)
+            if script.route_error is not None:
+                raise script.route_error
+            raw = AIMessage(
+                content="{}",
+                usage_metadata=USAGE,
+                response_metadata={"model_name": MODEL},
+            )
+            parsed = RouterOutput.model_validate(
+                {"requests": script.requests, "has_request": script.has_request}
+            )
+            return {"raw": raw, "parsed": parsed, "parsing_error": None}
+
+        async def reply(messages: list[BaseMessage]) -> AIMessage:
+            script.model_inputs["reply"].append(messages)
+            if script.reply_error is not None:
+                raise script.reply_error
+            return AIMessage(
+                content=script.reply,
+                usage_metadata=USAGE,
+                response_metadata={"model_name": MODEL},
+            )
+
+        def make(purpose: str) -> Runnable[Any, Any]:
+            return RunnableLambda(route if purpose == "route" else reply)
+
+        return make
+
+    def post(
+        self,
+        body: dict[str, Any],
+        token: str | None,
+        session: str | None = None,
+        workload: str | None = "workload-token",
+    ) -> list[dict[str, Any]]:
+        headers = {"Accept": "text/event-stream"}
+        if token is not None:
+            headers["Authorization"] = f"Bearer {token}"
+        if session is not None:
+            headers[SESSION_HEADER] = session
+        if workload is not None:
+            headers["WorkloadAccessToken"] = workload
+        with TestClient(entrypoint.app) as client:
+            response = client.post("/invocations", json=body, headers=headers)
+        assert response.status_code == 200
+        return [
+            json.loads(line.removeprefix("data:"))
+            for line in response.text.splitlines()
+            if line.startswith("data:")
+        ]
+
+    def checkpoint(self, who: Customer, client_thread_id: str) -> dict[str, Any]:
+        key = entrypoint.thread_key(who.sub, client_thread_id)
+        state = self.graph.get_state({"configurable": {"thread_id": key}})
+        values: dict[str, Any] = state.values
+        return values
+
+
+def session_id() -> str:
+    return f"session-{uuid.uuid4().hex}"
+
+
+def run_body(
+    text: str | None = "¿Cuáles son mis tarjetas?",
+    thread: str = "thread-0001",
+    message_id: str | None = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    messages = (
+        []
+        if text is None
+        else [{"id": message_id or uuid.uuid4().hex, "role": "user", "content": text}]
+    )
+    return {
+        "threadId": thread,
+        "runId": f"run-{uuid.uuid4().hex[:12]}",
+        "messages": messages,
+        **extra,
+    }
+
+
+@pytest.fixture
+def harness(monkeypatch: pytest.MonkeyPatch) -> Iterator[Harness]:
+    yield Harness(monkeypatch)
