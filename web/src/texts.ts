@@ -224,14 +224,6 @@ export const TEXTS: Record<Language, Texts> = {
   },
 };
 
-// The consoles are in Spanish, the bank's working language (ADR-0007).
-export const CONSOLES = {
-  agent: {
-    title: "Consola de agentes",
-    body: "La consola de agentes humanos llega en una próxima versión del prototipo.",
-  },
-} as const;
-
 export function isRunErrorCode(code: unknown): code is RunErrorCode {
   return (
     typeof code === "string" &&

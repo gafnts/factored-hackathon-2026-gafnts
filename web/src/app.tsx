@@ -2,13 +2,16 @@ import { lazy, Suspense, useEffect } from "react";
 
 import { browserLanguage } from "./language";
 import { Page } from "./layout";
-import { NotFound, Placeholder } from "./pages/placeholder";
+import { NotFound } from "./pages/not-found";
 
 export type Route = "home" | "chat" | "agent" | "unknown";
 
 // Each route's code is its own chunk, so the console never downloads the chat, nor the chat the console.
 const Customer = lazy(() =>
   import("./customer").then((module) => ({ default: module.Customer })),
+);
+const Agent = lazy(() =>
+  import("./agent/agent").then((module) => ({ default: module.Agent })),
 );
 
 export function routeOf(path: string): Route {
@@ -43,7 +46,11 @@ export function App({ path }: { path: string }) {
       );
     }
     case "agent":
-      return <Placeholder />;
+      return (
+        <Suspense fallback={<Page language="es">{null}</Page>}>
+          <Agent />
+        </Suspense>
+      );
     case "unknown":
       return <NotFound language={browserLanguage()} />;
   }

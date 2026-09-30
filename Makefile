@@ -110,7 +110,8 @@ site: _check-profile outputs web ## Build the web app and upload it to ENV's sit
 web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack, with the config.json its site holds
 	@mkdir -p web/public
 	uv run python -c 'import json, sys; json.dump(json.load(open(sys.argv[1]))["site"]["value"]["config"], sys.stdout)' $(OUTPUTS) > web/public/config.json
-	pnpm --dir web dev
+	SITE_URL=$$(uv run python -c 'import json, sys; print(json.load(open(sys.argv[1]))["site"]["value"]["url"])' $(OUTPUTS)) \
+		pnpm --dir web dev
 
 
 ##@ Bootstrap

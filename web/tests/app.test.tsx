@@ -2,10 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { App, routeOf } from "../src/app";
-import { CONSOLES, TEXTS } from "../src/texts";
 
 vi.mock(import("../src/customer"), () => ({
   Customer: () => <p>the customer's chat</p>,
+}));
+
+vi.mock(import("../src/agent/agent"), () => ({
+  Agent: () => <p>the human agents' console</p>,
 }));
 
 test.each([
@@ -14,6 +17,7 @@ test.each([
   ["/chat", "chat"],
   ["/chat/", "chat"],
   ["/agent", "agent"],
+  ["/agent/", "agent"],
   // The AI team's page isn't built (ADR-0007's amendment of 2026-09-30).
   ["/ops", "unknown"],
   ["/agent/cases", "unknown"],
@@ -30,16 +34,13 @@ test("the root opens the chat, at /chat", async () => {
   expect(window.location.pathname).toBe("/chat");
 });
 
-test("/agent says its console comes later, in Spanish, with the notice", () => {
+test("/agent opens the human agents' console, not the chat", async () => {
   render(<App path="/agent" />);
 
-  expect(screen.getByRole("heading")).toHaveTextContent(CONSOLES.agent.title);
-  expect(screen.getByText(CONSOLES.agent.body)).toBeInTheDocument();
-  expect(screen.getByText(TEXTS.es.notice)).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: TEXTS.es.toChat })).toHaveAttribute(
-    "href",
-    "/chat",
-  );
+  expect(
+    await screen.findByText("the human agents' console"),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("the customer's chat")).not.toBeInTheDocument();
 });
 
 test.each(["/nope", "/ops"])("%s says the page doesn't exist", (path) => {
