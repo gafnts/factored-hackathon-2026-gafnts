@@ -358,7 +358,7 @@ def test_unknown_contracts_and_definitions_are_refused() -> None:
     with pytest.raises(KeyError, match="no contract named"):
         schema("ops")
     with pytest.raises(KeyError, match="defines no"):
-        definition("tools", "get_available_credit_input")
+        definition("tools", "unblock_card_input")
 
 
 def test_a_code_has_a_meaning_only_on_a_declined_transaction() -> None:

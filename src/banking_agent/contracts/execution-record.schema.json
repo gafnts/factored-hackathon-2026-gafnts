@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:banking-agent:card-support:execution-record:1",
   "title": "Card support execution record entry",
-  "description": "One entry of the execution record: the system's own trace, its audit log, and the evaluation's source (ADR-0004, A turn, end to end; OPS-02). A turn is one run: it opens with turn_opened, holds its model calls, tool calls, controls, and reply, and closes with turn_closed. A turn that runs the graph writes its decision entry last before turn_closed, before the run's last event; a warm-up runs no graph, so it writes none. Entries are keyed by the sign-in, then by the turn's start and the entry's sequence, so a sign-in's entries read in order. Text is masked before it is recorded (POL-11). The sign-in is Cognito's origin_jti, the handoff's session_id.",
+  "description": "One entry of the execution record: the system's own trace, its audit log, and the evaluation's source (ADR-0004, A turn, end to end; OPS-02). A turn is one run: it opens with turn_opened, holds its model calls, tool calls, controls, and reply, and closes with turn_closed. A turn that runs the graph writes one decision entry for each request it served, in order, the last of them just before turn_closed and before the run's last event; a warm-up runs no graph, so it writes none. Entries are keyed by the sign-in, then by the turn's start and the entry's sequence, so a sign-in's entries read in order. Text is masked before it is recorded (POL-11). The sign-in is Cognito's origin_jti, the handoff's session_id.",
   "type": "object",
   "required": ["sign_in", "entry_key", "turn_id", "seq", "kind", "at", "source", "expires_at"],
   "properties": {
@@ -501,7 +501,7 @@
       }
     },
     "reply_check_entry": {
-      "description": "The reply check's verdict (decision 8). Failures are named by rule, never by the text that broke them.",
+      "description": "The reply check's verdict on one part of a reply the model wrote (decision 8, as amended on 2026-10-01): one entry per part. Failures are named by rule, never by the text that broke them; missing_fact is a fact the part's fixed reply states and the model's left out.",
       "type": "object",
       "required": ["kind", "passed", "failures", "fell_back"],
       "properties": {
@@ -511,7 +511,7 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": ["unknown_placeholder", "bare_number", "digit_run", "internal_flag", "withheld_status"]
+            "enum": ["unknown_placeholder", "missing_fact", "bare_number", "digit_run", "internal_flag", "withheld_status"]
           }
         },
         "fell_back": {
@@ -564,7 +564,7 @@
       "else": { "required": ["reference"] }
     },
     "decision_entry": {
-      "description": "The turn's outcome, which the evaluation's scripted customer reacts to, never the reply's prose (ADR-0005). outcome_class names the path the turn is on, and awaiting what it ended waiting for: which card, a reason, which listed transaction, or a control. A turn that shows the confirm control is block, awaiting it; the turn a confirm resumes is block when the read-back verifies it and hand_off when it doesn't (POL-37); a cancelled or lapsed confirmation's reply is answer, or hand_off when POL-39 requires one; clarify is kept for which card, a reason, or which transaction (ADR-0005, as amended on 2026-09-29).",
+      "description": "The turn's outcome, which the evaluation's scripted customer reacts to, never the reply's prose (ADR-0005). outcome_class names the path the turn is on, and awaiting what it ended waiting for: which card, a reason, which listed transaction, or a control. A turn that shows the confirm control is block, awaiting it; the turn a confirm resumes is block when the read-back verifies it and hand_off when it doesn't (POL-37); a cancelled or lapsed confirmation's reply is answer, or hand_off when POL-39 requires one; clarify is kept for which card, a reason, or which transaction (ADR-0005, as amended on 2026-09-29). A turn that serves several requests (POL-05) writes one entry per request, in order: each names the labels still queued after it, and only the last carries what the turn awaits, the others awaiting none (ADR-0004 and ADR-0005, as amended on 2026-10-01).",
       "type": "object",
       "required": ["kind", "request_label", "pending_labels", "outcome_class", "awaiting", "rules", "language"],
       "properties": {
@@ -574,7 +574,7 @@
           "anyOf": [{ "$ref": "#/$defs/label" }, { "type": "null" }]
         },
         "pending_labels": {
-          "description": "The requests still queued, in POL-05's order.",
+          "description": "The requests still queued after this one, in POL-05's order.",
           "type": "array",
           "maxItems": 8,
           "items": { "$ref": "#/$defs/label" }
