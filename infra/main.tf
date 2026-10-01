@@ -94,6 +94,8 @@ module "runtime" {
   file_handoff_function    = module.handoff.function
   tools_data               = { stamp = module.tools_data.stamp, clock = module.tools_data.clock }
   runtime_zip              = "${local.build}/runtime.zip"
+  turns_per_minute         = var.turns_per_minute
+  turns_per_day            = var.turns_per_day
 }
 
 module "console" {

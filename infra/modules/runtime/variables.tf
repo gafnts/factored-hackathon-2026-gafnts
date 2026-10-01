@@ -68,3 +68,13 @@ variable "runtime_zip" {
   description = "The Runtime's zip, written by make build"
   type        = string
 }
+
+variable "turns_per_minute" {
+  description = "A sign-in's turns a minute before the entrypoint refuses one (decision 21)"
+  type        = number
+}
+
+variable "turns_per_day" {
+  description = "A user's turns a UTC day before the entrypoint refuses one (decision 21)"
+  type        = number
+}

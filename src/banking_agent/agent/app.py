@@ -1,6 +1,7 @@
 """
 The Runtime's entrypoint (ADR-0004, A turn, end to end, step 3, and its amendments). Before the graph runs, it reads the
-token's claims, binds the runtime session to its user, checks the request against the chat's contract, replaces the
+token's claims, binds the runtime session to its user, checks the request against the chat's contract, counts a message
+or a resume against decision 21's limits, replaces the
 thread ID with a key derived from the user, masks the new message, takes a control's answer only when it answers the
 thread's pending control, turns a message typed while one is pending into a resume, opens the turn's execution record,
 and fetches the model key. The wrapper gets the thread, the run, and the masked message or the one resume alone, and
@@ -65,6 +66,7 @@ from banking_agent.agent.request import (
 from banking_agent.agent.retries import RETRIES, Retries
 from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.sessions import Bindings, DynamoBindings
+from banking_agent.agent.usage import DynamoUsage, Limits, Usage
 from banking_agent.contracts import NAMES, version
 from banking_agent.policy import POLICY_VERSION
 
@@ -119,6 +121,8 @@ class Services:
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
     # Decision 18's waits; the evaluation's in-process player passes one that doesn't sleep.
     retries: Retries = RETRIES
+    # Decision 21's counters; None counts nothing, as in the in-process player, whose turns take milliseconds.
+    usage: Usage | None = None
 
 
 def workload_token(headers: Mapping[str, str]) -> str | None:
@@ -160,6 +164,13 @@ def services() -> Services:
         filing=Filing(
             settings.file_handoff_function,
             boto3.client("lambda", region_name=region, config=LAMBDA_CONFIG),
+        ),
+        usage=DynamoUsage(
+            client,
+            os.environ["USAGE_COUNTERS_TABLE"],
+            Limits(
+                int(os.environ["TURNS_PER_MINUTE"]), int(os.environ["TURNS_PER_DAY"])
+            ),
         ),
     )
 
@@ -305,6 +316,15 @@ class Entrypoint:
         except RequestRefusedError as refusal:
             yield await refused("invalid_request", refusal.errors)
             return
+
+        # The warm-up runs no graph, so it isn't counted (decision 20).
+        if services.usage is not None and not isinstance(parsed, Warmup):
+            limited = await asyncio.to_thread(
+                services.usage.count, claims.origin_jti, claims.sub, started
+            )
+            if limited is not None:
+                yield await refused(limited)
+                return
 
         turn = Turn(
             services.records, claims.origin_jti, claims.source, started, services.now

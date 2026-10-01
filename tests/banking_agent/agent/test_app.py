@@ -19,6 +19,7 @@ from banking_agent.agent import app as entrypoint
 from banking_agent.agent.app import WORKLOAD_TOKEN_HEADERS
 from banking_agent.agent.events import ERRORS
 from banking_agent.agent.texts import FIXED
+from banking_agent.agent.usage import DynamoUsage, Limits
 from banking_agent.contracts import validator
 
 from .conftest import (
@@ -771,6 +772,9 @@ def test_the_services_are_built_from_the_runtimes_environment(
         "EXECUTION_RECORDS_TABLE": "records",
         "CONFIRMATIONS_TABLE": "confirmations",
         "FILE_HANDOFF_FUNCTION": SETTINGS.file_handoff_function,
+        "USAGE_COUNTERS_TABLE": "counters",
+        "TURNS_PER_MINUTE": "10",
+        "TURNS_PER_DAY": "500",
         "AWS_REGION": "us-east-1",
     }
     for name, value in variables.items():
@@ -785,6 +789,8 @@ def test_the_services_are_built_from_the_runtimes_environment(
     assert built.settings == SETTINGS
     assert built.gateway.targets["block_card"] == "block"
     assert built.filing.function == SETTINGS.file_handoff_function
+    assert isinstance(built.usage, DynamoUsage)
+    assert (built.usage.table, built.usage.limits) == ("counters", Limits(10, 500))
     assert set(built.graph.nodes) >= {
         "route",
         "list_cards",
