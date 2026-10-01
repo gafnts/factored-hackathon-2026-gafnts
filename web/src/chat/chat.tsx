@@ -200,7 +200,8 @@ function Thread({
         <Opening language={language} divert={divert} />
       </AuiIf>
       <AuiIf condition={(state) => !state.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {/* Up under the shell's bar, so the conversation scrolls beneath its glass. */}
+        <ThreadPrimitive.Viewport className="-mt-(--bar) flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar)">
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-4 pb-6 sm:px-6">
             <ThreadPrimitive.Messages>
               {({ message }) =>

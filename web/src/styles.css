@@ -50,6 +50,17 @@
   }
 }
 
+/* Thinner, for the rail and the bar: only the grid's lines and the conversation pass under them, never the glow. */
+@utility glass-thin {
+  background-color: --alpha(var(--color-night-raised) / 55%);
+  backdrop-filter: blur(24px) saturate(150%);
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-night-raised);
+    backdrop-filter: none;
+  }
+}
+
 /* A cell of the banner's grid, lit: the light blue, with its saturated bloom. */
 @utility lit {
   background-color: var(--color-sea);

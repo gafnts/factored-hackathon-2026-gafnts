@@ -38,8 +38,9 @@ export function RailButton({
   );
 }
 
-// The customer's pages, in Night: the rail once signed in (a pill of icons on phones), LATAM Bank's name and Faro's
-// label, and the synthetic-data notice on every page (SEC-02).
+// The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar with LATAM
+// Bank's name and Faro's label, and the synthetic-data notice on every page (SEC-02). The rail and the bar are glass
+// over the page, which runs on under them; main's padding keeps the content clear of them, by --rail and --bar.
 export function Shell({
   language,
   note,
@@ -53,16 +54,21 @@ export function Shell({
 }) {
   const texts = TEXTS[language];
   const [expanded, setExpanded] = useState(false);
+  const width = rail
+    ? expanded
+      ? "sm:[--rail:16rem]"
+      : "sm:[--rail:3.5rem]"
+    : "";
   return (
     <div
       lang={language}
       data-mode="night"
-      className="flex h-dvh flex-col sm:flex-row"
+      className={`relative flex h-dvh flex-col [--bar:3.5rem] [--rail:0px] ${width}`}
     >
       {rail && (
         <nav
           aria-label={texts.rail.label}
-          className={`fixed top-2 right-2 z-20 flex gap-1 rounded-full border border-white/10 glass p-1 sm:static sm:h-full sm:shrink-0 sm:flex-col sm:rounded-none sm:border-y-0 sm:border-l-0 sm:px-2 sm:py-3 ${expanded ? "sm:w-64" : "sm:w-14"}`}
+          className="fixed top-1 right-2 z-20 flex gap-1 p-1 sm:absolute sm:inset-y-0 sm:left-0 sm:w-(--rail) sm:flex-col sm:border-r sm:border-white/10 sm:glass-thin sm:px-2 sm:py-3"
         >
           <button
             type="button"
@@ -78,21 +84,19 @@ export function Shell({
           {rail(expanded)}
         </nav>
       )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-baseline gap-x-3 px-4 py-4 pr-28 sm:px-6 sm:pr-6">
-          <p className="font-medium">LATAM Bank</p>
-          <p className="text-sm text-bone-muted">{texts.assistant}</p>
-        </header>
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {children}
-        </main>
-        <footer className="px-4 pt-2 pb-3 text-xs text-bone-muted sm:px-6">
-          <p>
-            <span>{texts.notice}</span>
-            {note && <span> {note}</span>}
-          </p>
-        </footer>
-      </div>
+      <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) items-center gap-3 border-b border-white/10 glass-thin px-4 pr-28 sm:px-6 sm:pr-6">
+        <p className="font-medium">LATAM Bank</p>
+        <p className="text-sm text-bone-muted">{texts.assistant}</p>
+      </header>
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
+        {children}
+      </main>
+      <footer className="pt-2 pr-4 pb-3 pl-[calc(var(--rail)+1rem)] text-xs text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]">
+        <p>
+          <span>{texts.notice}</span>
+          {note && <span> {note}</span>}
+        </p>
+      </footer>
     </div>
   );
 }

@@ -41,7 +41,8 @@ const LIT: Record<Layout, string[]> = {
 };
 
 // The banner's grid behind a page's content: hairlines that fade toward the edges, a block cleared for the content,
-// and a few lit cells. Static, as the sweep is Faro's only motion.
+// and a few lit cells. Static, as the sweep is Faro's only motion. The hairlines run on under the shell's rail and bar
+// (by --rail and --bar), centered on the content all the same; the block and the lit cells keep to the page.
 export function Grid({
   layout,
   children,
@@ -50,17 +51,21 @@ export function Grid({
   children: ReactNode;
 }) {
   return (
-    <div className="relative isolate flex flex-1 flex-col overflow-hidden [--cell:40px] sm:[--cell:64px]">
+    <div className="relative isolate flex flex-1 flex-col [--cell:40px] sm:[--cell:64px]">
       <div
         aria-hidden="true"
         data-grid={layout}
         className="pointer-events-none absolute inset-0 -z-10"
       >
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(255_255_255/0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255/0.1)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)] bg-size-[var(--cell)_var(--cell)] bg-position-[calc(50%+var(--cell)/2)_calc(50%+var(--cell)/2)]" />
-        <div className={`absolute bg-night ${BLOCK[layout]}`} />
-        {LIT[layout].map((place) => (
-          <div key={place} className={`absolute lit ${place}`} />
-        ))}
+        <div className="absolute -top-(--bar) right-0 bottom-0 -left-(--rail) overflow-hidden">
+          <div className="absolute top-0 -right-(--rail) -bottom-(--bar) left-0 bg-[linear-gradient(to_right,rgb(255_255_255/0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255/0.1)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)] bg-size-[var(--cell)_var(--cell)] bg-position-[calc(50%+var(--cell)/2)_calc(50%+var(--cell)/2)]" />
+        </div>
+        <div className="absolute inset-0 overflow-hidden">
+          <div className={`absolute bg-night ${BLOCK[layout]}`} />
+          {LIT[layout].map((place) => (
+            <div key={place} className={`absolute lit ${place}`} />
+          ))}
+        </div>
       </div>
       {children}
     </div>
