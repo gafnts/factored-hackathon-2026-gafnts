@@ -1,7 +1,8 @@
 """
 The case format (ADR-0005, What a case is): case.schema.json beside this module, which refers to the execution record's
-enums, so a case expects only what the record can hold. A set is a JSON Lines file of cases under data/evaluation/,
-never committed (SEC-03).
+enums, so a case expects only what the record can hold. A case's fixtures and fault plans are the overlay contract's
+items without the sign-in and the time to live, checked against it as the player and the harness will write them. A set
+is a JSON Lines file of cases under data/evaluation/, never committed (SEC-03).
 """
 
 import hashlib
@@ -18,6 +19,9 @@ from referencing.jsonschema import DRAFT202012
 from banking_agent import contracts
 
 VERSION = 1
+# What the player and the harness add to each item when they write it.
+WRITTEN = {"sign_in": "00000000-0000-4000-8000-000000000000", "ttl": 0}
+FIXTURES = {"card": "fixture_card", "transaction": "fixture_transaction"}
 
 
 @cache
@@ -50,7 +54,50 @@ def problems(case: dict[str, Any]) -> list[str]:
             d.get("outcome_class") == "clarify" for d in turn.get("decisions", [])[:-1]
         ):
             found.append(f"turn {n} clarifies before its last request")
+    return found + overlay_problems(case)
+
+
+def overlay_problems(case: dict[str, Any]) -> list[str]:
+    """
+    Where a fixture or a fault plan breaks the overlay contract, or the keys the tools check, naming the rule and never
+    the value.
+    """
+    found = []
+    for n, item in enumerate(case.get("fixtures", [])):
+        where, definition = f"fixtures/{n}", FIXTURES.get(item.get("kind", ""))
+        if definition is None:
+            found.append(f"{where}: a kind the overlay doesn't hold")
+            continue
+        for error in contracts.validator("overlay", definition).iter_errors(
+            {**item, **WRITTEN}
+        ):
+            at = "".join(f"/{p}" for p in error.absolute_path)
+            found.append(f"{where}{at}: breaks {error.validator}")
+        if item.get("customer_id") != case["customer_id"]:
+            found.append(f"{where}: another customer's")
+        found += [f"{where}: {name} doesn't match its IDs" for name in _keys(item)]
+    # The case's schema holds a plan's failures and error to the overlay's already, and its tool to the record's.
+    gateway = contracts.schema("overlay")["$defs"]["gateway_tool"]["enum"]
+    recorded = contracts.schema("execution-record")["$defs"]["tool"]["enum"]
+    for n, fault in enumerate(case.get("faults", [])):
+        if fault.get("tool") in recorded and fault["tool"] not in gateway:
+            found.append(f"faults/{n}: a tool no plan can fail")
     return found
+
+
+def _keys(item: dict[str, Any]) -> list[str]:
+    if item.get("kind") == "card":
+        expected = {"item": f"FIXTURE#CARD#{item.get('card_id')}"}
+    elif item.get("kind") == "transaction":
+        tid = item.get("transaction_id")
+        expected = {
+            "item": f"FIXTURE#TRX#{tid}",
+            "card_key": f"{item.get('customer_id')}#{item.get('card_id')}",
+            "listed_at": f"{item.get('transaction_date')}#{tid}",
+        }
+    else:
+        return []
+    return [name for name, value in expected.items() if item.get(name) != value]
 
 
 def case_id(set_name: str, seed: int, draw: int) -> str:

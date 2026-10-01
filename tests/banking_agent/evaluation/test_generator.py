@@ -6,12 +6,13 @@ case passes the case format's and the split's checks with its slots filled, and 
 import json
 import re
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Any
 
 import duckdb
 import pytest
 
-from banking_agent.evaluation import bronze, families, generator
+from banking_agent.evaluation import bronze, families, generator, oracle
 from banking_agent.evaluation.facts import contract_words
 
 from .bank import Bank
@@ -102,6 +103,76 @@ def test_a_manifest_names_no_customer_or_record(regression: generator.Drawn) -> 
     for case in regression.cases:
         for message in case["script"]["messages"]:
             assert message["text"] not in text
+
+
+BUILT_AND_FAULTED = (
+    "decline.unlisted_code",
+    "status.collision",
+    "transactions.page.merchant_injection",
+    "read.recovers",
+    "read.fails.accepted",
+    "read.fails.declined",
+    "block.not_verified",
+)
+
+
+def taken(case: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        (t["decisions"][-1]["outcome_class"], t["awaiting"])
+        for t in case["expected"]["turns"]
+    ]
+
+
+def test_built_and_fault_situations_are_drawn_on_the_bank(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(
+        generator.COMPOSITIONS, "new", dict.fromkeys(BUILT_AND_FAULTED, 1)
+    )
+    drawn = draw(con, "new")
+
+    assert drawn.short == []
+    assert len(drawn.cases) == 2 * len(BUILT_AND_FAULTED)
+    for case in drawn.cases:
+        situation = generator.BY_NAME[case["situation"]]
+        assert taken(case)[: len(situation.path)] == situation.path
+        if situation.fault is not None:
+            [fault] = case["faults"]
+            assert case["source"] == "harness"
+            assert case["fixtures"] == []
+            assert fault["tool"] in situation.fault.tools
+            assert fault["failures"] in situation.fault.failures
+        else:
+            assert case["source"] == "built"
+            assert case["faults"] == []
+            assert all("FIXTURE" in f["item"] for f in case["fixtures"])
+            assert {f["customer_id"] for f in case["fixtures"]} == {case["customer_id"]}
+
+
+def test_a_situation_short_of_natural_customers_is_topped_up_with_built_ones(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    natural = generator.BY_NAME["transactions.next_page"]
+    monkeypatch.setitem(
+        generator.BY_NAME, natural.name, replace(natural, where="false")
+    )
+    monkeypatch.setitem(generator.COMPOSITIONS, "top_up", {natural.name: 1})
+    drawn = draw(con, "top_up")
+
+    assert drawn.short == []
+    for case in drawn.cases:
+        assert case["situation"] == natural.name
+        assert case["source"] == "built"
+        assert taken(case) == natural.path
+        assert listed(case) > oracle.PAGE
+
+
+def listed(case: dict[str, Any]) -> int:
+    """
+    How many transactions the case's two pages list between them.
+    """
+    first, second = case["expected"]["turns"]
+    return sum(t["facts"]["{transactions}"].count("\n") + 1 for t in (first, second))
 
 
 def test_the_selection_composition_follows_the_held_out_groups(
