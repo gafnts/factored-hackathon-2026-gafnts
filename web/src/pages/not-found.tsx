@@ -12,7 +12,7 @@ export function NotFound({ language }: { language: Language }) {
           <p className="font-mono text-sm tracking-[0.08em] text-sea uppercase">
             {texts.code}
           </p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.03em] text-balance sm:text-5xl">
+          <h1 className="text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {texts.title}
           </h1>
           <a

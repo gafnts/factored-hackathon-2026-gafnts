@@ -100,7 +100,7 @@ export function Shell({
         {/* On phones, clear of the rail's icons, which sit in the bar. */}
         <div className="flex min-w-0 items-center gap-3">
           {signIn || label ? (
-            <p className="shrink-0 animate-fade text-lg font-medium">
+            <p className="shrink-0 animate-fade text-lg font-medium tracking-[-0.01em]">
               LATAM Bank
             </p>
           ) : (
@@ -126,7 +126,9 @@ export function Shell({
                 aria-hidden="true"
                 className="h-5 w-px shrink-0 bg-white/20"
               />
-              <p className="truncate text-lg text-bone-muted">{label}</p>
+              <p className="truncate text-lg tracking-[-0.01em] text-bone-muted">
+                {label}
+              </p>
             </>
           )}
         </div>
