@@ -7,7 +7,7 @@ is a JSON Lines file of cases under data/evaluation/, never committed (SEC-03).
 
 import hashlib
 import json
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
@@ -55,6 +55,24 @@ def problems(case: dict[str, Any]) -> list[str]:
         ):
             found.append(f"turn {n} clarifies before its last request")
     return found + overlay_problems(case)
+
+
+def written(case: Mapping[str, Any], sign_in: str, ttl: int) -> list[dict[str, Any]]:
+    """
+    The case's fixtures and fault plans as the overlay holds them under the sign-in, written before its first turn.
+    """
+    items = [{**f, "sign_in": sign_in, "ttl": ttl} for f in case["fixtures"]]
+    items += [
+        {
+            "sign_in": sign_in,
+            "item": f"FAULT#{f['tool']}",
+            "customer_id": case["customer_id"],
+            **f,
+            "ttl": ttl,
+        }
+        for f in case["faults"]
+    ]
+    return items
 
 
 def overlay_problems(case: dict[str, Any]) -> list[str]:
