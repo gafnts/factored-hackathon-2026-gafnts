@@ -34,7 +34,6 @@ export interface Texts {
     unsaved: string;
   };
   chat: {
-    greeting: string;
     question: string;
     // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize.
     suggestions: readonly [string, string, string];
@@ -138,8 +137,6 @@ export const TEXTS: Record<Language, Texts> = {
       unsaved: "Las conversaciones no se guardan: una nueva empieza vacía.",
     },
     chat: {
-      greeting:
-        "Hola, soy Faro, el asistente automático de LATAM Bank para sus tarjetas.",
       question: "¿En qué le puedo ayudar?",
       suggestions: [
         "¿Qué tarjetas tengo y en qué estado están?",
@@ -209,8 +206,6 @@ export const TEXTS: Record<Language, Texts> = {
       unsaved: "As conversas não ficam salvas: uma nova começa vazia.",
     },
     chat: {
-      greeting:
-        "Olá, sou o Faro, o assistente automático do LATAM Bank para os seus cartões.",
       question: "Como posso ajudar?",
       suggestions: [
         "Quais cartões eu tenho e qual é o status de cada um?",

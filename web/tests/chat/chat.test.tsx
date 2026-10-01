@@ -304,7 +304,6 @@ test("opens on Faro's question, with three numbered prompts that send themselves
   const calls = runtime((request) => sse(turn(request, block)));
   chat("es");
 
-  expect(screen.getByText(texts.greeting)).toBeInTheDocument();
   expect(
     screen.getByRole("heading", { name: texts.question }),
   ).toBeInTheDocument();
