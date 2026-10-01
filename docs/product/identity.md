@@ -141,7 +141,7 @@ Every text color meets WCAG AA (4.5:1) on its mode's ground and on its raised su
 | `dusk` | `#F4E7D4` | Both | The gradient only | |
 | `rule-night`, `rule-paper` | `#34342F`, `#C5C8BE` | Night, Paper | Hairlines | |
 
-Text on glass meets the same ratios over the brightest thing that can sit behind it. On glass over the glow's brightest point, `bone` is 12.5:1 and `bone-muted` 5.6:1; over a lit cell, `bone-muted` would fall to 4.0:1, so no lit cell sits behind text or glass. `night` on `sea`, the send button's arrow, is 10.5:1.
+Text on glass meets the same ratios over the brightest thing that can sit behind it. On glass over the glow's brightest point, `bone` is 12.5:1 and `bone-muted` 5.6:1; over a lit cell, `bone-muted` would fall to 4.0:1, so no lit cell sits behind text or glass. `night` on `sea`, the send button's arrow, is 10.5:1. Measured on the built chat, with its text hidden to read the ground behind each line, the lowest are the greeting on a phone, 5.0:1, and the composer's placeholder over the glow, 5.9:1.
 
 The horizon, for the slides' covers and the video's titles, never behind text:
 
@@ -179,8 +179,8 @@ The mark isn't drawn yet; until it is, the wordmark stands alone, as in the bann
 ### Motifs
 
 - **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the brief's three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), the suggested prompts on the persona cards, and the suggestions under the empty chat's composer (`01` to `03`).
-- **The grid.** The banner's: hairlines, a block cleared at the center for the wordmark, the empty chat's question and composer, or the sign-in form, and a few cells lit in `sea` with a `glow` bloom in the outer columns. It sits behind the sign-in and the empty chat, static, and fades once a conversation starts; on phones it keeps to the top rows, so no lit cell sits behind text or glass. On Paper it goes unlit and lays out the console's queue.
-- **The glow.** The lit cells' two colors as one soft light beneath the empty chat's composer, and nowhere else; only `bone` sits on it, and it goes with the grid.
+- **The grid.** The banner's: hairlines, a block cleared at the center for the wordmark, the empty chat's question and composer, or the sign-in form, and a few cells lit in `sea` with a `glow` bloom in the outer columns. It sits behind the sign-in and the empty chat, static, and leaves once a conversation starts. On a phone's sign-in the lit cells keep to the top rows; a phone's empty chat fills its screen, so it has none. No lit cell sits behind text or glass. On Paper it goes unlit and lays out the console's queue.
+- **The glow.** The lit cells' two colors as one soft light behind the empty chat's composer, and nowhere else; the question and the greeting above it keep AA at its edge (Palette), and it goes with the grid.
 - **Glass.** Smoked glass for what floats over the grid or the glow and carries something: the composer, the rail, the suggestions, the controls, and the sign-in form. `night-raised` at 80%, a 24 px backdrop blur, and a hairline of white at 10%. Replies sit on the ground, never on glass. Under `prefers-reduced-transparency` the glass turns solid.
 - **The sweep.** Faro's only motion: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
 
