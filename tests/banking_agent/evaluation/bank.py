@@ -126,6 +126,31 @@ EXAMPLE_CARDS = [
         expiration_date="2029-01-31",
         last_updated="2026-06-20 10:00:00",
     ),
+    # get_available_credit's examples: within the limit, and over it.
+    fixture._product(
+        8,
+        1,
+        CREDIT,
+        product_id="PRD-EXAMPLE00008",
+        customer_id=EXAMPLE_CUSTOMER,
+        product_number="4000000000086610",
+        current_balance="1240.55",
+        credit_limit="5000.00",
+        opening_date="2024-03-01",
+        expiration_date="2029-02-28",
+    ),
+    fixture._product(
+        9,
+        1,
+        CREDIT,
+        product_id="PRD-EXAMPLE00009",
+        customer_id=EXAMPLE_CUSTOMER,
+        product_number="4000000000093047",
+        current_balance="2150.40",
+        credit_limit="2000.00",
+        opening_date="2022-08-15",
+        expiration_date="2027-08-31",
+    ),
 ]
 
 
@@ -377,7 +402,21 @@ CHARGES = [
         transaction_category="Health",
         transaction_country="Colombia",
     ),
+    # In the window but after the business date, processed on it before the morning's cutoff: "today" isn't this one.
+    charge(
+        C3,
+        7,
+        "2026-06-18 02:30:00",
+        "Kiosco Ejemplo Nocturno",
+        "18000.00",
+        process_date="2026-06-17",
+        transaction_country="Colombia",
+    ),
     charge(C5[1], 1, "2026-06-15 16:45:00", "Libreria Ejemplo", "59.99"),
+    # A merchant name holding a card-shaped number, which a reply masks (POL-11).
+    charge(
+        C5[1], 4, "2026-06-09 13:00:00", "Pago 4111 1111 1111 9876 Ejemplo", "35.00"
+    ),
     charge(
         C5[1],
         2,
