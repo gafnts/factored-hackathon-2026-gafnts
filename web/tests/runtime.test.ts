@@ -7,7 +7,7 @@ import {
   warmUp,
   withoutSteerAway,
 } from "../src/runtime";
-import { errors } from "./contract";
+import { errors, sse } from "./contract";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -58,6 +58,63 @@ test("the warm-up is a request the contract accepts, with no message", async () 
   expect(bodies[0]).toMatchObject({
     messages: [],
     forwardedProps: { warmup: true },
+  });
+});
+
+describe("a warm-up that fails", () => {
+  const URL = "https://runtime.example/invocations";
+  const turnedAway = () =>
+    sse([
+      { type: "RUN_STARTED", threadId: "thread-0001", runId: "run-0001" },
+      { type: "RUN_ERROR", message: "x", code: "AGENT_ERROR" },
+    ]);
+  const answered = () =>
+    sse([
+      { type: "RUN_STARTED", threadId: "thread-0001", runId: "run-0001" },
+      { type: "RUN_FINISHED", threadId: "thread-0001", runId: "run-0001" },
+    ]);
+
+  test.each([
+    ["is turned away by a session still starting", turnedAway],
+    ["gets a server error", () => new Response("", { status: 502 })],
+    [
+      "can't reach the Runtime",
+      () => Promise.reject(new TypeError("Failed to fetch")),
+    ],
+  ])("is sent once more when it %s", async (_, first) => {
+    const fetcher = vi
+      .fn<(url: string, init: RequestInit) => Promise<Response>>()
+      .mockImplementationOnce(() => Promise.resolve(first()))
+      .mockImplementation(() => Promise.resolve(answered()));
+
+    await warmUp(URL, "thread-0001", fetcher, 0);
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  test("is sent once when it's answered", async () => {
+    const fetcher = vi.fn(() => Promise.resolve(answered()));
+
+    await warmUp(URL, "thread-0001", fetcher, 0);
+
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  test("gives up after the second, as the message would meet the same", async () => {
+    const fetcher = vi.fn(() => Promise.resolve(turnedAway()));
+
+    await warmUp(URL, "thread-0001", fetcher, 0);
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  test("isn't sent again once the sign-in has ended", async () => {
+    const fetcher = vi.fn(() => Promise.reject(new SignInEndedError()));
+
+    await expect(warmUp(URL, "thread-0001", fetcher, 0)).rejects.toBeInstanceOf(
+      SignInEndedError,
+    );
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 });
 

@@ -141,6 +141,18 @@ beforeEach(() => {
   turns = 0;
   transcript = [];
   vi.stubGlobal("crypto", globalThis.crypto);
+  // The chat warms up as it mounts, before each test's Runtime answers; a warm-up that fails waits to be sent again.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        sse([
+          { type: "RUN_STARTED", threadId: "warm-up", runId: "warm-up" },
+          { type: "RUN_FINISHED", threadId: "warm-up", runId: "warm-up" },
+        ]),
+      ),
+    ),
+  );
   render(
     <Chat
       url={URL}

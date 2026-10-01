@@ -18,10 +18,10 @@ import { AGENT } from "./texts";
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const heading = useId();
   return (
-    <section aria-labelledby={heading} className="flex flex-col gap-2">
+    <section aria-labelledby={heading} className="flex flex-col gap-3">
       <h3
         id={heading}
-        className="text-sm font-medium tracking-wide text-ink-muted uppercase"
+        className="font-mono text-xs tracking-[0.08em] text-bone-muted uppercase"
       >
         {title}
       </h3>
@@ -48,7 +48,7 @@ function CallTag({
   const named = cited.get(callId);
   if (call?.recorded && call.tool && call.called_at) {
     return (
-      <span className="text-xs text-ink-muted">
+      <span className="text-xs text-bone-muted">
         {AGENT.case.readBy} <Mono>{call.tool}</Mono> ·{" "}
         {wallTime(call.called_at)}
         {call.attempt !== undefined && ` · ${AGENT.case.attempt(call.attempt)}`}
@@ -57,7 +57,7 @@ function CallTag({
     );
   }
   return (
-    <span className="text-xs text-ink-muted">
+    <span className="text-xs text-bone-muted">
       {AGENT.case.readBy} <Mono>{named?.tool ?? callId}</Mono> ·{" "}
       {AGENT.case.notRecorded}
     </span>
@@ -102,18 +102,18 @@ function Facts({
         return (
           <div
             key={`${first.subject}-${first.id}`}
-            className="rounded-lg border border-rule bg-paper-raised"
+            className="overflow-hidden rounded-2xl border border-white/10 bg-night-raised"
           >
-            <p className="border-b border-rule px-3 py-2 text-sm font-medium">
+            <p className="border-b border-white/10 px-4 py-2.5 text-sm font-medium">
               {subjectName(first.subject, first.id, lastFour)}
             </p>
-            <dl className="divide-y divide-rule">
+            <dl className="divide-y divide-white/10">
               {group.map((fact) => (
                 <div
                   key={`${fact.field}-${fact.evidence}`}
-                  className="grid gap-1 px-3 py-2 sm:grid-cols-[12rem_1fr]"
+                  className="grid gap-1 px-4 py-3 sm:grid-cols-[12rem_1fr]"
                 >
-                  <dt className="text-sm text-ink-muted">
+                  <dt className="text-sm text-bone-muted">
                     {AGENT.field(fact.field)}
                   </dt>
                   <dd className="flex flex-col gap-0.5">
@@ -146,13 +146,13 @@ function Actions({
   cited: ReadonlyMap<string, ToolCall>;
 }) {
   if (actions.length === 0)
-    return <p className="text-sm text-ink-muted">{AGENT.case.noActions}</p>;
+    return <p className="text-sm text-bone-muted">{AGENT.case.noActions}</p>;
   return (
     <ul className="flex flex-col gap-2">
       {actions.map((action) => (
         <li
           key={action.confirmation_id}
-          className="flex flex-col gap-1 rounded-lg border border-rule bg-paper-raised px-3 py-2"
+          className="flex flex-col gap-1 rounded-2xl border border-white/10 bg-night-raised px-4 py-3"
         >
           <span className="flex flex-wrap items-baseline justify-between gap-2">
             <span>
@@ -162,15 +162,15 @@ function Actions({
             <span
               className={
                 action.outcome === "verified"
-                  ? "font-medium"
-                  : "font-medium text-ember"
+                  ? "font-medium text-sea"
+                  : "font-medium text-lamp"
               }
             >
               {AGENT.outcomes[action.outcome]}
             </span>
           </span>
           {action.confirmed_at && (
-            <span className="text-sm text-ink-muted">
+            <span className="text-sm text-bone-muted">
               {AGENT.case.confirmedAt(wallTime(action.confirmed_at))}
             </span>
           )}
@@ -185,10 +185,10 @@ function Actions({
 
 function Row({ row }: { row: RecordedRow }) {
   return (
-    <dl className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-3 gap-y-0.5 rounded border border-rule bg-paper px-2 py-1.5 text-xs">
+    <dl className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-3 gap-y-0.5 rounded-lg border border-white/10 bg-night px-3 py-2 text-xs">
       {Object.entries(row).map(([field, value]) => (
         <div key={field} className="contents">
-          <dt className="font-mono text-ink-muted">{field}</dt>
+          <dt className="font-mono text-bone-muted">{field}</dt>
           <dd className="wrap-break-word">{AGENT.value(value)}</dd>
         </div>
       ))}
@@ -210,7 +210,7 @@ function Evidence({
         return (
           <li
             key={named.call_id}
-            className="flex flex-col gap-1.5 rounded-lg border border-rule bg-paper-raised px-3 py-2"
+            className="flex flex-col gap-1.5 rounded-2xl border border-white/10 bg-night-raised px-4 py-3"
           >
             <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
               <Mono>{call?.tool ?? named.tool}</Mono>
@@ -218,17 +218,17 @@ function Evidence({
                 <>
                   {call.called_at && <span>{wallTime(call.called_at)}</span>}
                   {call.via && (
-                    <span className="text-ink-muted">
+                    <span className="text-bone-muted">
                       {AGENT.via[call.via]}
                     </span>
                   )}
                   {call.attempt !== undefined && (
-                    <span className="text-ink-muted">
+                    <span className="text-bone-muted">
                       {AGENT.case.attempt(call.attempt)}
                     </span>
                   )}
                   {call.latency_ms !== undefined && (
-                    <span className="text-ink-muted">
+                    <span className="text-bone-muted">
                       {AGENT.case.latency(call.latency_ms)}
                     </span>
                   )}
@@ -236,7 +236,7 @@ function Evidence({
                     <span
                       className={
                         call.outcome === "failed" || call.outcome === "denied"
-                          ? "font-medium text-ember"
+                          ? "font-medium text-lamp"
                           : ""
                       }
                     >
@@ -246,11 +246,13 @@ function Evidence({
                   )}
                 </>
               ) : (
-                <span className="text-ink-muted">{AGENT.case.notRecorded}</span>
+                <span className="text-bone-muted">
+                  {AGENT.case.notRecorded}
+                </span>
               )}
             </span>
             {call?.request_id && (
-              <span className="text-xs text-ink-muted">
+              <span className="text-xs text-bone-muted">
                 {AGENT.case.requestId} <Mono>{call.request_id}</Mono>
               </span>
             )}
@@ -299,7 +301,10 @@ export function CaseView({
   const heading = `case-${held.reference}`;
 
   return (
-    <article aria-labelledby={heading} className="flex flex-col gap-5">
+    <article
+      aria-labelledby={heading}
+      className="flex animate-message flex-col gap-6 motion-reduce:animate-fade"
+    >
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 id={heading} className="font-mono text-2xl font-medium">
@@ -308,7 +313,7 @@ export function CaseView({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-rule px-3 py-1.5 text-sm hover:bg-paper-raised"
+            className="rounded-full border border-white/10 px-4 py-1.5 text-sm transition-colors hover:bg-white/5"
           >
             {AGENT.case.close}
           </button>
@@ -317,7 +322,7 @@ export function CaseView({
           <span
             className={
               held.priority === "urgent"
-                ? "font-medium text-ember"
+                ? "font-medium text-lamp"
                 : "font-medium"
             }
           >
@@ -325,9 +330,9 @@ export function CaseView({
           </span>
           <span>{AGENT.queues[held.queue]}</span>
           <span>{AGENT.reason(held.reason_code)}</span>
-          <span className="text-ink-muted">{AGENT.statuses[held.status]}</span>
+          <span className="text-bone-muted">{AGENT.statuses[held.status]}</span>
         </p>
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-muted">
+        <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-bone-muted">
           <span>{AGENT.case.filed(wallTime(held.filed_at))}</span>
           <span>
             {AGENT.case.businessDate(bankDate(payload.business_date))}
@@ -336,7 +341,7 @@ export function CaseView({
           <span>{AGENT.triggers[payload.trigger]}</span>
         </p>
         <p className="flex flex-wrap items-baseline gap-2 text-sm">
-          <span className="text-ink-muted">{AGENT.case.rules}</span>
+          <span className="text-bone-muted">{AGENT.case.rules}</span>
           {payload.rules.map((rule) => (
             <Mono key={rule}>{rule}</Mono>
           ))}
@@ -346,9 +351,9 @@ export function CaseView({
       {held.flagged && (
         <section
           role="alert"
-          className="flex flex-col gap-2 rounded-lg border border-ember px-3 py-2"
+          className="flex flex-col gap-2 rounded-2xl border border-lamp/60 px-4 py-3"
         >
-          <p className="font-medium text-ember">{AGENT.case.flagged}</p>
+          <p className="font-medium text-lamp">{AGENT.case.flagged}</p>
           <p className="text-sm">{AGENT.case.flaggedBody}</p>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
             {held.validation_errors.map((error, i) => (
@@ -378,7 +383,7 @@ export function CaseView({
 
       <Section title={AGENT.case.facts}>
         {facts.length === 0 ? (
-          <p className="text-sm text-ink-muted">{AGENT.case.noFacts}</p>
+          <p className="text-sm text-bone-muted">{AGENT.case.noFacts}</p>
         ) : (
           <Facts
             facts={facts}
@@ -407,20 +412,20 @@ export function CaseView({
 
       <Section title={AGENT.case.identifiers}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="text-ink-muted">{AGENT.case.customer}</dt>
+          <dt className="text-bone-muted">{AGENT.case.customer}</dt>
           <dd>
             <Mono>{payload.customer_id}</Mono>
           </dd>
-          <dt className="text-ink-muted">{AGENT.case.signIn}</dt>
+          <dt className="text-bone-muted">{AGENT.case.signIn}</dt>
           <dd>
             <Mono>{payload.session_id}</Mono>
           </dd>
-          <dt className="text-ink-muted">{AGENT.case.handoff}</dt>
+          <dt className="text-bone-muted">{AGENT.case.handoff}</dt>
           <dd>
             <Mono>{payload.handoff_id}</Mono>
           </dd>
         </dl>
-        <p className="text-sm text-ink-muted">
+        <p className="text-sm text-bone-muted">
           {AGENT.case.versions(
             payload.versions.policy,
             payload.versions.snapshot,
