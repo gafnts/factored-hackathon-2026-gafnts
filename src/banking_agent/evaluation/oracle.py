@@ -8,6 +8,11 @@ Each request is a generator: it yields a step that waits on the customer (a ques
 customer's answer, and returns the step that ends it. The outcome classes follow ADR-0005's amendment of 2026-09-29 and
 ADR-0004's table of situations (as amended on 2026-10-01). A situation the oracle doesn't read raises NotCoveredError, so the
 generator draws no case for it rather than a wrong expectation.
+
+A case's fixtures are read into the customer's state, and its fault plans are counted against the tool calls the path
+makes (ADR-0005's amendment of 2026-10-01). A call takes up to three attempts, so a plan of at most three failures is
+spent by the tool's first call, which fails when it held three; the oracle predicts that call where the graph makes it,
+and refuses a plan that would reach a call it doesn't predict, or no call at all.
 """
 
 from collections.abc import Callable, Generator, Mapping, Sequence
@@ -25,6 +30,7 @@ from banking_agent.evaluation.state import (
     Card,
     Customer,
     Transaction,
+    merged,
 )
 
 POLICY_VERSION = 2
@@ -54,6 +60,23 @@ REASONS = {
     "reason_customer_request": "customer_request",
 }
 MAX_TURNS = 12
+# A call's attempts: the first and POL-48's two retries (ADR-0004's decision 18).
+ATTEMPTS = 3
+GATEWAY_TOOLS = (
+    "list_cards",
+    "get_card",
+    "get_available_credit",
+    "find_transactions",
+    "block_card",
+)
+# The requests the oracle predicts a failed list of cards for: each reads the cards to settle one.
+CARD_REQUESTS = (
+    "card_status",
+    "available_credit",
+    "recent_transactions",
+    "decline_reason",
+    "block_card",
+)
 
 
 class NotCoveredError(Exception):
@@ -139,8 +162,18 @@ class Conversation:
         families: Mapping[str, Family],
         words: Mapping[str, Any],
     ) -> None:
-        if case["faults"] or case["fixtures"] or case["script"].get("actions"):
-            raise NotCoveredError("faults, fixtures, and harness actions")
+        if case["script"].get("actions"):
+            raise NotCoveredError("harness actions")
+        customer = merged(customer, case["fixtures"])
+        self.left: dict[str, int] = {}
+        for fault in case["faults"]:
+            if (
+                fault["tool"] not in GATEWAY_TOOLS
+                or fault["tool"] in self.left
+                or fault["failures"] > ATTEMPTS
+            ):
+                raise NotCoveredError("a fault plan past a tool's first call")
+            self.left[fault["tool"]] = fault["failures"]
         self.customer = customer
         self.case = case
         self.script = case["script"]
@@ -232,6 +265,12 @@ class Conversation:
                 continue
             queue = sorted(family.labels, key=ORDER.index)
             hints = self.message_hints(family)
+            if self.left.get("list_cards") and (
+                len(queue) > 1
+                or queue[0] not in CARD_REQUESTS
+                or not self.customer.served_in_full
+            ):
+                raise NotCoveredError("a failed list of cards outside one card request")
             if not self.customer.served_in_full and queue != ["block_card"]:
                 if "block_card" in queue:
                     raise NotCoveredError("a block queued with a request handed off")
@@ -291,6 +330,8 @@ class Conversation:
             self.blocked.append(step.blocked)
 
     def expected(self) -> dict[str, Any]:
+        if any(self.left.values()):
+            raise NotCoveredError("a fault plan the path doesn't reach")
         for turn in self.turns:
             turn["tools_forbidden"] = [
                 tool
@@ -306,9 +347,38 @@ class Conversation:
             "policy_version": POLICY_VERSION,
         }
 
+    # The tools' faults.
+
+    def fails(self, tool: str) -> bool:
+        """
+        Whether the path's next call of the tool fails, taking the plan's failures its attempts meet.
+        """
+        left = self.left.get(tool, 0)
+        self.left[tool] = max(0, left - ATTEMPTS)
+        return left >= ATTEMPTS
+
+    def unplanned(self, tool: str) -> None:
+        """
+        A call the oracle doesn't predict a fault for, refused while the tool's plan holds failures.
+        """
+        if self.left.get(tool):
+            raise NotCoveredError(
+                f"a fault plan for {tool} where the oracle doesn't read it"
+            )
+
+    def unavailable(self, tool: str) -> Request:
+        """
+        POL-48: a read that failed every attempt can't be answered now, and a person is offered.
+        """
+        step = Step("abstain", ["POL-48"], "handoff_control", tools=(tool,))
+        return (yield from self.offer(step, "tool_failure"))
+
     # The requests.
 
     def request(self, label: str, family: Family, hints: Hints) -> Request:
+        # Every request reads the customer's cards before anything else.
+        if self.fails("list_cards"):
+            return self.unavailable("list_cards")
         if family.extract.get("owner") == "someone_else":
             return self.refused()
         if label == "card_status":
@@ -436,6 +506,8 @@ class Conversation:
 
     def card_status(self, family: Family, hints: Hints) -> Request:
         if family.extract.get("cards") == "all":
+            if self.fails("get_card"):
+                return (yield from self.unavailable("get_card"))
             return Step(
                 "answer",
                 ["POL-01", "POL-14", "POL-21"],
@@ -445,6 +517,8 @@ class Conversation:
         card = yield from self.which_card(hints, None)
         if isinstance(card, Step):
             return card
+        if self.fails("get_card"):
+            return (yield from self.unavailable("get_card"))
         step = Step(
             "answer",
             ["POL-01", "POL-21"],
@@ -468,6 +542,9 @@ class Conversation:
         card = yield from self.which_card(hints, lambda c: c.credit)
         if isinstance(card, Step):
             return card
+        # The tool reads a debit card's or an inactive card's answer too.
+        if self.fails("get_available_credit"):
+            return (yield from self.unavailable("get_available_credit"))
         facts = {"{card}": self.facts.card(card)}
         if not card.credit:
             return Step("decline", ["POL-22"], facts=facts)
@@ -500,11 +577,14 @@ class Conversation:
         if page == "next":
             if self.paging is None:
                 raise NotCoveredError("a next page with no page before it")
+            self.unplanned("find_transactions")
             card, shown = self.paging
         else:
             found = yield from self.which_card(hints, None)
             if isinstance(found, Step):
                 return found
+            if self.fails("find_transactions"):
+                return (yield from self.unavailable("find_transactions"))
             card, shown = found, 0
         listed = card.transactions[shown : shown + PAGE]
         self.paging = (card, shown + len(listed))
@@ -519,6 +599,8 @@ class Conversation:
         card = yield from self.which_card(hints, None)
         if isinstance(card, Step):
             return card
+        if self.fails("find_transactions"):
+            return (yield from self.unavailable("find_transactions"))
         searched = yield from self.which_transaction(card, hints, prefer_declined=True)
         if isinstance(searched, Step):
             return searched
@@ -531,6 +613,9 @@ class Conversation:
         if found.status != "Declined":
             facts["{transaction.status}"] = self.facts.transaction_status(found)
             return Step("answer", [*rules, "POL-28"], tools=tools, facts=facts)
+        if found.code == "54":
+            # The graph reads the card for a conflict over code 54's expiration.
+            self.unplanned("get_card")
         if not found.listed_code:
             step = Step("abstain", [*rules, "POL-32"], "handoff_control", tools, facts)
             return (yield from self.offer(step, "missing_data"))
@@ -567,6 +652,22 @@ class Conversation:
             shown = yield Step("block", ["POL-36"], "confirm_control")
         if shown.sends == "cancel":
             return Step("answer", ["POL-36"])
+        if self.fails("block_card"):
+            if reason not in ("lost", "stolen", "customer_request"):
+                raise NotCoveredError("a failed block for a charge")
+            # POL-37: not verified, so handed off without another confirmation; POL-47 for a card reported missing.
+            return Step(
+                "hand_off",
+                ["POL-37"],
+                tools=("block_card", "file_handoff"),
+                handoff=handoff(
+                    "action_not_verified",
+                    "required",
+                    "normal" if reason == "customer_request" else "urgent",
+                ),
+            )
+        # The block's read-back.
+        self.unplanned("get_card")
         blocked = Step(
             "block",
             ["POL-03", "POL-37"],
@@ -583,6 +684,8 @@ class Conversation:
         card = yield from self.which_card(hints, None)
         if isinstance(card, Step):
             return card
+        for tool in ("find_transactions", "block_card", "get_card"):
+            self.unplanned(tool)
         searched = yield from self.which_transaction(card, hints, prefer_declined=False)
         if isinstance(searched, Step):
             return searched

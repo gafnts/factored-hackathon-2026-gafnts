@@ -42,7 +42,7 @@ from banking_agent.agent.texts import FIXED, render
 from banking_agent.contracts import validator
 from banking_agent.tools.cases import draw_reference, queue_order, reference_item
 
-from .conftest import SignIn, User, cases, claims, handoffs
+from .conftest import ROOT, SignIn, User, cases, claims, handoffs
 from .test_agent import checkpoint_messages, records
 from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
@@ -496,6 +496,28 @@ def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
     reads_the_case(agent, filed["reference"], row, "Cancelado por el cliente")
     assert (customer.violations, customer.errors) == ([], 0)
     assert (agent.violations, agent.errors) == ([], 0)
+
+
+def test_a_personas_sign_in_opens_on_its_card(
+    site: str,
+    users: dict[str, User],
+    tab: Callable[[str], Tab],
+) -> None:
+    """
+    The label's card over the opening's suggestions, in the browser's language, with no value from the records
+    (ADR-0007, Judges' access; SEC-03).
+    """
+    card = json.loads(
+        (ROOT / "web" / "src" / "personas.json").read_text(encoding="utf-8")
+    )["persona-pt"]
+    customer = tab("pt")
+
+    customer.sign_in(site, users["other_customer"])
+
+    expect(customer.page.get_by_text(card["description"]["pt"])).to_be_visible()
+    for prompt in card["prompts"]["pt"]:
+        expect(customer.page.get_by_role("button", name=prompt)).to_be_visible()
+    assert (customer.violations, customer.errors) == ([], 0)
 
 
 def test_a_persona_signs_in_and_reads_a_reply_sent_whole(

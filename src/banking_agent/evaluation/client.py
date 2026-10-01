@@ -199,3 +199,58 @@ class Client:
         if not played or played[-1]["event"].get("type") not in ENDED:
             raise HarnessError("the stream ended before its run did")
         return played
+
+
+class Gateway:
+    """
+    Direct MCP calls to the Gateway with a case's bearer token (ADR-0005's amendment of 2026-10-01): what a
+    compromised agent or a customer who skips the agent could send. Each response is evidence, however the call went,
+    so a failure here never raises.
+    """
+
+    def __init__(
+        self, url: str, targets: Mapping[str, str], http: httpx.Client
+    ) -> None:
+        self.url = url
+        self.targets = dict(targets)
+        self.http = http
+
+    def tools_list(self, token: str) -> dict[str, Any]:
+        return self._post(token, "tools/list", {})
+
+    def call(
+        self,
+        token: str,
+        tool: str,
+        arguments: Mapping[str, Any],
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        name = name if name is not None else f"{self.targets[tool]}___{tool}"
+        return self._post(
+            token, "tools/call", {"name": name, "arguments": dict(arguments)}
+        )
+
+    def _post(self, token: str, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+        headers = {
+            "Accept": "application/json, text/event-stream",
+            "Authorization": f"Bearer {token}",
+        }
+        try:
+            response = self.http.post(self.url, json=body, headers=headers)
+        except httpx.HTTPError as error:
+            return {"status": None, "body": f"unreachable: {type(error).__name__}"}
+        text = response.text
+        if response.headers.get("content-type", "").startswith("text/event-stream"):
+            text = next(
+                (
+                    line[5:].strip()
+                    for line in text.splitlines()
+                    if line.startswith("data:")
+                ),
+                "",
+            )
+        try:
+            return {"status": response.status_code, "body": json.loads(text)}
+        except json.JSONDecodeError:
+            return {"status": response.status_code, "body": text}

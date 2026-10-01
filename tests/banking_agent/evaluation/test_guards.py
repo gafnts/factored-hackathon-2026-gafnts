@@ -82,6 +82,17 @@ def test_the_agents_prompts_hold_no_held_out_message(
     assert guards.leaks(artifacts, held_messages) == []
 
 
+def test_the_persona_cards_hold_no_held_out_message(
+    held_messages: list[tuple[str, str]],
+) -> None:
+    # The cards' prompts are the one development artifact whose words a judge sends as messages (ADR-0007's
+    # amendment of 2026-10-01).
+    cards = Path(__file__).parents[3] / "web" / "src" / "personas.json"
+
+    assert cards.is_file()
+    assert guards.leaks({cards.name: cards.read_text("utf-8")}, held_messages) == []
+
+
 def test_only_the_bronze_opener_opens_a_database() -> None:
     package = Path(banking_agent.evaluation.__file__).parent
     openers = [

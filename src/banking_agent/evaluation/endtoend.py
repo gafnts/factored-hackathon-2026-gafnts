@@ -137,7 +137,8 @@ def play_all(
 def latency(played: Sequence[Played]) -> dict[str, Any]:
     """
     Each turn's latency, from the send to its last event, with each case's first turn apart, since each case opens a
-    runtime session of its own (ADR-0005, Reporting).
+    runtime session of its own (ADR-0005, Reporting). Fault cases are left out, since a planned failure answers at
+    once (ADR-0005's amendment of 2026-10-01).
     """
 
     def spread(values: list[int]) -> dict[str, Any]:
@@ -148,11 +149,18 @@ def latency(played: Sequence[Played]) -> dict[str, Any]:
 
     first: list[int] = []
     later: list[int] = []
-    for _, evidence, _ in played:
+    faulted = [case for case, _, _ in played if case["faults"]]
+    for case, evidence, _ in played:
+        if case["faults"]:
+            continue
         for n, turn in enumerate(evidence["turns"]):
             if turn["events"]:
                 (later if n else first).append(turn["events"][-1]["at_ms"])
-    return {"first": spread(first), "later": spread(later)}
+    return {
+        "first": spread(first),
+        "later": spread(later),
+        "fault_cases_left_out": len(faulted),
+    }
 
 
 def summarize(played: Sequence[Played]) -> dict[str, Any]:
@@ -320,14 +328,15 @@ def run(
     keeper = Keeper(out_dir / run_id, run_id, s3, stack.bucket)
     with httpx.Client(timeout=client.TIMEOUT) as http:
         agui = client.Client(stack.invoke_url, stack.stop_url, http)
+        gateway = client.Gateway(stack.gateway_url, stack.gateway_targets, http)
+
+        def play(case: dict[str, Any], name: str) -> dict[str, Any]:
+            if case["situation"].startswith("access."):
+                return harness.play_access(case, name, test_users, gateway, tables)
+            return harness.play(case, name, test_users, agui, tables)
+
         try:
-            played = play_all(
-                chosen,
-                run_id,
-                lambda case, name: harness.play(case, name, test_users, agui, tables),
-                keeper,
-                parallel,
-            )
+            played = play_all(chosen, run_id, play, keeper, parallel)
         finally:
             test_users.cleanup(run_id)
     summary = {"run": run_id, "set": set_manifest["set"], **summarize(played)}

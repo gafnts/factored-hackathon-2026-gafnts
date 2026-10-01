@@ -187,13 +187,6 @@ data "aws_iam_policy_document" "harness" {
     resources = [var.file_handoff_function.arn]
   }
 
-  # Kept only until a run shows that the case's bearer token suffices.
-  statement {
-    sid       = "StopSessions"
-    actions   = ["bedrock-agentcore:StopRuntimeSession"]
-    resources = [var.runtime_arn, "${var.runtime_arn}/runtime-endpoint/*"]
-  }
-
   statement {
     sid       = "ListResults"
     actions   = ["s3:ListBucket"]

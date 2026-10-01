@@ -14,7 +14,7 @@ import pytest
 from banking_agent.evaluation import bronze, cases, families, oracle, state
 from banking_agent.evaluation.facts import contract_words
 
-from .bank import EXAMPLE_CUSTOMER, Bank
+from .bank import EXAMPLE_CUSTOMER, Bank, fixture_card, fixture_transaction
 
 pytestmark = pytest.mark.xdist_group("evaluation_bank")
 
@@ -452,12 +452,150 @@ def test_last_four_shared_by_two_types_asks_for_the_type(
     assert turn["facts"]["{card}"] == "tarjeta de débito terminada en 5150"
 
 
-def test_unasked_situations_are_refused_rather_than_guessed(
+def faulted(played: dict[str, Any], tool: str, failures: int) -> dict[str, Any]:
+    return {
+        **played,
+        "group": "tool_failures",
+        "source": "harness",
+        "faults": [{"tool": tool, "failures": failures, "error": "timeout"}],
+    }
+
+
+@pytest.mark.parametrize(
+    ("tool", "family"),
+    [
+        ("list_cards", "recent_transactions-01"),
+        ("get_card", "card_status-01"),
+        ("get_available_credit", "available_credit-04"),
+        ("find_transactions", "recent_transactions-01"),
+        ("find_transactions", "decline_reason-01"),
+    ],
+)
+def test_a_read_that_fails_every_attempt_offers_a_person(
+    con: duckdb.DuckDBPyConnection, tool: str, family: str
+) -> None:
+    played = case("CLI-EVAL00000003", family, answers={"handoff_control": "accept"})
+    expected = play(con, faulted(played, tool, 3))
+
+    label = family.rsplit("-", 1)[0]
+    assert path(expected) == [
+        ("message", [(label, "abstain")], "handoff_control"),
+        ("accept", [(label, "hand_off")], "none"),
+    ]
+    first, last = expected["turns"]
+    assert first["tools_required"] == [tool]
+    assert first["facts"] == {}
+    assert last["handoff"] == {
+        "reason_code": "tool_failure",
+        "trigger": "accepted_offer",
+        "queue": "customer_service",
+        "priority": "normal",
+    }
+    assert "POL-48" in expected["rules"]
+
+
+@pytest.mark.parametrize("failures", [1, 2])
+@pytest.mark.parametrize(
+    ("tool", "family"),
+    [
+        ("list_cards", "available_credit-04"),
+        ("get_available_credit", "available_credit-04"),
+        ("find_transactions", "recent_transactions-01"),
+    ],
+)
+def test_a_read_that_recovers_within_its_retries_takes_its_path(
+    con: duckdb.DuckDBPyConnection, tool: str, family: str, failures: int
+) -> None:
+    played = case("CLI-EVAL00000003", family)
+
+    assert play(con, faulted(played, tool, failures)) == play(con, played)
+
+
+@pytest.mark.parametrize(
+    ("customer_id", "family", "priority"),
+    [
+        ("CLI-EVAL00000003", "block_card-02", "urgent"),
+        ("CLI-EVAL00000007", "block_card-05", "normal"),
+    ],
+)
+def test_a_block_that_fails_every_attempt_is_handed_off_unverified(
+    con: duckdb.DuckDBPyConnection, customer_id: str, family: str, priority: str
+) -> None:
+    played = case(customer_id, family, answers={"confirm_control": "confirm"})
+    expected = play(con, faulted(played, "block_card", 3))
+
+    assert path(expected) == [
+        ("message", [("block_card", "block")], "confirm_control"),
+        ("confirm", [("block_card", "hand_off")], "none"),
+    ]
+    last = expected["turns"][-1]
+    assert last["tools_required"] == ["block_card", "file_handoff"]
+    assert last["handoff"] == {
+        "reason_code": "action_not_verified",
+        "trigger": "required",
+        "queue": "customer_service",
+        "priority": priority,
+    }
+    assert expected["blocked"] == []
+
+
+def test_a_fixture_card_sharing_type_and_last_four_is_handed_off(
     con: duckdb.DuckDBPyConnection,
+) -> None:
+    played = case("CLI-EVAL00000007", "card_status-04", slots={"last_four": "3318"})
+    played["fixtures"] = [fixture_card("CLI-EVAL00000007", 1)]
+
+    [turn] = play(con, played)["turns"]
+    assert [d["outcome_class"] for d in turn["decisions"]] == ["hand_off"]
+    assert turn["handoff"]["reason_code"] == "ambiguous_card"
+
+
+def test_a_fixture_decline_with_an_unlisted_code_abstains(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    played = case(
+        "CLI-EVAL00000007",
+        "decline_reason-01",
+        answers={"handoff_control": "decline"},
+    )
+    played["fixtures"] = [
+        fixture_transaction(
+            "CLI-EVAL00000007",
+            "PRD-EVAL00000701",
+            1,
+            "2026-06-16 18:22:05",
+            transaction_status="Declined",
+            response_code="61",
+        )
+    ]
+    expected = play(con, played)
+
+    assert path(expected) == [
+        ("message", [("decline_reason", "abstain")], "handoff_control"),
+        ("decline", [("decline_reason", "answer")], "none"),
+    ]
+    assert "POL-32" in expected["turns"][0]["decisions"][0]["rules"]
+
+
+@pytest.mark.parametrize(
+    ("family", "fault"),
+    [
+        # Past the tool's first call.
+        ("card_status-01", {"tool": "get_card", "failures": 4}),
+        # Never reached.
+        ("card_status-01", {"tool": "block_card", "failures": 3}),
+        # Outside one card request.
+        ("talk_to_human-01", {"tool": "list_cards", "failures": 3}),
+        # A charge's search, whose failure goes into its handoff.
+        ("unrecognized_charge-01", {"tool": "find_transactions", "failures": 3}),
+    ],
+)
+def test_unasked_situations_are_refused_rather_than_guessed(
+    con: duckdb.DuckDBPyConnection, family: str, fault: dict[str, Any]
 ) -> None:
     with pytest.raises(oracle.NotCoveredError):
         play(con, case("CLI-EVAL00000003", "available_credit-05"))
-    faulty = case("CLI-EVAL00000003", "card_status-01")
-    faulty["faults"] = [{"tool": "get_card", "failures": 3, "error": "timeout"}]
+    faulty = case("CLI-EVAL00000003", family)
+    faulty["faults"] = [{**fault, "error": "timeout"}]
     with pytest.raises(oracle.NotCoveredError):
         play(con, faulty)

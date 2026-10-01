@@ -4,6 +4,8 @@ can't state catch a turn that contradicts itself.
 """
 
 import copy
+import json
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +119,37 @@ def test_a_turn_that_contradicts_itself_is_caught() -> None:
         "turn 1 both requires and forbids ['list_cards']",
         "turn 1 clarifies before its last request",
     ]
+
+
+def test_fixtures_and_faults_are_the_overlays_items_without_sign_in_or_ttl() -> None:
+    examples = files("banking_agent.contracts").joinpath("examples")
+    fixtures = [
+        {k: v for k, v in item.items() if k not in ("sign_in", "ttl")}
+        for name in ("overlay.fixture_card.json", "overlay.fixture_transaction.json")
+        for item in json.loads(examples.joinpath(name).read_text(encoding="utf-8"))
+    ]
+    built = {
+        **copy.deepcopy(EXAMPLE),
+        "source": "built",
+        "fixtures": fixtures,
+        "faults": [{"tool": "get_card", "failures": 3, "error": "timeout"}],
+    }
+
+    assert cases.problems(built) == []
+
+    broken = copy.deepcopy(built)
+    broken["fixtures"][-1]["listed_at"] = "2026-06-01 00:00:00#TRX-FIXTURE0000000000009"
+    broken["fixtures"][0]["customer_id"] = "CLI-EXAMPLE00002"
+    del broken["fixtures"][1]["is_fraud"]
+    broken["faults"][0]["tool"] = "file_handoff"
+    found = cases.problems(broken)
+    assert [p.split(":")[0] for p in found] == [
+        "fixtures/0",
+        "fixtures/1",
+        f"fixtures/{len(fixtures) - 1}",
+        "faults/0",
+    ]
+    assert not any("CLI-" in p or "TRX-" in p for p in found)
 
 
 def test_case_ids_are_opaque_and_stable() -> None:

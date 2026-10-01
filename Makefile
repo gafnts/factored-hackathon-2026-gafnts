@@ -93,6 +93,9 @@ browser: _check-profile outputs ## Play the chat and the console in Chromium aga
 probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
 
+judges: _check-profile outputs ## Create or manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable, USER= for one; credentials under data/judges/, never printed)
+	uv run python -m banking_agent.judges $(or $(WHAT),create) --stack $(OUTPUTS) $(if $(USER),--user $(USER))
+
 
 ##@ Build
 
@@ -186,6 +189,9 @@ eval-cleanup: _check-profile ## Delete the test users a stopped run left in the 
 
 disagreements: ## Regenerate docs/evaluation/disagreements.md from its entries
 	uv run python -m banking_agent.evaluation disagreements
+
+eval-index: ## Regenerate docs/evaluation/runs.md from the manifests committed under docs/evaluation/runs/
+	uv run python -m banking_agent.evaluation index
 
 regression: ## Play and grade the regression set's composition on the bank in process, as CI does (ADR-0005; no credentials)
 	uv run pytest -m regression -v --tb=short

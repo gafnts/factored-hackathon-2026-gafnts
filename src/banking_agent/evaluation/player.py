@@ -9,8 +9,9 @@ waits, since a case's latency isn't measured here. Tokens are unsigned, since th
 the Runtime's authorizer already checked, and carry the evaluation group, so the record says source=evaluation;
 file_handoff's check of a token through Cognito becomes a check of its claims.
 
-The evidence is what the harness keeps for a case played end to end: each turn's events with their arrival times, the
-sign-in's record, the sandbox's end state, and the handoff cases filed.
+A case's fixtures and fault plans are written to the sandbox under its sign-in before its first turn, as the harness
+writes them to the deployed overlay. The evidence is what the harness keeps for a case played end to end: each turn's
+events with their arrival times, the sign-in's record, the sandbox's end state, and the handoff cases filed.
 """
 
 import base64
@@ -36,12 +37,13 @@ from banking_agent.agent.gateway import DENIED, Gateway
 from banking_agent.agent.graph import build
 from banking_agent.agent.models import Factory
 from banking_agent.agent.retries import Retries, no_wait
+from banking_agent.evaluation import cases
 from banking_agent.evaluation.customer import Customer, ScriptError, Send
 from banking_agent.tools import block, handoff, reads
 from banking_agent.tools.cases import MemoryCases, MemoryFlags
 from banking_agent.tools.file_handoff import HandoffStores
 from banking_agent.tools.identity import Caller, caller_of, claims_of
-from banking_agent.tools.sandbox import BlockStores, MemorySandbox, Stores
+from banking_agent.tools.sandbox import KEPT, BlockStores, MemorySandbox, Stores
 from banking_agent.tools.store import MemoryData
 
 CLIENT_ID = "evaluation-player"
@@ -310,6 +312,9 @@ async def play(
     """
     stack = Stack(items, models)
     who = SignIn(case["customer_id"])
+    kept_until = int((datetime.now(UTC) + KEPT).timestamp())
+    for item in cases.written(case, who.origin_jti, kept_until):
+        stack.sandbox.put(item)
     turns: list[dict[str, Any]] = []
     error = None
     try:

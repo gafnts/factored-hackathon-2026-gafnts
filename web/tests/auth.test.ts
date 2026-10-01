@@ -87,8 +87,19 @@ test("a sign-in ends an hour after it began, whatever the refreshes (POL-09)", a
   expect(await currentSignIn()).toEqual({
     sub: SUB,
     endsAt: AUTH_TIME * 1000 + SIGN_IN_LASTS_MS,
+    persona: null,
   });
   expect(SIGN_IN_LASTS_MS).toBe(60 * 60 * 1000);
+});
+
+test("a sign-in carries its persona label from the token's groups", async () => {
+  session({
+    sub: SUB,
+    auth_time: AUTH_TIME,
+    "cognito:groups": ["customer", "persona-pt"],
+  });
+
+  expect((await currentSignIn())?.persona).toBe("persona-pt");
 });
 
 test.each([

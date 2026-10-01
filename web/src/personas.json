@@ -1,0 +1,42 @@
+{
+  "persona-es": {
+    "description": {
+      "es": "Usted tiene varias tarjetas de crédito activas, una con límite registrado, y un pago rechazado esta semana.",
+      "pt": "Você tem vários cartões de crédito ativos, um com limite registrado, e um pagamento recusado esta semana."
+    },
+    "prompts": {
+      "es": [
+        "¿Por qué me rechazaron un pago esta semana?",
+        "Quiero bloquear mi tarjeta",
+        "Quiero aumentar el límite de mi tarjeta",
+        "Quiero desbloquear una tarjeta"
+      ],
+      "pt": [
+        "Por que um pagamento meu foi recusado esta semana?",
+        "Quero bloquear meu cartão",
+        "Quero aumentar o limite do meu cartão",
+        "Quero desbloquear um cartão"
+      ]
+    }
+  },
+  "persona-pt": {
+    "description": {
+      "es": "Usted tiene una tarjeta de crédito activa, con límite registrado y compras aprobadas esta semana.",
+      "pt": "Você tem um cartão de crédito ativo, com limite registrado e compras aprovadas esta semana."
+    },
+    "prompts": {
+      "es": [
+        "¿Cuál es el crédito disponible de mi tarjeta?",
+        "Necesito ayuda con mi tarjeta",
+        "Quiero aumentar el límite de mi tarjeta",
+        "No reconozco una compra en mi tarjeta"
+      ],
+      "pt": [
+        "Qual é o crédito disponível do meu cartão?",
+        "Preciso de ajuda com meu cartão",
+        "Quero aumentar o limite do meu cartão",
+        "Não reconheço uma compra no meu cartão"
+      ]
+    }
+  }
+}

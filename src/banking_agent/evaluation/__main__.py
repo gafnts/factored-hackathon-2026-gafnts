@@ -206,7 +206,13 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "disagreements", help="Regenerate the disagreement log's page from its entries"
     )
+    commands.add_parser(
+        "index", help="Regenerate the run index from the committed manifests"
+    )
     args = parser.parse_args(argv)
+    if args.command == "index":
+        print(f"{runs.index()} reported runs in {runs.INDEX_PAGE}")
+        return 0
     if args.command == "disagreements":
         found = disagreements.problems(disagreements.load())
         for problem in found:

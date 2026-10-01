@@ -1,0 +1,169 @@
+"""
+The judges' users (ADR-0007, Judges' access): one script creates the personas' and the staff's users in the deployed
+stack's pool, and resets, signs out, disables, or enables one. The personas come from data/personas/ (make personas)
+with custom:customer_id and their label's group; each password satisfies every class the pool requires and goes to
+data/judges/<env>.json with owner-only permissions, never the terminal (SEC-03). A reset also signs the user out
+everywhere, so a leaked credential is cut off within the access token's 15 minutes.
+"""
+
+import argparse
+import json
+import secrets
+import string
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+import boto3
+from botocore.exceptions import ClientError
+
+from banking_agent import personas
+from banking_agent.dataset.lock import read_lock
+
+PERSONA_GROUPS = {"es": "persona-es", "pt": "persona-pt"}
+STAFF_GROUPS = {"agente": "human_agent", "equipo-ia": "ai_team"}
+COMMANDS = ("create", "reset", "sign-out", "disable", "enable")
+ALPHABET = string.ascii_letters + string.digits
+
+
+class JudgesError(Exception):
+    pass
+
+
+def password() -> str:
+    # The suffix guarantees every class the pool's policy requires, as the integration suite's users do.
+    return "".join(secrets.choice(ALPHABET) for _ in range(24)) + "aA1!"
+
+
+def stack_outputs(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise JudgesError(f"{path} not found; run make outputs")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return {name: value["value"] for name, value in raw.items()}
+
+
+def environment(stack: Path) -> str:
+    name = stack.name.removesuffix(".outputs.json")
+    if not name or name == stack.name:
+        raise JudgesError(f"{stack} isn't a <env>.outputs.json file")
+    return name
+
+
+def credentials_path(data_dir: Path, env: str) -> Path:
+    return data_dir / "judges" / f"{env}.json"
+
+
+def write_credentials(path: Path, env: str, users: dict[str, str]) -> None:
+    body: dict[str, Any] = {"environment": env, "users": {}}
+    if path.is_file():
+        body = json.loads(path.read_text(encoding="utf-8"))
+    body["users"] = {**body["users"], **users}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
+def create(cognito: Any, pool: str, persona_ids: dict[str, str]) -> dict[str, str]:
+    """
+    Returns each created username's password; a username already in the pool refuses the whole run, so a rotation
+    goes through reset and never silently remakes a user.
+    """
+    wanted: list[tuple[str, list[str], str | None]] = [
+        (PERSONA_GROUPS[language], ["customer", PERSONA_GROUPS[language]], customer_id)
+        for language, customer_id in sorted(persona_ids.items())
+    ] + [(username, [group], None) for username, group in STAFF_GROUPS.items()]
+    created: dict[str, str] = {}
+    for username, groups, customer_id in wanted:
+        word = password()
+        attributes = (
+            [{"Name": "custom:customer_id", "Value": customer_id}]
+            if customer_id
+            else []
+        )
+        try:
+            cognito.admin_create_user(
+                UserPoolId=pool,
+                Username=username,
+                UserAttributes=attributes,
+                MessageAction="SUPPRESS",
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "UsernameExistsException":
+                raise JudgesError(
+                    f"{username} already exists; reset it instead"
+                ) from error
+            raise
+        cognito.admin_set_user_password(
+            UserPoolId=pool, Username=username, Password=word, Permanent=True
+        )
+        for group in groups:
+            cognito.admin_add_user_to_group(
+                UserPoolId=pool, Username=username, GroupName=group
+            )
+        created[username] = word
+    return created
+
+
+def reset(cognito: Any, pool: str, username: str) -> str:
+    word = password()
+    cognito.admin_set_user_password(
+        UserPoolId=pool, Username=username, Password=word, Permanent=True
+    )
+    cognito.admin_user_global_sign_out(UserPoolId=pool, Username=username)
+    return word
+
+
+def sign_out(cognito: Any, pool: str, username: str) -> None:
+    cognito.admin_user_global_sign_out(UserPoolId=pool, Username=username)
+
+
+def disable(cognito: Any, pool: str, username: str) -> None:
+    cognito.admin_disable_user(UserPoolId=pool, Username=username)
+
+
+def enable(cognito: Any, pool: str, username: str) -> None:
+    cognito.admin_enable_user(UserPoolId=pool, Username=username)
+
+
+def parse(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="judges", description=__doc__)
+    parser.add_argument("command", choices=COMMANDS)
+    parser.add_argument("--stack", type=Path, required=True)
+    parser.add_argument("--user")
+    parser.add_argument("--data-dir", type=Path, default=Path("data"))
+    args = parser.parse_args(argv)
+    if args.command != "create" and not args.user:
+        parser.error(f"{args.command} needs --user")
+    return args
+
+
+def run(args: argparse.Namespace, cognito: Any) -> str:
+    outputs = stack_outputs(args.stack)
+    pool = outputs["user_pool_id"]
+    env = environment(args.stack)
+    path = credentials_path(args.data_dir, env)
+    if args.command == "create":
+        snapshot = read_lock(Path("dataset.lock")).snapshot_id
+        ids = personas.read(personas.path_for(args.data_dir, snapshot), snapshot)
+        users = create(cognito, pool, ids)
+        write_credentials(path, env, users)
+        return f"created {', '.join(users)}; credentials in {path}"
+    if args.command == "reset":
+        write_credentials(path, env, {args.user: reset(cognito, pool, args.user)})
+        return f"reset {args.user}; credentials in {path}"
+    {"sign-out": sign_out, "disable": disable, "enable": enable}[args.command](
+        cognito, pool, args.user
+    )
+    return f"{args.command}: {args.user}"
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse(argv)
+    try:
+        print(run(args, boto3.client("cognito-idp", region_name="us-east-1")))
+    except (JudgesError, personas.PersonaError, ClientError) as error:
+        raise SystemExit(str(error)) from error
+
+
+if __name__ == "__main__":
+    main()

@@ -132,6 +132,21 @@ def play_on_its_own_stack(bank: Bank) -> Any:
     return play
 
 
+def test_fault_cases_stay_out_of_the_turn_latency() -> None:
+    def one(faults: list[dict[str, Any]], *at_ms: int) -> endtoend.Played:
+        turns = [{"events": [{"at_ms": at}]} for at in at_ms]
+        return {"faults": faults}, {"turns": turns}, {}
+
+    fault = {"tool": "get_card", "failures": 3, "error": "timeout"}
+    played = [one([], 900, 300), one([fault], 5, 4), one([], 1100)]
+
+    found = endtoend.latency(played)
+
+    assert (found["first"]["turns"], found["first"]["p50"]) == (2, 1000)
+    assert found["later"] == {"turns": 1, "p50": 300}
+    assert found["fault_cases_left_out"] == 1
+
+
 def test_a_set_plays_in_parallel_and_each_case_is_kept_as_it_finishes(
     tmp_path: Path, bank: Bank, drawn: tuple[generator.Drawn, dict[str, Any]]
 ) -> None:
