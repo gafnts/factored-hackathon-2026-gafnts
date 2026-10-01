@@ -266,6 +266,38 @@ describe("a run that fails", () => {
   });
 });
 
+test("tells the page while a turn runs, so a new conversation waits for it", async () => {
+  const onRunning = vi.fn();
+  let answer: () => void = () => undefined;
+  const answered = new Promise<void>((resolve) => {
+    answer = resolve;
+  });
+  runtime(async (request) => {
+    await answered;
+    return sse(turn(request, "Oi"));
+  });
+  render(
+    <Chat
+      url={URL}
+      session={SESSION}
+      language="pt"
+      onSignInEnded={vi.fn()}
+      onRunning={onRunning}
+    />,
+  );
+
+  await send("Oi");
+
+  await waitFor(() => {
+    expect(onRunning).toHaveBeenLastCalledWith(true);
+  });
+  answer();
+  await screen.findByText(REPLY.delta);
+  await waitFor(() => {
+    expect(onRunning).toHaveBeenLastCalledWith(false);
+  });
+});
+
 test("opens on Faro's question, with three numbered prompts that send themselves", async () => {
   const texts = TEXTS.es.chat;
   const [, block] = texts.suggestions;

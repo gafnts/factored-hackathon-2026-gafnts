@@ -227,6 +227,16 @@ function Thread({
   );
 }
 
+// While a turn runs, the rail's new conversation waits: the run would still finish on the Runtime, on the runtime
+// session the new conversation's warm-up shares, and a confirmed block's outcome would go unseen.
+function Running({ onChange }: { onChange: (running: boolean) => void }) {
+  const running = useAuiState((state) => state.thread.isRunning);
+  useEffect(() => {
+    onChange(running);
+  }, [running, onChange]);
+  return null;
+}
+
 function latch(): { opened: Promise<void>; open: () => void } {
   let open: () => void = () => undefined;
   const opened = new Promise<void>((resolve) => {
@@ -240,12 +250,14 @@ export function Chat({
   session,
   language,
   onSignInEnded,
+  onRunning,
   fetcher: given,
 }: {
   url: string;
   session: string;
   language: Language;
   onSignInEnded: () => void;
+  onRunning?: (running: boolean) => void;
   fetcher?: Fetch;
 }) {
   const [threadId] = useState(() => crypto.randomUUID());
@@ -296,6 +308,7 @@ export function Chat({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      {onRunning && <Running onChange={onRunning} />}
       <ShownControls value={shown}>
         <Thread language={language} problem={problem} />
       </ShownControls>

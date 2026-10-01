@@ -11,7 +11,7 @@ import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
 import { Grid } from "./grid";
-import { LogOut } from "./icons";
+import { LogOut, SquarePen } from "./icons";
 import { SignIn } from "./pages/sign-in";
 import { drawRuntimeSession, runtimeSession } from "./session";
 import { RailButton, Shell } from "./shell";
@@ -27,6 +27,10 @@ type State =
 export function Customer({ language }: { language: Language }) {
   const texts = TEXTS[language];
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Each new conversation mounts the chat again, which draws a thread ID of its own on the same runtime session
+  // (ADR-0007's amendment of 2026-09-30); the earlier one is out of reach once left.
+  const [conversation, setConversation] = useState(0);
+  const [running, setRunning] = useState(false);
 
   const end = useCallback(async (config: Config, ended: boolean) => {
     await signOutHere().catch(() => undefined);
@@ -134,20 +138,39 @@ export function Customer({ language }: { language: Language }) {
       language={language}
       note={texts.signIn.endsAt(time)}
       rail={(expanded) => (
-        <RailButton
-          icon={<LogOut />}
-          label={texts.signIn.signOut}
-          expanded={expanded}
-          className="sm:mt-auto"
-          onClick={() => void end(state.config, false)}
-        />
+        <>
+          <RailButton
+            icon={<SquarePen />}
+            label={texts.rail.newChat}
+            expanded={expanded}
+            disabled={running}
+            onClick={() => {
+              setRunning(false);
+              setConversation((count) => count + 1);
+            }}
+          />
+          {expanded && (
+            <p className="hidden px-2.5 pt-1 text-xs text-bone-muted sm:block">
+              {texts.rail.unsaved}
+            </p>
+          )}
+          <RailButton
+            icon={<LogOut />}
+            label={texts.signIn.signOut}
+            expanded={expanded}
+            className="sm:mt-auto"
+            onClick={() => void end(state.config, false)}
+          />
+        </>
       )}
     >
       <Chat
+        key={conversation}
         url={state.config.runtime_url}
         session={state.session}
         language={language}
         onSignInEnded={ended}
+        onRunning={setRunning}
       />
     </Shell>
   );

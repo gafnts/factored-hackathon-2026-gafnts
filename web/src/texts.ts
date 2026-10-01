@@ -31,6 +31,8 @@ export interface Texts {
     label: string;
     open: string;
     close: string;
+    newChat: string;
+    unsaved: string;
   };
   chat: {
     greeting: string;
@@ -134,6 +136,8 @@ export const TEXTS: Record<Language, Texts> = {
       label: "Menú",
       open: "Abrir el menú",
       close: "Cerrar el menú",
+      newChat: "Nueva conversación",
+      unsaved: "Las conversaciones no se guardan: una nueva empieza vacía.",
     },
     chat: {
       greeting:
@@ -204,6 +208,8 @@ export const TEXTS: Record<Language, Texts> = {
       label: "Menu",
       open: "Abrir o menu",
       close: "Fechar o menu",
+      newChat: "Nova conversa",
+      unsaved: "As conversas não ficam salvas: uma nova começa vazia.",
     },
     chat: {
       greeting:

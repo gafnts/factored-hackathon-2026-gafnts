@@ -21,22 +21,40 @@ vi.mock(import("../src/auth"), async (original) => ({
   signOutHere: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock(import("../src/chat/chat"), () => ({
-  Chat: ({
-    session,
-    onSignInEnded,
-  }: {
-    session: string;
-    onSignInEnded: () => void;
-  }) => (
-    <div>
-      <p>chat in {session}</p>
-      <button type="button" onClick={onSignInEnded}>
-        runtime turned the token away
-      </button>
-    </div>
-  ),
-}));
+// Counts the chat's mounts, since each new conversation mounts it again.
+const chats = vi.hoisted(() => ({ mounted: 0 }));
+
+vi.mock(import("../src/chat/chat"), async () => {
+  const { useState } = await import("react");
+  return {
+    Chat: ({
+      session,
+      onSignInEnded,
+      onRunning,
+    }: {
+      session: string;
+      onSignInEnded: () => void;
+      onRunning?: (running: boolean) => void;
+    }) => {
+      const [mount] = useState(() => (chats.mounted += 1));
+      return (
+        <div>
+          <p>chat in {session}</p>
+          <p>conversation {mount}</p>
+          <button type="button" onClick={onSignInEnded}>
+            runtime turned the token away
+          </button>
+          <button type="button" onClick={() => onRunning?.(true)}>
+            a turn starts
+          </button>
+          <button type="button" onClick={() => onRunning?.(false)}>
+            the turn ends
+          </button>
+        </div>
+      );
+    },
+  };
+});
 
 const CONFIG = {
   region: "us-east-1",
@@ -127,6 +145,23 @@ test("a reload keeps the sign-in and its runtime session", async () => {
   render(<Customer language="es" />);
 
   expect(await screen.findByText(`chat in ${session}`)).toBeInTheDocument();
+});
+
+test("a new conversation mounts the chat again in the same runtime session, once no turn runs", async () => {
+  const session = drawRuntimeSession();
+  vi.mocked(currentSignIn).mockResolvedValue(signedIn());
+  render(<Customer language="es" />);
+  const user = userEvent.setup();
+
+  const first = (await screen.findByText(/^conversation \d+$/)).textContent;
+  const newChat = screen.getByRole("button", { name: texts.rail.newChat });
+  await user.click(screen.getByRole("button", { name: "a turn starts" }));
+  expect(newChat).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "the turn ends" }));
+  await user.click(newChat);
+
+  expect(screen.getByText(/^conversation \d+$/).textContent).not.toBe(first);
+  expect(screen.getByText(`chat in ${session}`)).toBeInTheDocument();
 });
 
 test("a reload after the hour ends the sign-in", async () => {
