@@ -215,12 +215,14 @@ def test_a_customer_lists_the_read_tools_and_the_block(
     assert names == {
         "reads___list_cards",
         "reads___get_card",
+        "reads___get_available_credit",
         "reads___find_transactions",
         "block___block_card",
     }
     assert outputs["gateway_targets"] == {
         "list_cards": "reads",
         "get_card": "reads",
+        "get_available_credit": "reads",
         "find_transactions": "reads",
         "block_card": "block",
     }
@@ -253,11 +255,13 @@ def test_cedar_denies_another_customers_id(
     for tool, extra in (
         ("list_cards", {}),
         ("get_card", {"card_id": "PRD-ITEST0000001"}),
+        ("get_available_credit", {"card_id": "PRD-ITEST0000001"}),
+        ("find_transactions", {"card_id": "PRD-ITEST0000001"}),
     ):
         body = call(
             outputs, access, tool, arguments(access, customer_id=customer_id, **extra)
         )
-        assert body["error"]["code"] == DENIED
+        assert body["error"]["code"] == DENIED, tool
 
 
 def test_cedar_denies_another_sign_ins_origin_jti(
