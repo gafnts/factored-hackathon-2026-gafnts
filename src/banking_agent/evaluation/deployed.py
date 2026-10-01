@@ -33,6 +33,8 @@ class Deployed:
     user_pool_id: str
     client_id: str
     invoke_url: str
+    gateway_url: str
+    gateway_targets: Mapping[str, str]
     records_table: str
     overlay_table: str
     confirmations_table: str
@@ -61,6 +63,8 @@ def read(path: Path) -> Deployed:
         user_pool_id=outputs["user_pool_id"],
         client_id=outputs["customer_client_id"],
         invoke_url=outputs["invoke_url"],
+        gateway_url=outputs["gateway_url"],
+        gateway_targets=outputs["gateway_targets"],
         records_table=outputs["runtime_tables"]["execution_records"],
         overlay_table=outputs["sandbox_tables"]["overlay"],
         confirmations_table=outputs["sandbox_tables"]["confirmations"],

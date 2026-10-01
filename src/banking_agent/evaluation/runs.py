@@ -66,6 +66,10 @@ def play_set(
     drawn = list(cases.read(set_path))
     if any(c["side"] != "development" for c in drawn):
         raise PlayError("only development cases play with the scripted models")
+    # Access cases hold no conversation and need the deployed Gateway, so they play only end to end (ADR-0005's
+    # amendment of 2026-10-01); the summary says how many were set aside.
+    aside = sum(c["situation"].startswith("access.") for c in drawn)
+    drawn = [c for c in drawn if not c["situation"].startswith("access.")]
     loaded, answers = families.load(), families.load_answers()
     by_family = {f.family_id: f for f in loaded}
     by_answer = {a.answer_id: a for a in answers}
@@ -99,6 +103,7 @@ def play_set(
         "models": "scripted",
         "grader": grader.VERSION,
         "versions": dict(versions),
+        "set_aside": aside,
         **summarize([(c, g) for c, _, g in played], disagreements.load()),
     }
     (out / "summary.json").write_text(

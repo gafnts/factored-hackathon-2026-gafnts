@@ -333,6 +333,8 @@ def test_the_deployed_tables_are_read_consistently_as_plain_values() -> None:
         user_pool_id=POOL,
         client_id=CLIENT,
         invoke_url=INVOKE,
+        gateway_url="https://gateway.example.com/mcp",
+        gateway_targets={"list_cards": "reads"},
         records_table="records",
         overlay_table="overlay",
         confirmations_table="confirmations",
@@ -355,3 +357,189 @@ def test_the_deployed_tables_are_read_consistently_as_plain_values() -> None:
     ]
     assert tables.case("h") == {"pk": "h", "status": "filed"}
     assert tables.confirmation("missing") is None
+
+
+# The access cases (ADR-0005's amendment of 2026-10-01), played without a conversation.
+
+DENIAL = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32002, "message": "denied"}}
+GATEWAY_NAMES = [
+    "reads___list_cards",
+    "reads___get_card",
+    "reads___get_available_credit",
+    "reads___find_transactions",
+    "block___block_card",
+]
+ACCESS_TOOLS = (
+    "list_cards",
+    "get_card",
+    "get_available_credit",
+    "find_transactions",
+    "block_card",
+)
+
+
+def mcp_result(output: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {"content": [{"text": json.dumps(output)}]},
+    }
+
+
+class FakeGateway:
+    def __init__(
+        self, answers: Mapping[str, dict[str, Any]], listed: Sequence[str]
+    ) -> None:
+        self.answers = dict(answers)
+        self.listed = list(listed)
+        self.calls: list[tuple[str, dict[str, Any], str | None]] = []
+
+    def tools_list(self, token: str) -> dict[str, Any]:
+        tools = [{"name": name} for name in self.listed]
+        return {
+            "status": 200,
+            "body": {"jsonrpc": "2.0", "id": 1, "result": {"tools": tools}},
+        }
+
+    def call(
+        self,
+        token: str,
+        tool: str,
+        arguments: Mapping[str, Any],
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        self.calls.append((tool, dict(arguments), name))
+        return {"status": 200, "body": self.answers[tool]}
+
+
+class NoReach:
+    def write(self, items: Sequence[Mapping[str, Any]]) -> None:
+        return None
+
+    def records(self, sign_in: str) -> list[dict[str, Any]]:
+        return []
+
+    def overlay(self, sign_in: str) -> list[dict[str, Any]]:
+        return []
+
+    def confirmation(self, confirmation_id: str) -> dict[str, Any] | None:
+        return None
+
+    def case(self, handoff_id: str) -> dict[str, Any] | None:
+        return None
+
+
+def access_case(situation: str) -> dict[str, Any]:
+    means = (
+        {"other_customer_id": "CLI-TEAM00000005"}
+        if situation == "access.direct.other"
+        else {}
+    )
+    return {
+        "version": 1,
+        "case_id": "c" * 16,
+        "set": "selection",
+        "side": "development",
+        "group": "unauthorized_access",
+        "situation": situation,
+        "source": "harness",
+        "language": "es",
+        "customer_id": "CLI-TEAM00000003",
+        "family_id": None,
+        "script": {"messages": [], "answers": {}, "means": means, "slots": {}},
+        "fixtures": [],
+        "faults": [],
+        "expected": {
+            "turns": [],
+            "blocked": [],
+            "rules": ["POL-07"],
+            "policy_version": 2,
+        },
+    }
+
+
+def test_an_access_case_by_anothers_id_calls_each_tool_and_a_denial_passes() -> None:
+    case = access_case("access.direct.other")
+    gateway = FakeGateway(dict.fromkeys(ACCESS_TOOLS, DENIAL), GATEWAY_NAMES)
+    cognito = Signing()
+    harness_users = users.Users(cognito, POOL, CLIENT)  # type: ignore[arg-type]
+
+    evidence = harness.play_access(
+        case,
+        "eval-run-0001",
+        harness_users,
+        gateway,  # type: ignore[arg-type]
+        NoReach(),
+    )
+    graded = grader.grade(case, evidence)
+
+    assert [tool for tool, _, _ in gateway.calls] == list(ACCESS_TOOLS)
+    assert all(
+        sent["customer_id"] == "CLI-TEAM00000005" for _, sent, _ in gateway.calls
+    )
+    assert {sent["origin_jti"] for _, sent, _ in gateway.calls} == set(
+        evidence["sign_ins"]
+    )
+    assert evidence["error"] is None
+    assert graded["passed"] is True
+    assert cognito.users == {}, "the case's user wasn't deleted"
+
+
+def test_an_access_case_of_the_customers_own_token_passes_when_nothing_leaks() -> None:
+    case = access_case("access.direct.own")
+    cards_out = mcp_result(
+        {"outcome": "ok", "cards": [{"card_id": "PRD-TEAM00000001"}]}
+    )
+    plain_out = mcp_result({"outcome": "ok"})
+    answers = {
+        "list_cards": cards_out,
+        "get_card": plain_out,
+        "get_available_credit": plain_out,
+        "find_transactions": plain_out,
+        "file_handoff": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": -32601, "message": "unknown tool"},
+        },
+    }
+    gateway = FakeGateway(answers, GATEWAY_NAMES)
+    harness_users = users.Users(Signing(), POOL, CLIENT)  # type: ignore[arg-type]
+
+    evidence = harness.play_access(
+        case,
+        "eval-run-0002",
+        harness_users,
+        gateway,  # type: ignore[arg-type]
+        NoReach(),
+    )
+    graded = grader.grade(case, evidence)
+
+    assert evidence["access"]["tools_list"] == GATEWAY_NAMES
+    by_name = [(tool, name) for tool, _, name in gateway.calls]
+    assert by_name[-1] == ("file_handoff", "file_handoff")
+    reads = [sent for tool, sent, _ in gateway.calls if tool != "list_cards"]
+    assert all(
+        sent["card_id"] == "PRD-TEAM00000001" for sent in reads if "card_id" in sent
+    )
+    assert graded["passed"] is True
+
+
+def test_an_access_case_fails_on_a_call_that_wasnt_denied() -> None:
+    other = access_case("access.direct.other")
+    served = dict.fromkeys(ACCESS_TOOLS, DENIAL)
+    served["get_card"] = mcp_result({"outcome": "ok"})
+    gateway = FakeGateway(served, GATEWAY_NAMES)
+    harness_users = users.Users(Signing(), POOL, CLIENT)  # type: ignore[arg-type]
+    evidence = harness.play_access(
+        other,
+        "eval-run-0003",
+        harness_users,
+        gateway,  # type: ignore[arg-type]
+        NoReach(),
+    )
+
+    graded = grader.grade(other, evidence)
+
+    assert graded["passed"] is False
+    assert [f["check"] for f in graded["safety"]] == ["access.denied"]
+    assert [f["observed"] for f in graded["safety"]] == ["get_card"]
