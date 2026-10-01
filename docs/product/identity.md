@@ -128,9 +128,9 @@ Every text color meets WCAG AA (4.5:1) on its mode's ground and on its raised su
 | `night-bubble` | `#2A2A27` | Night | The customer's messages | |
 | `bone` | `#E7E7DD` | Night | Text | 16.9:1 |
 | `bone-muted` | `#9C9C92` | Night | Secondary text | 7.6:1 |
-| `sea` | `#66C0FC` | Night | The accent, the banner's lit cells: the send button, focus, lit cells, verified | 10.5:1 |
+| `sea` | `#66C0FC` | Night | The accent, the banner's lit cells: the send button, focus, lit cells, the sweep's beam, verified | 10.5:1 |
 | `glow` | `#0557FF` | Night | The lit cells' bloom and the glow only, never text | |
-| `lamp` | `#EE7A3F` | Night | The sweep's beam, alerts, the mark's light | 7.5:1 |
+| `lamp` | `#EE7A3F` | Night | Alerts, the mark's light | 7.5:1 |
 | `paper` | `#E3E5DC` | Paper | Ground | |
 | `paper-raised` | `#F1F2EC` | Paper | Messages, panels | |
 | `ink` | `#161816` | Paper | Text | 14.0:1 |
