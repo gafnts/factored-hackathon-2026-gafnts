@@ -154,15 +154,15 @@ Color never carries a status alone: *verified* and *urgent* are always written o
 
 ### Type
 
-- **Outfit** for display on Night: the wordmark, the empty chat's question, and the sign-ins' headings, at 600 and tightly set (the banner's wordmark at −0.07 em, headlines at −0.03 em). Of 20 open sans compared with the banner's wordmark at its proportions, it matched most closely.
-- **Geist** for text, and for display on Paper. Headlines on Paper are bold and tightly set (−0.02 em); chat text is at least 16 px.
-- **Geist Mono** for what is read character by character, or is a label: references (`7K2M-9QXA`), last four digits, rule IDs, reason codes, and tool calls in the console. Labels are set in capitals, tracked +0.08 em.
+- **Outfit** for the wordmark alone, at 600 and tightly set (−0.07 em over the sign-in form, −0.03 em in the bar). Of 20 open sans compared with the banner's wordmark at its proportions, it matched most closely. Set apart from everything else, it reads as the logotype it is.
+- **Geist** for everything else, display included, so the page is one family and hierarchy comes from size and weight (Layout). Headlines are semibold on Night and bold on Paper, set tighter as they grow (−0.025 em for a card's heading, −0.035 em for the empty chat's question; −0.02 em on Paper); chat text is at least 16 px. A form's field names are text, in Geist Medium.
+- **Geist Mono**, Geist's own mono, for what is read character by character, or is a label: references (`7K2M-9QXA`), last four digits, rule IDs, reason codes, and tool calls in the console. Labels are set in capitals, tracked +0.08 em.
 
 All three are under the SIL Open Font License, and cover the accents and punctuation of Spanish and Portuguese (*ñ*, *ç*, *ã*, *õ*, *¿*, *¡*). The site serves them itself rather than from a font CDN, in keeping with [ADR-0007](../adr/0007-role-gated-web-app.md#rendering-what-others-wrote)'s content security policy.
 
 ### Layout
 
-In the International Typographic Style. The page sits on a column grid whose module is the grid motif's cell. Text is set flush left and ragged right, a headline on the left edge of what follows it rather than centered. A few lines are centered, on the axis the grid is drawn from, with their lines balanced: a sign-in's wordmark over the form, the empty chat's question over the composer, the notice under the signed-in pages, and the missing page's three lines, on a card alone at its center. On a sign-in, the notice is set flush right instead, in the corner across from the bank's name in the bar. Hierarchy comes from size and weight alone. Hairlines separate, not shadows; the glow is the one light. Lists the reader picks from carry the numbered labels.
+In the International Typographic Style. The page sits on a column grid whose module is the grid motif's cell. Text is set flush left and ragged right, a headline on the left edge of what follows it rather than centered. A few lines are centered, on the axis the grid is drawn from, with their lines balanced: a sign-in's wordmark over the form, the empty chat's question over the composer, the notice under the signed-in pages, and the missing page's three lines, on a card alone at its center. On a sign-in, the notice is set flush right instead, in the corner across from the bank's name in the bar. Hierarchy comes from size and weight alone. Hairlines separate, not shadows; the glow is the one light. Every shape is square, as the grid's cells are: panels, fields, buttons, and messages alike. Where the grid shows, what sits in its cleared block spans whole cells either side of the axis, so its edges fall on the lines: the sign-in form eight cells wide (ten on a phone), and the empty chat's composer and suggestions twelve, four to a suggestion. The conversation keeps the same twelve-cell column, so the composer stays put when the first message lands. Lists the reader picks from carry the numbered labels.
 
 ### The mark
 
