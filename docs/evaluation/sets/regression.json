@@ -1,0 +1,502 @@
+{
+  "set": "regression",
+  "seed": 20261001,
+  "versions": {
+    "snapshot": "b3b8b248f604ef9a",
+    "pipeline_version": "795ff66b819516bf",
+    "generator": "fcf2bf5a2ad647d2670cdd90c10fa26e42744613",
+    "families": "0f72bcad9cb1673522f618e89e3d284407ff4620c09ead8c9556b4f7498d7f3c",
+    "policy": 2,
+    "case_format": 1
+  },
+  "cases": 47,
+  "sha256": "29710dc4f68853e8956938b7403e47be55d14a13a3b48411be68c8754f40696d",
+  "counts": [
+    {
+      "group": "block",
+      "situation": "block.reason_asked",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "block",
+      "situation": "block.reason_asked",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "block",
+      "situation": "block.reason_given",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "block",
+      "situation": "block.reason_given",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "decline.several",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "decline.several",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "none.no_request",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "none.no_request",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "unsupported.offered",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "unsupported.offered",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "unsupported.outside_cards",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "clarify_or_decline",
+      "situation": "unsupported.outside_cards",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "confirmation",
+      "situation": "block.cancelled",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "confirmation",
+      "situation": "block.cancelled",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "confirmation",
+      "situation": "block.typed_yes",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "confirmation",
+      "situation": "block.typed_yes",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "charge.block_cancelled",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "charge.block_cancelled",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "charge.blocked",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "charge.blocked",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "customer.not_active",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "customer.not_active",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "person.asked",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "person.asked",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "person.complaint",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "person.complaint",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "unsupported.unblock",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "handoffs",
+      "situation": "unsupported.unblock",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "missing_data",
+      "situation": "credit.no_limit",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "missing_data",
+      "situation": "credit.no_limit",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "missing_data",
+      "situation": "decline.no_code",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "missing_data",
+      "situation": "decline.no_code",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "multilingual",
+      "situation": "none.third_language",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "prompt_injection",
+      "situation": "decline.listed_code.injection",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "prompt_injection",
+      "situation": "decline.listed_code.injection",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "credit.available",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "credit.available",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "credit.over_limit",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "credit.over_limit",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "decline.listed_code",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "decline.listed_code",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "status.one_card",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "status.one_card",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "status.which_card",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "status.which_card",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "transactions.page",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "reads",
+      "situation": "transactions.page",
+      "language": "pt",
+      "cases": 1
+    }
+  ],
+  "short": [
+    {
+      "situation": "transactions.next_page",
+      "language": "es",
+      "wanted": 1,
+      "drawn": 0
+    },
+    {
+      "situation": "transactions.next_page",
+      "language": "pt",
+      "wanted": 1,
+      "drawn": 0
+    }
+  ],
+  "case_ids": [
+    {
+      "case_id": "03ed4cc7100d11d1",
+      "sha256": "ba210fdaa7ac6b9cf774ed5d3f9c5c5b958a5e065b8c82673cf18d1a95711e87"
+    },
+    {
+      "case_id": "4465574434c59bbe",
+      "sha256": "4508a407e4a3ca0a7ebda97ee03fd65cc1463ec4e0a699657d687edeca806353"
+    },
+    {
+      "case_id": "90635de1ad6af4a4",
+      "sha256": "b8b3ebe49c5030502935ea76f7380ccec8c594d24a6119f066526f629dece8c3"
+    },
+    {
+      "case_id": "28f520945e8f9ec6",
+      "sha256": "a3b024298d2051d2b13a7fde418639f0126b309a854df7d3b4c779ff01eb3a4e"
+    },
+    {
+      "case_id": "481be05f95f1c2d0",
+      "sha256": "da28cf4f43b9f97d26f28ff6ab68fa04a3c8743b6e83ba00da6eba2f61262e9b"
+    },
+    {
+      "case_id": "95a79ad3f56fe1e9",
+      "sha256": "40486b9d7a0d7f0f08087b10feacef289d84b84b1ef4ea2205027398d67a7760"
+    },
+    {
+      "case_id": "d0bd4de905fc3ff3",
+      "sha256": "d3b110a27d66b6d664589bc74d1823a7ab059498a9c0adb0242270c43a1e5229"
+    },
+    {
+      "case_id": "e7b63cb14c8c530d",
+      "sha256": "25abad236744977e03544e415f7cde8d801c793362275eec69931755198dc854"
+    },
+    {
+      "case_id": "09f4919a3ee8666e",
+      "sha256": "223baf589cd33d01268ee3f7df178104609328a1087e107721e6723ab3c600f4"
+    },
+    {
+      "case_id": "e42f296db222bb2f",
+      "sha256": "61b7afbc34e55eabb257cfe46e062adebbbe5406c5d5beca8a97d1beaaa874a0"
+    },
+    {
+      "case_id": "292bfacf24645764",
+      "sha256": "3d88e080fef53d3e9307e12d9a47bba27977cd1bdb4680a99ae35a2187948242"
+    },
+    {
+      "case_id": "ae9926c1f103dae2",
+      "sha256": "497796561a357f9bc43721b488bf5e078a22939021d961fb2b5008a36ca0417c"
+    },
+    {
+      "case_id": "f6b8426727b53638",
+      "sha256": "dc2c19f27e2ffc120e04e7a6bd8b381db958c56f249c6935aacd369a0f390aef"
+    },
+    {
+      "case_id": "18fcef0fde513fac",
+      "sha256": "e552b0ee194de895e9ae3974e93aa71f6d0788c66b2fc52af0d0496e4707f175"
+    },
+    {
+      "case_id": "23726d731ab64156",
+      "sha256": "084bf77d16057649fc6a7a375e390e04d525e15c9e40b78ee58285bb13336546"
+    },
+    {
+      "case_id": "e591ba650176b093",
+      "sha256": "9dba03f2722af20f9ecb24f14f12318ef458c023e6c5e9cb60a8e205f93a35f3"
+    },
+    {
+      "case_id": "628e5da36eeac533",
+      "sha256": "28e248cf6b978d5d42c0bf32f1679becfb77201adfbdd3e2d7f7f29d2a5d5b8d"
+    },
+    {
+      "case_id": "575b757cfcf465aa",
+      "sha256": "f84196e3284d907692f5655d580c339287f906c2e5bd7071363c3be4ed101953"
+    },
+    {
+      "case_id": "805b290f21157683",
+      "sha256": "5263ede9b8f024c0b6974aae116a1a801c269d0679ae77af37dafdb518b1da2b"
+    },
+    {
+      "case_id": "34ac38facdd707db",
+      "sha256": "edf57528a610021e3eef0004849535fccd265b0481b551548f47adbf74598a3a"
+    },
+    {
+      "case_id": "2585797fd55d6887",
+      "sha256": "dd678831e3db6d51a8b4dc3d9ad1efe93b1ff3a3417c35b432c07eb17f6d229a"
+    },
+    {
+      "case_id": "a80ae59ba8dba82e",
+      "sha256": "e8046d85de524e6f0e20fdd3166d121c9d871fcc17adda93e3e75d9aacb09116"
+    },
+    {
+      "case_id": "1d33c8bd9ebfb08a",
+      "sha256": "087078e5079f9c5f4f77fae77b94ab5877f28c9d2b6d257fa7f9cc8bcd628701"
+    },
+    {
+      "case_id": "5b7e3be11bb1ee60",
+      "sha256": "162b54ef0bcfae35220f2b339d18b53ffda54af3cec74a3ac9a0769a9e82460a"
+    },
+    {
+      "case_id": "476ca232ed008a17",
+      "sha256": "a304c96ac18352370d1521202493dc6d8e587318b14db5bf1c24403ecc191c94"
+    },
+    {
+      "case_id": "e4f93b2a06b182ac",
+      "sha256": "b969d93a7ad5d109a92ae3c1d6f68fd7814fc582705d963f847e48b40785ef27"
+    },
+    {
+      "case_id": "856b11007bbb2629",
+      "sha256": "f0d6672d04465c248762992ca88d118e49224f4a02e88535a04335680937e258"
+    },
+    {
+      "case_id": "c222c3a98985ed73",
+      "sha256": "4efd17e7ce1f46e64916b8dbebb5e6a966f03c7a327f64ced8433a9b65ae406e"
+    },
+    {
+      "case_id": "44a28d9dc138cd38",
+      "sha256": "052a661a03ec145ebaf274df9805aa1c6f66594f8686d424c94a8f59acc9f850"
+    },
+    {
+      "case_id": "4b1f89a9dce7f867",
+      "sha256": "dafac71e8f3fa211dd92bd83f9c6f1eb2fdfc77aa0fd3dc055805fcdae87d9f9"
+    },
+    {
+      "case_id": "4d56a3223510a730",
+      "sha256": "e63fefd9005a96e51ab42c35d33e6d8347a7e571e4fe8aa12baadbf4ced641e3"
+    },
+    {
+      "case_id": "9158e1e26ffb128d",
+      "sha256": "a9536fa1ae4fed7535b9b07106c9c5bba4eab5228e30a72b9bf90f180c926e7f"
+    },
+    {
+      "case_id": "8fe2acb426fc4fc8",
+      "sha256": "e5c742a175943c5069145a54b14c10e0465d4835e5c5b4152044cee7571fec7b"
+    },
+    {
+      "case_id": "ad0ba9ae658a7b58",
+      "sha256": "f86049c483e5a8abeed3e72383d7ba7c765e703c2e516163fa7629faf4af524c"
+    },
+    {
+      "case_id": "77074c88852881da",
+      "sha256": "71d82fc53feab42c230340c930ee4cd0cd2dca350ca29d83772d5ff10388bc9e"
+    },
+    {
+      "case_id": "612864e4e9bbba78",
+      "sha256": "aa08eaa60d88cb1de620cb3b64dc4e4d8c62e4bed734cc183a9c64e637e7f44b"
+    },
+    {
+      "case_id": "c0cb3552d1f87f29",
+      "sha256": "f018d339753988f8b57c8f8724857d29a7757653e8d0af2c7153f5aafa78e255"
+    },
+    {
+      "case_id": "371aa8866846c0e9",
+      "sha256": "598b3b80df2af343e4e1ac5dd525048837361516de23da86fe49f20b4e587abf"
+    },
+    {
+      "case_id": "439d8aad49e96188",
+      "sha256": "5ba234863e23c7e8c69b8362e5f89d0772b7fd1ab2cfbaa860c795a03622ecae"
+    },
+    {
+      "case_id": "d41dea22a4b4ac7d",
+      "sha256": "f65a37b0b2dcb5d8d629ac60779b9c6d4ab9966335e606856093ffdf1bbb3ed2"
+    },
+    {
+      "case_id": "7feebb933130f8ab",
+      "sha256": "0344e7d62272024aaa3b7b5c6878780e4bcf27666647202659ae6dffd27bfd52"
+    },
+    {
+      "case_id": "9363a4ca4c5c2e02",
+      "sha256": "85623f701ae4ca78a223b6f57dcb969d3d25411074d3babd6f85347ed60d23fd"
+    },
+    {
+      "case_id": "3fffe931a9320fa5",
+      "sha256": "6a8c4c60af3cfb72c2336e8a624ac79e7f06dd13b8f14ae1ccf8a105142f92a0"
+    },
+    {
+      "case_id": "220dc84b496503f8",
+      "sha256": "d53b626486d50d417fb0c047f3996433e78009358a851af58d35ed5a65b5fd35"
+    },
+    {
+      "case_id": "140aa99ae2a5e165",
+      "sha256": "dda74be1d0a05c2932d728abfb908f6530ddf9960b12067beeccd56882643a54"
+    },
+    {
+      "case_id": "82c6c4168de350df",
+      "sha256": "6131fdf9136481aa57ffec58b3867a4531c5a773869fae55be0e91df8910de29"
+    },
+    {
+      "case_id": "891f214a87747fce",
+      "sha256": "aa64fa8353ee7cb4edc8530a472b5c58748e16f75b6a78473c581b8689b542d5"
+    }
+  ]
+}
