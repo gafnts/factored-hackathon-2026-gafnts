@@ -12,7 +12,15 @@ import sys
 from pathlib import Path
 
 from banking_agent.dataset.lock import LockError, read_lock
-from banking_agent.evaluation import bronze, cases, families, generator, oracle, state
+from banking_agent.evaluation import (
+    bronze,
+    cases,
+    disagreements,
+    families,
+    generator,
+    oracle,
+    state,
+)
 from banking_agent.evaluation.facts import contract_words
 from banking_agent.pipeline import runner
 
@@ -97,7 +105,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     drawing.add_argument("--seed", type=int, default=20261001)
     drawing.add_argument("--docs", type=Path, default=Path("docs/evaluation/sets"))
+    commands.add_parser(
+        "disagreements", help="Regenerate the disagreement log's page from its entries"
+    )
     args = parser.parse_args(argv)
+    if args.command == "disagreements":
+        found = disagreements.problems(disagreements.load())
+        for problem in found:
+            print(f"Error: {problem}", file=sys.stderr)
+        if not found:
+            disagreements.write()
+        return 1 if found else 0
     try:
         generate(args.lock, args.data_dir, args.docs, args.seed)
     except LockError as error:

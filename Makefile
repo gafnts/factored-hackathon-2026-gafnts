@@ -169,10 +169,13 @@ contracts: ## Rewrite the bronze contracts from the dictionary and pipeline/cont
 
 ##@ Evaluation
 
-.PHONY: eval-sets
+.PHONY: eval-sets disagreements
 
 eval-sets: ## Draw the development regression and selection sets from the last pipeline build into DATA_DIR/evaluation/, manifests to docs/evaluation/sets/ (ADR-0005; prints counts, never IDs)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
+
+disagreements: ## Regenerate docs/evaluation/disagreements.md from its entries
+	uv run python -m banking_agent.evaluation disagreements
 
 ##@ Analysis
 
