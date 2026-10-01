@@ -128,15 +128,7 @@ function Composer({
 
 // The empty chat, after assistant-ui's Gemini example (MIT): the question over the composer, the glow beneath it, and
 // the numbered suggestions, in the banner's cleared block.
-function Opening({
-  language,
-  problem,
-  divert,
-}: {
-  language: Language;
-  problem: Problem | null;
-  divert: Divert;
-}) {
+function Opening({ language, divert }: { language: Language; divert: Divert }) {
   const texts = TEXTS[language].chat;
   return (
     <Grid layout="chat">
@@ -173,7 +165,6 @@ function Opening({
             </li>
           ))}
         </ol>
-        {problem && <Alert language={language} problem={problem} />}
       </div>
     </Grid>
   );
@@ -206,7 +197,7 @@ function Thread({
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <AuiIf condition={(state) => state.thread.isEmpty}>
-        <Opening language={language} problem={problem} divert={divert} />
+        <Opening language={language} divert={divert} />
       </AuiIf>
       <AuiIf condition={(state) => !state.thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -217,7 +208,6 @@ function Thread({
               }
             </ThreadPrimitive.Messages>
             {running && <Working label={texts.working} />}
-            {problem && <Alert language={language} problem={problem} />}
           </div>
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 bg-linear-to-t from-night from-60% to-transparent pt-6">
             <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
@@ -226,6 +216,13 @@ function Thread({
           </ThreadPrimitive.ViewportFooter>
         </ThreadPrimitive.Viewport>
       </AuiIf>
+      {/* Under the composer and outside both views, so the sentence stays put when a failed first message empties
+          or fills the thread. */}
+      {problem && (
+        <div className="mx-auto w-full max-w-3xl px-4 pt-2 sm:px-6">
+          <Alert language={language} problem={problem} />
+        </div>
+      )}
     </ThreadPrimitive.Root>
   );
 }
