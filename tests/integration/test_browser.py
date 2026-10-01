@@ -37,7 +37,8 @@ from playwright.sync_api import (
     sync_playwright,
 )
 
-from banking_agent.agent.texts import FIXED, render, transaction_name
+from banking_agent.agent.formats import transaction_name
+from banking_agent.agent.texts import FIXED, render
 from banking_agent.contracts import validator
 from banking_agent.tools.cases import draw_reference, queue_order, reference_item
 
@@ -319,9 +320,10 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
 
 def charged(
     outputs: dict[str, Any], users: dict[str, User], site: str, customer: Tab
-) -> tuple[str, dict[str, Any], dict[str, Any]]:
+) -> tuple[str, dict[str, Any], dict[str, Any], str]:
     """
-    The Portuguese persona, signed in, with their credit card and the charge they won't recognize.
+    The Portuguese persona, signed in, with their credit card, the charge they won't recognize, and their country, by
+    which the reply groups an amount.
     """
     customer.sign_in(site, users["other_customer"])
     expect(customer.page.get_by_label(customer.texts["message"])).to_be_visible()
@@ -334,7 +336,8 @@ def charged(
         for c in listed["cards"]
         if c["product_status"] == "Active" and c["product_type"] == "Tarjeta Crédito"
     )
-    return access, card, disputed(window(outputs, access, card["card_id"]))
+    charge = disputed(window(outputs, access, card["card_id"]))
+    return access, card, charge, listed["customer"]["country"]
 
 
 def at_the_console(site: str, agent: Tab, user: User) -> None:
@@ -401,20 +404,21 @@ def test_the_readmes_journey_blocks_the_card_and_files_the_charge_to_dispute_int
     agent = tab("es")
     at_the_console(site, agent, users["staff"])
     customer = tab("pt")
-    access, card, charge = charged(outputs, users, site, customer)
+    access, card, charge, country = charged(outputs, users, site, customer)
     controls = customer.page.get_by_role("group", name=customer.texts["control"])
 
     listed = customer.ask(outputs, "Não reconheço uma compra no meu cartão.")
 
     # Nothing in the message tells the charges apart, so the newest are listed (POL-27).
     which = FIXED["which_charge"]["pt"].split("{card}")[0]
-    offered = which in listed and transaction_name(charge, "pt") in listed
+    offered = which in listed and transaction_name(charge, "pt", country) in listed
     assert offered, "the reply doesn't list the card's charges"
     expect(controls).to_have_count(0)
 
     found = customer.ask(outputs, f"É {named(charge)}.")
 
-    shown = render("charge_found", "pt", {"card": card, "transaction": charge}) in found
+    facts = {"card": card, "transaction": charge, "country": country}
+    shown = render("charge_found", "pt", facts) in found
     assert shown, "the reply doesn't name the charge the customer chose"
     expect(controls).to_have_count(1)
     reason = "Motivo: cobrança não reconhecida" in controls.first.inner_text()
@@ -456,7 +460,7 @@ def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
     agent = tab("es")
     at_the_console(site, agent, users["staff"])
     customer = tab("pt")
-    access, card, charge = charged(outputs, users, site, customer)
+    access, card, charge, country = charged(outputs, users, site, customer)
     controls = customer.page.get_by_role("group", name=customer.texts["control"])
     customer.ask(
         outputs,
