@@ -96,6 +96,14 @@ output "runtime_tables" {
   value = module.runtime.tables
 }
 
+output "evaluation" {
+  description = "The role the evaluation harness assumes, and the bucket that keeps each case's results for 90 days"
+  value = {
+    role_arn = module.evaluation.role_arn
+    bucket   = module.evaluation.bucket
+  }
+}
+
 output "site" {
   description = "The site's URL, the bucket and distribution make site deploys to, and the DNS records a custom domain needs"
   value = {
