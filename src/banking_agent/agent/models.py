@@ -2,9 +2,9 @@
 The graph's model calls: Claude Haiku 4.5 through Anthropic's API with the key from AgentCore Identity (ADR-0004,
 Models, as amended). The router's, the extraction's, and the handoff text's outputs are typed through structured output,
 each field among the values its step allows, and a reply is plain text read whole.
-Every call is one attempt, recorded as a model_call entry, and runs with emit-messages and emit-tool-calls off and
-streaming disabled, so nothing it writes reaches the chat unchecked (ADR-0004, What the chat receives). The client's
-own retries are off too, since each attempt is recorded (decision 18).
+Every attempt is recorded as a model_call entry, and runs with emit-messages and emit-tool-calls off and streaming
+disabled, so nothing it writes reaches the chat unchecked (ADR-0004, What the chat receives). A call is tried again as
+decision 18 says (retries.py), and the client's own retries are off, since each attempt is recorded.
 """
 
 import time
@@ -19,6 +19,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel, ConfigDict, Field
 
+from banking_agent.agent.retries import RETRIES, Retries, Wait, retry_after
+
 MODEL = "claude-haiku-4-5-20251001"
 PROVIDER = "anthropic"
 MAX_TOKENS = 2048
@@ -27,6 +29,15 @@ TIMEOUT_S = 30.0
 # USD per million tokens at list price on 2026-09-29: input, output, cache write, cache read.
 PRICES = {MODEL: (1.00, 5.00, 1.25, 0.10)}
 EMIT_OFF = {"emit-messages": False, "emit-tool-calls": False}
+# A 4xx (error) would only be repeated (decision 18).
+RETRIED = (
+    "rate_limited",
+    "server_error",
+    "timeout",
+    "connection_error",
+    "invalid_output",
+)
+WAITED = ("rate_limited", "server_error")
 
 Label = Literal[
     "card_status",
@@ -175,9 +186,20 @@ def failure(error: Exception) -> str:
         return "rate_limited"
     if isinstance(error, anthropic.APITimeoutError):
         return "timeout"
+    if isinstance(error, anthropic.APIConnectionError):
+        return "connection_error"
     if isinstance(error, anthropic.APIStatusError) and error.status_code >= 500:
         return "server_error"
     return "error"
+
+
+def provider_wait(error: Exception) -> float | None:
+    """
+    The retry-after a 429 or a 5xx carries.
+    """
+    if not isinstance(error, anthropic.APIStatusError):
+        return None
+    return retry_after(error.response.headers)
 
 
 def usage(message: AIMessage | None) -> dict[str, int | None]:
@@ -218,9 +240,20 @@ def cost(counted: dict[str, int | None]) -> float | None:
 
 
 class Models:
-    def __init__(self, factory: Factory, record: Record) -> None:
+    def __init__(
+        self,
+        factory: Factory,
+        record: Record,
+        retries: Retries = RETRIES,
+        elapsed: Callable[[], float] = lambda: 0.0,
+    ) -> None:
+        """
+        elapsed is how long the turn has run, in seconds, which the retries' deadline reads.
+        """
         self.factory = factory
         self.record = record
+        self.retries = retries
+        self.elapsed = elapsed
 
     async def call(
         self,
@@ -233,10 +266,42 @@ class Models:
         output names the structured output, when it isn't the purpose's own: the record knows a transaction's choice as
         an extraction.
         """
+        attempt, wait = 1, None
+        while True:
+            raw, parsed, outcome, provider = await self.attempt(
+                node, purpose, messages, output, attempt, wait
+            )
+            if outcome == "ok":
+                return raw, parsed
+            wait = (
+                self.retries.after(
+                    attempt,
+                    self.elapsed(),
+                    provider if outcome in WAITED else None,
+                    at_once=outcome == "invalid_output",
+                )
+                if outcome in RETRIED
+                else None
+            )
+            if wait is None:
+                raise ModelFailedError(f"the {node} call ended {outcome}")
+            await self.retries.sleep(wait.seconds)
+            attempt += 1
+
+    async def attempt(
+        self,
+        node: str,
+        purpose: str,
+        messages: Sequence[BaseMessage],
+        output: str | None,
+        attempt: int,
+        wait: Wait | None,
+    ) -> tuple[AIMessage | None, Any, str, float | None]:
         started = time.perf_counter()
         raw: AIMessage | None = None
         parsed: Any = None
         outcome = "ok"
+        provider: float | None = None
         typed = output or purpose
         try:
             answer = await self.factory(typed).ainvoke(list(messages))
@@ -250,6 +315,7 @@ class Models:
                     outcome = "invalid_output"
         except Exception as error:
             outcome = failure(error)
+            provider = provider_wait(error)
         counted = usage(raw)
         entry: dict[str, Any] = {
             "node": node,
@@ -265,7 +331,8 @@ class Models:
                 "max_tokens": MAX_TOKENS,
                 "temperature": TEMPERATURE,
             },
-            "attempt": 1,
+            "attempt": attempt,
+            **(wait.fields() if wait is not None else {}),
             "outcome": outcome,
             "latency_ms": round((time.perf_counter() - started) * 1000),
             "usage": counted,
@@ -279,9 +346,7 @@ class Models:
             fitting = ",".join(str(n) for n in parsed.fitting)
             entry["output"] = {"extracted": {"fitting": fitting or None}}
         await self.record("model_call", **entry)
-        if outcome != "ok":
-            raise ModelFailedError(f"the {node} call ended {outcome}")
-        return raw, parsed
+        return raw, parsed, outcome, provider
 
     async def route(self, text: str, context: str | None = None) -> RouterOutput:
         """

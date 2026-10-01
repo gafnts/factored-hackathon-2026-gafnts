@@ -62,6 +62,7 @@ from banking_agent.agent.request import (
     check_contract,
     read,
 )
+from banking_agent.agent.retries import RETRIES, Retries
 from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.sessions import Bindings, DynamoBindings
 from banking_agent.contracts import NAMES, version
@@ -116,6 +117,8 @@ class Services:
     confirmations: Confirmations
     filing: Filing
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
+    # Decision 18's waits; the evaluation's in-process player passes one that doesn't sleep.
+    retries: Retries = RETRIES
 
 
 def workload_token(headers: Mapping[str, str]) -> str | None:
@@ -369,13 +372,19 @@ class Entrypoint:
                     thread_key=key,
                     turn=turn,
                     gateway=services.gateway,
-                    models=Models(services.models(model_key), turn.write),
+                    models=Models(
+                        services.models(model_key),
+                        turn.write,
+                        services.retries,
+                        lambda: turn.latency_ms() / 1000,
+                    ),
                     confirmations=services.confirmations,
                     filing=services.filing,
                     snapshot=services.settings.stamp["snapshot"],
                     business_date=services.settings.clock["business_date"],
                     as_of=services.settings.clock["as_of"],
                     now=services.now,
+                    retries=services.retries,
                 )
             )
             wrapper = LangGraphAgent(

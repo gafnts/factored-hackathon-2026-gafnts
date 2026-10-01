@@ -1,5 +1,5 @@
 """
-Every model call is one recorded attempt on Claude Haiku 4.5, with the client's own retries and streaming off and
+Every attempt at a model call is recorded, on Claude Haiku 4.5, with the client's own retries and streaming off and
 emit-messages and emit-tool-calls off, so nothing it writes reaches the chat unchecked; its usage and list-price cost
 are recorded, and a failure is named by kind (ADR-0004, Models and What the chat receives; decision 18; OPS-02, M-05).
 """

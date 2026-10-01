@@ -38,6 +38,7 @@ class ToolCall:
     error: dict[str, Any] | None = None
     via: str = "gateway"
     attempt: int = 1
+    waited: dict[str, Any] | None = None
 
     def entry(self) -> dict[str, Any]:
         fields: dict[str, Any] = {
@@ -45,6 +46,7 @@ class ToolCall:
             "tool": self.tool,
             "via": self.via,
             "attempt": self.attempt,
+            **(self.waited or {}),
             "called_at": self.called_at,
             "latency_ms": self.latency_ms,
             "request_id": self.request_id,
@@ -125,8 +127,18 @@ class Gateway:
         self.client = client
         self.now = now
 
-    async def call(self, tool: str, arguments: dict[str, Any], token: str) -> ToolCall:
-        call_id = str(uuid.uuid4())
+    async def call(
+        self,
+        tool: str,
+        arguments: dict[str, Any],
+        token: str,
+        call_id: str | None = None,
+        attempt: int = 1,
+    ) -> ToolCall:
+        """
+        A call's attempts share its call_id.
+        """
+        call_id = call_id or str(uuid.uuid4())
         called_at = wall_time(self.now())
         body = {
             "jsonrpc": "2.0",
@@ -169,5 +181,6 @@ class Gateway:
             latency_ms=round((time.perf_counter() - started) * 1000),
             request_id=request_id,
             input=arguments,
+            attempt=attempt,
             **classified,
         )
