@@ -10,6 +10,7 @@ import {
 import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
+import { faces } from "./faces";
 import { Grid } from "./grid";
 import { LogOut, SquarePen } from "./icons";
 import { SignIn } from "./pages/sign-in";
@@ -42,7 +43,7 @@ export function Customer({ language }: { language: Language }) {
     void (async () => {
       let config: Config;
       try {
-        config = await loadConfig();
+        [config] = await Promise.all([loadConfig(), faces()]);
       } catch {
         if (!unmounted.signal.aborted) setState({ kind: "broken" });
         return;
@@ -101,8 +102,14 @@ export function Customer({ language }: { language: Language }) {
     if (config) void end(config, true);
   }, [config, end]);
 
+  const newConversation = useCallback(() => {
+    setRunning(false);
+    setConversation((count) => count + 1);
+  }, []);
+
+  // The bare ground until the page can arrive whole, its faces in, rather than a frame first and the rest after.
   if (state.kind === "loading")
-    return <Shell language={language}>{null}</Shell>;
+    return <div data-mode="night" className="h-dvh" />;
   if (state.kind === "broken") {
     return (
       <Shell language={language}>
@@ -117,10 +124,10 @@ export function Customer({ language }: { language: Language }) {
   }
   if (state.kind === "signed-out") {
     return (
-      <Shell language={language}>
+      <Shell language={language} signIn>
         <Grid layout="sign-in">
           <div className="flex flex-1 flex-col justify-center px-4 py-6">
-            <p className="mx-auto w-full max-w-sm pb-6 font-display text-6xl font-semibold tracking-[-0.07em]">
+            <p className="mx-auto w-full max-w-sm pb-6 text-center font-display text-6xl font-semibold tracking-[-0.07em]">
               Faro
             </p>
             <SignIn language={language} ended={state.ended} onSignIn={signIn} />
@@ -138,6 +145,7 @@ export function Customer({ language }: { language: Language }) {
       language={language}
       note={texts.signIn.endsAt(time)}
       running={running}
+      onNew={newConversation}
       rail={(expanded) => (
         <>
           <RailButton
@@ -145,10 +153,7 @@ export function Customer({ language }: { language: Language }) {
             label={texts.rail.newChat}
             expanded={expanded}
             disabled={running}
-            onClick={() => {
-              setRunning(false);
-              setConversation((count) => count + 1);
-            }}
+            onClick={newConversation}
           />
           {expanded && (
             <p className="hidden px-2.5 pt-1 text-xs text-bone-muted sm:block">

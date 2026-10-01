@@ -39,4 +39,9 @@ export default defineConfig([
     files: ["*.config.js"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  // Served as written, ahead of the bundle, so no tsconfig includes it.
+  {
+    files: ["public/**/*.js"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
 ]);

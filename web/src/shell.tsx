@@ -38,20 +38,26 @@ export function RailButton({
   );
 }
 
-// The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar with the
-// wordmark, a link to the chat, and the synthetic-data notice on every page (SEC-02). The rail and the bar are glass
-// over the page, which runs on under them; main's padding keeps the content clear of them, by --rail and --bar.
+// The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar, and the
+// synthetic-data notice on every page (SEC-02). The sign-in's bar carries the bank's name, its notice flush right; once
+// signed in, the bar carries Faro's wordmark, the notice centered. The rail and the bar are glass over the page, which
+// runs on under them; main's padding keeps the content clear of them, by --rail and --bar. The frame fades in as a
+// page arrives (the identity guide's Motifs).
 export function Shell({
   language,
+  signIn = false,
   note,
   rail,
   running = false,
+  onNew,
   children,
 }: {
   language: Language;
+  signIn?: boolean;
   note?: string;
   rail?: (expanded: boolean) => ReactNode;
   running?: boolean;
+  onNew?: () => void;
   children: ReactNode;
 }) {
   const texts = TEXTS[language];
@@ -70,7 +76,7 @@ export function Shell({
       {rail && (
         <nav
           aria-label={texts.rail.label}
-          className="fixed top-1 right-2 z-20 flex gap-1 p-1 sm:absolute sm:inset-y-0 sm:left-0 sm:w-(--rail) sm:flex-col sm:border-r sm:border-white/10 sm:glass-thin sm:px-2 sm:py-2"
+          className="fixed top-1 right-2 z-20 flex animate-fade gap-1 p-1 sm:absolute sm:inset-y-0 sm:left-0 sm:w-(--rail) sm:flex-col sm:border-r sm:border-white/10 sm:glass-thin sm:px-2 sm:py-2"
         >
           <button
             type="button"
@@ -86,24 +92,34 @@ export function Shell({
           {rail(expanded)}
         </nav>
       )}
-      <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) items-center border-b border-white/10 glass-thin px-4 sm:px-6">
-        {/* A reload leaves the conversation behind, so the link waits while a turn runs, as a new one does. */}
-        <a
-          href="/chat"
-          aria-disabled={running || undefined}
-          onClick={(event) => {
-            if (running) event.preventDefault();
-          }}
-          className="font-display text-2xl font-semibold tracking-[-0.03em] aria-disabled:cursor-default"
-        >
-          Faro
-        </a>
+      <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) animate-fade items-center border-b border-white/10 glass-thin px-4 sm:px-6">
+        {signIn ? (
+          <p className="animate-fade text-lg font-medium">LATAM Bank</p>
+        ) : (
+          // The rail's new conversation, in place rather than by a reload, so it waits while a turn runs as that one
+          // does; without it (the broken page), the link reloads.
+          <a
+            href="/chat"
+            aria-disabled={running || undefined}
+            onClick={(event) => {
+              if (!onNew || event.metaKey || event.ctrlKey || event.shiftKey)
+                return;
+              event.preventDefault();
+              if (!running) onNew();
+            }}
+            className="animate-fade font-display text-2xl font-semibold tracking-[-0.03em] aria-disabled:cursor-default"
+          >
+            Faro
+          </a>
+        )}
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
         {children}
       </main>
-      <footer className="pt-2 pr-4 pb-5 pl-[calc(var(--rail)+1rem)] text-center text-xs text-balance text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]">
-        <p>
+      <footer
+        className={`pt-2 pr-4 pb-5 pl-[calc(var(--rail)+1rem)] ${signIn ? "text-right" : "text-center"} text-xs text-balance text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]`}
+      >
+        <p key={signIn ? "sign-in" : "signed-in"} className="animate-fade">
           <span>{texts.notice}</span>
           {note && <span> {note}</span>}
         </p>

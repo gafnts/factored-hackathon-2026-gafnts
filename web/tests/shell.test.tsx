@@ -14,19 +14,39 @@ test("every customer page says it is a prototype over synthetic data, in Night (
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });
 
-test("the wordmark links to the chat, and waits while a turn runs", () => {
-  const { rerender } = render(<Shell language="es">{null}</Shell>);
+test("the sign-in's bar carries the bank's name, and no link", () => {
+  render(
+    <Shell language="es" signIn>
+      {null}
+    </Shell>,
+  );
+
+  expect(screen.getByRole("banner")).toHaveTextContent(/^LATAM Bank$/);
+  expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  expect(screen.getByText(TEXTS.es.notice)).toBeInTheDocument();
+});
+
+test("the wordmark starts a new conversation in place, and waits while a turn runs", () => {
+  const onNew = vi.fn();
+  const { rerender } = render(
+    <Shell language="es" onNew={onNew}>
+      {null}
+    </Shell>,
+  );
   const link = screen.getByRole("link", { name: "Faro" });
 
   expect(link).toHaveAttribute("href", "/chat");
   expect(link).not.toHaveAttribute("aria-disabled");
+  expect(fireEvent.click(link)).toBe(false);
+  expect(onNew).toHaveBeenCalledOnce();
   rerender(
-    <Shell language="es" running>
+    <Shell language="es" onNew={onNew} running>
       {null}
     </Shell>,
   );
   expect(link).toHaveAttribute("aria-disabled", "true");
   expect(fireEvent.click(link)).toBe(false);
+  expect(onNew).toHaveBeenCalledOnce();
 });
 
 test("the rail opens and closes, and each action is one button by its name", async () => {

@@ -44,7 +44,7 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root
       data-author="customer"
-      className="ml-auto max-w-[75%] rounded-3xl bg-night-bubble px-5 py-3 wrap-break-word"
+      className="ml-auto max-w-[75%] animate-message rounded-3xl bg-night-bubble px-5 py-3 wrap-break-word motion-reduce:animate-fade"
     >
       <MessagePrimitive.Parts components={{ Text: UserText }} />
     </MessagePrimitive.Root>
@@ -57,7 +57,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root
       data-author="faro"
-      className="wrap-break-word empty:hidden"
+      className="animate-message wrap-break-word empty:hidden motion-reduce:animate-fade"
     >
       <MessagePrimitive.Parts components={{ Text: ReplyText }} />
       <Controls />
@@ -69,7 +69,7 @@ function Working({ label }: { label: string }) {
   return (
     <div
       role="status"
-      className="relative h-1 w-32 overflow-hidden rounded bg-rule-night"
+      className="relative h-1 w-32 animate-fade overflow-hidden rounded bg-rule-night"
     >
       <span className="sr-only">{label}</span>
       <span className="absolute inset-y-0 w-1/3 animate-sweep bg-sea motion-reduce:animate-none" />
@@ -139,7 +139,7 @@ function Opening({ language, divert }: { language: Language; divert: Divert }) {
         <div className="relative">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-[140px] glow"
+            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 animate-light rounded-[140px] glow"
           />
           <Composer language={language} divert={divert} />
         </div>
@@ -198,7 +198,7 @@ function Thread({
       </AuiIf>
       <AuiIf condition={(state) => !state.thread.isEmpty}>
         {/* Up under the shell's bar, so the conversation scrolls beneath its glass. */}
-        <ThreadPrimitive.Viewport className="-mt-(--bar) flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar)">
+        <ThreadPrimitive.Viewport className="-mt-(--bar) flex min-h-0 flex-1 animate-fade flex-col overflow-y-auto pt-(--bar)">
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-10 pb-6 sm:px-6">
             <ThreadPrimitive.Messages>
               {({ message }) =>

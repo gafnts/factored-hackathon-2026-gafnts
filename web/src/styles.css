@@ -28,6 +28,12 @@
   --color-rule-night: #34342f;
 
   --animate-sweep: sweep 2.4s ease-in-out infinite;
+  /* A page's arrival (the identity guide's Motifs): the frame fades in, the content rises after it, the lights come
+     on last; a message arrives as the content does, sooner. */
+  --animate-fade: fade 600ms ease-out backwards;
+  --animate-arrive: arrive 800ms cubic-bezier(0.16, 1, 0.3, 1) 100ms backwards;
+  --animate-light: fade 1400ms ease-in-out 300ms backwards;
+  --animate-message: arrive 500ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 
   @keyframes sweep {
     from {
@@ -35,6 +41,19 @@
     }
     to {
       transform: translateX(250%);
+    }
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
     }
   }
 }
@@ -83,7 +102,9 @@
     @apply bg-paper font-sans text-ink antialiased;
   }
 
-  body:has([data-mode="night"]) {
+  /* public/mode.js marks the root before the first paint, so a reload never flashes Paper first. */
+  body:has([data-mode="night"]),
+  [data-mode="night"] > body {
     @apply bg-night text-bone;
     color-scheme: dark;
   }

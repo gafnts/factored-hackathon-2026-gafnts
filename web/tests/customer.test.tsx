@@ -102,9 +102,11 @@ test("signs in through the form and opens the chat in a runtime session of its o
     .mockResolvedValue(signedIn());
   render(<Customer language="es" />);
 
+  expect(await screen.findByRole("banner")).toHaveTextContent(/^LATAM Bank$/);
   await signInThroughTheForm();
 
   expect(await screen.findByText(/^chat in [0-9a-f]{64}$/)).toBeInTheDocument();
+  expect(screen.getByRole("banner")).toHaveTextContent(/^Faro$/);
   expect(signInWith).toHaveBeenCalledWith("persona", "secret");
   expect(screen.getByText(/Su sesión terminará a las/)).toBeInTheDocument();
   expect(screen.getByText(texts.notice)).toBeInTheDocument();
@@ -162,6 +164,16 @@ test("a new conversation mounts the chat again in the same runtime session, once
 
   expect(screen.getByText(/^conversation \d+$/).textContent).not.toBe(first);
   expect(screen.getByText(`chat in ${session}`)).toBeInTheDocument();
+});
+
+test("the wordmark starts a new conversation too, without leaving the page", async () => {
+  vi.mocked(currentSignIn).mockResolvedValue(signedIn());
+  render(<Customer language="es" />);
+
+  const first = (await screen.findByText(/^conversation \d+$/)).textContent;
+  await userEvent.setup().click(screen.getByRole("link", { name: "Faro" }));
+
+  expect(screen.getByText(/^conversation \d+$/).textContent).not.toBe(first);
 });
 
 test("a reload after the hour ends the sign-in", async () => {
