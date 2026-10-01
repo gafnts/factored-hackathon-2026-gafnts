@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 
@@ -12,6 +12,21 @@ test("every customer page says it is a prototype over synthetic data, in Night (
   expect(screen.getByRole("banner")).toHaveTextContent(/^Faro$/);
   expect(container.firstElementChild).toHaveAttribute("data-mode", "night");
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+});
+
+test("the wordmark links to the chat, and waits while a turn runs", () => {
+  const { rerender } = render(<Shell language="es">{null}</Shell>);
+  const link = screen.getByRole("link", { name: "Faro" });
+
+  expect(link).toHaveAttribute("href", "/chat");
+  expect(link).not.toHaveAttribute("aria-disabled");
+  rerender(
+    <Shell language="es" running>
+      {null}
+    </Shell>,
+  );
+  expect(link).toHaveAttribute("aria-disabled", "true");
+  expect(fireEvent.click(link)).toBe(false);
 });
 
 test("the rail opens and closes, and each action is one button by its name", async () => {

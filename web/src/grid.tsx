@@ -7,36 +7,36 @@ type Layout = "sign-in" | "chat";
 // none sits behind text or glass (the identity guide's Motifs). A phone's empty chat fills its screen, so it has none.
 const BLOCK: Record<Layout, string> = {
   "sign-in":
-    "left-[calc(50%-5*var(--cell)+1px)] top-[calc(50%-6*var(--cell)+1px)] h-[calc(12*var(--cell)-1px)] w-[calc(10*var(--cell)-1px)] sm:left-[calc(50%-4*var(--cell)+1px)] sm:top-[calc(50%-4*var(--cell)+1px)] sm:h-[calc(8*var(--cell)-1px)] sm:w-[calc(8*var(--cell)-1px)]",
-  chat: "left-[calc(50%-5*var(--cell)+1px)] top-[calc(50%-6*var(--cell)+1px)] h-[calc(12*var(--cell)-1px)] w-[calc(10*var(--cell)-1px)] sm:left-[calc(50%-7*var(--cell)+1px)] sm:top-[calc(50%-4*var(--cell)+1px)] sm:h-[calc(8*var(--cell)-1px)] sm:w-[calc(14*var(--cell)-1px)]",
+    "left-[calc(50%-7*var(--cell)+1px)] top-[calc(50%-7*var(--cell)+1px)] h-[calc(14*var(--cell)-1px)] w-[calc(14*var(--cell)-1px)] sm:left-[calc(50%-5*var(--cell)+1px)] sm:top-[calc(50%-5*var(--cell)+1px)] sm:h-[calc(10*var(--cell)-1px)] sm:w-[calc(10*var(--cell)-1px)]",
+  chat: "left-[calc(50%-7*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] h-[calc(16*var(--cell)-1px)] w-[calc(14*var(--cell)-1px)] sm:left-[calc(50%-8*var(--cell)+1px)] sm:top-[calc(50%-5*var(--cell)+1px)] sm:h-[calc(10*var(--cell)-1px)] sm:w-[calc(16*var(--cell)-1px)]",
 };
 
 const ON_PHONES = [
-  "sm:hidden left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%-7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%+1*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%-7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%+1*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
 ];
 
 const LIT: Record<Layout, string[]> = {
   "sign-in": [
     ...ON_PHONES,
-    "max-sm:hidden left-[calc(50%-8*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-7*var(--cell)+1px)] top-[calc(50%+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+5*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+7*var(--cell)+1px)] top-[calc(50%-1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+6*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%-8*var(--cell)+1px)] top-[calc(50%+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+6*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+7*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   ],
   chat: [
-    "max-sm:hidden left-[calc(50%-8*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+7*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+7*var(--cell)+1px)] top-[calc(50%+2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%+2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   ],
 };
 
@@ -51,7 +51,7 @@ export function Grid({
   children: ReactNode;
 }) {
   return (
-    <div className="relative isolate flex flex-1 flex-col [--cell:40px] sm:[--cell:64px]">
+    <div className="relative isolate flex flex-1 flex-col [--cell:32px] sm:[--cell:51.2px]">
       <div
         aria-hidden="true"
         data-grid={layout}

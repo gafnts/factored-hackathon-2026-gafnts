@@ -72,7 +72,7 @@ function Working({ label }: { label: string }) {
       className="relative h-1 w-32 overflow-hidden rounded bg-rule-night"
     >
       <span className="sr-only">{label}</span>
-      <span className="absolute inset-y-0 w-1/3 animate-sweep bg-lamp motion-reduce:animate-none" />
+      <span className="absolute inset-y-0 w-1/3 animate-sweep bg-sea motion-reduce:animate-none" />
     </div>
   );
 }
@@ -199,7 +199,7 @@ function Thread({
       <AuiIf condition={(state) => !state.thread.isEmpty}>
         {/* Up under the shell's bar, so the conversation scrolls beneath its glass. */}
         <ThreadPrimitive.Viewport className="-mt-(--bar) flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar)">
-          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-4 pb-6 sm:px-6">
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-10 pb-6 sm:px-6">
             <ThreadPrimitive.Messages>
               {({ message }) =>
                 message.role === "user" ? <UserMessage /> : <AssistantMessage />
@@ -207,7 +207,7 @@ function Thread({
             </ThreadPrimitive.Messages>
             {running && <Working label={texts.working} />}
           </div>
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 bg-linear-to-t from-night from-60% to-transparent pt-6">
+          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 bg-linear-to-t from-night from-60% to-transparent pt-6 pb-8">
             <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
               <Composer language={language} divert={divert} />
             </div>

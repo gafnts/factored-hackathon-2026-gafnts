@@ -186,7 +186,7 @@ function Confirmation({
       </p>
       <p>{texts.reason(control.reason)}</p>
       <p className="text-sm">{texts.undo}</p>
-      <div className="flex gap-2">
+      <div className="mt-2 flex gap-2">
         <Button
           kind="confirm"
           label={texts.confirm}
@@ -233,7 +233,7 @@ function Offer({
       className="mt-4 flex flex-col gap-2 rounded-2xl border border-white/10 glass p-4"
     >
       <p>{texts.reason(control.reason_code)}</p>
-      <div className="flex gap-2">
+      <div className="mt-2 flex gap-2">
         <Button
           kind="accept"
           label={texts.accept}

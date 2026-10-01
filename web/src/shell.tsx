@@ -39,17 +39,19 @@ export function RailButton({
 }
 
 // The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar with the
-// wordmark, and the synthetic-data notice on every page (SEC-02). The rail and the bar are glass over the page, which
-// runs on under them; main's padding keeps the content clear of them, by --rail and --bar.
+// wordmark, a link to the chat, and the synthetic-data notice on every page (SEC-02). The rail and the bar are glass
+// over the page, which runs on under them; main's padding keeps the content clear of them, by --rail and --bar.
 export function Shell({
   language,
   note,
   rail,
+  running = false,
   children,
 }: {
   language: Language;
   note?: string;
   rail?: (expanded: boolean) => ReactNode;
+  running?: boolean;
   children: ReactNode;
 }) {
   const texts = TEXTS[language];
@@ -68,7 +70,7 @@ export function Shell({
       {rail && (
         <nav
           aria-label={texts.rail.label}
-          className="fixed top-1 right-2 z-20 flex gap-1 p-1 sm:absolute sm:inset-y-0 sm:left-0 sm:w-(--rail) sm:flex-col sm:border-r sm:border-white/10 sm:glass-thin sm:px-2 sm:py-3"
+          className="fixed top-1 right-2 z-20 flex gap-1 p-1 sm:absolute sm:inset-y-0 sm:left-0 sm:w-(--rail) sm:flex-col sm:border-r sm:border-white/10 sm:glass-thin sm:px-2 sm:py-2"
         >
           <button
             type="button"
@@ -85,14 +87,22 @@ export function Shell({
         </nav>
       )}
       <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) items-center border-b border-white/10 glass-thin px-4 sm:px-6">
-        <p className="font-display text-xl font-semibold tracking-[-0.03em]">
+        {/* A reload leaves the conversation behind, so the link waits while a turn runs, as a new one does. */}
+        <a
+          href="/chat"
+          aria-disabled={running || undefined}
+          onClick={(event) => {
+            if (running) event.preventDefault();
+          }}
+          className="font-display text-2xl font-semibold tracking-[-0.03em] aria-disabled:cursor-default"
+        >
           Faro
-        </p>
+        </a>
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
         {children}
       </main>
-      <footer className="pt-2 pr-4 pb-3 pl-[calc(var(--rail)+1rem)] text-center text-xs text-balance text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]">
+      <footer className="pt-2 pr-4 pb-5 pl-[calc(var(--rail)+1rem)] text-center text-xs text-balance text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]">
         <p>
           <span>{texts.notice}</span>
           {note && <span> {note}</span>}

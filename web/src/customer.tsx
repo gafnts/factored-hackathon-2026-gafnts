@@ -137,6 +137,7 @@ export function Customer({ language }: { language: Language }) {
     <Shell
       language={language}
       note={texts.signIn.endsAt(time)}
+      running={running}
       rail={(expanded) => (
         <>
           <RailButton
