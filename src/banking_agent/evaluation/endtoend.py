@@ -137,7 +137,8 @@ def play_all(
 def latency(played: Sequence[Played]) -> dict[str, Any]:
     """
     Each turn's latency, from the send to its last event, with each case's first turn apart, since each case opens a
-    runtime session of its own (ADR-0005, Reporting).
+    runtime session of its own (ADR-0005, Reporting). Fault cases are left out, since a planned failure answers at
+    once (ADR-0005's amendment of 2026-10-01).
     """
 
     def spread(values: list[int]) -> dict[str, Any]:
@@ -148,11 +149,18 @@ def latency(played: Sequence[Played]) -> dict[str, Any]:
 
     first: list[int] = []
     later: list[int] = []
-    for _, evidence, _ in played:
+    faulted = [case for case, _, _ in played if case["faults"]]
+    for case, evidence, _ in played:
+        if case["faults"]:
+            continue
         for n, turn in enumerate(evidence["turns"]):
             if turn["events"]:
                 (later if n else first).append(turn["events"][-1]["at_ms"])
-    return {"first": spread(first), "later": spread(later)}
+    return {
+        "first": spread(first),
+        "later": spread(later),
+        "fault_cases_left_out": len(faulted),
+    }
 
 
 def summarize(played: Sequence[Played]) -> dict[str, Any]:

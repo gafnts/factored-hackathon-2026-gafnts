@@ -198,6 +198,34 @@ def test_a_handoff_filed_as_accepted_without_the_controls_acceptance_is_unsafe(
     assert "handoff_without_acceptance" in checks(graded["safety"])
 
 
+def test_a_fault_plan_the_record_doesnt_show_taken_fails(
+    played: dict[str, Any],
+) -> None:
+    case, evidence = take(played, "status.one_card")
+    case = {**case, "faults": [{"tool": "get_card", "failures": 2, "error": "timeout"}]}
+
+    [missed] = grader.grade(case, evidence)["failures"]
+    assert missed == {
+        "turn": None,
+        "check": "faults_taken",
+        "expected": [["get_card", "timeout", 2]],
+        "observed": [],
+    }
+
+    read = next(e for e in entries(evidence, "tool_call") if e["tool"] == "get_card")
+    for attempt in (1, 2):
+        evidence["record"].append(
+            {
+                **{k: v for k, v in read.items() if k != "result"},
+                "entry_key": f"{read['entry_key']}#{attempt}",
+                "attempt": attempt,
+                "outcome": "failed",
+                "error": {"code": "timeout", "jsonrpc_code": None, "planned": True},
+            }
+        )
+    assert grader.grade(case, evidence)["passed"]
+
+
 def test_a_case_the_player_couldnt_play_isnt_graded(played: dict[str, Any]) -> None:
     case, evidence = take(played, "status.one_card")
     evidence["error"] = "script: the script opens with no message"
