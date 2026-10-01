@@ -388,9 +388,12 @@ def _too_close(
             yield f"held-out {h} is too close to development {d}"
 
 
-def _texts(
+def texts(
     families: Sequence[Family], answers: Sequence[Answer], ids: Iterable[str]
 ) -> list[tuple[str, str]]:
+    """
+    Every message of the families and answers named, as (message ID, text).
+    """
     wanted = set(ids)
     found = [
         (m.id, m.text) for f in families if f.family_id in wanted for m in f.messages
@@ -428,7 +431,7 @@ def problems(
         found += _answer_problems(answer)
     held = held_out_ids(families, answers)
     found += _too_close(
-        _texts(families, answers, held),
-        _texts(families, answers, set(ids) - held),
+        texts(families, answers, held),
+        texts(families, answers, set(ids) - held),
     )
     return found
