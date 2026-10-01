@@ -28,12 +28,8 @@ from banking_agent.agent.formats import (
 FIXED: dict[str, dict[str, str]] = {
     # POL-06: a message with no card request.
     "no_request": {
-        "es": "Hola. Por ahora puedo mostrarle sus tarjetas y el estado de cada una, y bloquear una tarjeta si lo necesita: pregúnteme.",
-        "pt": "Olá. Por enquanto posso mostrar seus cartões e o status de cada um, e bloquear um cartão se precisar: é só pedir.",
-    },
-    "not_yet_served": {
-        "es": "Por ahora puedo mostrarle sus tarjetas y el estado de cada una, y bloquear una tarjeta. Con esta solicitud todavía no puedo ayudarle.",
-        "pt": "Por enquanto posso mostrar seus cartões e o status de cada um, e bloquear um cartão. Ainda não posso ajudar com este pedido.",
+        "es": "Hola. Puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, explicarle por qué se rechazó un pago, bloquear una tarjeta y ayudarle con un cargo que no reconoce: pregúnteme.",
+        "pt": "Olá. Posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, explicar por que um pagamento foi recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece: é só perguntar.",
     },
     # POL-51: a third language gets Spanish, with one sentence in Portuguese.
     "third_language": {

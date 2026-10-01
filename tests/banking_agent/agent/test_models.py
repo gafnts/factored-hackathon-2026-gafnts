@@ -17,9 +17,9 @@ from langchain_core.runnables import RunnableLambda
 from banking_agent.agent import models
 from banking_agent.agent.models import (
     MODEL,
-    BlockDetails,
     ModelFailedError,
     Models,
+    RequestDetails,
     RouterOutput,
     anthropic_factory,
     cost,
@@ -139,11 +139,14 @@ def test_a_route_call_that_fails_is_recorded_and_raised(
 
 def test_a_reply_is_read_whole_and_an_empty_one_is_invalid() -> None:
     made, _ = recorded(answer(content="Estas son sus tarjetas.", usage_metadata=USAGE))
-    assert asyncio.run(made.reply([], "{}", "Spanish")) == "Estas son sus tarjetas."
+    assert (
+        asyncio.run(made.reply("¿Mis tarjetas?", "{}", "Spanish"))
+        == "Estas son sus tarjetas."
+    )
 
     empty, entries = recorded(answer(content=""))
     with pytest.raises(ModelFailedError):
-        asyncio.run(empty.reply([], "{}", "Spanish"))
+        asyncio.run(empty.reply("¿Mis tarjetas?", "{}", "Spanish"))
     assert entries[0]["outcome"] == "invalid_output"
     assert entries[0]["usage"]["input_tokens"] is None
     assert entries[0]["cost_usd"] is None
@@ -172,7 +175,16 @@ def test_usage_and_cost_are_unknown_without_usage() -> None:
 
 
 def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
-    parsed = BlockDetails(card_type="credit", last_four="4821", block_reason="lost")
+    parsed = RequestDetails(
+        card_type="credit",
+        last_four="4821",
+        block_reason="lost",
+        cards=None,
+        page=None,
+        owner=None,
+        conflict=None,
+        service=None,
+    )
     raw = answer(content="{}", usage_metadata=USAGE)
     made, entries = recorded({"raw": raw, "parsed": parsed, "parsing_error": None})
 
@@ -187,16 +199,48 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
             "card_type": "credit",
             "last_four": "4821",
             "block_reason": "lost",
+            "cards": None,
+            "page": None,
+            "owner": None,
+            "conflict": None,
+            "service": None,
         }
     }
     assert entry["prompt_version"] == prompt_version("resolve_card")
 
 
-def test_an_extraction_offers_only_the_policys_reasons() -> None:
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("block_reason", "fraud"), ("service", "loan"), ("page", "previous")],
+)
+def test_an_extraction_offers_only_the_values_its_step_allows(
+    field: str, value: str
+) -> None:
+    empty = dict.fromkeys(RequestDetails.model_fields)
     with pytest.raises(ValueError):
-        BlockDetails.model_validate(
-            {"card_type": "credit", "last_four": None, "block_reason": "fraud"}
-        )
+        RequestDetails.model_validate({**empty, field: value})
+
+
+def test_the_router_reads_what_the_last_reply_offered_after_its_prompt() -> None:
+    parsed = RouterOutput(
+        requests=["recent_transactions"], has_request=True, complaint=False
+    )
+    sent: list[Any] = []
+
+    async def invoke(messages: Any) -> Any:
+        sent.append(messages)
+        raw = answer(content="{}", usage_metadata=USAGE)
+        return {"raw": raw, "parsed": parsed, "parsing_error": None}
+
+    async def record(kind: str, **fields: Any) -> None:
+        pass
+
+    made = Models(lambda _: RunnableLambda(invoke), record)
+
+    asyncio.run(made.route("¿Y los siguientes?", "A page was listed."))
+
+    blocks = sent[0][0].content
+    assert [block["text"] for block in blocks][1] == "A page was listed."
 
 
 def test_every_prompt_has_a_version() -> None:

@@ -29,6 +29,7 @@ class Scope:
     filing: Filing
     snapshot: str
     business_date: str
+    as_of: str
     now: Callable[[], datetime]
 
 

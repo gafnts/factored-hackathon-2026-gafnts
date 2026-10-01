@@ -95,7 +95,25 @@ def test_the_model_reads_the_window_numbered_and_never_an_id(harness: Harness) -
     (messages,) = harness.script.model_inputs["choose"]
     read = json.dumps([m.content for m in messages], ensure_ascii=False)
     assert "TRX-" not in read and "PRD-" not in read and "is_fraud" not in read
-    assert "1. 2026-06-14 21:07:33, Purchase, 189.9 USD, Comercio Ejemplo" in read
+    listed = "1. Sunday 2026-06-14 21:07:33, Purchase, 189.9 USD, Comercio Ejemplo"
+    assert listed in read
+
+
+def test_the_model_counts_relative_dates_from_the_business_date(
+    harness: Harness,
+) -> None:
+    # POL-19: the business clock, never the wall clock; code gives the weekdays.
+    harness.script.fitting = [1, 2]
+    chat = Chat(harness)
+    reported(chat)
+    harness.script.fitting = [2]
+
+    chat.say("A de domingo.", requests=[])
+
+    asked, answered = harness.script.model_inputs["choose"]
+    for messages in (asked, answered):
+        read = json.dumps([m.content for m in messages], ensure_ascii=False)
+        assert "Today is Wednesday 2026-06-17, the bank's business date." in read
 
 
 @pytest.mark.parametrize(
