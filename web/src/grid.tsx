@@ -54,7 +54,7 @@ export function Grid({
   children: ReactNode;
 }) {
   return (
-    <div className="relative isolate flex flex-1 flex-col [--cell:32px] sm:[--cell:51px]">
+    <div className="relative isolate flex flex-1 flex-col">
       <div
         aria-hidden="true"
         data-grid={layout}

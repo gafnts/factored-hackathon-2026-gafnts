@@ -42,8 +42,8 @@ export function RailButton({
 // bar, and the synthetic-data notice on every page (SEC-02). A sign-in's bar carries the bank's name, its notice flush
 // right; once signed in, the bar carries Faro's wordmark, the notice centered. The console's bar reads the bank's name
 // and the console's, signed in or not. The rail and the bar are glass over the page, which runs on under them; main's
-// padding keeps the content clear of them, by --rail and --bar. The frame fades in as a page arrives (the identity
-// guide's Motifs).
+// padding keeps the content clear of them, by --rail and --bar. --cell, the grid's module, sets the pages' column
+// widths (the identity guide's Layout). The frame fades in as a page arrives (the identity guide's Motifs).
 export function Shell({
   language,
   label,
@@ -73,7 +73,7 @@ export function Shell({
   return (
     <div
       lang={language}
-      className={`relative flex h-dvh flex-col [--bar:3.5rem] [--rail:0px] ${width}`}
+      className={`relative flex h-dvh flex-col [--bar:3.5rem] [--cell:32px] [--rail:0px] sm:[--cell:51px] ${width}`}
     >
       {rail && (
         <nav

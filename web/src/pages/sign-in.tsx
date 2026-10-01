@@ -42,8 +42,9 @@ function Form({
           ? texts.ended
           : null;
 
+  // Whole cells either side of the grid's center, so the form's edges fall on the lines its cleared block hides.
   return (
-    <section className="mx-auto w-full max-w-sm border border-white/10 glass px-8 py-8">
+    <section className="ml-[max(0px,calc(50%-var(--span)*var(--cell)))] w-[calc(2*var(--span)*var(--cell)+1px)] max-w-full border border-white/10 glass px-8 py-8 [--span:5] sm:[--span:4]">
       <h1 className="font-display text-2xl font-semibold tracking-[-0.03em]">
         {texts.title}
       </h1>

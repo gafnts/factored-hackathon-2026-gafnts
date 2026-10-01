@@ -127,12 +127,13 @@ function Composer({
 }
 
 // The empty chat, after assistant-ui's Gemini example (MIT): the question over the composer, the glow beneath it, and
-// the numbered suggestions, in the banner's cleared block.
+// the numbered suggestions, in the banner's cleared block. Twelve cells wide, so the composer's edges and the
+// suggestions' dividers fall on the grid's lines; the conversation keeps the same column.
 function Opening({ language, divert }: { language: Language; divert: Divert }) {
   const texts = TEXTS[language].chat;
   return (
     <Grid layout="chat">
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:px-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:mx-0 sm:ml-[max(1.5rem,calc(50%-6*var(--cell)))] sm:w-[calc(12*var(--cell)+1px)] sm:max-w-[calc(100%-3rem)] sm:px-0">
         <h1 className="text-center font-display text-4xl font-semibold tracking-[-0.03em] text-balance sm:text-5xl">
           {texts.question}
         </h1>
@@ -143,13 +144,13 @@ function Opening({ language, divert }: { language: Language; divert: Divert }) {
           />
           <Composer language={language} divert={divert} />
         </div>
-        <ol className="grid gap-2 sm:grid-cols-3">
+        <ol className="grid divide-y divide-white/10 border border-white/10 glass sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {texts.suggestions.map((prompt, index) => (
             <li key={prompt} className="flex">
               <ThreadPrimitive.Suggestion
                 prompt={prompt}
                 send
-                className="flex w-full items-baseline gap-3 border border-white/10 glass px-4 py-3 text-left transition-colors hover:border-white/20 sm:flex-col sm:items-start sm:gap-2 sm:py-4"
+                className="flex w-full items-baseline gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 sm:flex-col sm:items-start sm:gap-2 sm:py-4"
               >
                 <span
                   aria-hidden="true"
@@ -199,7 +200,7 @@ function Thread({
       <AuiIf condition={(state) => !state.thread.isEmpty}>
         {/* Up under the shell's bar, so the conversation scrolls beneath its glass. */}
         <ThreadPrimitive.Viewport className="-mt-(--bar) flex min-h-0 flex-1 animate-fade flex-col overflow-y-auto pt-(--bar)">
-          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-10 pb-6 sm:px-6">
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-10 pb-6 sm:max-w-[calc(12*var(--cell)+1px+3rem)] sm:px-6">
             <ThreadPrimitive.Messages>
               {({ message }) =>
                 message.role === "user" ? <UserMessage /> : <AssistantMessage />
@@ -208,7 +209,7 @@ function Thread({
             {running && <Working label={texts.working} />}
           </div>
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 bg-linear-to-t from-night from-60% to-transparent pt-6 pb-8">
-            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+            <div className="mx-auto w-full max-w-3xl px-4 sm:max-w-[calc(12*var(--cell)+1px+3rem)] sm:px-6">
               <Composer language={language} divert={divert} />
             </div>
           </ThreadPrimitive.ViewportFooter>
@@ -217,7 +218,7 @@ function Thread({
       {/* Under the composer and outside both views, so the sentence stays put when a failed first message empties
           or fills the thread. */}
       {problem && (
-        <div className="mx-auto w-full max-w-3xl px-4 pt-2 sm:px-6">
+        <div className="mx-auto w-full max-w-3xl px-4 pt-2 sm:max-w-[calc(12*var(--cell)+1px+3rem)] sm:px-6">
           <Alert language={language} problem={problem} />
         </div>
       )}
