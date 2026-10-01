@@ -1,5 +1,6 @@
 """
-A case played end to end against the deployed stack (ADR-0005, Running a case): a test user of its own signs in, the
+A case played end to end against the deployed stack (ADR-0005, Running a case): a test user of its own signs in, its
+fixtures and fault plans are written to the overlay under the sign-in, kept as long as the tools' own writes, the
 chat's warmup opens a runtime session, and the scripted customer plays the script over AG-UI, reacting to each turn's
 last decision entry, which the harness reads from the execution record by the sign-in once the run has finished (the
 entrypoint writes it before RUN_FINISHED), and to the interrupt the run ended at. StopRuntimeSession ends the session
@@ -11,17 +12,22 @@ through the role's own permissions, and the case's error, if the player or the h
 warmup's events, each turn's resends, and how the session ended.
 """
 
+import json
+import time
 from collections.abc import Iterable, Mapping, Sequence
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
-from boto3.dynamodb.types import TypeDeserializer
+from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 
+from banking_agent.evaluation import cases
 from banking_agent.evaluation.client import Client, HarnessError, Session
 from banking_agent.evaluation.customer import Customer, ScriptError, Send
 from banking_agent.evaluation.deployed import Deployed
 from banking_agent.evaluation.player import ended_at
 from banking_agent.evaluation.users import Users
 from banking_agent.tools.cases import plain
+from banking_agent.tools.sandbox import KEPT
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
@@ -29,8 +35,10 @@ if TYPE_CHECKING:
 
 class Reach(Protocol):
     """
-    What the harness reads of a stack after a turn and after a case.
+    What the harness writes to a stack before a case, and reads of it after a turn and after the case.
     """
+
+    def write(self, items: Sequence[Mapping[str, Any]]) -> None: ...
 
     def records(self, sign_in: str) -> list[dict[str, Any]]: ...
 
@@ -50,6 +58,18 @@ class Tables:
         self.dynamodb = dynamodb
         self.stack = stack
         self.deserializer = TypeDeserializer()
+        self.serializer = TypeSerializer()
+
+    def write(self, items: Sequence[Mapping[str, Any]]) -> None:
+        """
+        Overlay items, each put once; DynamoDB takes a number as a Decimal.
+        """
+        for item in items:
+            exact = json.loads(json.dumps(item), parse_float=Decimal)
+            self.dynamodb.put_item(
+                TableName=self.stack.overlay_table,
+                Item={k: self.serializer.serialize(v) for k, v in exact.items()},
+            )
 
     def records(self, sign_in: str) -> list[dict[str, Any]]:
         return self._query(self.stack.records_table, sign_in)
@@ -154,6 +174,9 @@ def play(
         signed = users.sign_in(user)
         sign_in = signed.origin_jti
         evidence["sign_ins"] = [sign_in]
+        reach.write(
+            cases.written(case, sign_in, int(time.time() + KEPT.total_seconds()))
+        )
         session = Session()
         try:
             evidence["warmup"] = client.warmup(users.fresh(signed), session).events

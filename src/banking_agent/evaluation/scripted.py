@@ -96,6 +96,14 @@ class ScriptedModels:
         meta = next(i for i in held if i["pk"] == "META")
         self.business_date = date.fromisoformat(meta["clock"]["business_date"])
         own = {i["sk"]: i for i in held if i["pk"] == case["customer_id"]}
+        # A fixture is one of the customer's records, keyed as the export keys it.
+        for f in case["fixtures"]:
+            key = (
+                f"CARD#{f['card_id']}"
+                if f["kind"] == "card"
+                else f"TXN#{f['transaction_id']}"
+            )
+            own[key] = f
         self.card = (
             own.get(f"CARD#{means['product_id']}") if "product_id" in means else None
         )

@@ -571,6 +571,62 @@ CHARGES = [
 ]
 
 
+def fixture_card(customer_id: str, n: int, **values: Any) -> dict[str, Any]:
+    """
+    A fixture card in the overlay contract's shape, without its sign-in and time to live.
+    """
+    card_id = f"PRD-FIXTURE{n:05d}"
+    return {
+        "item": f"FIXTURE#CARD#{card_id}",
+        "customer_id": customer_id,
+        "kind": "card",
+        "card_id": card_id,
+        "product_type": DEBIT,
+        "last_four": "3318",
+        "currency": "COP",
+        "current_balance": 210000.0,
+        "credit_limit": None,
+        "product_status": "Active",
+        "opening_date": "2022-01-01",
+        "expiration_date": "2029-12-31",
+        "past_expiration": False,
+        "updated_after_as_of": False,
+        **values,
+    }
+
+
+def fixture_transaction(
+    customer_id: str, card_id: str, n: int, at: str, **values: Any
+) -> dict[str, Any]:
+    """
+    A fixture transaction in the overlay contract's shape, without its sign-in and time to live.
+    """
+    transaction_id = f"TRX-FIXTURE{n:013d}"
+    return {
+        "item": f"FIXTURE#TRX#{transaction_id}",
+        "customer_id": customer_id,
+        "kind": "transaction",
+        "card_key": f"{customer_id}#{card_id}",
+        "listed_at": f"{at}#{transaction_id}",
+        "transaction_id": transaction_id,
+        "card_id": card_id,
+        "transaction_date": at,
+        "transaction_type": "Purchase",
+        "amount": 310.0,
+        "currency": "COP",
+        "channel": "POS",
+        "merchant_name": "Comercio Ejemplo",
+        "merchant_category": "Retail",
+        "transaction_country": "Colombia",
+        "transaction_status": "Approved",
+        "response_code": "00",
+        "is_fraud": False,
+        "before_card_opening": False,
+        "after_card_expiration": False,
+        **values,
+    }
+
+
 def _append(
     files: dict[str, str], key: str, table: str, rows: Sequence[Mapping[str, str]]
 ) -> None:

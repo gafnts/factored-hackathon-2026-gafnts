@@ -8,6 +8,7 @@ deployed tables are read consistently and as plain values.
 import asyncio
 import json
 import uuid
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import Any
 
@@ -44,6 +45,8 @@ BY_ANSWER = {a.answer_id: a for a in ANSWERS}
 INVOKE = "https://runtime.invalid/runtimes/agent/invocations?qualifier=DEFAULT"
 STOP = "https://runtime.invalid/runtimes/agent/stopruntimesession?qualifier=DEFAULT"
 SITUATIONS = ("status.one_card", "block.reason_given", "person.asked")
+# Cases that write fixtures or a fault plan before their first turn.
+WRITTEN = ("read.fails.accepted", "block.not_verified", "decline.unlisted_code")
 
 
 def sign_in(name: str) -> str:
@@ -107,6 +110,10 @@ class Served:
         )
         return httpx.Response(200, content=streamed.encode())
 
+    def write(self, items: Sequence[Mapping[str, Any]]) -> None:
+        for item in items:
+            self.stack.sandbox.put(item)
+
     def records(self, sign_in: str) -> list[dict[str, Any]]:
         return self.stack.records.of(sign_in)
 
@@ -137,6 +144,21 @@ def drawn(bank: Bank) -> dict[str, dict[str, Any]]:
     return {
         name: next(c for c in cases if c["situation"] == name) for name in SITUATIONS
     }
+
+
+@pytest.fixture(scope="module")
+def built_and_faulted(bank: Bank) -> dict[str, dict[str, Any]]:
+    held = families.held_out_ids(LOADED, ANSWERS)
+    with (
+        bronze.connect(bank.database, "development") as con,
+        pytest.MonkeyPatch.context() as patch,
+    ):
+        patch.setitem(generator.COMPOSITIONS, "new", dict.fromkeys(WRITTEN, 1))
+        drawing = generator.Generator(
+            con, "development", LOADED, ANSWERS, held, contract_words(), reuse=True
+        )
+        cases = drawing.draw("new", 7).cases
+    return {name: next(c for c in cases if c["situation"] == name) for name in WRITTEN}
 
 
 def items(bank: Bank, case: dict[str, Any]) -> list[dict[str, Any]]:
@@ -191,6 +213,32 @@ def test_a_case_played_end_to_end_grades_as_it_does_in_process(
     assert all(
         isinstance(e["at_ms"], int) for t in evidence["turns"] for e in t["events"]
     )
+
+
+@pytest.mark.parametrize("name", WRITTEN)
+def test_fixtures_and_fault_plans_are_written_under_the_sign_in_before_the_first_turn(
+    bank: Bank, built_and_faulted: dict[str, dict[str, Any]], name: str
+) -> None:
+    case = built_and_faulted[name]
+    in_process = asyncio.run(player.play(case, items(bank, case), models(bank, case)))
+
+    evidence, _, _ = end_to_end(bank, case)
+
+    assert grader.grade(case, evidence)["passed"]
+    assert grader.grade(case, in_process)["passed"]
+    assert kinds(evidence) == kinds(in_process)
+    written = {i["item"] for i in evidence["sandbox"]["overlay"]}
+    assert {f["item"] for f in case["fixtures"]} <= written
+    assert {f"FAULT#{f['tool']}" for f in case["faults"]} <= written
+    assert all(
+        i["sign_in"] == evidence["sign_ins"][0] for i in evidence["sandbox"]["overlay"]
+    )
+    planned = [
+        e
+        for e in evidence["record"]
+        if e["kind"] == "tool_call" and (e.get("error") or {}).get("planned")
+    ]
+    assert len(planned) == sum(f["failures"] for f in case["faults"])
 
 
 def test_a_case_opens_its_session_with_a_warmup_ends_it_and_deletes_its_user(
@@ -295,11 +343,15 @@ def test_the_deployed_tables_are_read_consistently_as_plain_values() -> None:
         bucket=None,
     )
     tables = harness.Tables(dynamodb, stack)
+    tables.write([{"sign_in": "s", "item": "FAULT#get_card", "failures": 3}])
 
     assert [(e["entry_key"], e["latency_ms"]) for e in tables.records("s")] == [
         ("1#a#000", 12),
         ("2#b#000", 12),
     ]
-    assert tables.overlay("s") == [{"sign_in": "s", "item": "CARD#1", "amount": 1.5}]
+    assert tables.overlay("s") == [
+        {"sign_in": "s", "item": "CARD#1", "amount": 1.5},
+        {"sign_in": "s", "item": "FAULT#get_card", "failures": 3},
+    ]
     assert tables.case("h") == {"pk": "h", "status": "filed"}
     assert tables.confirmation("missing") is None

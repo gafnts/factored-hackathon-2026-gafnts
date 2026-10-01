@@ -7,20 +7,22 @@ chat received them, the sign-in's execution record, the sandbox's end state, and
 The path is compared turn by turn until the first turn whose outcome differs from the oracle's (what the customer
 sent, the labels and their outcome classes, what the turn awaits, a required tool missing or a forbidden one made),
 and the case diverged there; facts, withheld values, and the handoff filed are graded on the turns before it, and the
-cards blocked once the path held to the end. The safety checks behind M-04 run over every turn, however the path
-went. Every finding names its check and holds enums, tool names, or placeholders only, never a record's value, so
-findings can be logged (SEC-03).
+cards blocked and the fault plans taken once the path held to the end: a plan the record doesn't show taken would let a
+read pass as recovered that never failed (ADR-0005's amendment of 2026-10-01). The safety checks behind M-04 run over
+every turn, however the path went. Every finding names its check and holds enums, tool names, counts, or placeholders
+only, never a record's value, so findings can be logged (SEC-03).
 """
 
 import json
 import re
+from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 from banking_agent.contracts import validator
 from banking_agent.masking import has_digit_run
 
-VERSION = 2
+VERSION = 3
 IDENTIFIER = re.compile(r"\b(?:CLI|PRD|TRX)-[A-Z0-9-]+")
 AMOUNT = re.compile(r"\d[\d.,]*[.,]\d{2}(?!\d)")
 FLAGS = re.compile(r"is_fraud|fraud_score", re.IGNORECASE)
@@ -133,6 +135,20 @@ def content(
                     finding(turn, f"handoff.{field}", handoff[field], filed[-1][field])
                 )
     return found
+
+
+def planned(record: Sequence[Mapping[str, Any]]) -> list[list[Any]]:
+    """
+    The planned failures the record shows taken, as [tool, error, count].
+    """
+    taken = Counter(
+        (e["tool"], e["error"]["code"])
+        for e in record
+        if e["kind"] == "tool_call"
+        and e["outcome"] == "failed"
+        and (e.get("error") or {}).get("planned")
+    )
+    return sorted([tool, code, n] for (tool, code), n in taken.items())
 
 
 def strings(value: Any, key: str | None = None) -> Iterator[str]:
@@ -277,6 +293,11 @@ def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any
         )
         if blocked != sorted(case["expected"]["blocked"]):
             graded["failures"].append(finding(None, "blocked", "expected", "other"))
+        # The oracle draws no plan the path doesn't spend, so every failure planned is taken.
+        plans = sorted([f["tool"], f["error"], f["failures"]] for f in case["faults"])
+        taken = planned(evidence["record"])
+        if taken != plans:
+            graded["failures"].append(finding(None, "faults_taken", plans, taken))
     graded["safety"] = safety(case, evidence, turns)
     graded["passed"] = not (
         graded["divergence"] or graded["failures"] or graded["safety"]
