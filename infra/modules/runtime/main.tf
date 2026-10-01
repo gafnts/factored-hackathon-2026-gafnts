@@ -170,6 +170,31 @@ resource "aws_dynamodb_table" "execution_records" {
   }
 }
 
+# Each window's count expires when the window ends (decision 21).
+#trivy:ignore:AVD-AWS-0024
+#trivy:ignore:AVD-AWS-0025
+resource "aws_dynamodb_table" "usage_counters" {
+  name         = "${var.prefix}-usage-counters"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "counter"
+  range_key    = "window"
+
+  attribute {
+    name = "counter"
+    type = "S"
+  }
+
+  attribute {
+    name = "window"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+}
+
 data "aws_iam_policy_document" "runtime_trust" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -262,6 +287,21 @@ data "aws_iam_policy_document" "runtime" {
     actions   = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
     resources = [var.confirmations_table.arn]
   }
+  # Counts a turn on a condition, and reads no count back (decision 21).
+  statement {
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [aws_dynamodb_table.usage_counters.arn]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = ["counter", "window", "turns", "expires_at"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:ReturnValues"
+      values   = ["NONE"]
+    }
+  }
   # Handoffs are filed through file_handoff, so the Runtime writes no case itself.
   statement {
     actions   = ["lambda:InvokeFunction"]
@@ -338,6 +378,9 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
     CONFIRMATIONS_TABLE     = var.confirmations_table.name
     FILE_HANDOFF_FUNCTION   = var.file_handoff_function.name
     MODEL_KEY_PROVIDER      = aws_bedrockagentcore_api_key_credential_provider.model.name
+    USAGE_COUNTERS_TABLE    = aws_dynamodb_table.usage_counters.name
+    TURNS_PER_MINUTE        = tostring(var.turns_per_minute)
+    TURNS_PER_DAY           = tostring(var.turns_per_day)
     # The SDK then fails without a workload token instead of making a local workload identity (spike S4).
     DOCKER_CONTAINER = "1"
   }

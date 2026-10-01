@@ -15,6 +15,7 @@ from typing import Any, Protocol
 
 from jsonschema import ValidationError
 
+from banking_agent.agent import metrics
 from banking_agent.contracts import validator
 
 RETENTION = timedelta(days=90)
@@ -94,7 +95,17 @@ class Turn:
         """
         self.decisions.append(fields)
 
+    def emit(self, metric: str, **fields: Any) -> None:
+        """
+        A JSON line for the alarms, with the turn's source and ID.
+        """
+        metrics.emit(metric, self.source, self.turn_id, **fields)
+
     async def write(self, kind: str, **fields: Any) -> dict[str, Any]:
+        """
+        last says, for a tool call, that no attempt follows it; the entry doesn't record it, its metric line does.
+        """
+        last = bool(fields.pop("last", True))
         at = self.now()
         entry = {
             "sign_in": self.sign_in,
@@ -113,6 +124,9 @@ class Turn:
         await asyncio.to_thread(self.store.put, entry)
         self.seq += 1
         self.count(entry)
+        fields_of_line = metrics.entry_line(entry, last)
+        if fields_of_line is not None:
+            self.emit(kind, **fields_of_line)
         return entry
 
     def count(self, entry: dict[str, Any]) -> None:

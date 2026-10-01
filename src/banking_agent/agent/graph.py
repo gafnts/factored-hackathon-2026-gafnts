@@ -293,10 +293,12 @@ async def tool(scope: Scope, name: str, **arguments: Any) -> ToolCall:
         call = await scope.gateway.call(name, sent, scope.token, call_id, attempt)
         if wait is not None:
             call = dataclasses.replace(call, waited=wait.fields())
-        await scope.turn.write("tool_call", **call.entry())
-        if call.outcome != "failed":
-            break
-        wait = scope.retries.after(attempt, scope.elapsed())
+        wait = (
+            scope.retries.after(attempt, scope.elapsed())
+            if call.outcome == "failed"
+            else None
+        )
+        await scope.turn.write("tool_call", last=wait is None, **call.entry())
         if wait is None:
             break
         await scope.retries.sleep(wait.seconds)
@@ -2104,6 +2106,7 @@ async def block(state: State) -> dict[str, Any]:
             "call_id": call.call_id,
             "outcome": call.outcome,
             "result": call.result,
+            "planned": bool((call.error or {}).get("planned")),
         }
     }
 
@@ -2190,6 +2193,11 @@ async def verify(state: State) -> dict[str, Any]:
         return turn | {"say": say, "decision": decided("block", rules)}
     # POL-39's handoff is the request's only one: a block it offered that isn't verified is recorded in it.
     charge = pending["reason"] == "unrecognized_charge"
+    scope.turn.emit(
+        "block_not_verified",
+        reason=pending["reason"],
+        planned=bool(done.get("planned") or (call.error or {}).get("planned")),
+    )
     return turn | {
         "case": "handoff",
         "say": said(("block_not_verified", facts)),

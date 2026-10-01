@@ -28,5 +28,6 @@ output "tables" {
     checkpoints       = aws_dynamodb_table.checkpoints.name
     session_bindings  = aws_dynamodb_table.session_bindings.name
     execution_records = aws_dynamodb_table.execution_records.name
+    usage_counters    = aws_dynamodb_table.usage_counters.name
   }
 }

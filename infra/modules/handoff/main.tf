@@ -105,6 +105,11 @@ data "aws_iam_policy_document" "file_handoff" {
     actions   = ["dynamodb:Query"]
     resources = [var.execution_records_table.arn]
   }
+  # A fixture transaction's is_fraud, by its key (POL-40).
+  statement {
+    actions   = ["dynamodb:GetItem"]
+    resources = [var.overlay_table.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "file_handoff" {
@@ -137,6 +142,7 @@ resource "aws_lambda_function" "file_handoff" {
       CASES_TABLE             = aws_dynamodb_table.cases.name
       EXECUTION_RECORDS_TABLE = var.execution_records_table.name
       CUSTOMER_CLIENT_ID      = var.customer_client_id
+      OVERLAY_TABLE           = var.overlay_table.name
     }
   }
 
