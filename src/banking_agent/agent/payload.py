@@ -87,6 +87,7 @@ def offered(
     cards: Sequence[str] = (),
     actions: Sequence[Mapping[str, Any]] = (),
     handoff_id: str | None = None,
+    transactions: Sequence[str] = (),
 ) -> dict[str, Any]:
     """
     A handoff the policy offers, filed only if the customer accepts it with the handoff control (POL-45). rules are the
@@ -101,6 +102,7 @@ def offered(
             cards=cards,
             actions=actions,
             handoff_id=handoff_id,
+            transactions=transactions,
         ),
         "trigger": "accepted_offer",
         "rules": rules,

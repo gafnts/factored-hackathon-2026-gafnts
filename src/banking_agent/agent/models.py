@@ -67,9 +67,12 @@ class RouterOutput(BaseModel):
     complaint: bool
 
 
-class BlockDetails(BaseModel):
+class RequestDetails(BaseModel):
     """
-    What a message says about the card to block and why, each among the values the step allows (POL-13, POL-35).
+    What a message says about the request it holds, each field among the values the step allows and null when the
+    message doesn't say: the card (POL-13), a block's reason (POL-35), all the customer's cards (POL-14), the next page or
+    an earlier period (POL-25), someone else's card (POL-08), a question about conflicting facts (POL-31), and what an
+    unsupported request asks for (POL-41 to POL-43). Every value is a string, as the execution record keeps them.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -78,6 +81,21 @@ class BlockDetails(BaseModel):
     last_four: str | None
     block_reason: (
         Literal["lost", "stolen", "unrecognized_charge", "customer_request"] | None
+    )
+    cards: Literal["all"] | None
+    page: Literal["next", "earlier"] | None
+    owner: Literal["someone_else"] | None
+    conflict: Literal["asks_which"] | None
+    service: (
+        Literal[
+            "unblock",
+            "replacement",
+            "pin",
+            "limit_increase",
+            "other_card_service",
+            "outside_cards",
+        ]
+        | None
     )
 
 
@@ -107,7 +125,7 @@ class HandoffText(BaseModel):
 
 OUTPUTS: dict[str, type[BaseModel]] = {
     "route": RouterOutput,
-    "extract": BlockDetails,
+    "extract": RequestDetails,
     "choose": TransactionChoice,
     "handoff_text": HandoffText,
 }
@@ -255,7 +273,7 @@ class Models:
         }
         if outcome == "ok" and isinstance(parsed, RouterOutput):
             entry["output"] = parsed.model_dump()
-        if outcome == "ok" and isinstance(parsed, BlockDetails):
+        if outcome == "ok" and isinstance(parsed, RequestDetails):
             entry["output"] = {"extracted": parsed.model_dump()}
         if outcome == "ok" and isinstance(parsed, TransactionChoice):
             fitting = ",".join(str(n) for n in parsed.fitting)
@@ -265,14 +283,20 @@ class Models:
             raise ModelFailedError(f"the {node} call ended {outcome}")
         return raw, parsed
 
-    async def route(self, text: str) -> RouterOutput:
+    async def route(self, text: str, context: str | None = None) -> RouterOutput:
+        """
+        context says what the chat's last reply offered, when it offered something a bare message may take up.
+        """
+        blocks: list[str | dict[Any, Any]] = [{"type": "text", "text": prompt("route")}]
+        if context is not None:
+            blocks.append({"type": "text", "text": context})
         _, parsed = await self.call(
-            "route", "route", [SystemMessage(prompt("route")), HumanMessage(text)]
+            "route", "route", [SystemMessage(blocks), HumanMessage(text)]
         )
         routed: RouterOutput = parsed
         return routed
 
-    async def extract(self, text: str, context: str) -> BlockDetails:
+    async def extract(self, text: str, context: str) -> RequestDetails:
         system = SystemMessage(
             [
                 {"type": "text", "text": prompt("resolve_card")},
@@ -282,7 +306,7 @@ class Models:
         _, parsed = await self.call(
             "resolve_card", "extract", [system, HumanMessage(text)]
         )
-        details: BlockDetails = parsed
+        details: RequestDetails = parsed
         return details
 
     async def choose(self, text: str, listing: str) -> TransactionChoice:
@@ -314,9 +338,11 @@ class Models:
         text: HandoffText = parsed
         return text
 
-    async def reply(
-        self, conversation: Sequence[BaseMessage], facts: str, language_name: str
-    ) -> str:
+    async def reply(self, text: str, facts: str, language_name: str) -> str:
+        """
+        The request's own message is the only turn the model reads, so no figure an earlier reply stated reaches it
+        (ADR-0004's amendment of 2026-10-01).
+        """
         system = SystemMessage(
             [
                 {
@@ -326,6 +352,6 @@ class Models:
                 {"type": "text", "text": facts},
             ]
         )
-        raw, _ = await self.call("reply", "reply", [system, *conversation])
+        raw, _ = await self.call("reply", "reply", [system, HumanMessage(text)])
         assert raw is not None
         return raw.text

@@ -40,12 +40,27 @@ const LIT: Record<Layout, string[]> = {
   ],
 };
 
+// A sign-in's beacon: each cell's turn as the beam passes, in the order LIT lists them, the left cells, then the right.
+const BEAT = [
+  "[--beat:0ms]",
+  "[--beat:180ms]",
+  "[--beat:360ms]",
+  "[--beat:540ms]",
+  "[--beat:720ms]",
+  "[--beat:900ms]",
+  "[--beat:1080ms]",
+  "[--beat:1260ms]",
+  "[--beat:1440ms]",
+  "[--beat:1620ms]",
+  "[--beat:1800ms]",
+];
+
 // The banner's grid behind a page's content: hairlines that fade toward the edges, a block cleared for the content,
-// and a few lit cells. Static once it has arrived: the lines fade in, the content rises, and the cells come on last
-// (the identity guide's Motifs). The hairlines run on under the shell's rail and bar (by --rail and --bar), centered
-// on the content all the same; the block and the lit cells keep to the page. The cells are whole pixels, and the lines
-// are drawn from a corner whole cells off the center, as the block is placed, so a browser rounds the two alike and
-// the lines meet the block on every side.
+// and a few lit cells. The lines fade in, the content rises, and the cells come on last; then only a sign-in's
+// beacon moves (the identity guide's Motifs). The hairlines run on under the shell's rail and bar (by --rail and
+// --bar), centered on the content all the same; the block and the lit cells keep to the page. The cells are whole
+// pixels, and the lines are drawn from a corner whole cells off the center, as the block is placed, so a browser
+// rounds the two alike and the lines meet the block on every side.
 export function Grid({
   layout,
   children,
@@ -54,7 +69,7 @@ export function Grid({
   children: ReactNode;
 }) {
   return (
-    <div className="relative isolate flex flex-1 flex-col [--cell:32px] sm:[--cell:51px]">
+    <div className="relative isolate flex flex-1 flex-col">
       <div
         aria-hidden="true"
         data-grid={layout}
@@ -67,10 +82,10 @@ export function Grid({
         </div>
         <div className="absolute inset-0 overflow-hidden">
           <div className={`absolute bg-night ${BLOCK[layout]}`} />
-          {LIT[layout].map((place) => (
+          {LIT[layout].map((place, index) => (
             <div
               key={place}
-              className={`absolute animate-light lit ${place}`}
+              className={`absolute lit ${layout === "sign-in" ? `beacon ${BEAT[index] ?? ""}` : "animate-light"} ${place}`}
             />
           ))}
         </div>

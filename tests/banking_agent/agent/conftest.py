@@ -31,11 +31,12 @@ from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
 from banking_agent.agent.models import (
     MODEL,
-    BlockDetails,
     HandoffText,
+    RequestDetails,
     RouterOutput,
     TransactionChoice,
 )
+from banking_agent.agent.texts import fill, render, values
 from banking_agent.tools import handoff
 from banking_agent.tools.cases import MemoryCases, MemoryFlags
 from banking_agent.tools.file_handoff import HandoffStores
@@ -50,6 +51,7 @@ SETTINGS = entrypoint.Settings(
     gateway_targets={
         "list_cards": "reads",
         "get_card": "reads",
+        "get_available_credit": "reads",
         "find_transactions": "reads",
         "block_card": "block",
     },
@@ -58,6 +60,16 @@ SETTINGS = entrypoint.Settings(
     clock={"business_date": "2026-06-17", "as_of": "2026-06-18 06:00:00"},
     app_version="0123456789abcdef0123456789abcdef01234567",
 )
+EXTRACTED = {
+    "card_type": None,
+    "last_four": None,
+    "block_reason": None,
+    "cards": None,
+    "page": None,
+    "owner": None,
+    "conflict": None,
+    "service": None,
+}
 USAGE = {
     "input_tokens": 120,
     "output_tokens": 30,
@@ -84,6 +96,18 @@ def find_transactions_output() -> dict[str, Any]:
     )
     output: dict[str, Any] = next(o for o in json.loads(text) if o["outcome"] == "ok")
     return output
+
+
+def credit_outputs() -> dict[str, dict[str, Any]]:
+    """
+    The contract's examples of get_available_credit, by card.
+    """
+    text = (
+        files("banking_agent.contracts")
+        .joinpath("examples/tools.get_available_credit_output.json")
+        .read_text(encoding="utf-8")
+    )
+    return {o["card"]["card_id"]: o for o in json.loads(text) if o["outcome"] == "ok"}
 
 
 def tools_data_items() -> list[dict[str, Any]]:
@@ -130,6 +154,7 @@ class Bank:
     def __init__(self) -> None:
         self.listed = list_cards_output()
         self.window = find_transactions_output()
+        self.credit = credit_outputs()
         self.blocked: set[str] = set()
         self.verified = True
 
@@ -153,17 +178,14 @@ class Bank:
                     **self.window,
                     "card_id": arguments["card_id"],
                     "transactions": self.window["transactions"] if own else [],
-                    "next_cursor": None,
+                    "next_cursor": self.window["next_cursor"] if own else None,
                 }
             )
+        if tool == "get_available_credit":
+            return tool_result(self.credit[arguments["card_id"]])
         card = next(c for c in self.cards() if c["card_id"] == arguments["card_id"])
         if tool == "get_card":
-            detail = {
-                **{k: v for k, v in card.items()},
-                "opening_date": "2023-02-14",
-                "expiration_date": None,
-            }
-            return tool_result({"outcome": "ok", **stamped, "card": detail})
+            return tool_result({"outcome": "ok", **stamped, "card": detail(card)})
         if self.verified:
             self.blocked.add(card["card_id"])
         return tool_result(
@@ -179,6 +201,33 @@ class Bank:
                 "repeated": False,
             }
         )
+
+
+def detail(card: dict[str, Any]) -> dict[str, Any]:
+    """
+    A listed card as get_card reads it; one past its expiration has one recorded.
+    """
+    return {
+        **card,
+        "opening_date": "2023-02-14",
+        "expiration_date": "2026-02-13" if card["past_expiration"] else None,
+    }
+
+
+# The scripted model's answer about every card, and what the customer reads once it is filled in (POL-14, POL-31).
+CARDS_ANSWER = "Estas son sus tarjetas:\n\n{cards}"
+
+
+def cards_answer(bank: "Bank", language: str = "es") -> str:
+    shown = [detail(c) for c in bank.cards()]
+    conflicts = [
+        render("past_expiration", language, {"card": c})
+        for c in shown
+        if c["product_status"] == "Active" and c["past_expiration"]
+    ]
+    return "\n\n".join(
+        [fill(CARDS_ANSWER, values(language, {"statuses": shown})), *conflicts]
+    )
 
 
 def tool_result(output: Any) -> httpx.Response:
@@ -321,9 +370,11 @@ class Script:
     has_request: bool = True
     complaint: bool = False
     route_error: Exception | None = None
-    extracted: dict[str, Any] = field(default_factory=dict)
+    # The default request asks about all the customer's cards (POL-14).
+    extracted: dict[str, Any] = field(default_factory=lambda: {"cards": "all"})
     extract_error: Exception | None = None
-    reply: str = "Estas son sus tarjetas."
+    # One per answer the model writes, in order; the last repeats.
+    replies: list[str] = field(default_factory=lambda: [CARDS_ANSWER])
     reply_error: Exception | None = None
     handoff_text: dict[str, Any] = field(
         default_factory=lambda: {
@@ -435,10 +486,7 @@ class Harness:
                 usage_metadata=USAGE,
                 response_metadata={"model_name": MODEL},
             )
-            parsed = BlockDetails.model_validate(
-                {"card_type": None, "last_four": None, "block_reason": None}
-                | script.extracted
-            )
+            parsed = RequestDetails.model_validate(EXTRACTED | script.extracted)
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         async def choose(messages: list[BaseMessage]) -> dict[str, Any]:
@@ -469,8 +517,11 @@ class Harness:
             script.model_inputs["reply"].append(messages)
             if script.reply_error is not None:
                 raise script.reply_error
+            content = (
+                script.replies.pop(0) if len(script.replies) > 1 else script.replies[0]
+            )
             return AIMessage(
-                content=script.reply,
+                content=content,
                 usage_metadata=USAGE,
                 response_metadata={"model_name": MODEL},
             )

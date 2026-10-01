@@ -25,6 +25,7 @@ from .conftest import (
     SETTINGS,
     Customer,
     Harness,
+    cards_answer,
     customer,
     list_cards_output,
     run_body,
@@ -46,7 +47,7 @@ def kinds(entries: list[dict[str, Any]]) -> list[str]:
     return [e["kind"] for e in entries]
 
 
-def test_a_customer_asking_about_their_cards_gets_an_answer_from_list_cards(
+def test_a_customer_asking_about_their_cards_gets_an_answer_from_their_own_records(
     harness: Harness,
 ) -> None:
     who = customer()
@@ -59,26 +60,33 @@ def test_a_customer_asking_about_their_cards_gets_an_answer_from_list_cards(
         validator("chat", "event").validate(event)
     assert {e["threadId"] for e in (events[0], events[-1])} == {body["threadId"]}
     assert {e["runId"] for e in (events[0], events[-1])} == {body["runId"]}
-    assert events[2]["delta"] == harness.script.reply
+    assert events[2]["delta"] == cards_answer(harness.bank)
     snapshot = events[4]["messages"]
     assert [m["role"] for m in snapshot] == ["user", "assistant"]
     assert snapshot[0] == body["messages"][0]
     assert snapshot[1] == {
         "id": events[1]["messageId"],
         "role": "assistant",
-        "content": harness.script.reply,
+        "content": cards_answer(harness.bank),
     }
-    call = harness.script.tool_calls[0]["params"]
-    assert call == {
+    calls = [c["params"] for c in harness.script.tool_calls]
+    assert calls[0] == {
         "name": "reads___list_cards",
         "arguments": {"customer_id": who.customer_id, "origin_jti": who.origin_jti},
     }
+    # Each card is read with get_card for the expiration POL-21 states.
+    assert [c["name"] for c in calls[1:]] == ["reads___get_card"] * 3
     entries = harness.records.of(who.origin_jti)
     assert kinds(entries) == [
         "turn_opened",
         "model_call",
         "tool_call",
         "model_call",
+        "tool_call",
+        "tool_call",
+        "tool_call",
+        "model_call",
+        "reply_check",
         "reply",
         "decision",
         "turn_closed",
@@ -116,15 +124,22 @@ def not_served_in_full(_: Any) -> Any:
     return tool_result(output)
 
 
+CARDS_RULES = ["POL-01", "POL-21", "POL-14", "POL-30", "POL-31"]
 PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
-    "cards": ({}, {"outcome_class": "answer", "rules": ["POL-01", "POL-14", "POL-31"]}),
+    "cards": ({}, {"outcome_class": "answer", "rules": CARDS_RULES}),
     "no_request": (
         {"requests": [], "has_request": False},
         {"request_label": None, "outcome_class": "answer", "rules": ["POL-06"]},
     ),
-    "not_yet_served": (
-        {"requests": ["recent_transactions", "available_credit"]},
-        {"request_label": "available_credit", "outcome_class": "decline", "rules": []},
+    # The status first, then the transactions in the same turn, which ask which card (POL-05, POL-14).
+    "queued": (
+        {"requests": ["recent_transactions", "card_status"]},
+        {
+            "request_label": "recent_transactions",
+            "outcome_class": "clarify",
+            "awaiting": "card",
+            "rules": ["POL-13", "POL-14"],
+        },
     ),
     "tool_failed": (
         {
@@ -190,9 +205,10 @@ PATHS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
             "awaiting": "handoff_control",
         },
     ),
+    # The reply check refuses it, and the fixed answer replaces it (decision 8).
     "digit_run": (
-        {"reply": UNCHECKED},
-        {"outcome_class": "abstain", "rules": ["POL-11"]},
+        {"replies": [UNCHECKED]},
+        {"outcome_class": "answer", "rules": CARDS_RULES},
     ),
 }
 
@@ -227,7 +243,13 @@ def test_every_path_sends_only_what_the_chats_contract_allows(
     expected = {"awaiting": "none", **expected}
     offers = expected["awaiting"] == "handoff_control"
     assert kinds(entries)[0] == "turn_opened"
-    tail = ["reply", *(["interrupt"] if offers else []), "decision", "turn_closed"]
+    decided = kinds(entries).count("decision")
+    tail = [
+        "reply",
+        *(["interrupt"] if offers else []),
+        *["decision"] * decided,
+        "turn_closed",
+    ]
     assert kinds(entries)[-len(tail) :] == tail
     decision = entries[-2]
     assert {k: decision[k] for k in expected} == expected
@@ -236,49 +258,44 @@ def test_every_path_sends_only_what_the_chats_contract_allows(
     assert entries[-1]["outcome"] == ("interrupted" if offers else "finished")
 
 
-def test_a_label_the_graph_doesnt_serve_yet_gets_fixed_text_after_the_status(
+def test_the_reply_model_sees_the_facts_by_name_and_the_request_alone(
     harness: Harness,
 ) -> None:
-    harness.script.requests = ["available_credit"]
+    # ADR-0004's amendment of 2026-10-01: no figure, date, or last four digits reach it, nor an earlier turn.
+    who, session = customer(), session_id()
+    harness.script.requests, harness.script.has_request = [], False
+    harness.post(run_body("Hola"), who.token(), session)
+    harness.script.requests, harness.script.has_request = ["card_status"], True
+
+    harness.post(run_body("¿Cuáles son mis tarjetas?"), who.token(), session)
+
+    (messages,) = harness.script.model_inputs["reply"]
+    system, request = messages
+    content: Any = system.content
+    told = content[1]["text"]
+    assert "{cards}" in told
+    assert not any(c.isdigit() for c in told)
+    assert [m.content for m in messages[1:]] == ["¿Cuáles son mis tarjetas?"]
+    assert request.content == "¿Cuáles son mis tarjetas?"
+
+
+def test_a_reply_the_check_refuses_falls_back_and_is_counted(harness: Harness) -> None:
+    harness.script.replies = ["Tiene 3 tarjetas: {cards} y {card.limit}."]
     who = customer()
 
-    events = harness.post(
-        run_body("Quanto crédito eu tenho no meu cartão?"), who.token(), session_id()
-    )
+    events = harness.post(run_body(), who.token(), session_id())
 
-    assert events[2]["delta"] == FIXED["not_yet_served"]["pt"]
-    assert [c["params"]["name"] for c in harness.script.tool_calls] == [
-        "reads___list_cards"
+    fixed = FIXED["cards_status"]["es"].split("\n")[0]
+    assert events[2]["delta"].startswith(fixed)
+    assert "Tiene 3" not in events[2]["delta"]
+    (checked,) = [
+        e for e in harness.records.of(who.origin_jti) if e["kind"] == "reply_check"
     ]
-    assert harness.script.model_inputs["reply"] == []
-    reply = harness.records.of(who.origin_jti)[-3]
-    assert (reply["language"], reply["fixed_texts"]) == ("pt", ["not_yet_served"])
-
-
-def test_the_reply_model_sees_the_cards_facts_and_nothing_else(
-    harness: Harness,
-) -> None:
-    who = customer()
-
-    harness.post(run_body(), who.token(), session_id())
-
-    content: Any = harness.script.model_inputs["reply"][0][0].content
-    facts = json.loads(content[1]["text"])
-    listed = list_cards_output()["cards"]
-    assert facts == {
-        "cards": [
-            {
-                k: c[k]
-                for k in (
-                    "product_type",
-                    "last_four",
-                    "product_status",
-                    "past_expiration",
-                )
-            }
-            for c in listed
-        ]
-    }
+    assert checked["passed"] is False
+    assert checked["fell_back"] is True
+    assert checked["failures"] == ["unknown_placeholder", "bare_number"]
+    replied = [e for e in harness.records.of(who.origin_jti) if e["kind"] == "reply"]
+    assert replied[0]["fixed_texts"] == ["cards_status", "past_expiration"]
 
 
 def test_the_thread_is_keyed_by_the_user_not_by_the_clients_id(
@@ -495,7 +512,7 @@ def test_earlier_messages_the_client_sends_never_reach_the_graph(
     kept = harness.checkpoint(who, "thread-0001")["messages"]
     assert [m.content for m in kept] == [
         body["messages"][1]["content"],
-        harness.script.reply,
+        cards_answer(harness.bank),
     ]
 
 
@@ -516,7 +533,7 @@ def test_another_users_thread_id_names_an_empty_thread_of_their_own(
     snapshot = events[4]["messages"]
     assert [m["content"] for m in snapshot] == [
         "Muéstreme la conversación",
-        harness.script.reply,
+        cards_answer(harness.bank),
     ]
     assert harness.checkpoint(a, "thread-0001") == before
     opened = harness.records.of(b.origin_jti)[0]

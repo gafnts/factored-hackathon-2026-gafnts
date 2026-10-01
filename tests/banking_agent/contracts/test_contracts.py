@@ -14,7 +14,15 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator
 
-from banking_agent.contracts import NAMES, TOOLS, definition, schema, validator, version
+from banking_agent.contracts import (
+    NAMES,
+    TOOLS,
+    definition,
+    schema,
+    validator,
+    version,
+    words,
+)
 from banking_agent.policy import handoff_schema
 
 POLICY = Path(__file__).resolve().parents[3] / "docs" / "policy" / "card-support.md"
@@ -358,7 +366,7 @@ def test_unknown_contracts_and_definitions_are_refused() -> None:
     with pytest.raises(KeyError, match="no contract named"):
         schema("ops")
     with pytest.raises(KeyError, match="defines no"):
-        definition("tools", "get_available_credit_input")
+        definition("tools", "unblock_card_input")
 
 
 def test_a_code_has_a_meaning_only_on_a_declined_transaction() -> None:
@@ -373,6 +381,29 @@ def test_a_code_has_a_meaning_only_on_a_declined_transaction() -> None:
     assert not invalid("tools", "find_transactions_output", page)
     pending["response_meaning"] = "do_not_honor"
     assert invalid("tools", "find_transactions_output", page)
+
+
+def test_every_value_a_tool_returns_has_its_words_in_each_language() -> None:
+    tools = schema("tools")["$defs"]
+    transaction = tools["transaction"]["properties"]
+    recorded = {
+        "product_type": tools["product_type"]["enum"],
+        "product_status": tools["product_status"]["enum"],
+        "transaction_type": transaction["transaction_type"]["enum"],
+        "transaction_status": transaction["transaction_status"]["enum"],
+        "response_meaning": [m for m in transaction["response_meaning"]["enum"] if m],
+    }
+    languages = sorted(tools["language"]["enum"])
+    stated = {k: v for k, v in words().items() if not k.startswith("$")}
+
+    assert set(recorded) <= set(stated)
+    for field, given in stated.items():
+        assert sorted(given) == languages, field
+        for language in languages:
+            if field in recorded:
+                assert sorted(given[language]) == sorted(recorded[field]), field
+            else:
+                assert isinstance(given[language], str), field
 
 
 def test_a_page_holds_ten_transactions_at_most() -> None:

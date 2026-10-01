@@ -70,7 +70,7 @@ class Turn:
         self.input_tokens = 0
         self.output_tokens = 0
         self.cost_usd: float | None = 0.0
-        self.decision: dict[str, Any] | None = None
+        self.decisions: list[dict[str, Any]] = []
         self.cited: list[dict[str, Any]] = []
 
     @property
@@ -89,10 +89,10 @@ class Turn:
 
     def decide(self, **fields: Any) -> None:
         """
-        Held until the run ends, since the decision is the last entry before turn_closed and an interrupt's entry,
-        which only the entrypoint sees, comes before it.
+        One per request the turn served, in order (POL-05), held until the run ends: the decisions are the last entries
+        before turn_closed, and an interrupt's entry, which only the entrypoint sees, comes before them.
         """
-        self.decision = fields
+        self.decisions.append(fields)
 
     async def write(self, kind: str, **fields: Any) -> dict[str, Any]:
         at = self.now()

@@ -36,7 +36,7 @@ export function QueuePanel({
         <p className="text-sm text-bone-muted">{AGENT.queue.empty}</p>
       )}
       {rows && rows.length > 0 && (
-        <ul className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-night-raised">
+        <ul className="flex flex-col divide-y divide-white/10 overflow-hidden border border-white/10 bg-night-raised">
           {rows.map((row) => (
             // A case new to the queue rises in as it lands; a row a poll keeps stays still. The open case's row is lit
             // no more than its urgent and muted words keep AA on (4.7:1).
@@ -85,7 +85,7 @@ export function QueuePanel({
         <button
           type="button"
           onClick={onMore}
-          className="self-start rounded-full border border-white/10 px-4 py-1.5 text-sm transition-colors hover:bg-white/5"
+          className="self-start border border-white/10 px-4 py-1.5 text-sm transition-colors hover:bg-white/5"
         >
           {AGENT.queue.more}
         </button>

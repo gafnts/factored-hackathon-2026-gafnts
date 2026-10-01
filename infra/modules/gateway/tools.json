@@ -45,6 +45,30 @@
       }
     },
     {
+      "name": "get_available_credit",
+      "description": "Reads the credit available on one of the signed-in customer's cards, which the tool computes: the figure for an active credit card, or why there is none.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "origin_jti": {
+            "type": "string",
+            "description": "The sign-in: Cognito's origin_jti, the policy's session (POL-09). It chooses the sandbox overlay a tool reads and writes."
+          },
+          "card_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "origin_jti",
+          "card_id"
+        ]
+      }
+    },
+    {
       "name": "find_transactions",
       "description": "Lists one of the signed-in customer's cards' transactions in the 90 days that end at the as-of instant, newest first, 10 at a time; pass a page's next_cursor as cursor to read the page after it. A Declined transaction's code comes with its meaning when it is a listed one, and no other transaction's does.",
       "inputSchema": {

@@ -260,7 +260,7 @@ def test_every_fact_a_case_states_is_in_the_recorded_call_it_cites(
         ask_for_a_person(chat)
     if path == "not_served":
         harness.bank.listed["customer"]["served_in_full"] = False
-        chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"])
+        chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all")
     if path == "ambiguous":
         twin(harness)
         chat.say("Bloqueen la terminada en 4821.", last_four="4821")

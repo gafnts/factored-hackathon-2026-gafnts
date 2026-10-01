@@ -11,7 +11,7 @@ Return every request the message holds, each under one of these labels, and noth
 - unsupported: any other request, about cards or not, such as unblocking or replacing a card, a PIN, a higher limit, accounts, or loans.
 - talk_to_human: asking for a person, or a complaint.
 
-Set has_request to false, with no labels, when the message holds no request at all: a greeting, thanks, or a question about what the chat can do.
+Set has_request to false, with no labels, when the message holds no request at all: a greeting, thanks, or a question about what the chat can do. What follows these instructions, if anything, says what the chat's last reply offered; a message that takes up that offer holds the request it continues.
 
 Set complaint to true when the message complains about the bank, its service, or this chat, and to false otherwise. Asking for a person is not a complaint on its own.
 

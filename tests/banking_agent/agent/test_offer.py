@@ -12,7 +12,7 @@ from typing import Any
 
 from banking_agent.agent.texts import FIXED
 
-from .conftest import Customer, Harness, run_body, tool_error
+from .conftest import Customer, Harness, cards_answer, run_body, tool_error
 from .test_block import THREAD, Chat, control_shown, interrupt, reply
 
 
@@ -149,7 +149,9 @@ def test_a_failed_read_offers_a_handoff_citing_the_failed_call(
     harness.script.gateway = lambda _: tool_error()
     chat = Chat(harness)
 
-    failed = chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"])
+    failed = chat.say(
+        "¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all"
+    )
 
     assert reply(failed) == "\n\n".join(
         [FIXED["unavailable"]["es"], FIXED["handoff_offer"]["es"]]
@@ -189,10 +191,12 @@ def test_typed_text_never_accepts_an_offer_and_a_new_request_ends_it(
     assert chat.decision()["awaiting"] == "handoff_control"
     assert cases(harness) == []
 
-    moved_on = chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"])
+    moved_on = chat.say(
+        "¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all"
+    )
 
     assert moved_on[-1]["outcome"] == {"type": "success"}
-    assert reply(moved_on) == harness.script.reply
+    assert reply(moved_on) == cards_answer(harness.bank)
     assert cases(harness) == []
 
 

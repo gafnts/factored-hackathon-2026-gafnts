@@ -102,7 +102,7 @@ function Facts({
         return (
           <div
             key={`${first.subject}-${first.id}`}
-            className="overflow-hidden rounded-2xl border border-white/10 bg-night-raised"
+            className="overflow-hidden border border-white/10 bg-night-raised"
           >
             <p className="border-b border-white/10 px-4 py-2.5 text-sm font-medium">
               {subjectName(first.subject, first.id, lastFour)}
@@ -152,7 +152,7 @@ function Actions({
       {actions.map((action) => (
         <li
           key={action.confirmation_id}
-          className="flex flex-col gap-1 rounded-2xl border border-white/10 bg-night-raised px-4 py-3"
+          className="flex flex-col gap-1 border border-white/10 bg-night-raised px-4 py-3"
         >
           <span className="flex flex-wrap items-baseline justify-between gap-2">
             <span>
@@ -185,7 +185,7 @@ function Actions({
 
 function Row({ row }: { row: RecordedRow }) {
   return (
-    <dl className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-3 gap-y-0.5 rounded-lg border border-white/10 bg-night px-3 py-2 text-xs">
+    <dl className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-3 gap-y-0.5 border border-white/10 bg-night px-3 py-2 text-xs">
       {Object.entries(row).map(([field, value]) => (
         <div key={field} className="contents">
           <dt className="font-mono text-bone-muted">{field}</dt>
@@ -210,7 +210,7 @@ function Evidence({
         return (
           <li
             key={named.call_id}
-            className="flex flex-col gap-1.5 rounded-2xl border border-white/10 bg-night-raised px-4 py-3"
+            className="flex flex-col gap-1.5 border border-white/10 bg-night-raised px-4 py-3"
           >
             <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
               <Mono>{call?.tool ?? named.tool}</Mono>
@@ -313,7 +313,7 @@ export function CaseView({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/10 px-4 py-1.5 text-sm transition-colors hover:bg-white/5"
+            className="border border-white/10 px-4 py-1.5 text-sm transition-colors hover:bg-white/5"
           >
             {AGENT.case.close}
           </button>
@@ -351,7 +351,7 @@ export function CaseView({
       {held.flagged && (
         <section
           role="alert"
-          className="flex flex-col gap-2 rounded-2xl border border-lamp/60 px-4 py-3"
+          className="flex flex-col gap-2 border border-lamp/60 px-4 py-3"
         >
           <p className="font-medium text-lamp">{AGENT.case.flagged}</p>
           <p className="text-sm">{AGENT.case.flaggedBody}</p>

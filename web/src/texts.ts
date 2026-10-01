@@ -126,8 +126,8 @@ export const TEXTS: Record<Language, Texts> = {
       title: "Iniciar sesión",
       username: "Usuario",
       password: "Contraseña",
-      submit: "Iniciar sesión",
-      submitting: "Iniciando sesión…",
+      submit: "Entrar",
+      submitting: "Entrando…",
       refused: "No pudimos iniciar su sesión. Revise su usuario y contraseña.",
       unreachable:
         "No pudimos comunicarnos con el banco. Inténtelo de nuevo en unos minutos.",
@@ -195,7 +195,7 @@ export const TEXTS: Record<Language, Texts> = {
     },
     broken: "Não foi possível carregar o aplicativo. Recarregue a página.",
     signIn: {
-      title: "Entrar",
+      title: "Iniciar sessão",
       username: "Usuário",
       password: "Senha",
       submit: "Entrar",

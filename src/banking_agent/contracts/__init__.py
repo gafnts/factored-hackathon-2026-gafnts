@@ -1,7 +1,8 @@
 """
 The shared contracts: JSON Schemas that the tools, the pipeline's export, the chat, the console, the graph, and the
 evaluation are checked against (ADR-0004, decisions 9 and 16). The schemas are the source of truth; code is tested
-against them. A contract may refer to another, or to the handoff schema, by its ID.
+against them. A contract may refer to another, or to the handoff schema, by its ID. Beside them, the words a reply states
+recorded values in, which the agent and the evaluation's oracle both read.
 """
 
 import json
@@ -29,7 +30,7 @@ TOOLS = (
 # By Gateway target, one Lambda each, split by what it may write; file_handoff is off the Gateway, since a customer
 # could otherwise file a forged case (ADR-0004, Where the tools run).
 GATEWAY_TOOLS = {
-    "reads": ("list_cards", "get_card", "find_transactions"),
+    "reads": ("list_cards", "get_card", "get_available_credit", "find_transactions"),
     "block": ("block_card",),
 }
 
@@ -49,6 +50,13 @@ def schema(name: str) -> dict[str, Any]:
     if name not in NAMES:
         raise KeyError(f"no contract named {name}")
     text = files(__name__).joinpath(f"{name}.schema.json").read_text(encoding="utf-8")
+    loaded: dict[str, Any] = json.loads(text)
+    return loaded
+
+
+@cache
+def words() -> dict[str, Any]:
+    text = files(__name__).joinpath("reply-words.json").read_text(encoding="utf-8")
     loaded: dict[str, Any] = json.loads(text)
     return loaded
 

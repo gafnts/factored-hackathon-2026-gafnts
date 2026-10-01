@@ -171,6 +171,7 @@ def test_a_persona_asks_about_their_cards_and_gets_an_answer_from_their_own(
     entries = records(outputs, claims(access)["origin_jti"])
     for entry in entries:
         validator("execution-record").validate(entry)
+    # Each card is read again with get_card for its expiration (POL-21), and the model's answer is checked.
     assert [e["kind"] for e in entries] == [
         "turn_opened",
         "turn_closed",
@@ -178,11 +179,14 @@ def test_a_persona_asks_about_their_cards_and_gets_an_answer_from_their_own(
         "model_call",
         "tool_call",
         "model_call",
+        *["tool_call"] * len(own["cards"]),
+        "model_call",
+        "reply_check",
         "reply",
         "decision",
         "turn_closed",
     ]
-    opened, tool_call, decision = entries[2], entries[4], entries[7]
+    opened, tool_call, decision = entries[2], entries[4], entries[-2]
     assert entries[0]["input"] == {"kind": "warmup"}
     assert tool_call["outcome"] == "ok"
     recorded = tool_call["result"] == own
