@@ -44,7 +44,7 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root
       data-author="customer"
-      className="ml-auto max-w-[75%] animate-message rounded-3xl bg-night-bubble px-5 py-3 wrap-break-word motion-reduce:animate-fade"
+      className="ml-auto max-w-[75%] animate-message bg-night-bubble px-5 py-3 wrap-break-word motion-reduce:animate-fade"
     >
       <MessagePrimitive.Parts components={{ Text: UserText }} />
     </MessagePrimitive.Root>
@@ -69,7 +69,7 @@ function Working({ label }: { label: string }) {
   return (
     <div
       role="status"
-      className="relative h-1 w-32 animate-fade overflow-hidden rounded bg-rule-night"
+      className="relative h-1 w-32 animate-fade overflow-hidden bg-rule-night"
     >
       <span className="sr-only">{label}</span>
       <span className="absolute inset-y-0 w-1/3 animate-sweep bg-sea motion-reduce:animate-none" />
@@ -106,7 +106,7 @@ function Composer({
   return (
     <ComposerPrimitive.Root
       onSubmit={divert}
-      className="flex items-end gap-2 rounded-[1.75rem] border border-white/10 glass p-2 pl-5 transition-colors focus-within:border-sea/60"
+      className="flex items-end gap-2 border border-white/10 glass p-2 pl-5 transition-colors focus-within:border-sea/60"
     >
       <ComposerPrimitive.Input
         aria-label={texts.placeholder}
@@ -118,7 +118,7 @@ function Composer({
       <ComposerPrimitive.Send
         onClick={divert}
         aria-label={texts.send}
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sea text-night transition-colors disabled:bg-white/10 disabled:text-bone-muted"
+        className="flex size-10 shrink-0 items-center justify-center bg-sea text-night transition-colors disabled:bg-white/10 disabled:text-bone-muted"
       >
         <ArrowUp />
       </ComposerPrimitive.Send>
@@ -149,7 +149,7 @@ function Opening({ language, divert }: { language: Language; divert: Divert }) {
               <ThreadPrimitive.Suggestion
                 prompt={prompt}
                 send
-                className="flex w-full items-baseline gap-3 rounded-2xl border border-white/10 glass px-4 py-3 text-left transition-colors hover:border-white/20 sm:flex-col sm:items-start sm:gap-2 sm:py-4"
+                className="flex w-full items-baseline gap-3 border border-white/10 glass px-4 py-3 text-left transition-colors hover:border-white/20 sm:flex-col sm:items-start sm:gap-2 sm:py-4"
               >
                 <span
                   aria-hidden="true"

@@ -26,7 +26,7 @@ export function RailButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-10 items-center gap-3 rounded-full px-2.5 text-bone-muted transition-colors hover:bg-white/5 hover:text-bone disabled:opacity-40 disabled:hover:bg-transparent ${className}`}
+      className={`flex h-10 items-center gap-3 px-2.5 text-bone-muted transition-colors hover:bg-white/5 hover:text-bone disabled:opacity-40 disabled:hover:bg-transparent ${className}`}
     >
       {icon}
       <span
@@ -87,7 +87,7 @@ export function Shell({
             onClick={() => {
               setExpanded(!expanded);
             }}
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-bone-muted hover:bg-white/5 hover:text-bone sm:flex"
+            className="hidden h-10 w-10 items-center justify-center text-bone-muted hover:bg-white/5 hover:text-bone sm:flex"
           >
             <PanelLeft />
           </button>

@@ -210,7 +210,7 @@ function Desk({
           <label htmlFor="reference" className="text-sm font-medium">
             {AGENT.search.label}
           </label>
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-night-raised p-1.5 pl-5 transition-colors focus-within:border-sea/60">
+          <div className="flex items-center gap-2 border border-white/10 bg-night-raised p-1.5 pl-5 transition-colors focus-within:border-sea/60">
             <input
               id="reference"
               value={typed}
@@ -225,7 +225,7 @@ function Desk({
             <button
               type="submit"
               aria-label={AGENT.search.submit}
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea text-night"
+              className="flex size-9 shrink-0 items-center justify-center bg-sea text-night"
             >
               <Search />
             </button>

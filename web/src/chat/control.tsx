@@ -152,8 +152,8 @@ function Button({
       onClick={answer}
       className={
         primary
-          ? "h-11 rounded-full bg-sea px-5 font-medium text-night disabled:opacity-40"
-          : "h-11 rounded-full border border-white/15 px-5 hover:bg-white/5 disabled:opacity-40"
+          ? "h-11 bg-sea px-5 font-medium text-night disabled:opacity-40"
+          : "h-11 border border-white/15 px-5 hover:bg-white/5 disabled:opacity-40"
       }
     >
       {label}
@@ -179,7 +179,7 @@ function Confirmation({
       role="group"
       aria-label={texts.label}
       data-control="block_confirmation"
-      className="mt-4 flex flex-col gap-2 rounded-2xl border border-white/10 glass p-4"
+      className="mt-4 flex flex-col gap-2 border border-white/10 glass p-4"
     >
       <p className="font-medium">
         {texts.card(control.card.type, control.card.last_four)}
@@ -230,7 +230,7 @@ function Offer({
       role="group"
       aria-label={texts.label}
       data-control="handoff_offer"
-      className="mt-4 flex flex-col gap-2 rounded-2xl border border-white/10 glass p-4"
+      className="mt-4 flex flex-col gap-2 border border-white/10 glass p-4"
     >
       <p>{texts.reason(control.reason_code)}</p>
       <div className="mt-2 flex gap-2">

@@ -43,7 +43,7 @@ function Form({
           : null;
 
   return (
-    <section className="mx-auto w-full max-w-sm rounded-3xl border border-white/10 glass px-8 py-8">
+    <section className="mx-auto w-full max-w-sm border border-white/10 glass px-8 py-8">
       <h1 className="font-display text-2xl font-semibold tracking-[-0.03em]">
         {texts.title}
       </h1>
@@ -58,7 +58,7 @@ function Form({
             name="username"
             autoComplete="username"
             required
-            className="rounded-xl border border-white/10 bg-night px-3 py-2.5 text-base"
+            className="border border-white/10 bg-night px-3 py-2.5 text-base"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -68,7 +68,7 @@ function Form({
             type="password"
             autoComplete="current-password"
             required
-            className="rounded-xl border border-white/10 bg-night px-3 py-2.5 text-base"
+            className="border border-white/10 bg-night px-3 py-2.5 text-base"
           />
         </label>
         {message && (
@@ -79,7 +79,7 @@ function Form({
         <button
           type="submit"
           disabled={pending}
-          className="h-11 rounded-full bg-sea font-medium text-night disabled:opacity-40"
+          className="h-11 bg-sea font-medium text-night disabled:opacity-40"
         >
           {pending ? texts.submitting : texts.submit}
         </button>
