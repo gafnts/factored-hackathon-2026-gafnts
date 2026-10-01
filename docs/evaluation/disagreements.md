@@ -9,6 +9,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
 | [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
 | [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
+| [D-006](#d-006) | Open | To triage | POL-35, POL-36 | `block.cancelled` |
 
 ## D-001
 
@@ -63,5 +64,14 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 - `decline.no_code` (pt), turn 1: `fact`, expected `{transaction}`, observed `missing`
 - `credit.no_limit` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `read.recovers` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+
+**Verdict:** To triage.
+
+## D-006
+
+A terse block request that gives no reason, played live: the system shows the confirm control at once, reading the request itself as reason enough; the oracle expects the reason asked first, since POL-35 says the agent asks for one when the customer hasn't given it. The scripted models never take this path, so it first appeared on the deployed stack, where the request's sibling in Portuguese was asked as expected. Our lean: the oracle, since POL-35's wording is plain and POL-36's control names a reason the customer should have given.
+
+- `block.cancelled` (es), turn 1: `outcome_class`, expected `clarify`, observed `block`
+- `block.cancelled` (es), turn 1: `awaiting`, expected `reason`, observed `confirm_control`
 
 **Verdict:** To triage.
