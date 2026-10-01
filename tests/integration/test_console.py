@@ -234,11 +234,11 @@ def test_the_readmes_cases_reach_dispute_intake_urgent_first_and_read_back_whole
     saved: list[str],
 ) -> None:
     # The urgent case is filed first, so only its priority can put it above the newer one.
-    cancelled, card, charge = disputing()
-    cancelled.press("cancel", reported(cancelled, card, charge))
+    cancelled, card, charge, country = disputing()
+    cancelled.press("cancel", reported(cancelled, card, charge, country))
     _, urgent = filed_case(outputs, cancelled, saved)
-    blocked, card, charge = disputing()
-    blocked.press("confirm", reported(blocked, card, charge))
+    blocked, card, charge, country = disputing()
+    blocked.press("confirm", reported(blocked, card, charge, country))
     _, normal = filed_case(outputs, blocked, saved)
     agent = tokens["human_agent"]
 

@@ -7,9 +7,15 @@ It says what the agent answers, what it does, when it asks, abstains, or decline
 
 ## Status
 
-Accepted (2026-09-29). Version 1.
+Accepted (2026-09-29). Version 2 (2026-10-01).
 
-Revised before acceptance, so the version stays 1:
+Changed in version 2, as the reads were built:
+
+- **POL-14:** "all my cards" is answered for each card for a status or available credit only. Transactions and a decline are read one card at a time (POL-25, POL-27), so for those the agent asks which.
+- **POL-27:** when several transactions fit, the `Declined` ones among them are meant, if there are any, as POL-13 prefers the cards a request applies to. Otherwise "why was my card declined?" would list the newest purchases, approved or not.
+- **POL-42:** it covers every card service the chat doesn't serve, not only the three it named, which left activating a card or changing its details under no rule.
+
+Revised before acceptance, so the version stayed 1:
 
 - **2026-09-27:** a block is confirmed only with the confirm control, never with typed text (POL-36, and with it POL-03, POL-06, POL-09, POL-37, and POL-39).
 - **2026-09-29:**
@@ -77,7 +83,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 ## Which card
 
 - **POL-13** A request about one card is answered for the card the customer means: the one among their cards that matches what they said (type, last four digits). When several match, the ones the request applies to (active cards for a block, credit cards for available credit) are meant, if there are any. A card that matches but that the request doesn't apply to is still the card meant, and the request's own rule answers for it (POL-22, POL-34). The reply names the card by type and last four digits. (AI-02)
-- **POL-14** When POL-13 leaves several cards, the agent asks which, listing each by type and last four digits. A request about all the customer's cards ("my cards") is answered for each. Of 65,796 customers with an active card, 13,420 hold two or more active credit cards and 2,681 two or more active debit cards. (AI-02)
+- **POL-14** When POL-13 leaves several cards, the agent asks which, listing each by type and last four digits. A request about the status or available credit of all the customer's cards ("my cards") is answered for each; transactions and a decline are read one card at a time (POL-25, POL-27), so for those the agent asks which. Of 65,796 customers with an active card, 13,420 hold two or more active credit cards and 2,681 two or more active debit cards. (AI-02)
 - **POL-15** When the last four digits the customer gives match two cards of different types, the agent asks for the type. When they match two cards of the same type, it hands off (`ambiguous_card`): fewer than 10 customers hold such a pair, so no second identifier is worth asking for. (AI-02, CTL-02, CTL-03)
 - **POL-16** Last four digits that match none of the customer's cards are answered by listing the cards the customer holds, by type and last four digits. (AI-02)
 - **POL-17** After two questions that don't settle the same detail, the agent stops asking and offers a handoff (`clarification_failed`). (AI-02, CTL-03)
@@ -93,7 +99,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 - **POL-24** A credit card with no recorded `credit_limit` gets no available credit figure: the reply says the limit isn't on record and offers a handoff (`missing_data`). A missing limit is never read as unlimited or as zero. 3,441 (5.05%) active credit cards have none, in line with the 5% of each core field missing at random. (AI-03, CTL-03, EVL-02)
 - **POL-25** Recent transactions are the card's transactions in the 90 days before the as-of instant, newest first, 10 at a time; the customer can ask for the next 10. Each shows its date, type, merchant for a purchase ("not recorded" when missing), amount and currency, status, and country when it isn't the customer's. A card with none in the window gets that answer, with the window's dates, and a request for an earlier period is declined, stating the window. A transaction falls within 90 days for 66.2% of active cards (30.8% within 30), and 99% of those have at most 4, so a page rarely splits. (AI-03, CTL-01)
 - **POL-26** How recently a card was used is read from its transactions only; `last_transaction_date` is never read. It equals the card's latest transaction on 0 of 112,349 cards. (AI-03)
-- **POL-27** For a decline, the agent looks among the card's transactions in the 90-day window for the one the customer means. One that fits is explained under POL-02, naming its date, merchant, and amount; when several fit, the newest five are listed for the customer to choose; when none does, the reply says so. (AI-02, AI-03)
+- **POL-27** For a decline, the agent looks among the card's transactions in the 90-day window for the one the customer means. One that fits is explained under POL-02, naming its date, merchant, and amount. When several fit, the `Declined` ones among them are meant, if there are any; when several are still meant, the newest five are listed for the customer to choose; when none fits, the reply says so. (AI-02, AI-03)
 - **POL-28** Only a transaction whose `transaction_status` is `Declined` is explained by its code. A `Pending` or `Reversed` one is reported by its status, without explaining its code, and an `Approved` one as approved. Pending and reversed transactions carry the same four codes as declines. (AI-03)
 - **POL-29** An explanation gives the code's meaning and nothing else: no cause, advice, or pattern is inferred. The codes are independent of every field recorded with the transaction (largest bias-corrected Cramér's V 0.008). (AI-03)
 
@@ -120,7 +126,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 ## Unsupported requests and people
 
 - **POL-41** A request to unblock a card is handed off (`unblock_request`). A block lowers exposure and a person can undo it; an unblock restores spending power and needs stronger proof of identity than a chat session gives. (CTL-02, CTL-03, DSN-02)
-- **POL-42** Replacements, PIN changes, and limit increases are declined in the chat, with the reason, and a handoff is offered (`unsupported_request`). (CTL-01, CTL-03)
+- **POL-42** Replacements, PIN changes, limit increases, and any other card service the chat doesn't serve (activating a card or changing its details, for example) are declined in the chat, with the reason, and a handoff is offered (`unsupported_request`). (CTL-01, CTL-03)
 - **POL-43** Requests outside cards (accounts and their balances, loans, other products) are declined, saying the chat serves cards only; a person is offered only when the customer asks for one (POL-44). (CTL-01, SCP-04)
 - **POL-44** A customer who asks for a person is handed off (`customer_request`), and so is one who makes a complaint (`complaint`). The agent may ask once what it is about, and hands off whether or not the customer answers. (CTL-03)
 
@@ -159,7 +165,7 @@ A Portuguese-speaking customer doesn't recognize a purchase and confirms a block
   "created_at": "2026-10-02T15:42:08Z",
   "session_id": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
   "customer_id": "CLI-EXAMPLE00001",
-  "versions": {"policy": 1, "snapshot": "b3b8b248f604ef9a"},
+  "versions": {"policy": 2, "snapshot": "b3b8b248f604ef9a"},
   "business_date": "2026-06-17",
   "language": "pt",
   "queue": "dispute_intake",

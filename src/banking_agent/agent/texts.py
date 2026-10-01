@@ -1,22 +1,45 @@
 """
 The replies code gives in fixed text, in each of the chat's languages (POL-50), named as the execution record's reply
-entry names them. A block's questions and outcomes are all fixed text: code chooses each from the tools' results and
-the confirmation, and fills in the card's type, last four digits, and status, so the model never reports an action
-(ADR-0004, decision 8; AI-05). An offered handoff and a filed handoff's reference reach the customer here too
-(POL-45).
+entry names them, and the placeholders that fill them. Every reply but the four reads' answers is fixed text: code
+chooses it from the tools' results and the confirmation, so the model never reports an action, asks a question, or
+declines (ADR-0004, decision 8, and its amendment of 2026-10-01; AI-05). A read's answer is fixed text too when the model
+doesn't write it, or writes one the reply check refuses: its fixed reply states the same facts, under the same
+placeholders, formatted as formats.py says. An offered handoff and a filed handoff's reference reach the customer here
+too (POL-45).
 """
 
+import re
 from typing import Any
+
+from banking_agent.agent.formats import (
+    MEANINGS,
+    STATUSES,
+    TRANSACTION_STATUSES,
+    amount,
+    card_line,
+    card_name,
+    day,
+    expiration,
+    moment,
+    transaction_line,
+    transaction_name,
+)
 
 FIXED: dict[str, dict[str, str]] = {
     # POL-06: a message with no card request.
     "no_request": {
-        "es": "Hola. Por ahora puedo mostrarle sus tarjetas y el estado de cada una, y bloquear una tarjeta si lo necesita: pregúnteme.",
-        "pt": "Olá. Por enquanto posso mostrar seus cartões e o status de cada um, e bloquear um cartão se precisar: é só pedir.",
+        "es": "Hola. Puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, explicarle por qué se rechazó un pago, bloquear una tarjeta y ayudarle con un cargo que no reconoce: pregúnteme.",
+        "pt": "Olá. Posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, explicar por que um pagamento foi recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece: é só perguntar.",
     },
-    "not_yet_served": {
-        "es": "Por ahora puedo mostrarle sus tarjetas y el estado de cada una, y bloquear una tarjeta. Con esta solicitud todavía no puedo ayudarle.",
-        "pt": "Por enquanto posso mostrar seus cartões e o status de cada um, e bloquear um cartão. Ainda não posso ajudar com este pedido.",
+    # POL-51: a third language gets Spanish, with one sentence in Portuguese.
+    "third_language": {
+        "es": "Este chat atiende en español y en portugués; por favor, escríbame en uno de esos idiomas. Este chat atende em espanhol e em português.",
+        "pt": "Este chat atiende en español y en portugués; por favor, escríbame en uno de esos idiomas. Este chat atende em espanhol e em português.",
+    },
+    # POL-05: the requests left for after the one in progress.
+    "queued": {
+        "es": "Después sigo con {requests}.",
+        "pt": "Depois continuo com {requests}.",
     },
     # POL-48; a routed request's failure is followed by handoff_offer.
     "unavailable": {
@@ -27,6 +50,122 @@ FIXED: dict[str, dict[str, str]] = {
     "refused": {
         "es": "Solo puedo atender las tarjetas de la persona que inició sesión.",
         "pt": "Só posso atender os cartões da pessoa que entrou na sessão.",
+    },
+    # POL-13 to POL-16, for the reads.
+    "which_card_read": {
+        "es": "¿Sobre cuál de estas tarjetas me pregunta?\n\n{cards}",
+        "pt": "Sobre qual destes cartões você está perguntando?\n\n{cards}",
+    },
+    "no_matching_card_read": {
+        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿Sobre cuál me pregunta?",
+        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nSobre qual você está perguntando?",
+    },
+    # POL-01 and POL-21: a status answer's fixed reply, for one card and for each.
+    "card_status": {
+        "es": "Su {card} está {card.status}; fecha de vencimiento: {card.expiration}.",
+        "pt": "Seu {card} está {card.status}; validade: {card.expiration}.",
+    },
+    "cards_status": {
+        "es": "Estas son sus tarjetas y el estado de cada una:\n\n{cards}",
+        "pt": "Estes são os seus cartões e o status de cada um:\n\n{cards}",
+    },
+    # POL-01, POL-19, POL-22 to POL-24.
+    "credit_available": {
+        "es": "Al {as_of}, su {card} tiene {credit.available} de crédito disponible.",
+        "pt": "Em {as_of}, seu {card} tem {credit.available} de crédito disponível.",
+    },
+    "credit_over_limit": {
+        "es": "Al {as_of}, su {card} no tiene crédito disponible: su saldo supera el límite en {credit.over_by}.",
+        "pt": "Em {as_of}, seu {card} não tem crédito disponível: o saldo ultrapassa o limite em {credit.over_by}.",
+    },
+    "credit_debit_card": {
+        "es": "Su {card} es una tarjeta de débito, que no tiene crédito disponible. Los saldos de sus cuentas no se consultan en este chat.",
+        "pt": "Seu {card} é um cartão de débito, que não tem crédito disponível. Os saldos das suas contas não são consultados neste chat.",
+    },
+    "credit_not_active": {
+        "es": "Su {card} está {card.status}. El crédito disponible solo se muestra para tarjetas activas.",
+        "pt": "Seu {card} está {card.status}. O crédito disponível só é mostrado para cartões ativos.",
+    },
+    # POL-24, followed by handoff_offer.
+    "credit_no_limit": {
+        "es": "El límite de crédito de su {card} no está registrado, así que no puedo darle una cifra de crédito disponible.",
+        "pt": "O limite de crédito do seu {card} não está registrado, então não posso informar o crédito disponível.",
+    },
+    # POL-19 and POL-25.
+    "transactions_page": {
+        "es": "Estos son los movimientos de su {card} entre el {window.from} y el {window.to}, del más reciente al más antiguo:\n\n{transactions}",
+        "pt": "Estas são as transações do seu {card} entre {window.from} e {window.to}, da mais recente à mais antiga:\n\n{transactions}",
+    },
+    "transactions_next": {
+        "es": "Estos son los siguientes movimientos de su {card} entre el {window.from} y el {window.to}:\n\n{transactions}",
+        "pt": "Estas são as próximas transações do seu {card} entre {window.from} e {window.to}:\n\n{transactions}",
+    },
+    "transactions_more": {
+        "es": "Si quiere, puede pedirme los 10 siguientes.",
+        "pt": "Se quiser, pode me pedir as próximas 10.",
+    },
+    "transactions_none": {
+        "es": "Su {card} no tiene movimientos entre el {window.from} y el {window.to}.",
+        "pt": "Seu {card} não tem transações entre {window.from} e {window.to}.",
+    },
+    "transactions_no_more": {
+        "es": "No hay más movimientos de su {card} entre el {window.from} y el {window.to}.",
+        "pt": "Não há mais transações do seu {card} entre {window.from} e {window.to}.",
+    },
+    "transactions_earlier": {
+        "es": "Solo puedo mostrarle los movimientos de los últimos 90 días, entre el {window.from} y el {window.to}.",
+        "pt": "Só posso mostrar as transações dos últimos 90 dias, entre {window.from} e {window.to}.",
+    },
+    # POL-02 and POL-27 to POL-29: the code's meaning and nothing else.
+    "decline_explained": {
+        "es": "Encontré esta transacción rechazada en su {card}: {transaction}. El motivo registrado es: {transaction.meaning}.",
+        "pt": "Encontrei esta transação recusada no seu {card}: {transaction}. O motivo registrado é: {transaction.meaning}.",
+    },
+    "decline_status": {
+        "es": "Encontré esta transacción en su {card}: {transaction}. Figura como {transaction.status}, no como rechazada.",
+        "pt": "Encontrei esta transação no seu {card}: {transaction}. Ela consta como {transaction.status}, não como recusada.",
+    },
+    # POL-32, followed by handoff_offer.
+    "decline_no_code": {
+        "es": "Encontré esta transacción rechazada en su {card}: {transaction}. No hay un motivo registrado para este rechazo.",
+        "pt": "Encontrei esta transação recusada no seu {card}: {transaction}. Não há um motivo registrado para esta recusa.",
+    },
+    "decline_not_found": {
+        "es": "No encontré en los últimos 90 días de su {card} una transacción que coincida con lo que me indica.",
+        "pt": "Não encontrei nos últimos 90 dias do seu {card} uma transação que corresponda ao que você indicou.",
+    },
+    "which_decline": {
+        "es": "Encontré más de una transacción en su {card} que podría ser la que me indica. ¿Cuál es?\n\n{transactions}",
+        "pt": "Encontrei mais de uma transação no seu {card} que pode ser a que você indicou. Qual é?\n\n{transactions}",
+    },
+    # POL-30: both facts, neither chosen.
+    "code_conflict": {
+        "es": "El código de este rechazo indica tarjeta vencida, aunque la transacción es anterior a la fecha de vencimiento registrada de su {card}: {card.expiration}.",
+        "pt": "O código desta recusa indica cartão vencido, embora a transação seja anterior à data de validade registrada do seu {card}: {card.expiration}.",
+    },
+    "before_opening": {
+        "es": "La fecha de esta transacción es anterior a la fecha de apertura registrada de su {card}.",
+        "pt": "A data desta transação é anterior à data de abertura registrada do seu {card}.",
+    },
+    # POL-31, followed by handoff_offer.
+    "conflict_unresolved": {
+        "es": "No puedo decirle cuál de los dos datos es el correcto.",
+        "pt": "Não posso dizer qual dos dois dados é o correto.",
+    },
+    # POL-41, followed by handoff_filed.
+    "unblock_by_person": {
+        "es": "Para desbloquear una tarjeta hace falta una verificación que este chat no puede hacer.",
+        "pt": "Para desbloquear um cartão é preciso uma verificação que este chat não pode fazer.",
+    },
+    # POL-42, followed by handoff_offer.
+    "unsupported_service": {
+        "es": "Por este chat no puedo gestionar {service}.",
+        "pt": "Por este chat não posso fazer {service}.",
+    },
+    # POL-43: no person offered unless the customer asks for one.
+    "outside_cards": {
+        "es": "Este chat atiende solo sus tarjetas, así que no puedo ayudarle con esa solicitud.",
+        "pt": "Este chat atende apenas os seus cartões, então não posso ajudar com esse pedido.",
     },
     # POL-14.
     "which_card": {
@@ -134,8 +273,8 @@ FIXED: dict[str, dict[str, str]] = {
         "pt": "Seu {card} já está bloqueado.",
     },
     "not_blockable": {
-        "es": "Su {card} está {status}, así que no se puede bloquear.",
-        "pt": "Seu {card} está {status}, então não pode ser bloqueado.",
+        "es": "Su {card} está {card.status}, así que no se puede bloquear.",
+        "pt": "Seu {card} está {card.status}, então não pode ser bloqueado.",
     },
     # POL-45: a person follows up, with no outcome or time promised.
     "handoff_filed": {
@@ -175,32 +314,6 @@ LANGUAGE_NAMES = {
     "pt": "Brazilian Portuguese, addressing the customer as “você”",
 }
 
-CARD_TYPES = {
-    "es": {
-        "Tarjeta Crédito": "tarjeta de crédito",
-        "Tarjeta Débito": "tarjeta de débito",
-    },
-    "pt": {
-        "Tarjeta Crédito": "cartão de crédito",
-        "Tarjeta Débito": "cartão de débito",
-    },
-}
-ENDING = {"es": "terminada en", "pt": "final"}
-UNRECORDED = {"es": "comercio no registrado", "pt": "estabelecimento não registrado"}
-STATUSES = {
-    "es": {
-        "Active": "activa",
-        "Blocked": "bloqueada",
-        "Closed": "cerrada",
-        "Suspended": "suspendida",
-    },
-    "pt": {
-        "Active": "ativo",
-        "Blocked": "bloqueado",
-        "Closed": "encerrado",
-        "Suspended": "suspenso",
-    },
-}
 REASONS = {
     "es": {
         "lost": "pérdida",
@@ -215,43 +328,128 @@ REASONS = {
         "customer_request": "seu pedido",
     },
 }
+SERVICES = {
+    "es": {
+        "replacement": "la reposición de una tarjeta",
+        "pin": "un cambio de PIN",
+        "limit_increase": "un aumento de límite",
+        "other_card_service": "ese trámite de su tarjeta",
+    },
+    "pt": {
+        "replacement": "a reposição de um cartão",
+        "pin": "uma alteração de PIN",
+        "limit_increase": "um aumento de limite",
+        "other_card_service": "esse serviço do seu cartão",
+    },
+}
+REQUESTS = {
+    "es": {
+        "card_status": "el estado de su tarjeta",
+        "available_credit": "su crédito disponible",
+        "recent_transactions": "sus movimientos recientes",
+        "decline_reason": "el rechazo de su tarjeta",
+        "block_card": "el bloqueo de su tarjeta",
+        "unrecognized_charge": "el cargo que no reconoce",
+        "unsupported": "su otra solicitud",
+        "talk_to_human": "pasarle con una persona del banco",
+    },
+    "pt": {
+        "card_status": "o status do seu cartão",
+        "available_credit": "seu crédito disponível",
+        "recent_transactions": "suas transações recentes",
+        "decline_reason": "a recusa do seu cartão",
+        "block_card": "o bloqueio do seu cartão",
+        "unrecognized_charge": "a cobrança que você não reconhece",
+        "unsupported": "seu outro pedido",
+        "talk_to_human": "encaminhar você para uma pessoa do banco",
+    },
+}
+AND = {"es": "y", "pt": "e"}
+PLACEHOLDER = re.compile(r"\{([a-z_]+(?:\.[a-z_]+)?)\}")
 
 
-def card_name(card: dict[str, Any], language: str) -> str:
-    return f"{CARD_TYPES[language][card['product_type']]} {ENDING[language]} {card['last_four']}"
+def joined(items: list[str], language: str) -> str:
+    if len(items) < 2:
+        return "".join(items)
+    return f"{', '.join(items[:-1])} {AND[language]} {items[-1]}"
 
 
-def transaction_name(transaction: dict[str, Any], language: str) -> str:
+def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
     """
-    A transaction as the customer sees it: its date, its merchant ("not recorded" when missing), and its amount with
-    the card's currency code (POL-20, POL-25).
+    Each placeholder's text, from the facts a node read: a card, a transaction, or a list of either, the credit, the
+    window, and the date they are as of, formatted for the conversation's language and the customer's country.
     """
-    merchant = transaction["merchant_name"] or UNRECORDED[language]
-    return (
-        f"{transaction['transaction_date'][:16]}, {merchant}, "
-        f"{transaction['amount']:.2f} {transaction['currency']}"
-    )
+    country = facts.get("country", "")
+    filled: dict[str, str] = {}
+    if "card" in facts:
+        card = facts["card"]
+        filled["card"] = card_name(card, language)
+        filled["card.status"] = STATUSES[language][card["product_status"]]
+        if "expiration_date" in card:
+            filled["card.expiration"] = expiration(card["expiration_date"], language)
+    if "cards" in facts:
+        filled["cards"] = "\n".join(
+            f"- {card_name(card, language).capitalize()}" for card in facts["cards"]
+        )
+    if "statuses" in facts:
+        filled["cards"] = "\n".join(
+            card_line(card, language) for card in facts["statuses"]
+        )
+    if "reason" in facts:
+        filled["reason"] = REASONS[language][facts["reason"]]
+    if "last_four" in facts:
+        filled["last_four"] = facts["last_four"]
+    if "reference" in facts:
+        filled["reference"] = facts["reference"]
+    if "transaction" in facts:
+        transaction = facts["transaction"]
+        filled["transaction"] = transaction_name(transaction, language, country)
+        if "transaction_status" in transaction:
+            filled["transaction.status"] = TRANSACTION_STATUSES[language][
+                transaction["transaction_status"]
+            ]
+        if transaction.get("response_meaning") is not None:
+            filled["transaction.meaning"] = MEANINGS[language][
+                transaction["response_meaning"]
+            ]
+    if "transactions" in facts:
+        filled["transactions"] = "\n".join(
+            f"- {transaction_name(t, language, country)}" for t in facts["transactions"]
+        )
+    if "page" in facts:
+        filled["transactions"] = "\n".join(
+            transaction_line(t, language, country) for t in facts["page"]
+        )
+    if "credit" in facts:
+        credit = facts["credit"]
+        if "available_credit" in credit:
+            filled["credit.available"] = amount(
+                credit["available_credit"], credit["currency"], country
+            )
+            filled["credit.over_by"] = amount(
+                credit["over_limit_by"], credit["currency"], country
+            )
+    if "as_of" in facts:
+        filled["as_of"] = day(facts["as_of"])
+    if "window" in facts:
+        filled["window.from"] = moment(facts["window"]["from"])
+        filled["window.to"] = moment(facts["window"]["to"])
+    if "service" in facts:
+        filled["service"] = SERVICES[language][facts["service"]]
+    if "requests" in facts:
+        filled["requests"] = joined(
+            [REQUESTS[language][label] for label in facts["requests"]], language
+        )
+    return filled
+
+
+def placeholders(text: str) -> list[str]:
+    return PLACEHOLDER.findall(text)
+
+
+def fill(text: str, filled: dict[str, str]) -> str:
+    return PLACEHOLDER.sub(lambda match: filled[match.group(1)], text)
 
 
 def render(name: str, language: str, facts: dict[str, Any]) -> str:
-    values: dict[str, str] = {}
-    if "card" in facts:
-        values["card"] = card_name(facts["card"], language)
-        values["status"] = STATUSES[language][facts["card"]["product_status"]]
-    if "cards" in facts:
-        values["cards"] = "\n".join(
-            f"- {card_name(card, language).capitalize()}" for card in facts["cards"]
-        )
-    if "reason" in facts:
-        values["reason"] = REASONS[language][facts["reason"]]
-    if "last_four" in facts:
-        values["last_four"] = facts["last_four"]
-    if "reference" in facts:
-        values["reference"] = facts["reference"]
-    if "transaction" in facts:
-        values["transaction"] = transaction_name(facts["transaction"], language)
-    if "transactions" in facts:
-        values["transactions"] = "\n".join(
-            f"- {transaction_name(t, language)}" for t in facts["transactions"]
-        )
-    return FIXED[name][language].format(**values)
+    return fill(FIXED[name][language], values(language, facts))

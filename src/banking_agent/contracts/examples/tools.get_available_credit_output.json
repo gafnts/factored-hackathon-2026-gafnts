@@ -1,0 +1,139 @@
+[
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card": {
+      "card_id": "PRD-EXAMPLE00008",
+      "product_type": "Tarjeta Crédito",
+      "last_four": "6610",
+      "product_status": "Active",
+      "currency": "USD",
+      "availability": "available",
+      "credit_limit": 5000.0,
+      "current_balance": 1240.55,
+      "available_credit": 3759.45,
+      "over_limit_by": 0
+    }
+  },
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card": {
+      "card_id": "PRD-EXAMPLE00009",
+      "product_type": "Tarjeta Crédito",
+      "last_four": "3047",
+      "product_status": "Active",
+      "currency": "USD",
+      "availability": "over_limit",
+      "credit_limit": 2000.0,
+      "current_balance": 2150.4,
+      "available_credit": 0,
+      "over_limit_by": 150.4
+    }
+  },
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card": {
+      "card_id": "PRD-EXAMPLE00002",
+      "product_type": "Tarjeta Crédito",
+      "last_four": "4821",
+      "product_status": "Active",
+      "currency": "USD",
+      "availability": "no_limit",
+      "credit_limit": null,
+      "current_balance": 1240.55
+    }
+  },
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card": {
+      "card_id": "PRD-EXAMPLE00005",
+      "product_type": "Tarjeta Débito",
+      "last_four": "1177",
+      "product_status": "Active",
+      "currency": "USD",
+      "availability": "debit_card"
+    }
+  },
+  {
+    "outcome": "ok",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "card": {
+      "card_id": "PRD-EXAMPLE00007",
+      "product_type": "Tarjeta Crédito",
+      "last_four": "9034",
+      "product_status": "Closed",
+      "currency": "USD",
+      "availability": "not_active"
+    }
+  },
+  {
+    "outcome": "refused",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    },
+    "refusal": "not_served"
+  },
+  {
+    "outcome": "not_found",
+    "stamp": {
+      "snapshot": "b3b8b248f604ef9a",
+      "pipeline_version": "5e1a9c3b7d2f4a68"
+    },
+    "clock": {
+      "business_date": "2026-06-17",
+      "as_of": "2026-06-18 06:00:00"
+    }
+  },
+  {
+    "outcome": "invalid_input",
+    "errors": [
+      {
+        "path": "/card_id",
+        "rule": "pattern"
+      }
+    ]
+  }
+]

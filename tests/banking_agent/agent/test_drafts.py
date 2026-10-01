@@ -14,7 +14,7 @@ import pytest
 
 from banking_agent.agent.texts import FIXED
 
-from .conftest import Customer, Harness, run_body
+from .conftest import Customer, Harness, cards_answer, run_body
 from .test_block import THREAD, Chat, control_shown, interrupt, reply
 
 CARD = "tarjeta de crédito terminada en 4821"
@@ -159,21 +159,31 @@ def test_a_new_request_that_ends_a_charges_confirmation_is_served_after_the_fili
     chat = Chat(harness)
     control_shown(chat, block_reason="unrecognized_charge")
 
-    moved_on = chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"])
+    moved_on = chat.say(
+        "¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all"
+    )
 
     case = filed(harness)
-    assert reply(moved_on).split("\n\n") == [
-        FIXED["confirmation_lapsed"]["es"].format(card=CARD),
-        FIXED["handoff_filed"]["es"].format(reference=case["reference"]),
-        harness.script.reply,
-    ]
+    assert reply(moved_on) == "\n\n".join(
+        [
+            FIXED["confirmation_lapsed"]["es"].format(card=CARD),
+            FIXED["handoff_filed"]["es"].format(reference=case["reference"]),
+            cards_answer(harness.bank),
+        ]
+    )
     assert moved_on[-1]["outcome"] == {"type": "success"}
-    decision = chat.decision()
-    assert (decision["request_label"], decision["outcome_class"]) == (
+    # Each request the turn served has its decision, the charge's first (POL-05).
+    charge, listed = [e for e in chat.entries() if e["kind"] == "decision"]
+    assert (
+        charge["request_label"],
+        charge["outcome_class"],
+        charge["pending_labels"],
+    ) == ("block_card", "hand_off", ["card_status"])
+    assert {"POL-36", "POL-39", "POL-45"} <= set(charge["rules"])
+    assert (listed["request_label"], listed["outcome_class"]) == (
         "card_status",
         "answer",
     )
-    assert {"POL-36", "POL-39", "POL-45"} <= set(decision["rules"])
 
 
 def test_a_new_request_that_ends_a_lost_cards_confirmation_files_nothing(
@@ -182,7 +192,7 @@ def test_a_new_request_that_ends_a_lost_cards_confirmation_files_nothing(
     chat = Chat(harness)
     control_shown(chat)
 
-    chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"])
+    chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all")
 
     assert items(harness, "filed") == []
 

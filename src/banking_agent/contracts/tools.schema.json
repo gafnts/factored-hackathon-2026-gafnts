@@ -104,6 +104,77 @@
         "updated_after_as_of": { "$ref": "#/$defs/updated_after_as_of" }
       }
     },
+    "credit": {
+      "description": "One card's credit, which the tool computes and the agent never does (POL-01, POL-18). availability says which figure there is: available, the limit minus the balance; over_limit, nothing available and the amount by which the balance exceeds the limit (POL-23); no_limit, none, since the record holds no limit, which is never read as zero or unlimited (POL-24); debit_card, none, since a debit card's balance isn't an account's; not_active, none, for a credit card that isn't Active (POL-22). Only an active credit card carries its limit and balance.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["card_id", "product_type", "last_four", "product_status", "currency", "availability"],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/product_id" },
+        "product_type": { "$ref": "#/$defs/product_type" },
+        "last_four": { "$ref": "#/$defs/last_four" },
+        "product_status": { "$ref": "#/$defs/product_status" },
+        "currency": { "$ref": "#/$defs/currency" },
+        "availability": { "enum": ["available", "over_limit", "no_limit", "debit_card", "not_active"] },
+        "credit_limit": {
+          "description": "Null when the record doesn't hold one (POL-24).",
+          "anyOf": [{ "$ref": "#/$defs/money" }, { "type": "null" }]
+        },
+        "current_balance": { "$ref": "#/$defs/money" },
+        "available_credit": { "$ref": "#/$defs/money", "minimum": 0 },
+        "over_limit_by": { "$ref": "#/$defs/money", "minimum": 0 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "availability": { "const": "debit_card" } } },
+          "then": { "properties": { "product_type": { "const": "Tarjeta Débito" } } },
+          "else": { "properties": { "product_type": { "const": "Tarjeta Crédito" } } }
+        },
+        {
+          "if": { "properties": { "availability": { "enum": ["available", "over_limit", "no_limit"] } } },
+          "then": {
+            "required": ["credit_limit", "current_balance"],
+            "properties": { "product_status": { "const": "Active" } }
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                { "required": ["credit_limit"] },
+                { "required": ["current_balance"] },
+                { "required": ["available_credit"] },
+                { "required": ["over_limit_by"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": { "properties": { "availability": { "enum": ["available", "over_limit"] } } },
+          "then": {
+            "required": ["available_credit", "over_limit_by"],
+            "properties": { "credit_limit": { "$ref": "#/$defs/money" } }
+          }
+        },
+        {
+          "if": { "properties": { "availability": { "const": "available" } } },
+          "then": { "properties": { "over_limit_by": { "const": 0 } } }
+        },
+        {
+          "if": { "properties": { "availability": { "const": "over_limit" } } },
+          "then": { "properties": { "available_credit": { "const": 0 }, "over_limit_by": { "exclusiveMinimum": 0 } } }
+        },
+        {
+          "if": { "properties": { "availability": { "const": "no_limit" } } },
+          "then": {
+            "properties": { "credit_limit": { "type": "null" } },
+            "not": { "anyOf": [{ "required": ["available_credit"] }, { "required": ["over_limit_by"] }] }
+          }
+        },
+        {
+          "if": { "properties": { "availability": { "const": "not_active" } } },
+          "then": { "properties": { "product_status": { "not": { "const": "Active" } } } }
+        }
+      ]
+    },
     "transaction_id": { "type": "string", "pattern": "^TRX-[A-Z0-9]{20}$" },
     "currency": { "enum": ["ARS", "COP", "MXN", "USD"] },
     "money": {
@@ -371,6 +442,47 @@
             "stamp": { "$ref": "#/$defs/stamp" },
             "clock": { "$ref": "#/$defs/clock" },
             "card": { "$ref": "#/$defs/card" }
+          }
+        },
+        { "$ref": "#/$defs/not_found" },
+        { "$ref": "#/$defs/invalid_input" }
+      ]
+    },
+    "get_available_credit_input": {
+      "description": "Reads the credit available on one of the signed-in customer's cards, which the tool computes: the figure for an active credit card, or why there is none.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["customer_id", "origin_jti", "card_id"],
+      "properties": {
+        "customer_id": { "$ref": "#/$defs/customer_id" },
+        "origin_jti": { "$ref": "#/$defs/origin_jti" },
+        "card_id": { "$ref": "#/$defs/product_id" }
+      }
+    },
+    "get_available_credit_output": {
+      "oneOf": [
+        {
+          "description": "One card's credit, its status the overlay's over the tools' data, so a card blocked in the sign-in's sandbox has none (POL-22, POL-33).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome", "stamp", "clock", "card"],
+          "properties": {
+            "outcome": { "const": "ok" },
+            "stamp": { "$ref": "#/$defs/stamp" },
+            "clock": { "$ref": "#/$defs/clock" },
+            "card": { "$ref": "#/$defs/credit" }
+          }
+        },
+        {
+          "description": "The customer's status is Closed or Suspended, so only a block is served; the status isn't named (POL-12).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome", "stamp", "clock", "refusal"],
+          "properties": {
+            "outcome": { "const": "refused" },
+            "stamp": { "$ref": "#/$defs/stamp" },
+            "clock": { "$ref": "#/$defs/clock" },
+            "refusal": { "const": "not_served" }
           }
         },
         { "$ref": "#/$defs/not_found" },

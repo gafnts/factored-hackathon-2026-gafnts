@@ -39,6 +39,7 @@ def opened(items: list[dict[str, Any]]) -> Stores:
     [
         ("reads___list_cards", "list_cards"),
         ("reads___get_card", "get_card"),
+        ("reads___get_available_credit", "get_available_credit"),
         ("reads___find_transactions", "find_transactions"),
     ],
 )

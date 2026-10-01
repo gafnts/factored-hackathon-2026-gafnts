@@ -5,7 +5,7 @@ thread ID with a key derived from the user, masks the new message, takes a contr
 thread's pending control, turns a message typed while one is pending into a resume, opens the turn's execution record,
 and fetches the model key. The wrapper gets the thread, the run, and the masked message or the one resume alone, and
 each event it sends back is rebuilt to the chat's contract. When the run ends, the entrypoint records the controls it
-ended at, then the graph's decision, then closes the turn, before the run's last event. A refused request gets a lone
+ended at, then the graph's decisions, one per request it served, then closes the turn, before the run's last event. A refused request gets a lone
 RUN_ERROR and is recorded in the caller's own sign-in.
 """
 
@@ -374,6 +374,7 @@ class Entrypoint:
                     filing=services.filing,
                     snapshot=services.settings.stamp["snapshot"],
                     business_date=services.settings.clock["business_date"],
+                    as_of=services.settings.clock["as_of"],
                     now=services.now,
                 )
             )
@@ -444,9 +445,10 @@ class Entrypoint:
                     for control in (interrupt.metadata or {})["controls"]
                 ],
             )
-        if turn.decision is None:
+        if not turn.decisions:
             raise RuntimeError("the graph ended its run without a decision")
-        await turn.write("decision", **turn.decision)
+        for decision in turn.decisions:
+            await turn.write("decision", **decision)
         await self.close(turn, "interrupted" if interrupts else "finished")
 
     async def close(self, turn: Turn, outcome: str) -> None:

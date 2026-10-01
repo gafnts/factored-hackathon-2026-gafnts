@@ -28,6 +28,16 @@ CARD = (
     "past_expiration",
     "updated_after_as_of",
 )
+# Only get_available_credit reads a card's balance and limit.
+CREDIT = (
+    "card_id",
+    "product_type",
+    "last_four",
+    "product_status",
+    "currency",
+    "current_balance",
+    "credit_limit",
+)
 TRANSACTION = (
     "listed_at",
     "transaction_id",
@@ -59,6 +69,8 @@ class ToolsData(Protocol):
     def cards(self, customer_id: str) -> list[Record]: ...
 
     def card(self, customer_id: str, card_id: str) -> Record | None: ...
+
+    def credit(self, customer_id: str, card_id: str) -> Record | None: ...
 
     def transactions(
         self, customer_id: str, card_id: str, before: str | None, limit: int
@@ -135,6 +147,9 @@ class DynamoData:
     def card(self, customer_id: str, card_id: str) -> Record | None:
         return self._get(customer_id, f"CARD#{card_id}", CARD)
 
+    def credit(self, customer_id: str, card_id: str) -> Record | None:
+        return self._get(customer_id, f"CARD#{card_id}", CREDIT)
+
     def transactions(
         self, customer_id: str, card_id: str, before: str | None, limit: int
     ) -> list[Record]:
@@ -184,6 +199,9 @@ class MemoryData:
 
     def card(self, customer_id: str, card_id: str) -> Record | None:
         return self._get(customer_id, f"CARD#{card_id}", CARD)
+
+    def credit(self, customer_id: str, card_id: str) -> Record | None:
+        return self._get(customer_id, f"CARD#{card_id}", CREDIT)
 
     def transactions(
         self, customer_id: str, card_id: str, before: str | None, limit: int

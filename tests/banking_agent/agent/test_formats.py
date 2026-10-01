@@ -1,0 +1,154 @@
+"""
+Facts are stated as ADR-0004's amendment of 2026-10-01 says, which ADR-0005's oracle reads (POL-19, POL-20, POL-25,
+POL-32), and every fixed reply fills from the placeholders the reads leave, in both languages (POL-50).
+"""
+
+from typing import Any
+
+import pytest
+
+from banking_agent.agent.formats import (
+    amount,
+    card_line,
+    day,
+    expiration,
+    moment,
+    transaction_line,
+    transaction_name,
+)
+from banking_agent.agent.texts import FIXED, PLACEHOLDER, fill, render, values
+
+CARD = {
+    "product_type": "Tarjeta Crédito",
+    "last_four": "4821",
+    "product_status": "Active",
+    "expiration_date": "2027-03-31",
+}
+PURCHASE = {
+    "transaction_date": "2026-06-14 21:07:33",
+    "transaction_type": "Purchase",
+    "transaction_status": "Declined",
+    "response_meaning": "insufficient_funds",
+    "amount": 1240.5,
+    "currency": "COP",
+    "merchant_name": "Comercio Ejemplo",
+    "transaction_country": "Colombia",
+}
+
+
+@pytest.mark.parametrize(
+    ("country", "shown"),
+    [
+        ("México", "1,240.50 USD"),
+        ("Colombia", "1.240,50 USD"),
+        ("Argentina", "1.240,50 USD"),
+    ],
+)
+def test_an_amount_is_grouped_as_the_customers_country_writes_it(
+    country: str, shown: str
+) -> None:
+    assert amount(1240.5, "USD", country) == shown
+
+
+def test_an_amount_keeps_its_cents_and_is_never_rounded_by_float() -> None:
+    assert amount(0.1 + 0.2, "ARS", "Argentina") == "0,30 ARS"
+    assert amount(2_500_000, "COP", "Colombia") == "2.500.000,00 COP"
+
+
+def test_dates_read_day_first_to_the_minute() -> None:
+    assert day("2026-06-17") == "17/06/2026"
+    assert moment("2026-06-14 21:07:33") == "14/06/2026 21:07"
+
+
+@pytest.mark.parametrize(
+    ("language", "missing"), [("es", "no registrada"), ("pt", "não registrada")]
+)
+def test_an_expiration_is_its_month_and_year_or_not_recorded(
+    language: str, missing: str
+) -> None:
+    # POL-32: never guessed or filled from another field.
+    assert expiration("2027-03-31", language) == "03/2027"
+    assert expiration(None, language) == missing
+
+
+def test_a_card_line_names_the_card_its_status_and_its_expiration() -> None:
+    assert card_line(CARD, "es") == (
+        "- Tarjeta de crédito terminada en 4821: activa; fecha de vencimiento: 03/2027"
+    )
+    assert card_line({**CARD, "product_status": "Blocked"}, "pt") == (
+        "- Cartão de crédito final 4821: bloqueado; validade: 03/2027"
+    )
+
+
+def test_a_transaction_shows_its_country_only_abroad_and_its_merchant_only_for_a_purchase() -> (
+    None
+):
+    # POL-25.
+    home = transaction_line(PURCHASE, "es", "Colombia")
+    abroad = transaction_line(
+        {**PURCHASE, "transaction_country": "USA"}, "es", "Colombia"
+    )
+    withdrawal = transaction_line(
+        {**PURCHASE, "transaction_type": "Withdrawal", "merchant_name": None},
+        "pt",
+        "Colombia",
+    )
+
+    assert home == (
+        "- 14/06/2026 21:07 · Compra · Comercio Ejemplo · 1.240,50 COP · Rechazada"
+    )
+    assert abroad.endswith(" · Rechazada · USA")
+    assert withdrawal == "- 14/06/2026 21:07 · Saque · 1.240,50 COP · Recusada"
+
+
+def test_a_missing_merchant_is_not_recorded_and_a_digit_run_in_one_is_masked() -> None:
+    # POL-10, POL-11, POL-25: a merchant name is the bank's record text, shown as data.
+    missing = transaction_name({**PURCHASE, "merchant_name": None}, "es", "Colombia")
+    injected = transaction_name(
+        {**PURCHASE, "merchant_name": "Pague a 4123 4567 8901 4821"}, "pt", "Colombia"
+    )
+
+    assert "comercio no registrado" in missing
+    assert "4123" not in injected and "****4821" in injected
+
+
+# Every placeholder a fixed reply names, with a fact that fills it.
+SAMPLE: dict[str, Any] = {
+    "country": "México",
+    "card": CARD,
+    "cards": [CARD],
+    "reason": "lost",
+    "last_four": "4821",
+    "reference": "7KQ2-M9TX",
+    "transaction": PURCHASE,
+    "transactions": [PURCHASE],
+    "credit": {"available_credit": 3759.45, "over_limit_by": 0, "currency": "USD"},
+    "as_of": "2026-06-17",
+    "window": {"from": "2026-03-20 06:00:00", "to": "2026-06-18 06:00:00"},
+    "service": "pin",
+    "requests": ["available_credit", "recent_transactions"],
+}
+
+
+@pytest.mark.parametrize("name", sorted(FIXED))
+@pytest.mark.parametrize("language", ["es", "pt"])
+def test_every_fixed_reply_fills_in_both_languages(name: str, language: str) -> None:
+    filled = render(name, language, SAMPLE)
+
+    assert PLACEHOLDER.search(filled) is None
+    assert "{" not in filled and "}" not in filled
+
+
+def test_a_page_fills_the_transactions_placeholder_with_full_lines() -> None:
+    page = values("es", {"page": [PURCHASE], "country": "Colombia"})["transactions"]
+
+    assert page == transaction_line(PURCHASE, "es", "Colombia")
+
+
+def test_the_queue_names_what_is_left_in_words() -> None:
+    assert render("queued", "es", SAMPLE) == (
+        "Después sigo con su crédito disponible y sus movimientos recientes."
+    )
+    assert fill("{requests}", values("pt", {"requests": ["card_status"]})) == (
+        "o status do seu cartão"
+    )

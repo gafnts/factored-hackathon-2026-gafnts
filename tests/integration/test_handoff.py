@@ -248,12 +248,13 @@ def unmatched(case: dict[str, Any], entries: list[dict[str, Any]]) -> list[str]:
     return problems
 
 
-Dispute = tuple[Conversation, dict[str, Any], dict[str, Any]]
+Dispute = tuple[Conversation, dict[str, Any], dict[str, Any], str]
 
 
 def dispute(outputs: dict[str, Any], access: str) -> Dispute:
     """
-    A conversation in Portuguese on a new sign-in, the persona's active credit card, and a charge on it to dispute.
+    A conversation in Portuguese on a new sign-in, the persona's active credit card, a charge on it to dispute, and the
+    persona's country, by which the reply groups an amount.
     """
     listed = tool_output(call(outputs, access, "list_cards", arguments(access)))
     card: dict[str, Any] = next(
@@ -264,7 +265,8 @@ def dispute(outputs: dict[str, Any], access: str) -> Dispute:
         and not c["past_expiration"]
     )
     charge = disputed(window(outputs, access, card["card_id"]))
-    return Conversation(outputs, access, "pt"), card, charge
+    country: str = listed["customer"]["country"]
+    return Conversation(outputs, access, "pt"), card, charge, country
 
 
 @pytest.fixture
@@ -278,7 +280,7 @@ def disputing(
 
 
 def reported(
-    chat: Conversation, card: dict[str, Any], charge: dict[str, Any]
+    chat: Conversation, card: dict[str, Any], charge: dict[str, Any], country: str
 ) -> list[dict[str, Any]]:
     shown = chat.say(
         f"Não reconheço {named(charge)}, no meu cartão de crédito final {card['last_four']}."
@@ -289,7 +291,7 @@ def reported(
         "unrecognized_charge",
     )
     found = reply(shown).split("\n\n")[0] == render(
-        "charge_found", "pt", {"card": card, "transaction": charge}
+        "charge_found", "pt", {"card": card, "transaction": charge, "country": country}
     )
     assert found, "the reply doesn't name the charge the customer described"
     draft = next(
@@ -314,8 +316,8 @@ def filed_case(
 def test_a_charge_the_customer_doesnt_recognize_is_blocked_and_filed_to_dispute_intake(
     outputs: dict[str, Any], disputing: Any, saved: list[str]
 ) -> None:
-    chat, card, charge = disputing()
-    shown = reported(chat, card, charge)
+    chat, card, charge, country = disputing()
+    shown = reported(chat, card, charge, country)
 
     done = chat.press("confirm", shown)
 
@@ -368,8 +370,8 @@ def test_a_charge_the_customer_doesnt_recognize_is_blocked_and_filed_to_dispute_
 def test_a_cancelled_block_files_the_charge_as_urgent(
     outputs: dict[str, Any], disputing: Any, saved: list[str]
 ) -> None:
-    chat, card, charge = disputing()
-    shown = reported(chat, card, charge)
+    chat, card, charge, country = disputing()
+    shown = reported(chat, card, charge, country)
 
     cancelled = chat.press("cancel", shown)
 

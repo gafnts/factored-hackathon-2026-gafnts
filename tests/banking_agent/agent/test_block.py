@@ -15,7 +15,14 @@ from banking_agent.agent import app as entrypoint
 from banking_agent.agent.texts import FIXED
 from banking_agent.contracts import validator
 
-from .conftest import Customer, Harness, customer, run_body, session_id
+from .conftest import (
+    Customer,
+    Harness,
+    cards_answer,
+    customer,
+    run_body,
+    session_id,
+)
 
 THREAD = "thread-block-0001"
 # What the chat must never receive: the graph's private state, the router's and the extraction's outputs, and the
@@ -310,14 +317,14 @@ def test_a_new_request_typed_while_the_control_shows_ends_the_confirmation(
     chat = Chat(harness)
     shown = control_shown(chat)
 
-    listed = chat.say("¿Qué tarjetas tengo?", requests=["card_status"])
+    listed = chat.say("¿Qué tarjetas tengo?", requests=["card_status"], cards="all")
 
     assert listed[-1]["outcome"] == {"type": "success"}
     lapsed, answered = reply(listed).split("\n\n", 1)
     assert lapsed == FIXED["confirmation_lapsed"]["es"].format(
         card="tarjeta de crédito terminada en 4821"
     )
-    assert answered == harness.script.reply
+    assert answered == cards_answer(harness.bank)
     decision = chat.decision()
     assert (decision["request_label"], decision["outcome_class"]) == (
         "card_status",
