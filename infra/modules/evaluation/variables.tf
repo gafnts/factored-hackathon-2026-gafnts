@@ -50,10 +50,6 @@ variable "file_handoff_function" {
   })
 }
 
-variable "runtime_arn" {
-  type = string
-}
-
 variable "retention_days" {
   description = "How long the bucket keeps each case's results (ADR-0004, Data retention)"
   type        = number
