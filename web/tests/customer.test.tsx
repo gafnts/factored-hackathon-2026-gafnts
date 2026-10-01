@@ -106,7 +106,7 @@ test("signs in through the form and opens the chat in a runtime session of its o
 
   expect(await screen.findByText(/^chat in [0-9a-f]{64}$/)).toBeInTheDocument();
   expect(signInWith).toHaveBeenCalledWith("persona", "secret");
-  expect(screen.getByText(/Su sesión termina a las/)).toBeInTheDocument();
+  expect(screen.getByText(/Su sesión terminará a las/)).toBeInTheDocument();
   expect(screen.getByText(texts.notice)).toBeInTheDocument();
 });
 

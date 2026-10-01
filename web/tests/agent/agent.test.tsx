@@ -92,7 +92,7 @@ test("a human agent signs in and reaches the queues", async () => {
 
   expect(await screen.findByText("the queues")).toBeInTheDocument();
   expect(signInWith).toHaveBeenCalledWith("agente", "secret");
-  expect(screen.getByText(/Su sesión termina a las/)).toBeInTheDocument();
+  expect(screen.getByText(/Su sesión terminará a las/)).toBeInTheDocument();
 });
 
 test("a customer's credentials, which get no token here, are refused without saying why", async () => {

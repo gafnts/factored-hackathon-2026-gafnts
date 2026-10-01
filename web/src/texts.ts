@@ -112,7 +112,7 @@ const REASONS: Record<Language, Record<BlockReason, string>> = {
 export const TEXTS: Record<Language, Texts> = {
   es: {
     notice:
-      "Prototipo sobre datos sintéticos: LATAM Bank y sus clientes son ficticios.",
+      "Prototipo sobre datos sintéticos. LATAM Bank y sus clientes son ficticios.",
     notFound: "Esta página no existe.",
     toChat: "Ir al chat",
     broken: "No pudimos cargar la aplicación. Recargue la página.",
@@ -127,7 +127,7 @@ export const TEXTS: Record<Language, Texts> = {
         "No pudimos comunicarnos con el banco. Inténtelo de nuevo en unos minutos.",
       ended: "Su sesión terminó. Inicie sesión de nuevo para continuar.",
       signOut: "Cerrar sesión",
-      endsAt: (time) => `Su sesión termina a las ${time}.`,
+      endsAt: (time) => `Su sesión terminará a las ${time}.`,
     },
     rail: {
       label: "Menú",
@@ -181,7 +181,7 @@ export const TEXTS: Record<Language, Texts> = {
   },
   pt: {
     notice:
-      "Protótipo com dados sintéticos: o LATAM Bank e seus clientes são fictícios.",
+      "Protótipo com dados sintéticos. O LATAM Bank e seus clientes são fictícios.",
     notFound: "Esta página não existe.",
     toChat: "Ir para o chat",
     broken: "Não foi possível carregar o aplicativo. Recarregue a página.",
@@ -196,7 +196,7 @@ export const TEXTS: Record<Language, Texts> = {
         "Não foi possível falar com o banco. Tente novamente em alguns minutos.",
       ended: "Sua sessão terminou. Entre de novo para continuar.",
       signOut: "Sair",
-      endsAt: (time) => `Sua sessão termina às ${time}.`,
+      endsAt: (time) => `Sua sessão terminará às ${time}.`,
     },
     rail: {
       label: "Menu",

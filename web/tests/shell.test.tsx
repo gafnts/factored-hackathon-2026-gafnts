@@ -36,7 +36,9 @@ test("the rail opens and closes, and each action is one button by its name", asy
   const rail = TEXTS.es.rail;
 
   expect(screen.getByRole("navigation", { name: rail.label })).toBeVisible();
-  expect(screen.getByText(/Su sesión termina a las 19:05/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Su sesión terminará a las 19:05/),
+  ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: rail.open }));
   expect(screen.getByRole("button", { name: rail.close })).toHaveAttribute(
     "aria-expanded",
