@@ -31,6 +31,8 @@ def outputs(**changed: Any) -> dict[str, Any]:
         "customer_client_id": "client",
         "runtime_arn": RUNTIME,
         "invoke_url": INVOKE,
+        "gateway_url": "https://gateway.example.com/mcp",
+        "gateway_targets": {"list_cards": "reads", "block_card": "block"},
         "runtime_tables": {
             "checkpoints": "checkpoints",
             "session_bindings": "bindings",
@@ -59,6 +61,8 @@ def test_a_stack_is_read_from_its_outputs(tmp_path: Path) -> None:
 
     assert stack.region == "us-east-1"
     assert stack.records_table == "records"
+    assert stack.gateway_url == "https://gateway.example.com/mcp"
+    assert stack.gateway_targets["list_cards"] == "reads"
     assert (stack.role_arn, stack.bucket) == (
         "arn:aws:iam::123456789012:role/harness",
         "evaluation-bucket",

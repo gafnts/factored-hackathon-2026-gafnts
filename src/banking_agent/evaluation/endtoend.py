@@ -328,14 +328,15 @@ def run(
     keeper = Keeper(out_dir / run_id, run_id, s3, stack.bucket)
     with httpx.Client(timeout=client.TIMEOUT) as http:
         agui = client.Client(stack.invoke_url, stack.stop_url, http)
+        gateway = client.Gateway(stack.gateway_url, stack.gateway_targets, http)
+
+        def play(case: dict[str, Any], name: str) -> dict[str, Any]:
+            if case["situation"].startswith("access."):
+                return harness.play_access(case, name, test_users, gateway, tables)
+            return harness.play(case, name, test_users, agui, tables)
+
         try:
-            played = play_all(
-                chosen,
-                run_id,
-                lambda case, name: harness.play(case, name, test_users, agui, tables),
-                keeper,
-                parallel,
-            )
+            played = play_all(chosen, run_id, play, keeper, parallel)
         finally:
             test_users.cleanup(run_id)
     summary = {"run": run_id, "set": set_manifest["set"], **summarize(played)}

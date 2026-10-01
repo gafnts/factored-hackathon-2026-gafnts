@@ -805,9 +805,17 @@ topped_up(
 )
 BY_NAME = {s.name: s for s in SITUATIONS}
 
+# The access attempt (ADR-0005's amendment of 2026-10-01): direct Gateway calls with the case's token, drawn outside
+# the situations since they hold no conversation and no family, into the selection set only; the regression set
+# leaves the same paths to the stack's integration tests. Each name carries the rules its case exercises.
+ACCESS: dict[str, tuple[str, ...]] = {
+    "access.direct.other": ("POL-07", "POL-08"),
+    "access.direct.own": ("POL-11",),
+}
+
 # Cases per language. The regression set (ADR-0005, The development regression set): the three paths in both
-# languages and a case for each main failure mode the graph meets, tool failures and built records among them; access
-# attempts and expired sessions come from the harness, which these sets don't hold yet.
+# languages and a case for each main failure mode the graph meets, tool failures and built records among them;
+# expired sessions come from the harness, which these sets don't hold yet.
 COMPOSITIONS: dict[str, dict[str, int]] = {
     "regression": {
         "status.one_card": 1,
@@ -982,7 +990,66 @@ class Generator:
                             "drawn": len(made),
                         }
                     )
+        if set_name == "selection":
+            drawn += self._access(set_name, seed, len(drawn))
         return Drawn(drawn, short)
+
+    def _access(self, set_name: str, seed: int, offset: int) -> list[dict[str, Any]]:
+        made: list[dict[str, Any]] = []
+        for name, rules in ACCESS.items():
+            for language in ("es", "pt"):
+                salt = f"{seed}/{name}/{language}"
+                rows = self.con.execute(
+                    f"select customer_id from eval_summary where {SERVED} "
+                    "order by md5(customer_id || $salt) limit $n",
+                    {"salt": salt, "n": CANDIDATES},
+                ).fetchall()
+                ids = [row[0] for row in rows]
+                chosen = next(
+                    (i for i in ids if i not in self.used or self.reuse), None
+                )
+                if chosen is None:
+                    continue
+                means: dict[str, str] = {}
+                if name == "access.direct.other":
+                    other = next((i for i in ids if i != chosen), None)
+                    if other is None:
+                        continue
+                    means["other_customer_id"] = other
+                case: dict[str, Any] = {
+                    "version": cases.VERSION,
+                    "case_id": cases.case_id(set_name, seed, offset + len(made)),
+                    "set": set_name,
+                    "side": self.side,
+                    "group": "unauthorized_access",
+                    "situation": name,
+                    "source": "harness",
+                    "language": language,
+                    "customer_id": chosen,
+                    "family_id": None,
+                    "script": {
+                        "messages": [],
+                        "answers": {},
+                        "means": means,
+                        "slots": {},
+                    },
+                    "fixtures": [],
+                    "faults": [],
+                    "expected": {
+                        "turns": [],
+                        "blocked": [],
+                        "rules": list(rules),
+                        "policy_version": oracle.POLICY_VERSION,
+                    },
+                }
+                found = cases.problems(case) + guards.case_problems(case, self.held)
+                if found:
+                    raise AssertionError(
+                        f"{name}/{language} drew an invalid case: {found}"
+                    )
+                made.append(case)
+                self.used.add(chosen)
+        return made
 
     def _situation(
         self,

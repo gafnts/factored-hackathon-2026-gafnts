@@ -14,6 +14,7 @@ warmup's events, each turn's resends, and how the session ended.
 
 import json
 import time
+import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
@@ -21,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 
 from banking_agent.evaluation import cases
-from banking_agent.evaluation.client import Client, HarnessError, Session
+from banking_agent.evaluation.client import Client, Gateway, HarnessError, Session
 from banking_agent.evaluation.customer import Customer, ScriptError, Send
 from banking_agent.evaluation.deployed import Deployed
 from banking_agent.evaluation.player import ended_at
@@ -216,6 +217,92 @@ def play(
             ],
         }
         evidence["cases"] = [c for c in map(reach.case, handoffs) if c is not None]
+    finally:
+        users.delete(user)
+    return evidence
+
+
+# A placeholder in the contract's shape: Cedar decides on the customer and the sign-in before any tool validates
+# its input, and an own read of it reads nothing.
+PLACEHOLDER_CARD = "PRD-EVAL00000001"
+
+
+def _card_id(listed: Mapping[str, Any]) -> str:
+    body = listed.get("body")
+    if not isinstance(body, dict):
+        return PLACEHOLDER_CARD
+    try:
+        text = body["result"]["content"][0]["text"]
+        cards_out = json.loads(text)
+        found: str = cards_out["cards"][0]["card_id"]
+        return found
+    except (KeyError, IndexError, TypeError, ValueError):
+        return PLACEHOLDER_CARD
+
+
+def play_access(
+    case: Mapping[str, Any], name: str, users: Users, gateway: Gateway, reach: Reach
+) -> dict[str, Any]:
+    """
+    Plays an access case (ADR-0005's amendment of 2026-10-01): no conversation, only the direct Gateway calls with
+    the case's token, each response kept as evidence however it went.
+    """
+    evidence: dict[str, Any] = {
+        "case_id": case["case_id"],
+        "customer_id": case["customer_id"],
+        "mode": "end_to_end",
+        "user": name,
+        "sign_ins": [],
+        "warmup": [],
+        "turns": [],
+        "record": [],
+        "sandbox": {"overlay": [], "confirmations": []},
+        "cases": [],
+        "session": None,
+        "error": None,
+        "access": {"situation": case["situation"], "tools_list": None, "calls": []},
+    }
+    user = users.create(name, case["customer_id"])
+    try:
+        signed = users.sign_in(user)
+        sign_in = signed.origin_jti
+        evidence["sign_ins"] = [sign_in]
+        token = users.fresh(signed)
+        own = {"customer_id": case["customer_id"], "origin_jti": sign_in}
+        calls: list[dict[str, Any]] = []
+        if case["situation"] == "access.direct.other":
+            other = case["script"]["means"]["other_customer_id"]
+            extras: dict[str, dict[str, Any]] = {
+                "list_cards": {},
+                "get_card": {"card_id": PLACEHOLDER_CARD},
+                "get_available_credit": {"card_id": PLACEHOLDER_CARD},
+                "find_transactions": {"card_id": PLACEHOLDER_CARD},
+                "block_card": {
+                    "card_id": PLACEHOLDER_CARD,
+                    "reason": "lost",
+                    "confirmation_id": str(uuid.uuid4()),
+                },
+            }
+            for tool, extra in extras.items():
+                made = gateway.call(token, tool, {**own, **extra, "customer_id": other})
+                calls.append({"tool": tool, **made})
+        else:
+            listing = gateway.tools_list(token)
+            body = listing.get("body")
+            if isinstance(body, dict) and "result" in body:
+                evidence["access"]["tools_list"] = [
+                    t.get("name") for t in body["result"].get("tools", [])
+                ]
+            listed = gateway.call(token, "list_cards", own)
+            calls.append({"tool": "list_cards", **listed})
+            card_id = _card_id(listed)
+            for tool in ("get_card", "get_available_credit", "find_transactions"):
+                made = gateway.call(token, tool, {**own, "card_id": card_id})
+                calls.append({"tool": tool, **made})
+            by_name = gateway.call(token, "file_handoff", own, name="file_handoff")
+            calls.append({"tool": "file_handoff", **by_name})
+        evidence["access"]["calls"] = calls
+        evidence["record"] = reach.records(sign_in)
     finally:
         users.delete(user)
     return evidence

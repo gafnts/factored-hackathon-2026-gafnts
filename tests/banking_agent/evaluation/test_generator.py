@@ -185,3 +185,26 @@ def test_the_selection_composition_follows_the_held_out_groups(
 
     assert groups["reads"] > groups["block"] > 0
     assert "expired_sessions" not in groups
+
+
+def test_the_selection_set_holds_the_access_cases_and_the_regression_set_none(
+    con: duckdb.DuckDBPyConnection, regression: generator.Drawn
+) -> None:
+    drawn = draw(con, "selection")
+    access = [c for c in drawn.cases if c["situation"].startswith("access.")]
+
+    assert generator.counts(access, "situation") == {
+        "access.direct.other": 2,
+        "access.direct.own": 2,
+    }
+    for case in access:
+        assert case["group"] == "unauthorized_access"
+        assert case["source"] == "harness"
+        assert case["family_id"] is None
+        assert case["script"]["messages"] == []
+        assert case["expected"]["turns"] == []
+        assert case["fixtures"] == [] and case["faults"] == []
+        if case["situation"] == "access.direct.other":
+            other = case["script"]["means"]["other_customer_id"]
+            assert other != case["customer_id"]
+    assert not any(c["situation"].startswith("access.") for c in regression.cases)

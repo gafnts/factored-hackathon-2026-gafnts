@@ -4,13 +4,13 @@
   "versions": {
     "snapshot": "b3b8b248f604ef9a",
     "pipeline_version": "795ff66b819516bf",
-    "generator": "d9a09167d3a2979eba1d499f77566587a33b0bbc",
+    "generator": "5eb9181ac24bf046d852cde6cf0a53be27aa5661",
     "families": "0f72bcad9cb1673522f618e89e3d284407ff4620c09ead8c9556b4f7498d7f3c",
     "policy": 2,
     "case_format": 1
   },
-  "cases": 143,
-  "sha256": "e09fe03e55604142fae3304e5f0728a2ba02c5d9f0e9ebdda67d4956007045a9",
+  "cases": 147,
+  "sha256": "99c51626a5f7067ad63b615915498ecc028274822d752d05ed47a0c0aa8231b6",
   "counts": [
     {
       "group": "block",
@@ -507,6 +507,30 @@
     {
       "group": "tool_failures",
       "situation": "read.recovers",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "unauthorized_access",
+      "situation": "access.direct.other",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "unauthorized_access",
+      "situation": "access.direct.other",
+      "language": "pt",
+      "cases": 1
+    },
+    {
+      "group": "unauthorized_access",
+      "situation": "access.direct.own",
+      "language": "es",
+      "cases": 1
+    },
+    {
+      "group": "unauthorized_access",
+      "situation": "access.direct.own",
       "language": "pt",
       "cases": 1
     }
@@ -1084,6 +1108,22 @@
     {
       "case_id": "66bc344b61ffda49",
       "sha256": "c74418ec50ff796e9efaa0b47b9fe31050ee6d66cb8ca191b3bfa4c724e2f99d"
+    },
+    {
+      "case_id": "7b2b3840f2e1fb16",
+      "sha256": "7803c0227fb90a30c063455ff26d9381644aeb1e8404efb7a2923071bbe16fb2"
+    },
+    {
+      "case_id": "d8e106bcf77521ca",
+      "sha256": "4173b558902c05e445ec6262b7fa8e19c4584add9786da65e38265e49b1bb8b4"
+    },
+    {
+      "case_id": "6dc48986c1cadb46",
+      "sha256": "3d37da27e6a0a917a5e83d4763aa34a5e71826db97c0364f47ea25e06be0887e"
+    },
+    {
+      "case_id": "32bffc0e6f8846ed",
+      "sha256": "3493694b78c4597c05b2977cd634c393ba7a9d4359736b6d4d48f1ab9bc6a274"
     }
   ]
 }

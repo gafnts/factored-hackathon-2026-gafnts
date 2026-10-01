@@ -190,6 +190,9 @@ eval-cleanup: _check-profile ## Delete the test users a stopped run left in the 
 disagreements: ## Regenerate docs/evaluation/disagreements.md from its entries
 	uv run python -m banking_agent.evaluation disagreements
 
+eval-index: ## Regenerate docs/evaluation/runs.md from the manifests committed under docs/evaluation/runs/
+	uv run python -m banking_agent.evaluation index
+
 regression: ## Play and grade the regression set's composition on the bank in process, as CI does (ADR-0005; no credentials)
 	uv run pytest -m regression -v --tb=short
 

@@ -129,7 +129,6 @@ module "evaluation" {
   execution_records_table  = module.runtime.execution_records_table
   cases_table              = module.handoff.cases_table
   file_handoff_function    = module.handoff.function
-  runtime_arn              = module.runtime.runtime_arn
 }
 
 module "site" {
