@@ -65,6 +65,17 @@
         { "situation": "credit.no_limit", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "read.recovers", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
       ]
+    },
+    {
+      "id": "D-006",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-35", "POL-36"],
+      "question": "A terse block request that gives no reason, played live: the system shows the confirm control at once, reading the request itself as reason enough; the oracle expects the reason asked first, since POL-35 says the agent asks for one when the customer hasn't given it. The scripted models never take this path, so it first appeared on the deployed stack, where the request's sibling in Portuguese was asked as expected. Our lean: the oracle, since POL-35's wording is plain and POL-36's control names a reason the customer should have given.",
+      "matches": [
+        { "situation": "block.cancelled", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["clarify"], "observed": ["block"] },
+        { "situation": "block.cancelled", "language": "es", "turn": 1, "check": "awaiting", "expected": "reason", "observed": "confirm_control" }
+      ]
     }
   ]
 }
