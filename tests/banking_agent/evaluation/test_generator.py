@@ -61,7 +61,9 @@ def test_the_regression_composition_is_drawn_whole_on_the_bank(
         "missing_data",
         "confirmation",
         "prompt_injection",
+        "tool_failures",
     }
+    assert {c["source"] for c in regression.cases} == {"natural", "built", "harness"}
 
 
 def test_the_same_seed_draws_the_same_set(

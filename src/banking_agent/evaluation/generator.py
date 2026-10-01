@@ -806,8 +806,8 @@ topped_up(
 BY_NAME = {s.name: s for s in SITUATIONS}
 
 # Cases per language. The regression set (ADR-0005, The development regression set): the three paths in both
-# languages and a case for each main failure mode the graph meets; access attempts, tool failures, and expired sessions
-# come from the harness and fault plans, which these sets don't hold yet.
+# languages and a case for each main failure mode the graph meets, tool failures and built records among them; access
+# attempts and expired sessions come from the harness, which these sets don't hold yet.
 COMPOSITIONS: dict[str, dict[str, int]] = {
     "regression": {
         "status.one_card": 1,
@@ -835,6 +835,12 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "credit.no_limit": 1,
         "decline.no_code": 1,
         "decline.listed_code.injection": 1,
+        "read.recovers": 1,
+        "read.fails.accepted": 1,
+        "block.not_verified": 1,
+        "decline.unlisted_code": 1,
+        "status.collision": 1,
+        "transactions.page.merchant_injection": 1,
     },
     # The held-out workload's groups in its proportions, over the groups the graph decides (decision 10).
     "selection": {
@@ -873,6 +879,13 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "none.third_language": 1,
         "block.cancelled": 1,
         "block.typed_yes": 2,
+        "read.recovers": 1,
+        "read.fails.accepted": 1,
+        "read.fails.declined": 1,
+        "block.not_verified": 1,
+        "decline.unlisted_code": 1,
+        "status.collision": 1,
+        "transactions.page.merchant_injection": 1,
     },
 }
 
