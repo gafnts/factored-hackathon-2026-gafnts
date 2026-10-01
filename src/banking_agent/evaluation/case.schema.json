@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:banking-agent:card-support:evaluation-case:1",
+  "title": "An evaluation case",
+  "description": "One customer from one split, one scripted conversation from one request family in one language, optional fixtures and faults, and the outcome the oracle expects, per turn (ADR-0005, What a case is). A case names its customer and its messages carry the customer's values, so it is row-level data: cases live under data/evaluation/ and in the evaluation bucket, never in the repository (SEC-03).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "case_id", "set", "side", "group", "situation", "source", "language", "customer_id", "family_id", "script", "fixtures", "faults", "expected"],
+  "properties": {
+    "version": { "const": 1 },
+    "case_id": {
+      "description": "Opaque: derived from the set, the generator's seed, and the case's place in the draw, so it says nothing about the customer.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "set": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+    "side": {
+      "description": "A held_out case's customer, family, and answers are all held out; a development case's are all development (DML-09).",
+      "enum": ["development", "held_out"]
+    },
+    "group": {
+      "description": "The coverage table's group (ADR-0005, Coverage and size).",
+      "enum": ["reads", "block", "clarify_or_decline", "handoffs", "missing_data", "expired_sessions", "unauthorized_access", "prompt_injection", "tool_failures", "multilingual", "confirmation"]
+    },
+    "situation": {
+      "description": "What the generator drew the case for, such as credit.over_limit; reports count cases by it.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$"
+    },
+    "source": {
+      "description": "natural: the customer's own records hold the situation; built: a fixture adds it, and every report labels the case built; harness: the harness produces it; authored: the message carries it.",
+      "enum": ["natural", "built", "harness", "authored"]
+    },
+    "language": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/language" },
+    "customer_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "family_id": {
+      "description": "Null only for a harness case that sends no message.",
+      "type": ["string", "null"],
+      "pattern": "^[a-z_]+-[0-9]{2}$"
+    },
+    "script": { "$ref": "#/$defs/script" },
+    "fixtures": {
+      "description": "Records the snapshot lacks, written to the case's sandbox before its first turn (ADR-0004's overlay).",
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "object" }
+    },
+    "faults": {
+      "type": "array",
+      "maxItems": 6,
+      "items": { "$ref": "#/$defs/fault" }
+    },
+    "expected": { "$ref": "#/$defs/expected" }
+  },
+  "$defs": {
+    "text": {
+      "description": "An authored message with its slots filled from the case's customer.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {
+        "id": {
+          "description": "The family message or answer it was filled from: <family_id>/<language>/<n>, or <answer_id>/<language>.",
+          "type": "string",
+          "pattern": "^[a-z_]+-[0-9]{2}/[a-z]{2}(/[0-9]+)?$"
+        },
+        "text": { "type": "string", "minLength": 1, "maxLength": 2000 }
+      }
+    },
+    "script": {
+      "description": "What the customer says and does. Messages are sent in order, each once the agent waits for nothing; an answer is sent when the agent asks for it, and the customer says it doesn't know when the script holds none (ADR-0005, The scripted customer).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["messages", "answers", "means"],
+      "properties": {
+        "messages": {
+          "type": "array",
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/text" }
+        },
+        "answers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "card": { "$ref": "#/$defs/text" },
+            "reason": { "$ref": "#/$defs/text" },
+            "transaction": { "$ref": "#/$defs/text" },
+            "dont_know": { "$ref": "#/$defs/text" },
+            "typed_yes": {
+              "description": "Typed when the confirm control shows, in place of pressing it (POL-36).",
+              "$ref": "#/$defs/text"
+            },
+            "confirm_control": { "enum": ["confirm", "cancel", "ignore"] },
+            "handoff_control": { "enum": ["accept", "decline", "ignore"] }
+          }
+        },
+        "slots": {
+          "description": "The values the messages' slots were filled with, as recorded; the messages state them in the case's formats. An answer states the meant record's values instead.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "last_four": { "type": "string", "pattern": "^[0-9]{4}$" },
+            "merchant": { "type": "string", "minLength": 1 },
+            "amount": { "type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$" },
+            "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+          }
+        },
+        "means": {
+          "description": "The records the customer means, which the oracle reads and the answers were filled from.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product_id": { "type": "string" },
+            "transaction_id": { "type": "string" },
+            "other_customer_id": { "type": "string" }
+          }
+        },
+        "actions": {
+          "description": "Harness actions, each before the customer's turn it names (1 is the first).",
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["before_turn", "action"],
+            "properties": {
+              "before_turn": { "type": "integer", "minimum": 1, "maximum": 12 },
+              "action": { "enum": ["wait_past_confirmation", "wait_past_token", "sign_out", "other_thread", "other_session", "stale_control"] }
+            }
+          }
+        }
+      }
+    },
+    "fault": {
+      "description": "A tool that fails its next calls in the case's sign-in.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "failures", "error"],
+      "properties": {
+        "tool": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool" },
+        "failures": { "type": "integer", "minimum": 1, "maximum": 9 },
+        "error": { "enum": ["timeout", "throttled", "lambda_error"] }
+      }
+    },
+    "decision": {
+      "description": "One request served in a turn, as its decision entry should record it; null request_label for a message with no card request (POL-06).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_label", "outcome_class", "rules"],
+      "properties": {
+        "request_label": {
+          "anyOf": [{ "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/label" }, { "type": "null" }]
+        },
+        "outcome_class": { "enum": ["answer", "clarify", "abstain", "decline", "block", "hand_off"] },
+        "rules": {
+          "description": "The rules the oracle applied; the grader reports them, and checks none against the record's.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/rule" }
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_code", "trigger", "queue", "priority"],
+      "properties": {
+        "reason_code": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/reason_code" },
+        "trigger": { "enum": ["required", "accepted_offer"] },
+        "queue": { "enum": ["customer_service", "dispute_intake"] },
+        "priority": { "enum": ["urgent", "normal"] }
+      }
+    },
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sends", "decisions", "awaiting", "tools_required", "tools_forbidden", "facts", "withheld"],
+      "properties": {
+        "sends": {
+          "description": "What the customer sends this turn: the script's next message, an answer, or a control press.",
+          "enum": ["message", "card", "reason", "transaction", "dont_know", "typed_yes", "confirm", "cancel", "accept", "decline"]
+        },
+        "decisions": {
+          "description": "One per request served, in POL-05's order; the scripted customer reacts to the last.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "awaiting": { "enum": ["none", "card", "reason", "transaction", "confirm_control", "handoff_control"] },
+        "tools_required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool" }
+        },
+        "tools_forbidden": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/tool" }
+        },
+        "facts": {
+          "description": "What the reply must state, by placeholder, in the words and formats ADR-0004's table gives.",
+          "type": "object",
+          "propertyNames": { "pattern": "^\\{[a-z_.]+\\}$" },
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "withheld": {
+          "description": "Values the reply must not state, such as a closed card's status (POL-29).",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "handoff": { "$ref": "#/$defs/handoff" }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turns", "blocked", "rules", "policy_version"],
+      "properties": {
+        "turns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/turn" }
+        },
+        "blocked": {
+          "description": "The cards the sandbox holds blocked at the end, by product_id.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "rules": {
+          "description": "Every rule the case exercises.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/rule" }
+        },
+        "policy_version": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
