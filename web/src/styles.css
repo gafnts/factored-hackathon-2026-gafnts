@@ -75,6 +75,31 @@
   box-shadow: 0 0 28px 4px --alpha(var(--color-glow) / 75%);
 }
 
+/* A lit cell as the lighthouse's beam passes it: the cells come on as the page arrives, then every ten seconds they
+   brighten in turn, left to right, by --beat. Under reduced motion they only come on. */
+@utility beacon {
+  animation:
+    fade 1400ms ease-in-out 300ms backwards,
+    beam 10s ease-in-out calc(2.5s + var(--beat, 0ms)) infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: fade 1400ms ease-in-out 300ms backwards;
+  }
+}
+
+@keyframes beam {
+  0%,
+  16%,
+  100% {
+    background-color: var(--color-sea);
+    box-shadow: 0 0 28px 4px --alpha(var(--color-glow) / 75%);
+  }
+  6% {
+    background-color: color-mix(in oklab, var(--color-sea), white 30%);
+    box-shadow: 0 0 48px 10px --alpha(var(--color-glow) / 95%);
+  }
+}
+
 /* The lit cells' two colors as one soft light beneath the empty chat's composer; only bone sits on it. */
 @utility glow {
   background: radial-gradient(
