@@ -93,8 +93,9 @@ browser: _check-profile outputs ## Play the chat and the console in Chromium aga
 probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
 
-judges: _check-profile outputs ## Create or manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable, USER= for one; credentials under data/judges/, never printed)
-	uv run python -m banking_agent.judges $(or $(WHAT),create) --stack $(OUTPUTS) $(if $(USER),--user $(USER))
+# JUDGE, not USER: make inherits USER from the shell as the login name, so it is always set.
+judges: _check-profile outputs ## Create or manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable, JUDGE= for one; credentials under data/judges/, never printed)
+	uv run python -m banking_agent.judges $(or $(WHAT),create) --stack $(OUTPUTS) $(if $(JUDGE),--user $(JUDGE))
 
 
 ##@ Build
