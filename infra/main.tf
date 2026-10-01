@@ -105,6 +105,20 @@ module "console" {
   execution_records_table  = module.runtime.execution_records_table
 }
 
+module "evaluation" {
+  source = "./modules/evaluation"
+
+  prefix                   = local.prefix
+  permissions_boundary_arn = local.permissions_boundary_arn
+  user_pool_id             = module.identity.user_pool_id
+  overlay_table            = module.sandbox.overlay
+  confirmations_table      = module.sandbox.confirmations
+  execution_records_table  = module.runtime.execution_records_table
+  cases_table              = module.handoff.cases_table
+  file_handoff_function    = module.handoff.function
+  runtime_arn              = module.runtime.runtime_arn
+}
+
 module "site" {
   source = "./modules/site"
 
