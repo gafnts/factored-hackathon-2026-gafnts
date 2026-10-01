@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { Chat } from "../../src/chat/chat";
+import cards from "../../src/personas.json";
 import { TEXTS } from "../../src/texts";
 import { errors, type Event, example, sse } from "../contract";
 
@@ -92,12 +93,17 @@ function runtime(
   return calls;
 }
 
-function chat(language: "es" | "pt" = "pt", onSignInEnded = vi.fn()) {
+function chat(
+  language: "es" | "pt" = "pt",
+  onSignInEnded = vi.fn(),
+  persona: "persona-es" | "persona-pt" | null = null,
+) {
   render(
     <Chat
       url={URL}
       session={SESSION}
       language={language}
+      persona={persona}
       onSignInEnded={onSignInEnded}
     />,
   );
@@ -296,6 +302,21 @@ test("tells the page while a turn runs, so a new conversation waits for it", asy
   await waitFor(() => {
     expect(onRunning).toHaveBeenLastCalledWith(false);
   });
+});
+
+test("a persona's sign-in opens on the label's card, its prompts over the suggestions", () => {
+  runtime(() => sse([]));
+  chat("pt", vi.fn(), "persona-pt");
+
+  expect(
+    screen.getByText(cards["persona-pt"].description.pt),
+  ).toBeInTheDocument();
+  for (const prompt of cards["persona-pt"].prompts.pt) {
+    expect(screen.getByRole("button", { name: prompt })).toBeInTheDocument();
+  }
+  expect(
+    screen.queryByRole("button", { name: TEXTS.pt.chat.suggestions[0] }),
+  ).not.toBeInTheDocument();
 });
 
 test("opens on Faro's question, with three numbered prompts that send themselves", async () => {
