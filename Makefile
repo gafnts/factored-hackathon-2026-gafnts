@@ -167,6 +167,13 @@ export: _check-profile ## Export the last build's gold, stamped, and upload it t
 contracts: ## Rewrite the bronze contracts from the dictionary and pipeline/contracts/corrections.yml
 	uv run python -m banking_agent.pipeline contracts
 
+##@ Evaluation
+
+.PHONY: eval-sets
+
+eval-sets: ## Draw the development regression and selection sets from the last pipeline build into DATA_DIR/evaluation/, manifests to docs/evaluation/sets/ (ADR-0005; prints counts, never IDs)
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
+
 ##@ Analysis
 
 analysis: ## Profile the pinned snapshot, compute the workflow selection (ADR-0003), and analyze card support and traffic into docs/analysis/
