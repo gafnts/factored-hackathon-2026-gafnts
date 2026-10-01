@@ -140,6 +140,21 @@ def test_a_lambda_that_failed_or_broke_its_contract_is_failed(
     assert "result" not in made.entry()
 
 
+@pytest.mark.parametrize("error", ["timeout", "throttled", "lambda_error"])
+def test_a_planned_fault_is_failed_with_its_error_and_marked_planned(
+    error: str,
+) -> None:
+    made = call(
+        lambda _: httpx.Response(
+            200, json=result_body({"outcome": "fault", "error": error})
+        )
+    )
+
+    assert made.outcome == "failed"
+    assert made.error == {"code": error, "jsonrpc_code": None, "planned": True}
+    assert "result" not in made.entry()
+
+
 def test_cedars_denial_is_denied_never_failed() -> None:
     body = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32002, "message": "Denied"}}
 

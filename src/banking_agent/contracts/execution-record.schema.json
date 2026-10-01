@@ -163,6 +163,15 @@
         "rule": { "type": "string", "pattern": "^[A-Za-z]{1,32}$" }
       }
     },
+    "wait_ms": {
+      "description": "On an attempt after the first: how long it waited before it was made.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "waited_for": {
+      "description": "On an attempt after the first: what set the wait, the provider's retry-after, a jittered backoff, or nothing, for output that didn't parse (decision 18).",
+      "enum": ["retry_after", "backoff", "none"]
+    },
     "run_error_code": {
       "enum": ["invalid_request", "session_refused", "no_customer", "rate_limited", "daily_limit", "internal"]
     },
@@ -335,7 +344,12 @@
           }
         },
         "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
-        "outcome": { "enum": ["ok", "rate_limited", "server_error", "timeout", "invalid_output", "error"] },
+        "wait_ms": { "$ref": "#/$defs/wait_ms" },
+        "waited_for": { "$ref": "#/$defs/waited_for" },
+        "outcome": {
+          "description": "connection_error: the request never reached the provider. Every outcome but ok and error is tried again, up to three attempts within the turn's deadline (decision 18, as amended on 2026-10-01).",
+          "enum": ["ok", "rate_limited", "server_error", "timeout", "connection_error", "invalid_output", "error"]
+        },
         "latency_ms": { "type": "integer", "minimum": 0 },
         "usage": {
           "description": "From usage_metadata; output tokens include reasoning. Null where the provider reports none.",
@@ -398,7 +412,14 @@
           "description": "gateway for the reads and the block; direct for file_handoff, which the Runtime invokes with IAM (ADR-0004, Where the tools run).",
           "enum": ["gateway", "direct"]
         },
-        "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "attempt": {
+          "description": "A call's attempts share its call_id; only a failed attempt is tried again, never a denied one (POL-48, POL-49).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "wait_ms": { "$ref": "#/$defs/wait_ms" },
+        "waited_for": { "$ref": "#/$defs/waited_for" },
         "called_at": { "$ref": "#/$defs/wall_time" },
         "latency_ms": { "type": "integer", "minimum": 0 },
         "request_id": {
@@ -422,7 +443,11 @@
           "required": ["code"],
           "properties": {
             "code": { "enum": ["timeout", "throttled", "lambda_error", "transport", "denied"] },
-            "jsonrpc_code": { "type": ["integer", "null"] }
+            "jsonrpc_code": { "type": ["integer", "null"] },
+            "planned": {
+              "description": "The failure was a fault plan's, answered by the tool before it read anything, not a real timeout, throttle, or Lambda error (ADR-0004's amendment of 2026-10-01).",
+              "const": true
+            }
           }
         }
       },

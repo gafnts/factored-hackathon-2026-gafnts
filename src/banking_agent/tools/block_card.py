@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any
 
 from banking_agent.tools.cards import sandboxed_card
+from banking_agent.tools.fixtures import signed_in
 from banking_agent.tools.sandbox import BLOCKED, BlockStores, Stores
 from banking_agent.tools.store import Record
 
@@ -35,9 +36,12 @@ def _matches(confirmation: Record | None, arguments: dict[str, Any]) -> bool:
 
 
 def _card(stores: BlockStores, confirmation: Record) -> Record | None:
+    """
+    The card as the confirmation's sign-in sees it, fixtures included.
+    """
+    arguments = {k: confirmation[k] for k in ("customer_id", "card_id", "origin_jti")}
     return sandboxed_card(
-        Stores(stores.data, stores.sandbox),
-        {k: confirmation[k] for k in ("customer_id", "card_id", "origin_jti")},
+        signed_in(Stores(stores.data, stores.sandbox), arguments), arguments
     )
 
 

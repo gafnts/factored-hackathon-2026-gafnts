@@ -1,7 +1,8 @@
 """
 The read tools' Lambda, a Gateway target. The Gateway passes the tool as `<target>___<tool>` in the invocation's client
 context, and the arguments as the event (ADR-0004, Where the tools run). It reads the table Terraform created from the
-chosen export, named in TOOLS_DATA_TABLE, its by_card index, and the sandbox's overlay, named in OVERLAY_TABLE.
+chosen export, named in TOOLS_DATA_TABLE, its by_card index, and the sandbox's overlay, named in OVERLAY_TABLE: a block's
+status, and the sign-in's fixtures and fault plans, of which it may change a plan's count alone.
 """
 
 import os
@@ -11,9 +12,10 @@ from typing import Any
 
 import boto3
 
-from banking_agent.tools import check_output, gateway_tool, invalid_input
+from banking_agent.tools import check_output, fault, gateway_tool, invalid_input
 from banking_agent.tools.cards import get_card, list_cards
 from banking_agent.tools.credit import get_available_credit
+from banking_agent.tools.fixtures import signed_in
 from banking_agent.tools.sandbox import DynamoOverlay, Stores
 from banking_agent.tools.store import DynamoData
 from banking_agent.tools.transactions import find_transactions
@@ -44,12 +46,21 @@ def stores() -> Stores:
 
 def answer(tool: str, arguments: Any, opened: Callable[[], Stores]) -> dict[str, Any]:
     """
-    The stores are opened only for an input that passes, so a refusal reads nothing.
+    The stores are opened only for an input that passes, so a refusal reads nothing; a planned failure is taken before
+    anything else is read.
     """
     refused = invalid_input(tool, arguments)
     if refused is not None:
         return refused
-    output = TOOLS[tool](opened(), arguments)
+    stores = opened()
+    planned = stores.overlay.take_fault(
+        arguments["origin_jti"], arguments["customer_id"], tool
+    )
+    output = (
+        fault(planned)
+        if planned is not None
+        else TOOLS[tool](signed_in(stores, arguments), arguments)
+    )
     check_output(tool, output)
     return output
 

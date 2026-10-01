@@ -1,0 +1,13 @@
+[
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "item": "CARD#PRD-EXAMPLE00002",
+    "customer_id": "CLI-EXAMPLE00001",
+    "card_id": "PRD-EXAMPLE00002",
+    "product_status": "Blocked",
+    "reason": "unrecognized_charge",
+    "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+    "written_at": "2026-10-02T15:41:39.214Z",
+    "ttl": 1791043200
+  }
+]

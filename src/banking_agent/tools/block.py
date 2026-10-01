@@ -12,7 +12,7 @@ from typing import Any
 
 import boto3
 
-from banking_agent.tools import check_output, gateway_tool, invalid_input
+from banking_agent.tools import check_output, fault, gateway_tool, invalid_input
 from banking_agent.tools.block_card import block_card
 from banking_agent.tools.sandbox import BlockStores, DynamoSandbox
 from banking_agent.tools.store import DynamoData
@@ -44,12 +44,19 @@ def answer(
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> dict[str, Any]:
     """
-    The stores are opened only for an input that passes, so a refusal reads nothing.
+    The stores are opened only for an input that passes, so a refusal reads nothing; a planned failure is taken before
+    the confirmation is read, so it leaves the confirmation as it was.
     """
     refused = invalid_input(TOOL, arguments)
     if refused is not None:
         return refused
-    output = block_card(opened(), arguments, now())
+    stores = opened()
+    planned = stores.sandbox.take_fault(
+        arguments["origin_jti"], arguments["customer_id"], TOOL
+    )
+    output = (
+        fault(planned) if planned is not None else block_card(stores, arguments, now())
+    )
     check_output(TOOL, output)
     return output
 

@@ -1,0 +1,20 @@
+[
+  {
+    "sign_in": "5f0d6c1e-8a3b-4f27-b9d4-7e2c1a9f3b68",
+    "item": "FIXTURE#CARD#PRD-FIXTUREA0001",
+    "customer_id": "CLI-EXAMPLE00001",
+    "kind": "card",
+    "card_id": "PRD-FIXTUREA0001",
+    "product_type": "Tarjeta Débito",
+    "last_four": "3307",
+    "currency": "USD",
+    "current_balance": 85.4,
+    "credit_limit": null,
+    "product_status": "Blocked",
+    "opening_date": "2024-08-01",
+    "expiration_date": "2028-07-31",
+    "past_expiration": false,
+    "updated_after_as_of": false,
+    "ttl": 1791043200
+  }
+]

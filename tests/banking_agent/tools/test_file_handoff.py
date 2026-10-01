@@ -21,6 +21,7 @@ from banking_agent.tools.file_handoff import HandoffStores
 from banking_agent.tools.handoff import answer, handler
 from banking_agent.tools.identity import Caller
 from banking_agent.tools.provenance import MemoryRecords
+from banking_agent.tools.sandbox import MemoryOverlay
 from banking_agent.tools.store import MemoryData
 
 from .conftest import OTHER, OWN, SIGN_IN, example_items, recorded_example
@@ -401,3 +402,59 @@ def test_a_priority_the_payload_shows_should_be_urgent_is_raised(
     assert case["priority"] == "urgent"
     # The queue sorts the raised priority, not the one the payload arrived with.
     assert case["queue_order"] == f"1#{case['filed_at']}"
+
+
+RECORDED = "TRX-EXAMPLE0000000000003"
+FIXTURE = "TRX-FIXTURE0000000000004"
+
+
+def as_fixture(node: Any) -> Any:
+    """
+    The example handoff and the calls it cites, about a fixture transaction in place of the export's.
+    """
+    return json.loads(json.dumps(node).replace(RECORDED, FIXTURE))
+
+
+def fixture_stores(sign_in: str) -> HandoffStores:
+    items = example_items()
+    fixture = examples("overlay.fixture_transaction.json")[0]
+    fixture.update(
+        sign_in=sign_in,
+        item=f"FIXTURE#TRX#{FIXTURE}",
+        transaction_id=FIXTURE,
+        listed_at=f"{fixture['transaction_date']}#{FIXTURE}",
+        is_fraud=True,
+    )
+    return HandoffStores(
+        data=MemoryData(items),
+        flags=MemoryFlags(items),
+        cases=MemoryCases(),
+        verifier=Tokens(),
+        records=MemoryRecords(as_fixture(recorded_example())),
+        fixtures=MemoryOverlay([fixture]),
+    )
+
+
+def test_a_handoff_about_a_fixture_passes_the_check_and_carries_its_flag() -> None:
+    arguments = as_fixture(file_input())
+
+    output = run(fixture_stores(SIGN_IN), arguments)
+
+    assert (output["status"], output["flagged"]) == ("filed", False)
+    assert output["validation_errors"] == []
+    assert {
+        "subject": "transaction",
+        "id": FIXTURE,
+        "field": "is_fraud",
+        "value": True,
+        "evidence": arguments["call_id"],
+    } in output["added_facts"]
+
+
+def test_another_sign_ins_fixture_adds_no_flag() -> None:
+    output = run(
+        fixture_stores(TOKENS["other-token"].origin_jti), as_fixture(file_input())
+    )
+
+    assert output["status"] == "filed"
+    assert not [f for f in output["added_facts"] if f["field"] == "is_fraud"]

@@ -4,7 +4,7 @@ POL-47, CTL-05). It acts for the customer whose token the Runtime forwards, and 
 sign-in, and the payload's, must be the token's. A draft is saved when the confirm control shows a block that may need
 handing off, and a case is filed once: a retry with the same handoff ID files nothing and returns the first filing's
 reference. Before filing, the tool adds what no Gateway tool returns (the customer's status and each named
-transaction's is_fraud, citing this call), checks the payload against the handoff schema and against the turns of the
+transaction's is_fraud, a fixture's from the overlay of the handoff's sign-in, citing this call), checks the payload against the handoff schema and against the turns of the
 execution record it names, raises a priority the payload shows should be urgent (POL-47), and files what passes,
 flagged with each failure's path and rule when anything had to be left out or replaced.
 """
@@ -27,7 +27,7 @@ from banking_agent.tools.cases import (
 )
 from banking_agent.tools.identity import Caller, Verifier
 from banking_agent.tools.provenance import Records, checked_against
-from banking_agent.tools.sandbox import wall_time
+from banking_agent.tools.sandbox import FixtureFlags, wall_time
 from banking_agent.tools.store import Record, ToolsData
 
 RETAINED = timedelta(days=90)
@@ -47,6 +47,8 @@ class HandoffStores:
     cases: Cases
     verifier: Verifier
     records: Records
+    # The overlay, for a fixture transaction's is_fraud (ADR-0004's amendment of 2026-10-01).
+    fixtures: FixtureFlags | None = None
 
 
 def refused(refusal: str) -> dict[str, Any]:
@@ -118,6 +120,10 @@ def added_facts(
     ]
     for transaction_id in dict.fromkeys(named):
         flag = stores.flags.is_fraud(caller.customer_id, transaction_id)
+        if flag is None and stores.fixtures is not None:
+            flag = stores.fixtures.fixture_is_fraud(
+                caller.origin_jti, caller.customer_id, transaction_id
+            )
         if flag is not None:
             added.append(
                 {

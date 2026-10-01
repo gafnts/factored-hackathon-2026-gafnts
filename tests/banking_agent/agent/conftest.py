@@ -36,6 +36,7 @@ from banking_agent.agent.models import (
     RouterOutput,
     TransactionChoice,
 )
+from banking_agent.agent.retries import Retries
 from banking_agent.agent.texts import fill, render, values
 from banking_agent.tools import handoff
 from banking_agent.tools.cases import MemoryCases, MemoryFlags
@@ -440,8 +441,13 @@ class Harness:
             confirmations=self.confirmations,
             filing=Filing(SETTINGS.file_handoff_function, self.lambda_client, now),
             now=now,
+            retries=Retries(sleep=self.slept),
         )
+        self.waits: list[float] = []
         monkeypatch.setattr(entrypoint, "services", lambda: self.services)
+
+    async def slept(self, seconds: float) -> None:
+        self.waits.append(seconds)
 
     async def fetch_key(self, token: str | None) -> str:
         self.workload_tokens.append(token)

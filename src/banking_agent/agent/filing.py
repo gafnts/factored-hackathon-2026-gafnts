@@ -2,11 +2,12 @@
 Files a handoff through file_handoff, which is off the Gateway: the Runtime invokes its Lambda with its own role, and
 forwards the customer's access token in the event, beside the tool's input, for the Lambda to check (ADR-0004, Where the
 tools run, and its amendments of 2026-09-30). Filing is idempotent by the handoff's ID, so a call that fails is tried
-again under the same call ID, three attempts in all (OPS-04). Each attempt is one tool_call entry, whose input is the
+again under the same call ID, three attempts in all, with decision 18's waits (OPS-04). Each attempt is one tool_call entry, whose input is the
 handoff's ID alone: the payload is in the case, and the token is never recorded.
 """
 
 import asyncio
+import dataclasses
 import json
 import time
 import uuid
@@ -23,10 +24,10 @@ from botocore.exceptions import (
 
 from banking_agent.agent.gateway import ToolCall, failed
 from banking_agent.agent.records import wall_time
+from banking_agent.agent.retries import RETRIES, Retries
 from banking_agent.contracts import validator
 
 TOOL = "file_handoff"
-ATTEMPTS = 3
 THROTTLED = ("TooManyRequestsException", "ThrottlingException")
 
 Record = Callable[..., Awaitable[Any]]
@@ -100,20 +101,31 @@ class Filing:
         )
 
     async def file(
-        self, arguments: dict[str, Any], token: str, record: Record
+        self,
+        arguments: dict[str, Any],
+        token: str,
+        record: Record,
+        retries: Retries = RETRIES,
+        elapsed: Callable[[], float] = lambda: 0.0,
     ) -> ToolCall:
         """
-        arguments carry their call_id, which the graph drew so the facts the tool adds can cite it.
+        arguments carry their call_id, which the graph drew so the facts the tool adds can cite it; a failed attempt
+        waits as decision 18 says before the next.
         """
         call_id = arguments["call_id"]
-        call: ToolCall | None = None
-        for attempt in range(1, ATTEMPTS + 1):
+        attempt, wait = 1, None
+        while True:
             call = await self.attempt(call_id, attempt, arguments, token)
+            if wait is not None:
+                call = dataclasses.replace(call, waited=wait.fields())
             await record("tool_call", **call.entry())
             if call.outcome != "failed":
                 return call
-        assert call is not None
-        return call
+            wait = retries.after(attempt, elapsed())
+            if wait is None:
+                return call
+            await retries.sleep(wait.seconds)
+            attempt += 1
 
 
 def new_call_id() -> str:
