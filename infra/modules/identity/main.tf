@@ -14,6 +14,9 @@ locals {
     human_agent = "Human agents: the handoff console, through the staff client"
     ai_team     = "The AI team: the evaluation report, through the staff client"
     evaluation  = "The evaluation's test users, who are customers too"
+    # The persona labels, which the chat reads from cognito:groups to pick the card (ADR-0007, Judges' access).
+    "persona-es" = "The Spanish persona's label; its users are customers too"
+    "persona-pt" = "The Portuguese persona's label; its users are customers too"
   }
 }
 
