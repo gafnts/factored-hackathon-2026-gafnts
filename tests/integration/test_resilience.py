@@ -358,15 +358,27 @@ def test_a_user_past_the_days_cap_is_refused_and_recorded(
 # The alarms
 
 
-def lines_of(outputs: dict[str, Any], turn_id: str) -> list[dict[str, Any]]:
-    logs: Any = boto3.client("logs", region_name="us-east-1")
-    pattern = f'{{ $.turn_id = "{turn_id}" }}'
-    for _ in range(30):
-        found = logs.filter_log_events(
-            logGroupName=outputs["runtime_log_group"], filterPattern=pattern
-        )["events"]
+def lines_of(
+    outputs: dict[str, Any], turn_id: str, since: datetime
+) -> list[dict[str, Any]]:
+    """
+    A search's page may come back empty with more to read, so every page is read, from just before the turn.
+    """
+    pages = boto3.client("logs", region_name="us-east-1").get_paginator(
+        "filter_log_events"
+    )
+    for _ in range(20):
+        found = [
+            json.loads(e["message"])
+            for page in pages.paginate(
+                logGroupName=outputs["runtime_log_group"],
+                filterPattern=f'{{ $.turn_id = "{turn_id}" }}',
+                startTime=int(since.timestamp() * 1000),
+            )
+            for e in page["events"]
+        ]
         if found:
-            return [json.loads(e["message"]) for e in found]
+            return found
         time.sleep(4)
     return []
 
@@ -376,6 +388,7 @@ def test_the_alarms_read_the_lines_the_runtime_writes(
 ) -> None:
     access = sign_in(users["evaluation"], "customer")["access"]
     chat = Conversation(outputs, access, "es")
+    since = datetime.now(UTC) - timedelta(minutes=1)
     chat.say(THIRD)
     turn_id = chat.entries()[-1]["turn_id"]
     logs: Any = boto3.client("logs", region_name="us-east-1")
@@ -434,7 +447,7 @@ def test_the_alarms_read_the_lines_the_runtime_writes(
         ),
     }
 
-    written = lines_of(outputs, turn_id)
+    written = lines_of(outputs, turn_id, since)
 
     assert {(w["metric"], w["source"]) for w in written} >= {
         ("turn_closed", "evaluation")
