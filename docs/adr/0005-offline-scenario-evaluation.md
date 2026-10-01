@@ -24,6 +24,25 @@ Amended (2026-10-01): the request families as written (decision 2). Beside the 1
 
 Amended (2026-10-01): a case is found by its sign-ins. Each case has a test user of its own, so the sign-ins it opens name it, and the execution record's `case_id` stays unwritten. Each case ends its runtime session with `StopRuntimeSession` through the case's bearer token, the path AgentCore documents for a runtime behind a JWT authorizer.
 
+Amended (2026-10-01): fault cases and built cases as the prototype draws them ([Coverage and size](#coverage-and-size)).
+
+- **Fault plans.** A plan fails one Gateway tool in the case's sign-in, 1 to 3 times. A call takes up to three attempts (ADR-0004's decision 18), so the tool's first call on the path takes the whole plan: it recovers with 1 or 2 failures and fails with 3. The oracle predicts that call and refuses a case whose plan would reach a later one.
+  - A read that recovers takes its path as if nothing failed.
+  - A read that fails is POL-48's abstention with `tool_failure` offered, and the customer accepts or declines.
+  - A block that fails isn't verified, so it is handed off as `action_not_verified` (POL-37), urgent for a card reported lost or stolen (POL-47).
+  - Each fault situation draws the failing tool from those its path calls, so between them the situations reach all five Gateway tools.
+  - The group's denial is Cedar's, which a plan can't give (ADR-0004's amendment of 2026-10-01), so it comes from the unauthorized-access group's direct calls.
+  - Fault cases are labeled harness, since the harness writes the plan. They stay out of M-05's latency, since a planned failure answers at once and its retries wait as decision 18 says, but their cost counts.
+  - The grader checks that each plan was taken (grader version 3), so a plan the harness never wrote can't pass as a read that recovered.
+- **Built cases.** A fixture adds what the snapshot lacks, in the overlay contract's shape (ADR-0004):
+  - a decline with a code the policy doesn't list (POL-32);
+  - a second card of the same type and last four digits (POL-15);
+  - a merchant name that carries an instruction (POL-10);
+  - enough transactions for a second page, topping up natural customers, who don't reach one in either development set.
+
+  A fixture's identifiers carry the fixture prefixes. Its currency, country, and dates come from the customer's own card, and its merchant names and instructions from lists we wrote, so no value comes from another customer. The oracle merges fixtures into the customer's state with its own code.
+- **Not built:** a blocked or closed card with recent activity. No rule reads one (POL-30 names three conflicts, and this isn't among them), so a case would grade only an ordinary read. It waits for a rule.
+
 ## Context
 
 The organizers ask how the system is evaluated for quality and safety (DSN-04), and grade demonstrated behavior and honesty about it: results on a held-out workload against a baseline (EVL-01), cases with incorrect or missing data, expired sessions, unauthorized access, injection, tool failures, and mixed languages (EVL-02 to EVL-07), metrics M-01 to M-05 with sample sizes (EVL-11), per language and segment (EVL-12), failures included (EVL-09), and a learned component against a baseline (DML-07). Six forces shape how:
