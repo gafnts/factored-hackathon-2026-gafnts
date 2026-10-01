@@ -92,6 +92,15 @@ output "runtime_log_group" {
   value = module.runtime.runtime_log_group
 }
 
+output "alarms" {
+  description = "The topic the alarms notify, the namespace of their metrics, and the metric filters on the Runtime's log group"
+  value = {
+    topic_arn      = module.alarms.topic_arn
+    namespace      = module.alarms.namespace
+    metric_filters = module.alarms.metric_filters
+  }
+}
+
 output "runtime_tables" {
   value = module.runtime.tables
 }

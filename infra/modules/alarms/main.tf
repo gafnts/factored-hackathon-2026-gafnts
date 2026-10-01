@@ -1,0 +1,148 @@
+# The four alarms D5 builds (ADR-0004, Operations, and its amendment of 2026-10-01; OPS-03), over metric filters on the
+# Runtime's log group, which count the JSON lines the Runtime writes by source (EVL-13). A planned failure counts in none.
+
+locals {
+  namespace = var.prefix
+  sources   = ["demo", "evaluation", "unknown"]
+  filters = {
+    RuntimeErrors     = "{ ($.metric = \"turn_closed\" && $.outcome = \"error\") || $.metric = \"request_failed\" }"
+    BlocksNotVerified = "{ $.metric = \"block_not_verified\" && $.planned IS FALSE }"
+    ReplyChecks       = "{ $.metric = \"reply_check\" }"
+    RepliesFellBack   = "{ $.metric = \"reply_check\" && $.fell_back IS TRUE }"
+    ToolCallsFailed   = "{ $.metric = \"tool_call\" && $.outcome = \"failed\" && $.last IS TRUE && $.planned IS FALSE }"
+  }
+}
+
+# Notifications carry an alarm's name and state only, and CloudWatch can't publish to a topic under the AWS-managed key.
+#trivy:ignore:AVD-AWS-0095
+#trivy:ignore:AVD-AWS-0136
+resource "aws_sns_topic" "alarms" {
+  name = "${var.prefix}-alarms"
+}
+
+resource "aws_cloudwatch_log_metric_filter" "this" {
+  for_each = local.filters
+
+  name           = "${var.prefix}-${each.key}"
+  log_group_name = var.log_group_name
+  pattern        = each.value
+
+  metric_transformation {
+    name       = each.key
+    namespace  = local.namespace
+    value      = "1"
+    unit       = "Count"
+    dimensions = { source = "$.source" }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "runtime_errors" {
+  alarm_name          = "${var.prefix}-runtime-errors"
+  alarm_description   = "A turn closed in error, or a request failed before its turn opened, from any source."
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  metric_query {
+    id          = "errors"
+    expression  = join(" + ", [for source in local.sources : "FILL(${source}, 0)"])
+    label       = "Runtime errors"
+    return_data = true
+  }
+
+  dynamic "metric_query" {
+    for_each = toset(local.sources)
+    content {
+      id = metric_query.value
+      metric {
+        metric_name = "RuntimeErrors"
+        namespace   = local.namespace
+        period      = 300
+        stat        = "Sum"
+        dimensions  = { source = metric_query.value }
+      }
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_metric_filter.this]
+}
+
+resource "aws_cloudwatch_metric_alarm" "action_not_verified" {
+  alarm_name          = "${var.prefix}-action-not-verified"
+  alarm_description   = "A block that POL-37's reads didn't show, in demo traffic."
+  namespace           = local.namespace
+  metric_name         = "BlocksNotVerified"
+  dimensions          = { source = "demo" }
+  statistic           = "Sum"
+  period              = 300
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  depends_on = [aws_cloudwatch_log_metric_filter.this]
+}
+
+resource "aws_cloudwatch_metric_alarm" "tool_errors" {
+  alarm_name          = "${var.prefix}-tool-errors"
+  alarm_description   = "A tool call that failed after its last attempt, in demo traffic."
+  namespace           = local.namespace
+  metric_name         = "ToolCallsFailed"
+  dimensions          = { source = "demo" }
+  statistic           = "Sum"
+  period              = 300
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  depends_on = [aws_cloudwatch_log_metric_filter.this]
+}
+
+# A share over an hour that holds too few checks to read says nothing, so it counts as zero.
+resource "aws_cloudwatch_metric_alarm" "fallback_share" {
+  alarm_name          = "${var.prefix}-reply-fallback-share"
+  alarm_description   = "The share of the model's replies that fell back to fixed text, in demo traffic (decision 8)."
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = var.fallback_share
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  metric_query {
+    id          = "share"
+    expression  = "IF(FILL(checked, 0) >= ${var.fewest_checks}, FILL(fell, 0) / checked, 0)"
+    label       = "Fallback share"
+    return_data = true
+  }
+
+  metric_query {
+    id = "checked"
+    metric {
+      metric_name = "ReplyChecks"
+      namespace   = local.namespace
+      period      = 3600
+      stat        = "Sum"
+      dimensions  = { source = "demo" }
+    }
+  }
+
+  metric_query {
+    id = "fell"
+    metric {
+      metric_name = "RepliesFellBack"
+      namespace   = local.namespace
+      period      = 3600
+      stat        = "Sum"
+      dimensions  = { source = "demo" }
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_metric_filter.this]
+}

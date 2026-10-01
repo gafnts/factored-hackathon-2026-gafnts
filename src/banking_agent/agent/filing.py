@@ -118,10 +118,10 @@ class Filing:
             call = await self.attempt(call_id, attempt, arguments, token)
             if wait is not None:
                 call = dataclasses.replace(call, waited=wait.fields())
-            await record("tool_call", **call.entry())
-            if call.outcome != "failed":
-                return call
-            wait = retries.after(attempt, elapsed())
+            wait = (
+                retries.after(attempt, elapsed()) if call.outcome == "failed" else None
+            )
+            await record("tool_call", last=wait is None, **call.entry())
             if wait is None:
                 return call
             await retries.sleep(wait.seconds)

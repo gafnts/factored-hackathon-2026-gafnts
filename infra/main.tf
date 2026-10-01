@@ -98,6 +98,13 @@ module "runtime" {
   turns_per_day            = var.turns_per_day
 }
 
+module "alarms" {
+  source = "./modules/alarms"
+
+  prefix         = local.prefix
+  log_group_name = module.runtime.runtime_log_group
+}
+
 module "console" {
   source = "./modules/console"
 
