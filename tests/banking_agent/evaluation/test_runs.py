@@ -74,3 +74,37 @@ def test_only_development_cases_play_with_the_scripted_models(
 
     with pytest.raises(runs.PlayError):
         runs.play_set(set_path, bank.database, tmp_path / "run", {})
+
+
+def test_the_run_index_lists_each_committed_run_and_says_when_there_are_none(
+    tmp_path: Path,
+) -> None:
+    reported, page = tmp_path / "runs", tmp_path / "runs.md"
+
+    none = runs.index(reported, page)
+    (reported).mkdir()
+    (reported / "20261002T120000Z-abcd.json").write_text(
+        json.dumps(
+            {
+                "purpose": "pilot",
+                "manifest": {
+                    "run": "20261002T120000Z-abcd",
+                    "mode": "end_to_end",
+                    "started_at": "2026-10-02T12:00:00+00:00",
+                    "set": {"name": "regression", "cases": 20},
+                    "stack": {"environment": "prototype"},
+                    "grader": 4,
+                    "totals": {"cost_usd": 0.0231},
+                },
+                "summary": {"cases": 20, "passed": 19},
+            }
+        ),
+        encoding="utf-8",
+    )
+    one = runs.index(reported, page)
+
+    written = page.read_text(encoding="utf-8")
+    assert (none, one) == (0, 1)
+    assert "| 20261002T120000Z-abcd | 2026-10-02 | pilot | end_to_end |" in written
+    assert "| regression (20) | prototype | 4 | 19 of 20 | 0.02 |" in written
+    assert "No reported run" not in written

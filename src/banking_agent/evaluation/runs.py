@@ -29,6 +29,54 @@ class PlayError(ValueError):
     pass
 
 
+INDEX_PAGE = Path("docs/evaluation/runs.md")
+REPORTED = Path("docs/evaluation/runs")
+
+
+def index(reported: Path = REPORTED, page: Path = INDEX_PAGE) -> int:
+    """
+    The run index (ADR-0005, The run manifest): one row per reported run, generated from the files committed under
+    docs/evaluation/runs/, each holding a run's purpose with the manifest and the summary its keeper wrote. Returns
+    how many rows it wrote.
+    """
+    committed = sorted(reported.glob("*.json")) if reported.is_dir() else []
+    rows = []
+    for path in committed:
+        body = json.loads(path.read_text(encoding="utf-8"))
+        manifest, summary = body["manifest"], body["summary"]
+        cost = (manifest.get("totals") or {}).get("cost_usd")
+        row = (
+            manifest["run"],
+            manifest["started_at"][:10],
+            body["purpose"],
+            manifest["mode"],
+            f"{manifest['set']['name']} ({manifest['set']['cases']})",
+            manifest["stack"]["environment"],
+            str(manifest["grader"]),
+            f"{summary['passed']} of {summary['cases']}",
+            "" if cost is None else f"{cost:.2f}",
+        )
+        rows.append("| " + " | ".join(row) + " |")
+    lines = [
+        "# Runs",
+        "",
+        "Generated from the files under `runs/` by `make eval-index`; do not edit. One row per reported run",
+        "(ADR-0005, The run manifest), each an offline measurement on our cases; the per-case results that a",
+        "manifest's hashes name stay in the evaluation bucket.",
+        "",
+    ]
+    if rows:
+        lines += [
+            "| Run | Date | Purpose | Mode | Set (cases) | Stack | Grader | Passed | Cost (USD) |",
+            "|---|---|---|---|---|---|---|---|---|",
+            *rows,
+        ]
+    else:
+        lines.append("No reported run has been committed yet.")
+    page.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return len(rows)
+
+
 def run_id(now: datetime | None = None) -> str:
     at = (now or datetime.now(UTC)).strftime("%Y%m%dT%H%M%SZ")
     return f"{at}-{uuid.uuid4().hex[:4]}"
