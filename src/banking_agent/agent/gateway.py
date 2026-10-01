@@ -3,7 +3,8 @@ Calls the Gateway's tools as the signed-in customer: a stateless MCP tools/call 
 token, which the Gateway validates and Cedar checks (ADR-0004, A turn, end to end). Each tool is named on its own
 target, <target>___<tool>, since the reads and the block are separate Lambdas (Where the tools run). Each call becomes
 one tool_call entry of the execution record. A tool's own output is checked against its contract here too, since the
-record keeps it whole; a call the Lambda never answered is failed, and Cedar's JSON-RPC -32002 is denied (POL-49).
+record keeps it whole; a call the Lambda never answered is failed, and Cedar's JSON-RPC -32002 is denied (POL-49). A
+fault plan's answer is failed too, with the error it plans, marked as planned (ADR-0004's amendment of 2026-10-01).
 """
 
 import json
@@ -61,6 +62,13 @@ def failed(code: str, jsonrpc_code: int | None = None) -> dict[str, Any]:
     return {"outcome": "failed", "error": {"code": code, "jsonrpc_code": jsonrpc_code}}
 
 
+def planned(code: str) -> dict[str, Any]:
+    """
+    A fault plan's failure, which the tool answered: recorded as the failure it stands for, and marked as planned.
+    """
+    return {"code": code, "jsonrpc_code": None, "planned": True}
+
+
 def json_rpc_body(response: httpx.Response) -> Any:
     text = response.text
     if response.headers.get("content-type", "").startswith("text/event-stream"):
@@ -99,6 +107,8 @@ def classify(tool: str, response: httpx.Response) -> dict[str, Any]:
         return failed("lambda_error")
     if not validator("tools", f"{tool}_output").is_valid(output):
         return failed("lambda_error")
+    if output["outcome"] == "fault":
+        return {"outcome": "failed", "error": planned(output["error"])}
     return {"outcome": output["outcome"], "result": output}
 
 

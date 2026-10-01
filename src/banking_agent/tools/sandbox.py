@@ -1,11 +1,14 @@
 """
-The sign-in's sandbox and the confirmations, as the tools see them (ADR-0004, Stores and The confirmation; POL-33,
-POL-36, POL-37). The overlay holds what a block wrote, keyed by the sign-in, then the card, and a read tool shows a
-card's status from it over the tools' data, in the sign-in that wrote it only, and only for the customer the item
-names. Every read is strongly consistent, so the read-back after a write sees it. The block's own store also reads the
-confirmation the Runtime created and brought to confirmed, and changes it only on conditions DynamoDB checks: it uses
-it up in one transaction with the first write, and counts every write after it. The in-memory stores serve the tests
-and the evaluation's harness with the same logic the Lambdas run.
+The sign-in's sandbox and the confirmations, as the tools see them (ADR-0004, Stores and The confirmation, and its
+amendment of 2026-10-01; POL-33, POL-36, POL-37, POL-48). The overlay holds what a block wrote, keyed by the sign-in,
+then the card, and a read tool shows a card's status from it over the tools' data, in the sign-in that wrote it only,
+and only for the customer the item names. It also holds what the evaluation's harness writes under a sign-in: fixtures,
+which the tools merge into their reads, and fault plans, each of which fails a tool's attempts until its failures run
+out, taken one at a time in a conditional update. Every read is strongly consistent, so the read-back after a write sees
+it, and names the attributes it reads, none of them is_fraud, which only file_handoff reads (POL-40). The block's own
+store also reads the confirmation the Runtime created and brought to confirmed, and changes it only on conditions
+DynamoDB checks: it uses it up in one transaction with the first write, and counts every write after it. The in-memory
+stores serve the tests and the evaluation's harness with the same logic the Lambdas run.
 """
 
 from collections.abc import Iterable, Mapping
@@ -16,20 +19,71 @@ from typing import TYPE_CHECKING, Any, Protocol
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from botocore.exceptions import ClientError
 
+from banking_agent.contracts import schema, validator
+from banking_agent.tools.cases import plain
 from banking_agent.tools.store import Record, ToolsData
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
 
 CARD = "CARD#"
+FIXTURE_CARD = "FIXTURE#CARD#"
+FIXTURE_TRANSACTION = "FIXTURE#TRX#"
+FAULT = "FAULT#"
 KEPT = timedelta(hours=24)
 BLOCKED = "Blocked"
+HIDDEN = "is_fraud"
+
+
+def readable(definition: str) -> tuple[str, ...]:
+    """
+    The attributes of an overlay item the tools read: every one its contract names but is_fraud.
+    """
+    properties = schema("overlay")["$defs"][definition]["properties"]
+    return tuple(name for name in properties if name != HIDDEN)
+
+
+class OverlayItemError(RuntimeError):
+    """
+    Names where a fixture or a fault plan breaks its contract, never the value, which may be anything a harness wrote.
+    """
+
+    def __init__(self, definition: str, path: str, rule: str) -> None:
+        super().__init__(f"a {definition} item breaks {rule} at {path or '/'}")
+
+
+def checked(definition: str, item: Record) -> Record:
+    # The tools never read is_fraud, so a fixture transaction is checked as if it held one.
+    instance = {HIDDEN: False, **item} if definition == "fixture_transaction" else item
+    error = next(validator("overlay", definition).iter_errors(instance), None)
+    if error is not None:
+        path = "".join(f"/{p}" for p in error.absolute_path)
+        raise OverlayItemError(definition, path, str(error.validator))
+    return item
 
 
 class Overlay(Protocol):
     def statuses(self, sign_in: str, customer_id: str) -> dict[str, str]: ...
 
     def status(self, sign_in: str, customer_id: str, card_id: str) -> str | None: ...
+
+    def fixtures(self, sign_in: str, prefix: str) -> list[Record]:
+        """
+        The sign-in's fixture items whose key begins with prefix, whatever customer they name, without is_fraud.
+        """
+        ...
+
+    def take_fault(self, sign_in: str, customer_id: str, tool: str) -> str | None:
+        """
+        One failure from the sign-in's plan for the tool, when it names the customer and has one left: its error.
+        """
+        ...
+
+
+class FixtureFlags(Protocol):
+    def fixture_is_fraud(
+        self, sign_in: str, customer_id: str, transaction_id: str
+    ) -> bool | None: ...
 
 
 @dataclass(frozen=True)
@@ -42,42 +96,118 @@ def card_item(card_id: str) -> str:
     return f"{CARD}{card_id}"
 
 
+def _projection(names: Iterable[str]) -> dict[str, Any]:
+    aliases = {f"#a{i}": name for i, name in enumerate(names)}
+    return {
+        "ProjectionExpression": ", ".join(aliases),
+        "ExpressionAttributeNames": aliases,
+    }
+
+
 class DynamoOverlay:
     def __init__(self, client: "DynamoDBClient", table: str) -> None:
         self._client = client
         self._table = table
+        self._deserializer = TypeDeserializer()
 
-    def statuses(self, sign_in: str, customer_id: str) -> dict[str, str]:
-        found: dict[str, str] = {}
+    def _plain(self, item: Mapping[str, Any]) -> Record:
+        found: Record = plain(
+            {k: self._deserializer.deserialize(v) for k, v in item.items()}
+        )
+        return found
+
+    def _query(self, sign_in: str, prefix: str, names: Iterable[str]) -> list[Record]:
+        projection = _projection(names)
+        found: list[Record] = []
         start: dict[str, Any] = {}
         while True:
             response = self._client.query(
                 TableName=self._table,
-                KeyConditionExpression="sign_in = :sign_in AND begins_with(#item, :card)",
-                ExpressionAttributeNames={"#item": "item"},
+                KeyConditionExpression="#sign_in = :sign_in AND begins_with(#item, :prefix)",
+                ExpressionAttributeNames={
+                    **projection["ExpressionAttributeNames"],
+                    "#sign_in": "sign_in",
+                    "#item": "item",
+                },
                 ExpressionAttributeValues={
                     ":sign_in": {"S": sign_in},
-                    ":card": {"S": CARD},
+                    ":prefix": {"S": prefix},
                 },
+                ProjectionExpression=projection["ProjectionExpression"],
                 ConsistentRead=True,
                 **start,
             )
-            for item in response.get("Items", []):
-                if item["customer_id"]["S"] == customer_id:
-                    found[item["card_id"]["S"]] = item["product_status"]["S"]
+            found += [self._plain(item) for item in response.get("Items", [])]
             if "LastEvaluatedKey" not in response:
                 return found
             start = {"ExclusiveStartKey": response["LastEvaluatedKey"]}
 
-    def status(self, sign_in: str, customer_id: str, card_id: str) -> str | None:
-        item = self._client.get_item(
+    def _get(self, sign_in: str, item: str, names: Iterable[str]) -> Record | None:
+        found = self._client.get_item(
             TableName=self._table,
-            Key={"sign_in": {"S": sign_in}, "item": {"S": card_item(card_id)}},
+            Key={"sign_in": {"S": sign_in}, "item": {"S": item}},
             ConsistentRead=True,
+            **_projection(names),
         ).get("Item")
-        if item is None or item["customer_id"]["S"] != customer_id:
+        return None if found is None else self._plain(found)
+
+    def statuses(self, sign_in: str, customer_id: str) -> dict[str, str]:
+        return {
+            item["card_id"]: item["product_status"]
+            for item in self._query(sign_in, CARD, readable("card_status"))
+            if item["customer_id"] == customer_id
+        }
+
+    def status(self, sign_in: str, customer_id: str, card_id: str) -> str | None:
+        item = self._get(sign_in, card_item(card_id), readable("card_status"))
+        if item is None or item["customer_id"] != customer_id:
             return None
-        return item["product_status"]["S"]
+        status: str = item["product_status"]
+        return status
+
+    def fixtures(self, sign_in: str, prefix: str) -> list[Record]:
+        definition = "fixture_card" if prefix == FIXTURE_CARD else "fixture_transaction"
+        return self._query(sign_in, prefix, readable(definition))
+
+    def take_fault(self, sign_in: str, customer_id: str, tool: str) -> str | None:
+        plan = self._get(sign_in, f"{FAULT}{tool}", readable("fault_plan"))
+        if plan is None:
+            return None
+        checked("fault_plan", plan)
+        if plan["customer_id"] != customer_id or plan["failures"] <= 0:
+            return None
+        try:
+            self._client.update_item(
+                TableName=self._table,
+                Key={"sign_in": {"S": sign_in}, "item": {"S": f"{FAULT}{tool}"}},
+                UpdateExpression="SET #failures = #failures - :one",
+                ConditionExpression="#failures > :none AND #customer_id = :customer_id",
+                ExpressionAttributeNames={
+                    "#failures": "failures",
+                    "#customer_id": "customer_id",
+                },
+                ExpressionAttributeValues={
+                    ":one": {"N": "1"},
+                    ":none": {"N": "0"},
+                    ":customer_id": {"S": customer_id},
+                },
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                return None
+            raise
+        taken: str = plan["error"]
+        return taken
+
+    def fixture_is_fraud(
+        self, sign_in: str, customer_id: str, transaction_id: str
+    ) -> bool | None:
+        item = self._get(
+            sign_in, f"{FIXTURE_TRANSACTION}{transaction_id}", ("customer_id", HIDDEN)
+        )
+        if item is None or item["customer_id"] != customer_id or HIDDEN not in item:
+            return None
+        return bool(item[HIDDEN])
 
 
 class MemoryOverlay:
@@ -102,6 +232,32 @@ class MemoryOverlay:
             return None
         status: str = item["product_status"]
         return status
+
+    def fixtures(self, sign_in: str, prefix: str) -> list[Record]:
+        return [
+            {k: v for k, v in item.items() if k != HIDDEN}
+            for (held, key), item in sorted(self.items.items())
+            if held == sign_in and key.startswith(prefix)
+        ]
+
+    def take_fault(self, sign_in: str, customer_id: str, tool: str) -> str | None:
+        plan = self.items.get((sign_in, f"{FAULT}{tool}"))
+        if plan is None:
+            return None
+        checked("fault_plan", plan)
+        if plan["customer_id"] != customer_id or plan["failures"] <= 0:
+            return None
+        plan["failures"] -= 1
+        taken: str = plan["error"]
+        return taken
+
+    def fixture_is_fraud(
+        self, sign_in: str, customer_id: str, transaction_id: str
+    ) -> bool | None:
+        item = self.items.get((sign_in, f"{FIXTURE_TRANSACTION}{transaction_id}"))
+        if item is None or item["customer_id"] != customer_id or HIDDEN not in item:
+            return None
+        return bool(item[HIDDEN])
 
 
 class Sandbox(Overlay, Protocol):

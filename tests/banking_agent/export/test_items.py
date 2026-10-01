@@ -130,6 +130,20 @@ def test_keys_and_the_stamp_must_agree_with_the_items(
         check(given, STAMP)
 
 
+def test_no_record_takes_the_fixtures_prefix() -> None:
+    given = items()
+    card = next(i for i in given if i["kind"] == "card")
+    transaction = next(i for i in given if i["kind"] == "transaction")
+    old, new = card["card_id"], "PRD-FIXTUREA0001"
+    for item in (card, transaction):
+        for name in ("sk", "card_id", "card_key"):
+            if name in item:
+                item[name] = item[name].replace(old, new)
+
+    with pytest.raises(ExportError, match="card_id begins with the fixtures' prefix"):
+        check(given, STAMP)
+
+
 def test_items_must_have_one_key_one_metadata_item_and_their_card() -> None:
     doubled = items() + [copy.deepcopy(items()[1])]
     with pytest.raises(ExportError, match="share a key"):
