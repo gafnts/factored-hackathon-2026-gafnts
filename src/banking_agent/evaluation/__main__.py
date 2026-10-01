@@ -1,7 +1,9 @@
 """
 The evaluation's commands. generate draws the development regression and selection sets from the pinned snapshot's
 bronze (the last pipeline build) into data/evaluation/sets/, and writes their manifests to docs/evaluation/sets/: case
-IDs, hashes, and counts. It prints counts, never an ID or a value (SEC-03).
+IDs, hashes, and counts. play plays a drawn set in process with the scripted models and grades it, keeping the evidence
+and grades under data/evaluation/runs/. disagreements regenerates the disagreement log's page. Each prints counts,
+situations, and checks, never an ID or a value (SEC-03).
 """
 
 import argparse
@@ -12,7 +14,16 @@ import sys
 from pathlib import Path
 
 from banking_agent.dataset.lock import LockError, read_lock
-from banking_agent.evaluation import bronze, cases, families, generator, oracle, state
+from banking_agent.evaluation import (
+    bronze,
+    cases,
+    disagreements,
+    families,
+    generator,
+    oracle,
+    runs,
+    state,
+)
 from banking_agent.evaluation.facts import contract_words
 from banking_agent.pipeline import runner
 
@@ -85,6 +96,29 @@ def generate(lock_path: Path, data_dir: Path, docs: Path, seed: int) -> None:
             )
 
 
+def play(lock_path: Path, data_dir: Path, set_name: str) -> None:
+    lock = read_lock(lock_path)
+    database = runner.workspace(data_dir, lock.snapshot_id).database
+    set_path = data_dir / "evaluation" / "sets" / f"{set_name}.jsonl"
+    if not database.is_file() or not set_path.is_file():
+        raise LockError(
+            "no pipeline build or no drawn set; run make pipeline and make eval-sets"
+        )
+    with bronze.connect(database, "development") as con:
+        built, _ = bronze.stamp(con)
+    versions = {**built, "evaluation": commit(), "policy": oracle.POLICY_VERSION}
+    out = data_dir / "evaluation" / "runs" / runs.run_id()
+    summary = runs.play_set(set_path, database, out, versions)
+    print(
+        f"{set_name}: {summary['passed']} of {summary['cases']} passed; {summary['diverged']} diverged, "
+        f"{summary['unsafe']} unsafe, {summary['errors']} not played; kept in {out}"
+    )
+    print(f"findings matched by open entries: {summary['covered']}")
+    print(f"findings no entry matches, by situation and check: {summary['uncovered']}")
+    if summary["safety"]:
+        print(f"safety checks failed: {summary['safety']}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m banking_agent.evaluation", description=__doc__
@@ -97,10 +131,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     drawing.add_argument("--seed", type=int, default=20261001)
     drawing.add_argument("--docs", type=Path, default=Path("docs/evaluation/sets"))
+    playing = commands.add_parser(
+        "play",
+        help="Play a drawn development set in process with the scripted models, and grade it",
+    )
+    playing.add_argument("--set", dest="set_name", choices=SETS, default="regression")
+    commands.add_parser(
+        "disagreements", help="Regenerate the disagreement log's page from its entries"
+    )
     args = parser.parse_args(argv)
+    if args.command == "disagreements":
+        found = disagreements.problems(disagreements.load())
+        for problem in found:
+            print(f"Error: {problem}", file=sys.stderr)
+        if not found:
+            disagreements.write()
+        return 1 if found else 0
     try:
-        generate(args.lock, args.data_dir, args.docs, args.seed)
-    except LockError as error:
+        if args.command == "play":
+            play(args.lock, args.data_dir, args.set_name)
+        else:
+            generate(args.lock, args.data_dir, args.docs, args.seed)
+    except (LockError, runs.PlayError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     return 0

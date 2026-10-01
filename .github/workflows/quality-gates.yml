@@ -95,3 +95,23 @@ jobs:
 
       - name: Run all hooks
         run: make check
+
+  # The regression set's composition, drawn on the bank and played in process with scripted models (ADR-0005's
+  # amendment of 2026-10-01); it fails on a safety check, and on a finding no open disagreement entry matches.
+  regression:
+    name: Regression set (in process)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Play and grade the regression set
+        run: make regression

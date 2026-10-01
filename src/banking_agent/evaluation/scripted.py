@@ -1,0 +1,216 @@
+"""
+Models scripted from a case (ADR-0005, The development regression set: scripted model outputs, no provider). Each call
+gets the output a model that read the message correctly would give: the router the family's labels, the extraction
+the family's fields with the case's slots, or an answer's fields from the record the customer means, the choice the
+listed transactions that fit what the customer said, and a reply that writes each placeholder once. So a case played
+with them tests the graph's control logic, not a model. A text that isn't the case's is kept in `unplaced` and fails
+the call, and the player reports the case as its own error, never the agent's.
+"""
+
+import re
+from collections.abc import Iterable, Mapping
+from datetime import date, timedelta
+from decimal import Decimal
+from typing import Any
+
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.runnables import Runnable, RunnableLambda
+
+from banking_agent.agent.models import (
+    HandoffText,
+    RequestDetails,
+    RouterOutput,
+    TransactionChoice,
+)
+from banking_agent.evaluation.families import Answer, Family
+from banking_agent.masking import mask
+
+MODEL = "scripted"
+USAGE = {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "input_token_details": {"cache_read": 0, "cache_creation": 0},
+}
+EMPTY = dict.fromkeys(RequestDetails.model_fields)
+WHEN = {"today": 0, "yesterday": 1, "day_before": 2}
+REASONS = {
+    "reason_lost": "lost",
+    "reason_stolen": "stolen",
+    "reason_unrecognized_charge": "unrecognized_charge",
+    "reason_customer_request": "customer_request",
+}
+PLACEHOLDER = re.compile(r"^- (\{[a-z_.]+\}):", re.MULTILINE)
+LISTED = re.compile(r"^(\d+)\. ")
+HANDOFF_TEXT = {
+    "summary": "El cliente pidió ayuda con su tarjeta por el chat.",
+    "customer_statements": ["El cliente escribió al chat sobre su tarjeta."],
+    "unresolved_questions": [],
+}
+
+
+class UnplacedError(LookupError):
+    pass
+
+
+def raw() -> AIMessage:
+    return AIMessage(
+        content="{}", usage_metadata=USAGE, response_metadata={"model_name": MODEL}
+    )
+
+
+def structured(parsed: Any) -> dict[str, Any]:
+    return {"raw": raw(), "parsed": parsed, "parsing_error": None}
+
+
+def listed(context: str) -> list[tuple[int, str, Decimal, str]]:
+    """
+    The transactions the choice reads, as the graph lists them: number, date, amount, and merchant.
+    """
+    found = []
+    for line in context.splitlines():
+        number = LISTED.match(line)
+        if number is None:
+            continue
+        rest = line.rsplit(", ", 2)[0]
+        head, _, amount, merchant = rest.split(", ", 3)
+        on = head.split(" ")[2]
+        found.append(
+            (int(number.group(1)), on, Decimal(amount.rsplit(" ", 1)[0]), merchant)
+        )
+    return found
+
+
+class ScriptedModels:
+    def __init__(
+        self,
+        case: Mapping[str, Any],
+        families: Mapping[str, Family],
+        answers: Mapping[str, Answer],
+        items: Iterable[Mapping[str, Any]],
+    ) -> None:
+        script = case["script"]
+        self.slots: Mapping[str, str] = script.get("slots", {})
+        means = script["means"]
+        held = list(items)
+        meta = next(i for i in held if i["pk"] == "META")
+        self.business_date = date.fromisoformat(meta["clock"]["business_date"])
+        own = {i["sk"]: i for i in held if i["pk"] == case["customer_id"]}
+        self.card = (
+            own.get(f"CARD#{means['product_id']}") if "product_id" in means else None
+        )
+        self.transaction = (
+            own.get(f"TXN#{means['transaction_id']}")
+            if "transaction_id" in means
+            else None
+        )
+        self.said: dict[str, Family | str] = {}
+        for message in script["messages"]:
+            self.said[mask(message["text"])] = families[message["id"].split("/")[0]]
+        for answer in script["answers"].values():
+            if isinstance(answer, dict):
+                self.said[mask(answer["text"])] = answers[
+                    answer["id"].split("/")[0]
+                ].kind
+        self.unplaced: list[str] = []
+
+    def __call__(self, purpose: str) -> Runnable[Any, Any]:
+        chosen = {
+            "route": self.route,
+            "extract": self.extract,
+            "choose": self.choose,
+            "handoff_text": self.handoff_text,
+        }.get(purpose, self.reply)
+        return RunnableLambda(chosen)
+
+    def placed(self, messages: list[BaseMessage]) -> Family | str:
+        text = messages[-1].text
+        found = self.said.get(text)
+        if found is None:
+            self.unplaced.append(text)
+            raise UnplacedError("a text the case doesn't hold")
+        return found
+
+    async def route(self, messages: list[BaseMessage]) -> dict[str, Any]:
+        said = self.placed(messages)
+        if isinstance(said, str):
+            return structured(
+                RouterOutput(requests=[], has_request=False, complaint=False)
+            )
+        return structured(
+            RouterOutput.model_validate(
+                {
+                    "requests": list(said.labels),
+                    "has_request": bool(said.labels),
+                    "complaint": said.complaint,
+                }
+            )
+        )
+
+    async def extract(self, messages: list[BaseMessage]) -> dict[str, Any]:
+        said = self.placed(messages)
+        details = dict(EMPTY)
+        if isinstance(said, Family):
+            details |= said.extract
+            if "last_four" in said.slots:
+                details["last_four"] = self.slots["last_four"]
+        elif said in REASONS:
+            details["block_reason"] = REASONS[said]
+        elif said.startswith("card_") and self.card is not None:
+            if said != "card_last_four":
+                credit = "Crédito" in self.card["product_type"]
+                details["card_type"] = "credit" if credit else "debit"
+            if said != "card_type":
+                details["last_four"] = self.card["last_four"]
+        return structured(RequestDetails.model_validate(details))
+
+    async def choose(self, messages: list[BaseMessage]) -> dict[str, Any]:
+        said = self.placed(messages)
+        shown = listed(messages[0].text)
+        if said == "transaction_newest":
+            return structured(TransactionChoice(fitting=[1]))
+        merchant, amount, on = self.hints(said)
+        fitting = [
+            n
+            for n, day, value, name in shown
+            if (merchant is None or name.casefold() == merchant.casefold())
+            and (amount is None or value == amount)
+            and (on is None or day == on)
+        ]
+        if isinstance(said, str) and not fitting:
+            fitting = [n for n, *_ in shown]
+        return structured(TransactionChoice(fitting=fitting[:10]))
+
+    def hints(
+        self, said: Family | str
+    ) -> tuple[str | None, Decimal | None, str | None]:
+        """
+        What the customer said about the transaction: a message's slots and relative date, or an answer's one field
+        from the transaction meant.
+        """
+        if isinstance(said, Family):
+            on = self.slots.get("date") if "date" in said.slots else None
+            if said.when is not None:
+                on = (self.business_date - timedelta(days=WHEN[said.when])).isoformat()
+            return (
+                self.slots.get("merchant") if "merchant" in said.slots else None,
+                Decimal(self.slots["amount"]) if "amount" in said.slots else None,
+                on,
+            )
+        meant = self.transaction or {}
+        return (
+            meant.get("merchant_name") if said == "transaction_merchant" else None,
+            Decimal(str(meant["amount"])) if said == "transaction_amount" else None,
+            meant["transaction_date"][:10] if said == "transaction_date" else None,
+        )
+
+    async def handoff_text(self, messages: list[BaseMessage]) -> dict[str, Any]:
+        return structured(HandoffText.model_validate(HANDOFF_TEXT))
+
+    async def reply(self, messages: list[BaseMessage]) -> AIMessage:
+        written = PLACEHOLDER.findall(messages[0].text)
+        return AIMessage(
+            content="\n\n".join(written) or "Listo.",
+            usage_metadata=USAGE,
+            response_metadata={"model_name": MODEL},
+        )

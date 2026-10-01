@@ -1,16 +1,20 @@
 """
 The snapshot as the oracle and the generator read it: the pipeline's bronze tables (ADR-0006), the typed copy of the
 delivered files, never the gold tables the tools read (ADR-0005, The oracle); only the build's stamp and clock are
-read from gold. A connection is opened for one side of the split and sees only that side's customers, their cards, and
-their transactions (DML-09); this module is the only one that names the pipeline's database.
+read from gold, besides the tools' items the in-process player serves, which the oracle never reads. A connection is
+opened for one side of the split and sees only that side's customers, their cards, and their transactions (DML-09);
+this module is the only one that names the pipeline's database.
 """
 
+import json
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
 import duckdb
 from duckdb import sqltypes
 
+from banking_agent.pipeline import export
 from banking_agent.split import held_out
 
 SIDES = ("development", "held_out")
@@ -42,6 +46,30 @@ def connect(database: Path, side: str) -> duckdb.DuckDBPyConnection:
         "where product_id in (select product_id from products)"
     )
     return con
+
+
+def tools_items(database: Path, customers: Collection[str]) -> list[dict[str, Any]]:
+    """
+    The tools' data for these customers only, as the export writes it: gold read through views named as the export
+    reads them, so the export's own code builds the items.
+    """
+    con = duckdb.connect()
+    con.execute(f"attach '{database.resolve()}' as pipeline (read_only)")
+    con.execute("create table wanted (customer_id varchar)")
+    con.executemany("insert into wanted values (?)", [(c,) for c in customers])
+    con.execute("create schema gold")
+    for table in ("customers", "cards", "transactions"):
+        con.execute(
+            f"create view gold.{table} as select * from pipeline.gold.{table} "
+            "where customer_id in (select customer_id from wanted)"
+        )
+    con.execute("create view gold.metadata as select * from pipeline.gold.metadata")
+    built, _ = stamp(con)
+    items = export.read_items(con, built)
+    con.close()
+    # As the export's JSON holds them, numbers and all.
+    loaded: list[dict[str, Any]] = json.loads(json.dumps(items, default=float))
+    return loaded
 
 
 def stamp(con: duckdb.DuckDBPyConnection) -> tuple[dict[str, str], tuple[Any, Any]]:
