@@ -42,7 +42,7 @@ export function SignIn({
           : null;
 
   return (
-    <section className="mx-auto w-full max-w-sm py-10 night:my-auto night:rounded-3xl night:border night:border-white/10 night:glass night:px-8 night:py-8">
+    <section className="mx-auto w-full max-w-sm py-10 night:rounded-3xl night:border night:border-white/10 night:glass night:px-8 night:py-8">
       <h1 className="text-2xl font-bold tracking-tight night:font-display night:font-semibold night:tracking-[-0.03em]">
         {texts.title}
       </h1>

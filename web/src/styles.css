@@ -50,6 +50,12 @@
   }
 }
 
+/* A cell of the banner's grid, lit: the light blue, with its saturated bloom. */
+@utility lit {
+  background-color: var(--color-sea);
+  box-shadow: 0 0 28px 4px --alpha(var(--color-glow) / 75%);
+}
+
 @layer base {
   body {
     @apply bg-paper font-sans text-ink antialiased;

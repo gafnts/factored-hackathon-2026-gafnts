@@ -10,6 +10,7 @@ import {
 import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
+import { Grid } from "./grid";
 import { LogOut } from "./icons";
 import { SignIn } from "./pages/sign-in";
 import { drawRuntimeSession, runtimeSession } from "./session";
@@ -113,9 +114,14 @@ export function Customer({ language }: { language: Language }) {
   if (state.kind === "signed-out") {
     return (
       <Shell language={language}>
-        <div className="flex flex-1 flex-col px-4 py-6">
-          <SignIn language={language} ended={state.ended} onSignIn={signIn} />
-        </div>
+        <Grid layout="sign-in">
+          <div className="flex flex-1 flex-col justify-center px-4 py-6">
+            <p className="mx-auto w-full max-w-sm pb-6 font-display text-6xl font-semibold tracking-[-0.07em]">
+              Faro
+            </p>
+            <SignIn language={language} ended={state.ended} onSignIn={signIn} />
+          </div>
+        </Grid>
       </Shell>
     );
   }
