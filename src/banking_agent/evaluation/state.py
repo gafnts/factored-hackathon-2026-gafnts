@@ -2,10 +2,12 @@
 One customer's state as the policy reads it, from a bronze connection of one side (ADR-0005, The oracle). It applies
 the contracts' rules in its own code, never the pipeline's or the tools': text trimmed and empty text missing, one
 spelling per country, customers registered and cards opened by the as-of instant, a card's transactions in the 90 days
-that end at the as-of instant counted by their own timestamp (POL-19, POL-25), and the conflicts POL-30 states.
+that end at the as-of instant counted by their own timestamp (POL-19, POL-25), and the conflicts POL-30 states. A
+case's fixtures are read into it the same way (ADR-0005's amendment of 2026-10-01).
 """
 
-from dataclasses import dataclass, field
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -148,6 +150,76 @@ def read(con: duckdb.DuckDBPyConnection, customer_id: str) -> Customer | None:
     ]
     cards.sort(key=lambda c: (c.type, c.last_four, c.product_id))
     return Customer(customer_id, text(found[0]), country(found[1]), tuple(cards))
+
+
+def _money(value: Any) -> Decimal | None:
+    return None if value is None else Decimal(str(value))
+
+
+def _day(value: Any) -> date | None:
+    return None if value is None else date.fromisoformat(value)
+
+
+def _newest_first(transactions: Sequence[Transaction]) -> tuple[Transaction, ...]:
+    return tuple(
+        sorted(transactions, key=lambda t: (t.at, t.transaction_id), reverse=True)
+    )
+
+
+def merged(customer: Customer, fixtures: Sequence[Mapping[str, Any]]) -> Customer:
+    """
+    The customer's state with a case's fixtures, each in the overlay contract's shape: a fixture card among the cards,
+    and a fixture transaction on its card when it falls in the window. A fixture for another customer, or on a card the
+    customer doesn't hold, is left out, as the tools leave it out.
+    """
+    own = [f for f in fixtures if f["customer_id"] == customer.customer_id]
+    cards = [
+        *customer.cards,
+        *(
+            Card(
+                product_id=f["card_id"],
+                type=f["product_type"],
+                last_four=f["last_four"],
+                currency=text(f["currency"]),
+                balance=_money(f["current_balance"]),
+                limit=_money(f["credit_limit"]),
+                status=text(f["product_status"]),
+                opening=_day(f["opening_date"]),
+                expiration=_day(f["expiration_date"]),
+            )
+            for f in own
+            if f["kind"] == "card"
+        ),
+    ]
+    added = [
+        Transaction(
+            transaction_id=f["transaction_id"],
+            product_id=f["card_id"],
+            at=datetime.fromisoformat(f["transaction_date"]),
+            type=text(f["transaction_type"]),
+            amount=_money(f["amount"]),
+            currency=text(f["currency"]),
+            merchant=text(f["merchant_name"]),
+            country=country(f["transaction_country"]),
+            status=text(f["transaction_status"]),
+            code=text(f["response_code"]),
+            is_fraud=f["is_fraud"],
+        )
+        for f in own
+        if f["kind"] == "transaction"
+    ]
+    inside = [t for t in added if WINDOW_FROM < t.at <= AS_OF]
+    held = [
+        replace(
+            c,
+            transactions=_newest_first(
+                [*c.transactions, *(t for t in inside if t.product_id == c.product_id)]
+            ),
+        )
+        for c in cards
+    ]
+    held.sort(key=lambda c: (c.type, c.last_four, c.product_id))
+    return replace(customer, cards=tuple(held))
 
 
 def _transactions(
