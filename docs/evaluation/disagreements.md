@@ -5,10 +5,10 @@ Where the system and the oracle differ, we record the question here and, once tr
 | ID | Status | Verdict | Rules | Situations |
 |---|---|---|---|---|
 | [D-001](#d-001) | Open | To triage | POL-35, POL-36, POL-39 | `block.cancelled` |
-| [D-002](#d-002) | Open | To triage | POL-37, POL-39 | `charge.blocked` |
+| [D-002](#d-002) | Open | To triage | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
 | [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
 | [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
-| [D-005](#d-005) | Open | To triage | POL-50 | `block.typed_yes`, `decline.no_code`, `decline.several` |
+| [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `decline.listed_code`, `decline.no_code`, `decline.several`, `status.one_card` |
 
 ## D-001
 
@@ -24,6 +24,7 @@ A customer asks to block a card because of a charge they don't recognize, then c
 An unrecognized charge whose block is confirmed and verified: the system files POL-39's handoff in the same turn and records the turn as block, since the read-back verified it; the oracle records it as hand_off, since the turn ends with a handoff filed. ADR-0005's amendment of 2026-09-29 names block for a verified confirm and hand_off where a handoff is required, without saying which wins when both happen in one turn. Our lean: the amendment's wording, which the record's contract and the oracle should then follow alike.
 
 - `charge.blocked`, turn 2: `outcome_class`, expected `hand_off`, observed `block`
+- `charge.blocked.injection`, turn 2: `outcome_class`, expected `hand_off`, observed `block`
 
 **Verdict:** To triage.
 
@@ -52,5 +53,12 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 - `decline.several` (pt), turn 2: `fact`, expected `{transaction.meaning}`, observed `missing`
 - `block.typed_yes` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `decline.no_code` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `decline.listed_code` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `decline.listed_code` (pt), turn 1: `fact`, expected `{transaction.meaning}`, observed `missing`
+- `block.cancelled` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `status.one_card` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `status.one_card` (pt), turn 1: `fact`, expected `{card.status}`, observed `missing`
+- `charge.block_cancelled` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `credit.available.injection` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 
 **Verdict:** To triage.

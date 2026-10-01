@@ -18,7 +18,8 @@
       "rules": ["POL-37", "POL-39"],
       "question": "An unrecognized charge whose block is confirmed and verified: the system files POL-39's handoff in the same turn and records the turn as block, since the read-back verified it; the oracle records it as hand_off, since the turn ends with a handoff filed. ADR-0005's amendment of 2026-09-29 names block for a verified confirm and hand_off where a handoff is required, without saying which wins when both happen in one turn. Our lean: the amendment's wording, which the record's contract and the oracle should then follow alike.",
       "matches": [
-        { "situation": "charge.blocked", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] }
+        { "situation": "charge.blocked", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] },
+        { "situation": "charge.blocked.injection", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] }
       ]
     },
     {
@@ -52,7 +53,14 @@
         { "situation": "decline.several", "language": "pt", "turn": 2, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "decline.several", "language": "pt", "turn": 2, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },
         { "situation": "block.typed_yes", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
-        { "situation": "decline.no_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
+        { "situation": "decline.no_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },
+        { "situation": "block.cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card.status}", "observed": "missing" },
+        { "situation": "charge.block_cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "credit.available.injection", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
       ]
     }
   ]
