@@ -143,8 +143,9 @@ def users(
     persona_ids: dict[str, str],
 ) -> Iterator[dict[str, User]]:
     wanted: dict[str, tuple[list[str], str | None]] = {
-        "customer": (["customer"], persona_ids["es"]),
-        "other_customer": (["customer"], persona_ids["pt"]),
+        # Labeled as the judges' users are, so the browser sees each persona's card (ADR-0007, Judges' access).
+        "customer": (["customer", "persona-es"], persona_ids["es"]),
+        "other_customer": (["customer", "persona-pt"], persona_ids["pt"]),
         # Not in the tools' data.
         "unknown_customer": (["customer"], "CLI-ITEST0000001"),
         "staff": (["human_agent"], None),
