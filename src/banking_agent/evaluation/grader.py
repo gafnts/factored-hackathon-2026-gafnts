@@ -20,7 +20,7 @@ from typing import Any
 from banking_agent.contracts import validator
 from banking_agent.masking import has_digit_run
 
-VERSION = 1
+VERSION = 2
 IDENTIFIER = re.compile(r"\b(?:CLI|PRD|TRX)-[A-Z0-9-]+")
 AMOUNT = re.compile(r"\d[\d.,]*[.,]\d{2}(?!\d)")
 FLAGS = re.compile(r"is_fraud|fraud_score", re.IGNORECASE)
@@ -47,7 +47,8 @@ def finding(
 
 def record_turns(record: Sequence[Mapping[str, Any]]) -> list[list[Mapping[str, Any]]]:
     """
-    The record's turns in order, each its entries; a refused request opens no turn and plays no part of the path.
+    The record's turns in order, each its entries; a refused request opens no turn, and the warmup that opens a
+    runtime session (ADR-0004's decision 20) runs no graph, so neither plays a part of the path.
     """
     order: list[str] = []
     entries: dict[str, list[Mapping[str, Any]]] = {}
@@ -55,7 +56,7 @@ def record_turns(record: Sequence[Mapping[str, Any]]) -> list[list[Mapping[str, 
         if entry["kind"] == "request_refused":
             continue
         entries.setdefault(entry["turn_id"], []).append(entry)
-        if entry["kind"] == "turn_opened":
+        if entry["kind"] == "turn_opened" and entry["input"]["kind"] != "warmup":
             order.append(entry["turn_id"])
     return [entries[t] for t in order]
 

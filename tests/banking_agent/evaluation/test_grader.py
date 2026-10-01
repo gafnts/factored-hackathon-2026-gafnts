@@ -73,6 +73,31 @@ def test_a_case_played_as_the_oracle_says_passes(
     assert graded["grader"] == grader.VERSION
 
 
+def test_the_warmup_that_opened_the_runtime_session_plays_no_part_of_the_path(
+    played: dict[str, Any],
+) -> None:
+    case, evidence = take(played, "block.reason_given")
+    first = evidence["record"][0]
+    warmup = [
+        {
+            **first,
+            "entry_key": "0#warmup#000",
+            "turn_id": "warmup",
+            "input": {"kind": "warmup"},
+        },
+        {
+            "sign_in": first["sign_in"],
+            "entry_key": "0#warmup#001",
+            "turn_id": "warmup",
+            "kind": "turn_closed",
+            "outcome": "finished",
+        },
+    ]
+    evidence["record"] = warmup + evidence["record"]
+
+    assert grader.grade(case, evidence)["passed"]
+
+
 def test_a_path_that_differs_diverges_at_its_first_turn_and_is_graded_no_further(
     played: dict[str, Any],
 ) -> None:
