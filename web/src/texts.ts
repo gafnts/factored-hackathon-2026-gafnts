@@ -11,8 +11,11 @@ export type Problem = RunErrorCode | "unreachable";
 
 export interface Texts {
   notice: string;
-  notFound: string;
-  toChat: string;
+  notFound: {
+    code: string;
+    title: string;
+    home: string;
+  };
   broken: string;
   signIn: {
     title: string;
@@ -113,8 +116,11 @@ export const TEXTS: Record<Language, Texts> = {
   es: {
     notice:
       "Prototipo sobre datos sintéticos. LATAM Bank y sus clientes son ficticios.",
-    notFound: "Esta página no existe.",
-    toChat: "Ir al chat",
+    notFound: {
+      code: "Error 404",
+      title: "Página no encontrada",
+      home: "Volver al inicio",
+    },
     broken: "No pudimos cargar la aplicación. Recargue la página.",
     signIn: {
       title: "Iniciar sesión",
@@ -182,8 +188,11 @@ export const TEXTS: Record<Language, Texts> = {
   pt: {
     notice:
       "Protótipo com dados sintéticos. O LATAM Bank e seus clientes são fictícios.",
-    notFound: "Esta página não existe.",
-    toChat: "Ir para o chat",
+    notFound: {
+      code: "Erro 404",
+      title: "Página não encontrada",
+      home: "Voltar ao início",
+    },
     broken: "Não foi possível carregar o aplicativo. Recarregue a página.",
     signIn: {
       title: "Entrar",

@@ -38,13 +38,15 @@ export function RailButton({
   );
 }
 
-// The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar, and the
-// synthetic-data notice on every page (SEC-02). The sign-in's bar carries the bank's name, its notice flush right; once
-// signed in, the bar carries Faro's wordmark, the notice centered. The rail and the bar are glass over the page, which
-// runs on under them; main's padding keeps the content clear of them, by --rail and --bar. The frame fades in as a
-// page arrives (the identity guide's Motifs).
+// The site's pages, the customer's and the console's: the rail once signed in (its icons in the bar on phones), the
+// bar, and the synthetic-data notice on every page (SEC-02). A sign-in's bar carries the bank's name, its notice flush
+// right; once signed in, the bar carries Faro's wordmark, the notice centered. The console's bar reads the bank's name
+// and the console's, signed in or not. The rail and the bar are glass over the page, which runs on under them; main's
+// padding keeps the content clear of them, by --rail and --bar. The frame fades in as a page arrives (the identity
+// guide's Motifs).
 export function Shell({
   language,
+  label,
   signIn = false,
   note,
   rail,
@@ -53,6 +55,7 @@ export function Shell({
   children,
 }: {
   language: Language;
+  label?: string;
   signIn?: boolean;
   note?: string;
   rail?: (expanded: boolean) => ReactNode;
@@ -70,7 +73,6 @@ export function Shell({
   return (
     <div
       lang={language}
-      data-mode="night"
       className={`relative flex h-dvh flex-col [--bar:3.5rem] [--rail:0px] ${width}`}
     >
       {rail && (
@@ -92,26 +94,42 @@ export function Shell({
           {rail(expanded)}
         </nav>
       )}
-      <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) animate-fade items-center border-b border-white/10 glass-thin px-4 sm:px-6">
-        {signIn ? (
-          <p className="animate-fade text-lg font-medium">LATAM Bank</p>
-        ) : (
-          // The rail's new conversation, in place rather than by a reload, so it waits while a turn runs as that one
-          // does; without it (the broken page), the link reloads.
-          <a
-            href="/chat"
-            aria-disabled={running || undefined}
-            onClick={(event) => {
-              if (!onNew || event.metaKey || event.ctrlKey || event.shiftKey)
-                return;
-              event.preventDefault();
-              if (!running) onNew();
-            }}
-            className="animate-fade font-display text-2xl font-semibold tracking-[-0.03em] aria-disabled:cursor-default"
-          >
-            Faro
-          </a>
-        )}
+      <header
+        className={`absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) animate-fade items-center border-b border-white/10 glass-thin px-4 sm:px-6 ${rail ? "max-sm:pr-16" : ""}`}
+      >
+        {/* On phones, clear of the rail's icons, which sit in the bar. */}
+        <div className="flex min-w-0 items-center gap-3">
+          {signIn || label ? (
+            <p className="shrink-0 animate-fade text-lg font-medium">
+              LATAM Bank
+            </p>
+          ) : (
+            // The rail's new conversation, in place rather than by a reload, so it waits while a turn runs as that one
+            // does; without it (the broken page), the link reloads.
+            <a
+              href="/chat"
+              aria-disabled={running || undefined}
+              onClick={(event) => {
+                if (!onNew || event.metaKey || event.ctrlKey || event.shiftKey)
+                  return;
+                event.preventDefault();
+                if (!running) onNew();
+              }}
+              className="animate-fade font-display text-2xl font-semibold tracking-[-0.03em] aria-disabled:cursor-default"
+            >
+              Faro
+            </a>
+          )}
+          {label && (
+            <>
+              <span
+                aria-hidden="true"
+                className="h-5 w-px shrink-0 bg-white/20"
+              />
+              <p className="truncate text-lg text-bone-muted">{label}</p>
+            </>
+          )}
+        </div>
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
         {children}

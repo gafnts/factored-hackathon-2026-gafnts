@@ -5,12 +5,11 @@ import { expect, test, vi } from "vitest";
 import { RailButton, Shell } from "../src/shell";
 import { TEXTS } from "../src/texts";
 
-test("every customer page says it is a prototype over synthetic data, in Night (SEC-02)", () => {
-  const { container } = render(<Shell language="pt">{null}</Shell>);
+test("every page says it is a prototype over synthetic data (SEC-02)", () => {
+  render(<Shell language="pt">{null}</Shell>);
 
   expect(screen.getByText(TEXTS.pt.notice)).toBeInTheDocument();
   expect(screen.getByRole("banner")).toHaveTextContent(/^Faro$/);
-  expect(container.firstElementChild).toHaveAttribute("data-mode", "night");
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });
 
@@ -24,6 +23,27 @@ test("the sign-in's bar carries the bank's name, and no link", () => {
   expect(screen.getByRole("banner")).toHaveTextContent(/^LATAM Bank$/);
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
   expect(screen.getByText(TEXTS.es.notice)).toBeInTheDocument();
+});
+
+test("the console's bar reads the bank's name and the console's, signed in or not, with no link", () => {
+  const { rerender } = render(
+    <Shell language="es" label="Consola de agentes" signIn>
+      {null}
+    </Shell>,
+  );
+
+  expect(screen.getByRole("banner")).toHaveTextContent(
+    /^LATAM BankConsola de agentes$/,
+  );
+  rerender(
+    <Shell language="es" label="Consola de agentes">
+      {null}
+    </Shell>,
+  );
+  expect(screen.getByRole("banner")).toHaveTextContent(
+    /^LATAM BankConsola de agentes$/,
+  );
+  expect(screen.queryByRole("link")).not.toBeInTheDocument();
 });
 
 test("the wordmark starts a new conversation in place, and waits while a turn runs", () => {

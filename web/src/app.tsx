@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 
 import { browserLanguage } from "./language";
-import { Page } from "./layout";
 import { NotFound } from "./pages/not-found";
 
 export type Route = "home" | "chat" | "agent" | "unknown";
@@ -40,14 +39,14 @@ export function App({ path }: { path: string }) {
     case "chat": {
       const language = browserLanguage();
       return (
-        <Suspense fallback={<div data-mode="night" className="h-dvh" />}>
+        <Suspense fallback={<div className="h-dvh" />}>
           <Customer language={language} />
         </Suspense>
       );
     }
     case "agent":
       return (
-        <Suspense fallback={<Page language="es">{null}</Page>}>
+        <Suspense fallback={<div className="h-dvh" />}>
           <Agent />
         </Suspense>
       );

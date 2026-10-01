@@ -1,22 +1,10 @@
 @import "tailwindcss";
 
-/* The customer's pages are Night; the console stays Paper (the identity guide's Two modes). */
-@custom-variant night (&:where([data-mode="night"], [data-mode="night"] *));
-
 @theme {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
   --font-display:
     "Outfit Variable", "Geist Variable", ui-sans-serif, sans-serif;
-
-  --color-paper: #e3e5dc;
-  --color-paper-raised: #f1f2ec;
-  --color-ink: #161816;
-  --color-ink-muted: #565a53;
-  --color-ember: #a4431a;
-  --color-deep-sea: #2b5a8a;
-  --color-lamp: #ee7a3f;
-  --color-rule: #c5c8be;
 
   --color-night: #000000;
   --color-night-raised: #1e1e1c;
@@ -25,6 +13,7 @@
   --color-bone-muted: #9c9c92;
   --color-sea: #66c0fc;
   --color-glow: #0557ff;
+  --color-lamp: #ee7a3f;
   --color-rule-night: #34342f;
 
   --animate-sweep: sweep 2.4s ease-in-out infinite;
@@ -98,22 +87,16 @@
 }
 
 @layer base {
-  body {
-    @apply bg-paper font-sans text-ink antialiased;
-  }
-
-  /* public/mode.js marks the root before the first paint, so a reload never flashes Paper first. */
-  body:has([data-mode="night"]),
-  [data-mode="night"] > body {
-    @apply bg-night text-bone;
+  /* Every page of the site is Night (the identity guide's Two modes), from the stylesheet's first paint. */
+  :root {
     color-scheme: dark;
   }
 
-  :focus-visible {
-    @apply outline-2 outline-offset-2 outline-deep-sea;
+  body {
+    @apply bg-night font-sans text-bone antialiased;
   }
 
-  [data-mode="night"] :focus-visible {
-    @apply outline-sea;
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-sea;
   }
 }

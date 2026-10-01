@@ -8,8 +8,10 @@ import {
   signOutHere,
 } from "../auth";
 import { type Config, loadConfig } from "../config";
-import { Page } from "../layout";
+import { faces } from "../faces";
+import { LogOut } from "../icons";
 import { SignIn } from "../pages/sign-in";
+import { RailButton, Shell } from "../shell";
 import { TEXTS } from "../texts";
 import { Console } from "./console";
 import { AGENT } from "./texts";
@@ -38,7 +40,7 @@ export function Agent() {
     void (async () => {
       let config: Config;
       try {
-        config = await loadConfig();
+        [config] = await Promise.all([loadConfig(), faces()]);
       } catch {
         if (!unmounted.signal.aborted) setState({ kind: "broken" });
         return;
@@ -85,53 +87,55 @@ export function Agent() {
     if (config) void end(config, true);
   }, [config, end]);
 
-  if (state.kind === "loading")
-    return (
-      <Page language="es" label={AGENT.title} wide>
-        {null}
-      </Page>
-    );
+  // The bare ground until the page can arrive whole, its faces in, as the chat's does.
+  if (state.kind === "loading") return <div className="h-dvh" />;
   if (state.kind === "broken") {
     return (
-      <Page language="es" label={AGENT.title} wide>
-        <p role="alert" className="py-10 text-ember">
+      <Shell language="es" label={AGENT.title}>
+        <p
+          role="alert"
+          className="mx-auto w-full max-w-6xl px-4 py-10 text-lamp sm:px-6"
+        >
           {texts.broken}
         </p>
-      </Page>
+      </Shell>
     );
   }
   if (state.kind === "signed-out") {
     return (
-      <Page language="es" label={AGENT.title} wide>
+      <Shell language="es" label={AGENT.title} signIn>
         <SignIn language="es" ended={state.ended} onSignIn={signIn} />
-      </Page>
+      </Shell>
     );
   }
 
   const time = new Intl.DateTimeFormat("es", { timeStyle: "short" }).format(
     state.signedIn.endsAt,
   );
+  // Read for long stretches, so no grid or glow behind it (the identity guide's Two modes).
   return (
-    <Page
+    <Shell
       language="es"
       label={AGENT.title}
-      wide
-      aside={
-        <div className="flex items-center gap-3 text-sm">
-          <span className="hidden text-ink-muted sm:inline">
-            {texts.signIn.endsAt(time)}
-          </span>
-          <button
-            type="button"
-            className="rounded-lg border border-rule px-3 py-1.5 font-medium hover:bg-paper-raised"
-            onClick={() => void end(state.config, false)}
-          >
-            {texts.signIn.signOut}
-          </button>
-        </div>
-      }
+      note={texts.signIn.endsAt(time)}
+      rail={(expanded) => (
+        <RailButton
+          icon={<LogOut />}
+          label={texts.signIn.signOut}
+          expanded={expanded}
+          className="sm:mt-auto"
+          onClick={() => void end(state.config, false)}
+        />
+      )}
     >
-      <Console onEnded={ended} />
-    </Page>
+      <div className="mx-auto w-full max-w-6xl animate-arrive px-4 motion-reduce:animate-fade sm:px-6">
+        <Console onEnded={ended} />
+      </div>
+      {/* A long case fades into the ground above the notice, as a conversation does above the composer. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none sticky bottom-0 -mt-10 h-10 shrink-0 bg-linear-to-t from-night"
+      />
+    </Shell>
   );
 }

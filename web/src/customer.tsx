@@ -11,7 +11,6 @@ import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
 import { faces } from "./faces";
-import { Grid } from "./grid";
 import { LogOut, SquarePen } from "./icons";
 import { SignIn } from "./pages/sign-in";
 import { drawRuntimeSession, runtimeSession } from "./session";
@@ -108,8 +107,7 @@ export function Customer({ language }: { language: Language }) {
   }, []);
 
   // The bare ground until the page can arrive whole, its faces in, rather than a frame first and the rest after.
-  if (state.kind === "loading")
-    return <div data-mode="night" className="h-dvh" />;
+  if (state.kind === "loading") return <div className="h-dvh" />;
   if (state.kind === "broken") {
     return (
       <Shell language={language}>
@@ -125,14 +123,7 @@ export function Customer({ language }: { language: Language }) {
   if (state.kind === "signed-out") {
     return (
       <Shell language={language} signIn>
-        <Grid layout="sign-in">
-          <div className="flex flex-1 flex-col justify-center px-4 py-6">
-            <p className="mx-auto w-full max-w-sm pb-6 text-center font-display text-6xl font-semibold tracking-[-0.07em]">
-              Faro
-            </p>
-            <SignIn language={language} ended={state.ended} onSignIn={signIn} />
-          </div>
-        </Grid>
+        <SignIn language={language} ended={state.ended} onSignIn={signIn} />
       </Shell>
     );
   }
