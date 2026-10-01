@@ -92,7 +92,7 @@ export function Shell({
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
         {children}
       </main>
-      <footer className="pt-2 pr-4 pb-3 pl-[calc(var(--rail)+1rem)] text-xs text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]">
+      <footer className="pt-2 pr-4 pb-3 pl-[calc(var(--rail)+1rem)] text-center text-xs text-balance text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]">
         <p>
           <span>{texts.notice}</span>
           {note && <span> {note}</span>}

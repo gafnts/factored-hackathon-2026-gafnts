@@ -133,7 +133,7 @@ function Opening({ language, divert }: { language: Language; divert: Divert }) {
   return (
     <Grid layout="chat">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:px-6">
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">
+        <h1 className="text-center font-display text-4xl font-semibold tracking-[-0.03em] text-balance sm:text-5xl">
           {texts.question}
         </h1>
         <div className="relative">
