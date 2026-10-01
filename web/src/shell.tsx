@@ -26,7 +26,7 @@ export function RailButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-10 items-center gap-3 rounded-full px-2.5 text-bone-muted transition-colors hover:bg-white/5 hover:text-bone disabled:opacity-40 disabled:hover:bg-transparent ${className}`}
+      className={`flex h-10 items-center gap-3 px-2.5 text-bone-muted transition-colors hover:bg-white/5 hover:text-bone disabled:opacity-40 disabled:hover:bg-transparent ${className}`}
     >
       {icon}
       <span
@@ -42,8 +42,8 @@ export function RailButton({
 // bar, and the synthetic-data notice on every page (SEC-02). A sign-in's bar carries the bank's name, its notice flush
 // right; once signed in, the bar carries Faro's wordmark, the notice centered. The console's bar reads the bank's name
 // and the console's, signed in or not. The rail and the bar are glass over the page, which runs on under them; main's
-// padding keeps the content clear of them, by --rail and --bar. The frame fades in as a page arrives (the identity
-// guide's Motifs).
+// padding keeps the content clear of them, by --rail and --bar. --cell, the grid's module, sets the pages' column
+// widths (the identity guide's Layout). The frame fades in as a page arrives (the identity guide's Motifs).
 export function Shell({
   language,
   label,
@@ -73,7 +73,7 @@ export function Shell({
   return (
     <div
       lang={language}
-      className={`relative flex h-dvh flex-col [--bar:3.5rem] [--rail:0px] ${width}`}
+      className={`relative flex h-dvh flex-col [--bar:3.5rem] [--cell:32px] [--rail:0px] sm:[--cell:51px] ${width}`}
     >
       {rail && (
         <nav
@@ -87,7 +87,7 @@ export function Shell({
             onClick={() => {
               setExpanded(!expanded);
             }}
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-bone-muted hover:bg-white/5 hover:text-bone sm:flex"
+            className="hidden h-10 w-10 items-center justify-center text-bone-muted hover:bg-white/5 hover:text-bone sm:flex"
           >
             <PanelLeft />
           </button>
@@ -100,7 +100,7 @@ export function Shell({
         {/* On phones, clear of the rail's icons, which sit in the bar. */}
         <div className="flex min-w-0 items-center gap-3">
           {signIn || label ? (
-            <p className="shrink-0 animate-fade text-lg font-medium">
+            <p className="shrink-0 animate-fade text-lg font-medium tracking-[-0.01em]">
               LATAM Bank
             </p>
           ) : (
@@ -126,7 +126,9 @@ export function Shell({
                 aria-hidden="true"
                 className="h-5 w-px shrink-0 bg-white/20"
               />
-              <p className="truncate text-lg text-bone-muted">{label}</p>
+              <p className="truncate text-lg tracking-[-0.01em] text-bone-muted">
+                {label}
+              </p>
             </>
           )}
         </div>

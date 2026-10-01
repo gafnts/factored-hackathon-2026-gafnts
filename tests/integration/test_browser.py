@@ -53,7 +53,7 @@ TEXTS = {
         "locale": "es-CO",
         "username": "Usuario",
         "password": "Contraseña",
-        "submit": "Iniciar sesión",
+        "submit": "Entrar",
         "message": "Escriba su mensaje",
         "send": "Enviar",
         "sign_out": "Cerrar sesión",
