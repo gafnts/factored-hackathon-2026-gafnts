@@ -10,7 +10,6 @@ export type RunErrorCode = RunError["code"];
 export type Problem = RunErrorCode | "unreachable";
 
 export interface Texts {
-  assistant: string;
   notice: string;
   notFound: string;
   toChat: string;
@@ -113,7 +112,6 @@ const REASONS: Record<Language, Record<BlockReason, string>> = {
 
 export const TEXTS: Record<Language, Texts> = {
   es: {
-    assistant: "Faro · asistente automático",
     notice:
       "Prototipo sobre datos sintéticos: LATAM Bank y sus clientes son ficticios.",
     notFound: "Esta página no existe.",
@@ -185,7 +183,6 @@ export const TEXTS: Record<Language, Texts> = {
     },
   },
   pt: {
-    assistant: "Faro · assistente automático",
     notice:
       "Protótipo com dados sintéticos: o LATAM Bank e seus clientes são fictícios.",
     notFound: "Esta página não existe.",

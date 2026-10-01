@@ -9,7 +9,7 @@ test("every customer page says it is a prototype over synthetic data, in Night (
   const { container } = render(<Shell language="pt">{null}</Shell>);
 
   expect(screen.getByText(TEXTS.pt.notice)).toBeInTheDocument();
-  expect(screen.getByText(TEXTS.pt.assistant)).toBeInTheDocument();
+  expect(screen.getByRole("banner")).toHaveTextContent(/^Faro$/);
   expect(container.firstElementChild).toHaveAttribute("data-mode", "night");
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });

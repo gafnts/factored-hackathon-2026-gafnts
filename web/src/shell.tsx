@@ -38,9 +38,9 @@ export function RailButton({
   );
 }
 
-// The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar with LATAM
-// Bank's name and Faro's label, and the synthetic-data notice on every page (SEC-02). The rail and the bar are glass
-// over the page, which runs on under them; main's padding keeps the content clear of them, by --rail and --bar.
+// The customer's pages, in Night: the rail once signed in (a pair of icons in the bar on phones), the bar with the
+// wordmark, and the synthetic-data notice on every page (SEC-02). The rail and the bar are glass over the page, which
+// runs on under them; main's padding keeps the content clear of them, by --rail and --bar.
 export function Shell({
   language,
   note,
@@ -84,9 +84,10 @@ export function Shell({
           {rail(expanded)}
         </nav>
       )}
-      <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) items-center gap-3 border-b border-white/10 glass-thin px-4 pr-28 sm:px-6 sm:pr-6">
-        <p className="font-medium">LATAM Bank</p>
-        <p className="text-sm text-bone-muted">{texts.assistant}</p>
+      <header className="absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) items-center border-b border-white/10 glass-thin px-4 sm:px-6">
+        <p className="font-display text-xl font-semibold tracking-[-0.03em]">
+          Faro
+        </p>
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
         {children}
