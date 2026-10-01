@@ -2,8 +2,10 @@
 The evaluation's commands. generate draws the development regression and selection sets from the pinned snapshot's
 bronze (the last pipeline build) into data/evaluation/sets/, and writes their manifests to docs/evaluation/sets/: case
 IDs, hashes, and counts. play plays a drawn set in process with the scripted models and grades it, keeping the evidence
-and grades under data/evaluation/runs/. disagreements regenerates the disagreement log's page. Each prints counts,
-situations, and checks, never an ID or a value (SEC-03).
+and grades under data/evaluation/runs/. run plays a drawn development set end to end against a deployed stack and grades
+it, keeping each case's results under data/evaluation/runs/ and in the stack's evaluation bucket; cleanup deletes the
+test users a stopped run left behind. disagreements regenerates the disagreement log's page. Each prints counts,
+situations, and checks, never an ID, a token, or a value (SEC-03).
 """
 
 import argparse
@@ -12,12 +14,15 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from banking_agent.dataset.lock import LockError, read_lock
 from banking_agent.evaluation import (
     bronze,
     cases,
+    deployed,
     disagreements,
+    endtoend,
     families,
     generator,
     oracle,
@@ -119,6 +124,51 @@ def play(lock_path: Path, data_dir: Path, set_name: str) -> None:
         print(f"safety checks failed: {summary['safety']}")
 
 
+def tree() -> dict[str, Any]:
+    """
+    The commit a run's code is at, and whether the tree held changes besides.
+    """
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    return {"commit": head, "clean": not dirty}
+
+
+def run(
+    data_dir: Path,
+    docs: Path,
+    set_name: str,
+    stack_path: Path,
+    selection: dict[str, Any],
+    parallel: int,
+) -> None:
+    set_path = data_dir / "evaluation" / "sets" / f"{set_name}.jsonl"
+    manifest_path = docs / f"{set_name}.json"
+    if not set_path.is_file() or not manifest_path.is_file():
+        raise LockError("no drawn set; run make eval-sets")
+    set_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    out = data_dir / "evaluation" / "runs"
+    run_id, summary = endtoend.run(
+        set_path, set_manifest, stack_path, out, tree(), selection, parallel
+    )
+    latency = summary["latency_ms"]
+    print(
+        f"{set_name} end to end: {summary['passed']} of {summary['cases']} passed; {summary['diverged']} diverged, "
+        f"{summary['unsafe']} unsafe, {summary['errors']} not played; kept in {out / run_id}"
+    )
+    print(
+        f"turn latency in ms, first turns {latency['first']}, later turns {latency['later']}; "
+        f"{summary['resent']} resent, {summary['not_stopped']} sessions not stopped"
+    )
+    print(f"findings matched by open entries: {summary['covered']}")
+    print(f"findings no entry matches, by situation and check: {summary['uncovered']}")
+    if summary["safety"]:
+        print(f"safety checks failed: {summary['safety']}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m banking_agent.evaluation", description=__doc__
@@ -136,6 +186,23 @@ def main(argv: list[str] | None = None) -> int:
         help="Play a drawn development set in process with the scripted models, and grade it",
     )
     playing.add_argument("--set", dest="set_name", choices=SETS, default="regression")
+    running = commands.add_parser(
+        "run",
+        help="Play a drawn development set end to end against a deployed stack, and grade it",
+    )
+    running.add_argument("--set", dest="set_name", choices=SETS, default="regression")
+    running.add_argument("--stack", type=Path, required=True, help="Terraform outputs")
+    running.add_argument("--docs", type=Path, default=Path("docs/evaluation/sets"))
+    running.add_argument("--situation", action="append", default=[])
+    running.add_argument("--language", action="append", default=[])
+    running.add_argument("--limit", type=int, default=None)
+    running.add_argument("--parallel", type=int, default=2)
+    cleaning = commands.add_parser(
+        "cleanup",
+        help="Delete the test users a stopped run left in the evaluation group",
+    )
+    cleaning.add_argument("--stack", type=Path, required=True, help="Terraform outputs")
+    cleaning.add_argument("--run", default=None)
     commands.add_parser(
         "disagreements", help="Regenerate the disagreement log's page from its entries"
     )
@@ -150,9 +217,31 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "play":
             play(args.lock, args.data_dir, args.set_name)
+        elif args.command == "run":
+            selection = {
+                "situations": args.situation,
+                "languages": args.language,
+                "limit": args.limit,
+            }
+            run(
+                args.data_dir,
+                args.docs,
+                args.set_name,
+                args.stack,
+                selection,
+                args.parallel,
+            )
+        elif args.command == "cleanup":
+            deleted = endtoend.cleanup(args.stack, args.run)
+            print(f"deleted {deleted} test users")
         else:
             generate(args.lock, args.data_dir, args.docs, args.seed)
-    except (LockError, runs.PlayError) as error:
+    except (
+        LockError,
+        runs.PlayError,
+        deployed.StackError,
+        endtoend.RunError,
+    ) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     return 0
