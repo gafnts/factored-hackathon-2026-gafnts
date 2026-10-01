@@ -162,6 +162,30 @@ data "aws_iam_policy_document" "reads" {
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:Query"]
     resources = [var.overlay_table.arn]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = var.overlay_attributes
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:Select"
+      values   = ["SPECIFIC_ATTRIBUTES"]
+    }
+  }
+  statement {
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [var.overlay_table.arn]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = var.fault_attributes
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:ReturnValues"
+      values   = ["NONE"]
+    }
   }
 }
 
@@ -233,9 +257,38 @@ data "aws_iam_policy_document" "block" {
       values   = ["SPECIFIC_ATTRIBUTES"]
     }
   }
+  # A card read by its key, a block's write, and a fault plan's count; never a query or is_fraud.
   statement {
-    actions   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+    actions   = ["dynamodb:GetItem"]
     resources = [var.overlay_table.arn]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = var.overlay_attributes
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:Select"
+      values   = ["SPECIFIC_ATTRIBUTES"]
+    }
+  }
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [var.overlay_table.arn]
+  }
+  statement {
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [var.overlay_table.arn]
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:Attributes"
+      values   = var.fault_attributes
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "dynamodb:ReturnValues"
+      values   = ["NONE"]
+    }
   }
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]

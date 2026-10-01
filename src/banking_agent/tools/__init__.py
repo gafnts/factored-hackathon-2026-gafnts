@@ -47,6 +47,13 @@ def invalid_input(tool: str, arguments: Any) -> dict[str, Any] | None:
     return {"outcome": "invalid_input", "errors": errors[:MAX_ERRORS]}
 
 
+def fault(error: str) -> dict[str, Any]:
+    """
+    A fault plan's attempt, answered before anything is read (ADR-0004's amendment of 2026-10-01).
+    """
+    return {"outcome": "fault", "error": error}
+
+
 def check_output(tool: str, output: Any) -> None:
     errors = {
         (pointer(error), str(error.validator))

@@ -19,11 +19,14 @@ from typing import TYPE_CHECKING, Any
 from botocore.exceptions import ClientError
 
 from banking_agent.contracts import schema, validator
+from banking_agent.tools.fixtures import CARD_PREFIX, TRANSACTION_PREFIX
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 KINDS = ("metadata", "customer", "card", "transaction")
+# Reserved for the evaluation's fixtures, so an ID tells a fixture from a record (ADR-0004's amendment of 2026-10-01).
+FIXTURE_PREFIXES = (("card_id", CARD_PREFIX), ("transaction_id", TRANSACTION_PREFIX))
 PART = "items/part-{:05d}.json.gz"
 ITEMS = PART.format(0)
 MANIFEST = "manifest.json"
@@ -96,6 +99,11 @@ def check(items: Sequence[Item], stamp: Mapping[str, str]) -> None:
             problems += [
                 f"item {index}: {name} doesn't match its attributes"
                 for name in _mismatched_keys(item)
+            ]
+            problems += [
+                f"item {index}: {name} begins with the fixtures' prefix"
+                for name, prefix in FIXTURE_PREFIXES
+                if str(item.get(name, "")).startswith(prefix)
             ]
     keys = Counter((item.get("pk"), item.get("sk")) for item in items)
     problems += [f"{n} items share a key" for n in keys.values() if n > 1]

@@ -362,7 +362,16 @@ make destroy ENV=local   # Tear down your local resources
 
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
 
-`make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+`make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package without its evaluation, which never runs in the stack, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+
+The four alarms ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#status), the alarms as built) notify an SNS topic that `make outputs` writes under `alarms.topic_arn`. Terraform subscribes no address to it, so none reaches the repository: subscribe once per environment, then confirm from the email AWS sends.
+
+```bash
+aws sns subscribe --protocol email --notification-endpoint you@example.com \
+  --topic-arn "$(jq -r .alarms.value.topic_arn build/local.outputs.json)"
+```
+
+A subscription outlives applies, and `make destroy` removes it with the topic.
 
 The site's `config.json`, which names the user pool, both app clients, and the Runtime, is written by Terraform at every apply, so `make site` uploads only the build and leaves it alone. The console API is served under `/api` on the site's own origin, so the page reaches it without a cross-origin call, and `make web-dev` passes `/api` on to the deployed site. `make outputs` writes the site's URL under `site.url` in `build/<env>.outputs.json`, and the console API's under `console.url`.
 

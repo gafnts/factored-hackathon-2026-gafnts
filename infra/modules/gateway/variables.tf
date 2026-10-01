@@ -42,6 +42,16 @@ variable "overlay_table" {
   })
 }
 
+variable "overlay_attributes" {
+  description = "Every attribute of the overlay's items the tools may read, which leaves out is_fraud"
+  type        = list(string)
+}
+
+variable "fault_attributes" {
+  description = "A fault plan's key and count, the only attributes of the overlay the tools may change"
+  type        = list(string)
+}
+
 variable "confirmations_table" {
   description = "The confirmations, which the block uses up"
   type = object({

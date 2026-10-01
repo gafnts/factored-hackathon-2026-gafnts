@@ -550,28 +550,64 @@ def dynamodb_grants(role: str, policy: str) -> dict[str, set[str]]:
     return grants
 
 
+def overlay_statements(role: str, policy: str, overlay: str) -> list[dict[str, Any]]:
+    iam: Any = boto3.client("iam")
+    document = iam.get_role_policy(RoleName=role, PolicyName=policy)["PolicyDocument"]
+    return [
+        s
+        for s in document["Statement"]
+        if str(s["Resource"]).endswith(f":table/{overlay}")
+    ]
+
+
 def test_only_the_block_writes_the_sandbox_and_it_never_reads_is_fraud(
     outputs: dict[str, Any],
 ) -> None:
-    # ADR-0004, Operations: the reads only read, and the Runtime never touches the sandbox.
+    # ADR-0004, Operations, and its amendments of 2026-10-01: of the overlay, the reads may change a fault plan's count
+    # alone, no tool reads is_fraud there, file_handoff reads a fixture's, and the Runtime never touches the sandbox.
     prefix = outputs["prefix"]
     overlay = outputs["sandbox_tables"]["overlay"]
     confirmations = outputs["sandbox_tables"]["confirmations"]
     tools_data = outputs["tools_data"]["table"]
+    counters = outputs["runtime_tables"]["usage_counters"]
 
     reads = dynamodb_grants(f"{prefix}-reads", "reads")
     block = dynamodb_grants(f"{prefix}-block", "block")
     runtime = dynamodb_grants(f"{prefix}-runtime", "runtime")
+    filing = dynamodb_grants(f"{prefix}-file-handoff", "file-handoff")
 
-    assert reads[overlay] == {"dynamodb:GetItem", "dynamodb:Query"}
+    assert reads[overlay] == {
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:UpdateItem",
+    }
     assert confirmations not in reads
     assert block == {
         tools_data: {"dynamodb:GetItem"},
-        overlay: {"dynamodb:GetItem", "dynamodb:PutItem"},
+        overlay: {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"},
         confirmations: {"dynamodb:GetItem", "dynamodb:UpdateItem"},
     }
+    assert filing[overlay] == {"dynamodb:GetItem"}
     assert overlay not in runtime and tools_data not in runtime
     assert runtime[confirmations] == {"dynamodb:PutItem", "dynamodb:UpdateItem"}
+    assert runtime[counters] == {"dynamodb:UpdateItem"}
+    for role in ("reads", "block"):
+        for statement in overlay_statements(f"{prefix}-{role}", role, overlay):
+            actions = statement["Action"]
+            if "dynamodb:PutItem" in actions:
+                assert role == "block" and "Condition" not in statement
+                continue
+            condition = statement["Condition"]
+            named = set(condition["ForAllValues:StringEquals"]["dynamodb:Attributes"])
+            if "dynamodb:UpdateItem" in actions:
+                assert named == {"sign_in", "item", "customer_id", "failures"}
+                assert condition["StringEquals"]["dynamodb:ReturnValues"] == "NONE"
+            else:
+                assert "is_fraud" not in named and "failures" in named
+                assert (
+                    condition["StringEquals"]["dynamodb:Select"]
+                    == "SPECIFIC_ATTRIBUTES"
+                )
     iam: Any = boto3.client("iam")
     document = iam.get_role_policy(RoleName=f"{prefix}-block", PolicyName="block")
     statement = next(

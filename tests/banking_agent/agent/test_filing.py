@@ -16,6 +16,7 @@ from typing import Any
 from botocore.exceptions import ClientError, ReadTimeoutError
 
 from banking_agent.agent.filing import Filing
+from banking_agent.agent.retries import Retries, no_wait
 
 from .conftest import Harness
 from .test_block import THREAD, Chat, control_shown
@@ -70,7 +71,8 @@ def filed(client: Client) -> tuple[Any, list[dict[str, Any]]]:
         entries.append({"kind": kind, **fields})
 
     filing = Filing("file-handoff", client, lambda: datetime(2026, 10, 2, tzinfo=UTC))
-    call = asyncio.run(filing.file(arguments(), "the-customers-token", record))
+    retries = Retries(sleep=no_wait, jitter=lambda low, high: high)
+    call = asyncio.run(filing.file(arguments(), "the-customers-token", record, retries))
     return call, entries
 
 
@@ -103,6 +105,8 @@ def test_a_failed_attempt_is_tried_again_under_the_same_call() -> None:
     assert [e["attempt"] for e in entries] == [1, 2]
     assert [e["outcome"] for e in entries] == ["failed", "ok"]
     assert len({e["call_id"] for e in entries}) == 1
+    assert "wait_ms" not in entries[0]
+    assert (entries[1]["wait_ms"], entries[1]["waited_for"]) == (1000, "backoff")
 
 
 def test_three_failed_attempts_end_the_call_as_failed() -> None:

@@ -306,6 +306,9 @@ export interface RecordedCall {
    * gateway for the reads and the block; direct for file_handoff, which the Runtime invokes with IAM (ADR-0004, Where the tools run).
    */
   via?: "gateway" | "direct";
+  /**
+   * A call's attempts share its call_id; only a failed attempt is tried again, never a denied one (POL-48, POL-49).
+   */
   attempt?: number;
   /**
    * Wall clock, UTC (ADR-0004, Two clocks).

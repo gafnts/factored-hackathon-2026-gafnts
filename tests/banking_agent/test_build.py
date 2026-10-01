@@ -4,7 +4,9 @@ OPS-07).
 """
 
 import json
+import os
 import re
+import subprocess
 import zipfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -74,6 +76,21 @@ def test_console_scripts_and_bytecode_stay_out(tmp_path: Path) -> None:
 
     with zipfile.ZipFile(tmp_path / "out.zip") as archive:
         assert archive.namelist() == ["pkg/bin/data.txt", "pkg/m.py"]
+
+
+def test_the_evaluation_package_stays_out(tmp_path: Path) -> None:
+    source = tree(
+        tmp_path / "src",
+        {
+            "banking_agent/agent/app.py": "a",
+            "banking_agent/evaluation/oracle.py": "o",
+            "banking_agent/evaluation/families/none.json": "{}",
+        },
+    )
+    build.write_zip(source, tmp_path / "out.zip")
+
+    with zipfile.ZipFile(tmp_path / "out.zip") as archive:
+        assert archive.namelist() == ["banking_agent/agent/app.py"]
 
 
 def test_the_runtime_gets_its_groups_wheels_this_package_and_an_entry_script(
@@ -148,3 +165,36 @@ def test_the_runtime_is_stamped_with_the_last_commit_of_its_code(
 
 def test_the_stamp_names_a_commit_of_this_repository() -> None:
     assert re.fullmatch("[0-9a-f]{40}", build.app_version())
+
+
+def test_a_commit_to_the_evaluation_package_alone_keeps_the_stamp(
+    tmp_path: Path,
+) -> None:
+    # A git hook exports GIT_DIR and its kin, which would point these commands at the repository running the tests.
+    alone = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+    def git(args: Sequence[str]) -> str:
+        done = subprocess.run(
+            ["git", *args],
+            check=True,
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            env=alone,
+        )
+        return done.stdout.strip()
+
+    def commit(files: dict[str, str]) -> None:
+        tree(tmp_path, files)
+        git(["add", "."])
+        git(
+            ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+            + ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "c"]
+        )
+
+    git(["init", "--quiet"])
+    commit({"src/banking_agent/agent/app.py": "a"})
+    stamped = build.app_version(git)
+    commit({"src/banking_agent/evaluation/oracle.py": "o"})
+
+    assert build.app_version(git) == stamped

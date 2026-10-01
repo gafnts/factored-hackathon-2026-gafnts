@@ -167,6 +167,29 @@ export: _check-profile ## Export the last build's gold, stamped, and upload it t
 contracts: ## Rewrite the bronze contracts from the dictionary and pipeline/contracts/corrections.yml
 	uv run python -m banking_agent.pipeline contracts
 
+##@ Evaluation
+
+.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements regression
+
+eval-sets: ## Draw the development regression and selection sets from the last pipeline build into DATA_DIR/evaluation/, manifests to docs/evaluation/sets/ (ADR-0005; prints counts, never IDs)
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
+
+eval-play: ## Play a drawn development set (SET=regression or selection) in process with scripted models and grade it; evidence under DATA_DIR/evaluation/runs/ (prints counts, never IDs)
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) play --set $(or $(SET),regression)
+
+eval-run: _check-profile ## Play a drawn development set (SET=) end to end against the stack in STACK_OUTPUTS (default build/ENV.outputs.json), narrowed by SITUATIONS=, LANGUAGES=, LIMIT=, with PARALLEL= cases at once; results under DATA_DIR/evaluation/runs/ and in the evaluation bucket (prints counts, never IDs)
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) run --set $(or $(SET),regression) --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) \
+		$(foreach s,$(SITUATIONS),--situation $(s)) $(foreach l,$(LANGUAGES),--language $(l)) $(if $(LIMIT),--limit $(LIMIT)) --parallel $(or $(PARALLEL),2)
+
+eval-cleanup: _check-profile ## Delete the test users a stopped run left in the evaluation group of the stack in STACK_OUTPUTS (RUN= for one run's only)
+	uv run python -m banking_agent.evaluation cleanup --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) $(if $(RUN),--run $(RUN))
+
+disagreements: ## Regenerate docs/evaluation/disagreements.md from its entries
+	uv run python -m banking_agent.evaluation disagreements
+
+regression: ## Play and grade the regression set's composition on the bank in process, as CI does (ADR-0005; no credentials)
+	uv run pytest -m regression -v --tb=short
+
 ##@ Analysis
 
 analysis: ## Profile the pinned snapshot, compute the workflow selection (ADR-0003), and analyze card support and traffic into docs/analysis/

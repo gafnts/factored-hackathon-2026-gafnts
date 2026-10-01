@@ -5,7 +5,9 @@ block uses it up in one transaction with its first write, or writes nothing (ADR
 POL-33, POL-36, POL-37; CTL-02).
 """
 
+import json
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ from banking_agent.tools.store import MemoryData
 
 from .conftest import OTHER, OWN, SIGN_IN, example_items, overlay_item
 from .test_block_card import CALL, CONFIRMATION, NOW, confirmation
+from .test_fixtures import fixture_card
 
 OVERLAY = "banking-agent-local-sandbox-overlay"
 CONFIRMATIONS = "banking-agent-local-confirmations"
@@ -54,6 +57,13 @@ class Recorder:
         if self.page:
             return self.client.query(**request, Limit=self.page)
         return self.client.query(**request)
+
+    def __getattr__(self, name: str) -> Any:
+        def recorded(**request: Any) -> Any:
+            self.requests.append((name, request))
+            return getattr(self.client, name)(**request)
+
+        return recorded
 
 
 @pytest.fixture
@@ -175,6 +185,36 @@ def test_a_block_answers_as_it_does_in_memory(
     assert answered == expected
     assert dynamo.confirmation(CONFIRMATION) == memory.confirmation(CONFIRMATION)
     assert dynamo.statuses(SIGN_IN, OWN) == memory.statuses(SIGN_IN, OWN)
+
+
+@pytest.mark.parametrize("card_id", ["PRD-EXAMPLE00002", "PRD-FIXTUREA0001"])
+def test_a_block_reads_the_overlay_by_key_alone(
+    client: DynamoDBClient, card_id: str
+) -> None:
+    """
+    The block's role may get and put the overlay's items, never query them.
+    """
+    empty_overlay(client)
+    fixture = {**fixture_card(), "product_status": "Active"}
+    client.put_item(
+        TableName=OVERLAY,
+        Item={
+            k: attribute(v)
+            for k, v in json.loads(json.dumps(fixture), parse_float=Decimal).items()
+        },
+    )
+    held(client, card_id=card_id)
+    recorder = Recorder(client)
+    sandbox = DynamoSandbox(recorder, OVERLAY, CONFIRMATIONS)  # type: ignore[arg-type]
+
+    answered = block_card(
+        BlockStores(MemoryData(example_items()), sandbox),
+        {**CALL, "card_id": card_id},
+        NOW,
+    )
+
+    assert answered["block_outcome"] == "verified"
+    assert not [r for r in recorder.requests if r[0] in ("query", "scan")]
 
 
 def test_a_confirmation_comes_back_with_its_numbers_as_integers(

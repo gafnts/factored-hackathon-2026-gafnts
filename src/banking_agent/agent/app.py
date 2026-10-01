@@ -1,6 +1,7 @@
 """
 The Runtime's entrypoint (ADR-0004, A turn, end to end, step 3, and its amendments). Before the graph runs, it reads the
-token's claims, binds the runtime session to its user, checks the request against the chat's contract, replaces the
+token's claims, binds the runtime session to its user, checks the request against the chat's contract, counts a message
+or a resume against decision 21's limits, replaces the
 thread ID with a key derived from the user, masks the new message, takes a control's answer only when it answers the
 thread's pending control, turns a message typed while one is pending into a resume, opens the turn's execution record,
 and fetches the model key. The wrapper gets the thread, the run, and the masked message or the one resume alone, and
@@ -39,6 +40,7 @@ from botocore.config import Config
 from langgraph.graph.state import CompiledStateGraph
 from langgraph_checkpoint_aws import DynamoDBSaver
 
+from banking_agent.agent import metrics
 from banking_agent.agent.claims import Claims, ClaimsRefusedError, read_claims, token_of
 from banking_agent.agent.confirmations import Confirmations, DynamoConfirmations
 from banking_agent.agent.events import SUCCESS, checked, rebuild, run_error
@@ -62,8 +64,10 @@ from banking_agent.agent.request import (
     check_contract,
     read,
 )
+from banking_agent.agent.retries import RETRIES, Retries
 from banking_agent.agent.scope import SCOPE, Scope
 from banking_agent.agent.sessions import Bindings, DynamoBindings
+from banking_agent.agent.usage import DynamoUsage, Limits, Usage
 from banking_agent.contracts import NAMES, version
 from banking_agent.policy import POLICY_VERSION
 
@@ -116,6 +120,10 @@ class Services:
     confirmations: Confirmations
     filing: Filing
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
+    # Decision 18's waits; the evaluation's in-process player passes one that doesn't sleep.
+    retries: Retries = RETRIES
+    # Decision 21's counters; None counts nothing, as in the in-process player, whose turns take milliseconds.
+    usage: Usage | None = None
 
 
 def workload_token(headers: Mapping[str, str]) -> str | None:
@@ -157,6 +165,13 @@ def services() -> Services:
         filing=Filing(
             settings.file_handoff_function,
             boto3.client("lambda", region_name=region, config=LAMBDA_CONFIG),
+        ),
+        usage=DynamoUsage(
+            client,
+            os.environ["USAGE_COUNTERS_TABLE"],
+            Limits(
+                int(os.environ["TURNS_PER_MINUTE"]), int(os.environ["TURNS_PER_DAY"])
+            ),
         ),
     )
 
@@ -303,6 +318,15 @@ class Entrypoint:
             yield await refused("invalid_request", refusal.errors)
             return
 
+        # The warm-up runs no graph, so it isn't counted (decision 20).
+        if services.usage is not None and not isinstance(parsed, Warmup):
+            limited = await asyncio.to_thread(
+                services.usage.count, claims.origin_jti, claims.sub, started
+            )
+            if limited is not None:
+                yield await refused(limited)
+                return
+
         turn = Turn(
             services.records, claims.origin_jti, claims.source, started, services.now
         )
@@ -369,13 +393,19 @@ class Entrypoint:
                     thread_key=key,
                     turn=turn,
                     gateway=services.gateway,
-                    models=Models(services.models(model_key), turn.write),
+                    models=Models(
+                        services.models(model_key),
+                        turn.write,
+                        services.retries,
+                        lambda: turn.latency_ms() / 1000,
+                    ),
                     confirmations=services.confirmations,
                     filing=services.filing,
                     snapshot=services.settings.stamp["snapshot"],
                     business_date=services.settings.clock["business_date"],
                     as_of=services.settings.clock["as_of"],
                     now=services.now,
+                    retries=services.retries,
                 )
             )
             wrapper = LangGraphAgent(
@@ -428,6 +458,7 @@ class Entrypoint:
                 await self.close(turn, "error")
             except Exception:
                 logger.exception("couldn't close a failed turn's record")
+                turn.emit("request_failed")
             yield run_error("internal")
 
     async def finish(self, turn: Turn, event: RunFinishedEvent) -> None:
@@ -476,6 +507,7 @@ async def handler(
             ended = event.type in (EventType.RUN_FINISHED, EventType.RUN_ERROR)
     except Exception:
         logger.exception("the request failed before its turn was opened")
+        metrics.emit("request_failed", "unknown", None)
         if not ended:
             yield run_error("internal")
 
@@ -486,5 +518,6 @@ app.entrypoint(handler)
 def main(app_version: str = "0" * 40) -> None:
     # The SDK's AG-UI app configures no logging; a turn's ID ties its log lines to its record (OPS-01).
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+    metrics.configure()
     os.environ["APP_VERSION"] = app_version
     app.run()

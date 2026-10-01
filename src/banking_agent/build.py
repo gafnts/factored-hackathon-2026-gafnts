@@ -29,8 +29,15 @@ PLATFORM = (
     ":all:",
 )
 EPOCH = (2026, 1, 1, 0, 0, 0)
-# What the zips package: a commit that changes nothing here deploys the same zips.
-PACKAGED = ("src", "pyproject.toml", "uv.lock")
+# What the zips package: a commit that changes nothing here deploys the same zips. The evaluation never runs in the
+# stack, so neither the zips nor the version carry it (ADR-0004's amendment of 2026-10-01).
+EVALUATION = ("banking_agent", "evaluation")
+PACKAGED = (
+    "src",
+    "pyproject.toml",
+    "uv.lock",
+    ":(exclude)src/banking_agent/evaluation",
+)
 
 Run = Callable[[Sequence[str]], None]
 
@@ -83,7 +90,12 @@ def packaged(path: Path, root: Path) -> bool:
     Console scripts carry the building machine's interpreter in their shebang, and nothing runs them.
     """
     parts = path.relative_to(root).parts
-    return path.is_file() and parts[0] != "bin" and "__pycache__" not in parts
+    return (
+        path.is_file()
+        and parts[0] != "bin"
+        and "__pycache__" not in parts
+        and parts[:2] != EVALUATION
+    )
 
 
 def write_zip(source: Path, target: Path) -> None:

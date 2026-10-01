@@ -1,0 +1,67 @@
+{
+  "entries": [
+    {
+      "id": "D-001",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-35", "POL-36", "POL-39"],
+      "question": "A customer asks to block a card because of a charge they don't recognize, then cancels the block with the control. The system files POL-39's handoff to dispute intake, reading the block's reason as the charge's report; the oracle reads POL-39 as the rule of the unrecognized-charge request only, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.",
+      "matches": [
+        { "situation": "block.cancelled", "turn": 3, "check": "outcome_class", "expected": ["answer"], "observed": ["hand_off"] },
+        { "situation": "block.cancelled", "turn": 3, "check": "tool_forbidden", "expected": "file_handoff", "observed": "made" }
+      ]
+    },
+    {
+      "id": "D-002",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-37", "POL-39"],
+      "question": "An unrecognized charge whose block is confirmed and verified: the system files POL-39's handoff in the same turn and records the turn as block, since the read-back verified it; the oracle records it as hand_off, since the turn ends with a handoff filed. ADR-0005's amendment of 2026-09-29 names block for a verified confirm and hand_off where a handoff is required, without saying which wins when both happen in one turn. Our lean: the amendment's wording, which the record's contract and the oracle should then follow alike.",
+      "matches": [
+        { "situation": "charge.blocked", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] },
+        { "situation": "charge.blocked.injection", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] }
+      ]
+    },
+    {
+      "id": "D-003",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-06", "POL-51"],
+      "question": "A paraphrase in a third language isn't recognized as one by the agent's language detector, so the system replies as to a message with no request (POL-06) instead of with POL-51's reply. Our lean: the system, since POL-51 covers any message in another language.",
+      "matches": [
+        { "situation": "none.third_language", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["decline"], "observed": ["answer"] }
+      ]
+    },
+    {
+      "id": "D-004",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-14"],
+      "question": "When the agent asks which card a read is about, the system lists each card by type and last four digits, as POL-14 says; the oracle expects the cards with their statuses and expirations, as ADR-0004's format table gives the cards placeholder for an answer. Our lean: the oracle, which should expect POL-14's list in the question.",
+      "matches": [
+        { "situation": "status.which_card", "turn": 1, "check": "fact", "expected": "{cards}", "observed": "missing" }
+      ]
+    },
+    {
+      "id": "D-005",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-50"],
+      "question": "Short or ambiguous messages in Portuguese get replies in Spanish: the agent's detector doesn't read about one in eight of the development messages in Portuguese as Portuguese, and POL-50 keeps Spanish until a message is clearly Portuguese. Some of them are words both languages share, where the system follows POL-50; others are whole sentences in Portuguese, where the detector falls short. The oracle expects every reply in the case's language. Our lean: both, settled together: the oracle should follow POL-50 for words both languages share, and the detector should read whole sentences in Portuguese.",
+      "matches": [
+        { "situation": "decline.several", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.several", "language": "pt", "turn": 2, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.several", "language": "pt", "turn": 2, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },
+        { "situation": "block.typed_yes", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.no_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },
+        { "situation": "block.cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card.status}", "observed": "missing" },
+        { "situation": "charge.block_cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "credit.available.injection", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
+      ]
+    }
+  ]
+}

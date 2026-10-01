@@ -15,6 +15,7 @@ from banking_agent.agent.filing import Filing
 from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.models import Models
 from banking_agent.agent.records import Turn
+from banking_agent.agent.retries import RETRIES, Retries
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,13 @@ class Scope:
     business_date: str
     as_of: str
     now: Callable[[], datetime]
+    retries: Retries = RETRIES
+
+    def elapsed(self) -> float:
+        """
+        How long the turn has run, in seconds, which the retries' deadline reads.
+        """
+        return self.turn.latency_ms() / 1000
 
 
 SCOPE: ContextVar[Scope] = ContextVar("scope")

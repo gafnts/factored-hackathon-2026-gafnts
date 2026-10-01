@@ -3,7 +3,8 @@ Calls the Gateway's tools as the signed-in customer: a stateless MCP tools/call 
 token, which the Gateway validates and Cedar checks (ADR-0004, A turn, end to end). Each tool is named on its own
 target, <target>___<tool>, since the reads and the block are separate Lambdas (Where the tools run). Each call becomes
 one tool_call entry of the execution record. A tool's own output is checked against its contract here too, since the
-record keeps it whole; a call the Lambda never answered is failed, and Cedar's JSON-RPC -32002 is denied (POL-49).
+record keeps it whole; a call the Lambda never answered is failed, and Cedar's JSON-RPC -32002 is denied (POL-49). A
+fault plan's answer is failed too, with the error it plans, marked as planned (ADR-0004's amendment of 2026-10-01).
 """
 
 import json
@@ -37,6 +38,7 @@ class ToolCall:
     error: dict[str, Any] | None = None
     via: str = "gateway"
     attempt: int = 1
+    waited: dict[str, Any] | None = None
 
     def entry(self) -> dict[str, Any]:
         fields: dict[str, Any] = {
@@ -44,6 +46,7 @@ class ToolCall:
             "tool": self.tool,
             "via": self.via,
             "attempt": self.attempt,
+            **(self.waited or {}),
             "called_at": self.called_at,
             "latency_ms": self.latency_ms,
             "request_id": self.request_id,
@@ -59,6 +62,13 @@ class ToolCall:
 
 def failed(code: str, jsonrpc_code: int | None = None) -> dict[str, Any]:
     return {"outcome": "failed", "error": {"code": code, "jsonrpc_code": jsonrpc_code}}
+
+
+def planned(code: str) -> dict[str, Any]:
+    """
+    A fault plan's failure, which the tool answered: recorded as the failure it stands for, and marked as planned.
+    """
+    return {"code": code, "jsonrpc_code": None, "planned": True}
 
 
 def json_rpc_body(response: httpx.Response) -> Any:
@@ -99,6 +109,8 @@ def classify(tool: str, response: httpx.Response) -> dict[str, Any]:
         return failed("lambda_error")
     if not validator("tools", f"{tool}_output").is_valid(output):
         return failed("lambda_error")
+    if output["outcome"] == "fault":
+        return {"outcome": "failed", "error": planned(output["error"])}
     return {"outcome": output["outcome"], "result": output}
 
 
@@ -115,8 +127,18 @@ class Gateway:
         self.client = client
         self.now = now
 
-    async def call(self, tool: str, arguments: dict[str, Any], token: str) -> ToolCall:
-        call_id = str(uuid.uuid4())
+    async def call(
+        self,
+        tool: str,
+        arguments: dict[str, Any],
+        token: str,
+        call_id: str | None = None,
+        attempt: int = 1,
+    ) -> ToolCall:
+        """
+        A call's attempts share its call_id.
+        """
+        call_id = call_id or str(uuid.uuid4())
         called_at = wall_time(self.now())
         body = {
             "jsonrpc": "2.0",
@@ -159,5 +181,6 @@ class Gateway:
             latency_ms=round((time.perf_counter() - started) * 1000),
             request_id=request_id,
             input=arguments,
+            attempt=attempt,
             **classified,
         )

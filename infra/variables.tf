@@ -46,3 +46,15 @@ variable "log_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "turns_per_minute" {
+  description = "A sign-in's turns a minute before the entrypoint refuses one (ADR-0004, decision 21)"
+  type        = number
+  default     = 10
+}
+
+variable "turns_per_day" {
+  description = "A user's turns a UTC day before the entrypoint refuses one; well above a day of grading (decision 21)"
+  type        = number
+  default     = 500
+}

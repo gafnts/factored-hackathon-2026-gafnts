@@ -23,6 +23,7 @@ message, one part per request it served.
 """
 
 import asyncio
+import dataclasses
 import functools
 import re
 import uuid
@@ -278,16 +279,30 @@ def bound(scope: Scope) -> dict[str, str]:
 
 
 async def tool(scope: Scope, name: str, **arguments: Any) -> ToolCall:
-    call = await scope.gateway.call(
-        name,
-        {
-            "customer_id": scope.claims.customer_id,
-            "origin_jti": scope.claims.origin_jti,
-            **arguments,
-        },
-        scope.token,
-    )
-    await scope.turn.write("tool_call", **call.entry())
+    """
+    A failed attempt is tried again as decision 18 says, under the same call ID, and never a denied one (POL-48,
+    POL-49); a handoff cites the call once, by its last attempt.
+    """
+    sent = {
+        "customer_id": scope.claims.customer_id,
+        "origin_jti": scope.claims.origin_jti,
+        **arguments,
+    }
+    call_id, attempt, wait = str(uuid.uuid4()), 1, None
+    while True:
+        call = await scope.gateway.call(name, sent, scope.token, call_id, attempt)
+        if wait is not None:
+            call = dataclasses.replace(call, waited=wait.fields())
+        wait = (
+            scope.retries.after(attempt, scope.elapsed())
+            if call.outcome == "failed"
+            else None
+        )
+        await scope.turn.write("tool_call", last=wait is None, **call.entry())
+        if wait is None:
+            break
+        await scope.retries.sleep(wait.seconds)
+        attempt += 1
     scope.turn.cited.append(
         {
             "call_id": call.call_id,
@@ -1530,6 +1545,8 @@ async def drafted(
         },
         scope.token,
         scope.turn.write,
+        scope.retries,
+        scope.elapsed,
     )
     if call.outcome == "ok" and (call.result or {}).get("status") == "draft_saved":
         # Urgent while the card isn't blocked (POL-47).
@@ -2089,6 +2106,7 @@ async def block(state: State) -> dict[str, Any]:
             "call_id": call.call_id,
             "outcome": call.outcome,
             "result": call.result,
+            "planned": bool((call.error or {}).get("planned")),
         }
     }
 
@@ -2175,6 +2193,11 @@ async def verify(state: State) -> dict[str, Any]:
         return turn | {"say": say, "decision": decided("block", rules)}
     # POL-39's handoff is the request's only one: a block it offered that isn't verified is recorded in it.
     charge = pending["reason"] == "unrecognized_charge"
+    scope.turn.emit(
+        "block_not_verified",
+        reason=pending["reason"],
+        planned=bool(done.get("planned") or (call.error or {}).get("planned")),
+    )
     return turn | {
         "case": "handoff",
         "say": said(("block_not_verified", facts)),
@@ -2236,6 +2259,8 @@ async def handoff(state: State) -> dict[str, Any]:
         },
         scope.token,
         scope.turn.write,
+        scope.retries,
+        scope.elapsed,
     )
     result = call.result or {}
     say, rules = state.get("say", []), request["decided"]
