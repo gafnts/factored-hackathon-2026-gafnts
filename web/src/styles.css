@@ -56,6 +56,17 @@
   box-shadow: 0 0 28px 4px --alpha(var(--color-glow) / 75%);
 }
 
+/* The lit cells' two colors as one soft light beneath the empty chat's composer; only bone sits on it. */
+@utility glow {
+  background: radial-gradient(
+    closest-side,
+    --alpha(var(--color-sea) / 35%),
+    --alpha(var(--color-glow) / 45%) 55%,
+    transparent
+  );
+  filter: blur(60px);
+}
+
 @layer base {
   body {
     @apply bg-paper font-sans text-ink antialiased;

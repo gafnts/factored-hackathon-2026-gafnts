@@ -16,6 +16,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Language } from "../contracts/chat";
+import { Grid } from "../grid";
+import { ArrowUp } from "../icons";
 import {
   createAgent,
   type Fetch,
@@ -42,18 +44,20 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root
       data-author="customer"
-      className="ml-auto max-w-[85%] rounded-3xl bg-night-bubble px-4 py-3"
+      className="ml-auto max-w-[75%] rounded-3xl bg-night-bubble px-5 py-3 wrap-break-word"
     >
       <MessagePrimitive.Parts components={{ Text: UserText }} />
     </MessagePrimitive.Root>
   );
 }
 
+// Faro's replies sit on the ground, full width and without a bubble, so a long one reads as text (the identity
+// guide's Motifs: never on glass).
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root
       data-author="faro"
-      className="max-w-[85%] rounded-3xl border border-rule-night bg-night-raised px-4 py-3 empty:hidden"
+      className="wrap-break-word empty:hidden"
     >
       <MessagePrimitive.Parts components={{ Text: ReplyText }} />
       <Controls />
@@ -73,6 +77,108 @@ function Working({ label }: { label: string }) {
   );
 }
 
+function Alert({
+  language,
+  problem,
+}: {
+  language: Language;
+  problem: Problem;
+}) {
+  return (
+    <p role="alert" className="text-lamp">
+      {TEXTS[language].chat.problems[problem]}
+    </p>
+  );
+}
+
+type Divert = (event: { preventDefault: () => void }) => void;
+
+// No stop button: it would only stop the browser's reading, while the run, a confirmed block included, still
+// finishes on the Runtime (POL-37).
+function Composer({
+  language,
+  divert,
+}: {
+  language: Language;
+  divert: Divert;
+}) {
+  const texts = TEXTS[language].chat;
+  return (
+    <ComposerPrimitive.Root
+      onSubmit={divert}
+      className="flex items-end gap-2 rounded-[1.75rem] border border-white/10 glass p-2 pl-5 transition-colors focus-within:border-sea/60"
+    >
+      <ComposerPrimitive.Input
+        aria-label={texts.placeholder}
+        placeholder={texts.placeholder}
+        maxLength={MAX_MESSAGE}
+        rows={1}
+        className="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2 text-base leading-6 outline-none placeholder:text-bone-muted"
+      />
+      <ComposerPrimitive.Send
+        onClick={divert}
+        aria-label={texts.send}
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sea text-night transition-colors disabled:bg-white/10 disabled:text-bone-muted"
+      >
+        <ArrowUp />
+      </ComposerPrimitive.Send>
+    </ComposerPrimitive.Root>
+  );
+}
+
+// The empty chat, after assistant-ui's Gemini example (MIT): the question over the composer, the glow beneath it, and
+// the numbered suggestions, in the banner's cleared block.
+function Opening({
+  language,
+  problem,
+  divert,
+}: {
+  language: Language;
+  problem: Problem | null;
+  divert: Divert;
+}) {
+  const texts = TEXTS[language].chat;
+  return (
+    <Grid layout="chat">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:px-6">
+        <div className="flex flex-col gap-2">
+          <p className="text-bone-muted">{texts.greeting}</p>
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">
+            {texts.question}
+          </h1>
+        </div>
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-[140px] glow"
+          />
+          <Composer language={language} divert={divert} />
+        </div>
+        <ol className="grid gap-2 sm:grid-cols-3">
+          {texts.suggestions.map((prompt, index) => (
+            <li key={prompt} className="flex">
+              <ThreadPrimitive.Suggestion
+                prompt={prompt}
+                send
+                className="flex w-full items-baseline gap-3 rounded-2xl border border-white/10 glass px-4 py-3 text-left transition-colors hover:border-white/20 sm:flex-col sm:items-start sm:gap-2 sm:py-4"
+              >
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-xs tracking-[0.08em] text-sea"
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span>{prompt}</span>
+              </ThreadPrimitive.Suggestion>
+            </li>
+          ))}
+        </ol>
+        {problem && <Alert language={language} problem={problem} />}
+      </div>
+    </Grid>
+  );
+}
+
 function Thread({
   language,
   problem,
@@ -88,7 +194,7 @@ function Thread({
 
   // assistant-ui refuses a new message while a control is pending; steerAway settles the control and sends it, and
   // the Runtime decides what the message does to the confirmation (POL-36).
-  const divert = (event: { preventDefault: () => void }) => {
+  const divert: Divert = (event) => {
     if (!pending) return;
     event.preventDefault();
     const text = aui.composer.getState().text.trim();
@@ -98,50 +204,28 @@ function Thread({
   };
 
   return (
-    <ThreadPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 sm:px-6">
-      <ThreadPrimitive.Viewport className="flex flex-1 flex-col gap-4 py-6">
-        <p className="max-w-[85%] rounded-3xl border border-rule-night bg-night-raised px-4 py-3">
-          {texts.opening}
-        </p>
-        <AuiIf condition={(state) => state.thread.isEmpty}>
-          <ThreadPrimitive.Suggestion
-            prompt={texts.suggestion}
-            send
-            className="self-start rounded-full border border-sea px-4 py-2 text-sea hover:bg-white/5"
-          >
-            {texts.suggestion}
-          </ThreadPrimitive.Suggestion>
-        </AuiIf>
-        <ThreadPrimitive.Messages>
-          {({ message }) =>
-            message.role === "user" ? <UserMessage /> : <AssistantMessage />
-          }
-        </ThreadPrimitive.Messages>
-        {running && <Working label={texts.working} />}
-        {problem && (
-          <p role="alert" className="text-lamp">
-            {texts.problems[problem]}
-          </p>
-        )}
-      </ThreadPrimitive.Viewport>
-      <ComposerPrimitive.Root
-        onSubmit={divert}
-        className="sticky bottom-0 flex items-end gap-2 bg-night py-4"
-      >
-        <ComposerPrimitive.Input
-          aria-label={texts.placeholder}
-          placeholder={texts.placeholder}
-          maxLength={MAX_MESSAGE}
-          rows={1}
-          className="min-h-11 flex-1 resize-none rounded-xl border border-rule-night bg-night-raised px-3 py-2.5 text-base"
-        />
-        <ComposerPrimitive.Send
-          onClick={divert}
-          className="h-11 rounded-full bg-sea px-4 font-medium text-night disabled:opacity-40"
-        >
-          {texts.send}
-        </ComposerPrimitive.Send>
-      </ComposerPrimitive.Root>
+    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+      <AuiIf condition={(state) => state.thread.isEmpty}>
+        <Opening language={language} problem={problem} divert={divert} />
+      </AuiIf>
+      <AuiIf condition={(state) => !state.thread.isEmpty}>
+        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 px-4 pt-4 pb-6 sm:px-6">
+            <ThreadPrimitive.Messages>
+              {({ message }) =>
+                message.role === "user" ? <UserMessage /> : <AssistantMessage />
+              }
+            </ThreadPrimitive.Messages>
+            {running && <Working label={texts.working} />}
+            {problem && <Alert language={language} problem={problem} />}
+          </div>
+          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 bg-linear-to-t from-night from-60% to-transparent pt-6">
+            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+              <Composer language={language} divert={divert} />
+            </div>
+          </ThreadPrimitive.ViewportFooter>
+        </ThreadPrimitive.Viewport>
+      </AuiIf>
     </ThreadPrimitive.Root>
   );
 }

@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 type Layout = "sign-in" | "chat";
 
 // Placed in cells from the center, where a line runs, so the cleared block and the lit cells sit on the lines. The
-// block holds the content; the lit cells keep to the outer columns, or to the top rows on phones, so none sits
-// behind text or glass (the identity guide's Motifs).
+// block holds the content; the lit cells keep to the outer columns, or to the top rows of a phone's sign-in, so
+// none sits behind text or glass (the identity guide's Motifs). A phone's empty chat fills its screen, so it has none.
 const BLOCK: Record<Layout, string> = {
   "sign-in":
     "left-[calc(50%-5*var(--cell)+1px)] top-[calc(50%-6*var(--cell)+1px)] h-[calc(12*var(--cell)-1px)] w-[calc(10*var(--cell)-1px)] sm:left-[calc(50%-4*var(--cell)+1px)] sm:top-[calc(50%-4*var(--cell)+1px)] sm:h-[calc(8*var(--cell)-1px)] sm:w-[calc(8*var(--cell)-1px)]",
@@ -30,7 +30,6 @@ const LIT: Record<Layout, string[]> = {
     "max-sm:hidden left-[calc(50%+6*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   ],
   chat: [
-    ...ON_PHONES,
     "max-sm:hidden left-[calc(50%-8*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
     "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
     "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",

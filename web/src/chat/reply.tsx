@@ -36,7 +36,7 @@ function LinkText({ children }: { children?: ReactNode }) {
 
 export function Reply({ text }: { text: string }) {
   return (
-    <div className="reply space-y-3">
+    <div className="reply space-y-3 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
       <Markdown
         remarkPlugins={[remarkGfm]}
         allowedElements={ALLOWED}

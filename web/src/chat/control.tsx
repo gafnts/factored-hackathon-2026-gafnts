@@ -179,7 +179,7 @@ function Confirmation({
       role="group"
       aria-label={texts.label}
       data-control="block_confirmation"
-      className="mt-3 flex flex-col gap-2 border-t border-rule-night pt-3"
+      className="mt-4 flex flex-col gap-2 rounded-2xl border border-white/10 glass p-4"
     >
       <p className="font-medium">
         {texts.card(control.card.type, control.card.last_four)}
@@ -230,7 +230,7 @@ function Offer({
       role="group"
       aria-label={texts.label}
       data-control="handoff_offer"
-      className="mt-3 flex flex-col gap-2 border-t border-rule-night pt-3"
+      className="mt-4 flex flex-col gap-2 rounded-2xl border border-white/10 glass p-4"
     >
       <p>{texts.reason(control.reason_code)}</p>
       <div className="flex gap-2">

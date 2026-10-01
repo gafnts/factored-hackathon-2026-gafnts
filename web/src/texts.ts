@@ -33,8 +33,10 @@ export interface Texts {
     close: string;
   };
   chat: {
-    opening: string;
-    suggestion: string;
+    greeting: string;
+    question: string;
+    // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize.
+    suggestions: readonly [string, string, string];
     placeholder: string;
     send: string;
     working: string;
@@ -134,9 +136,14 @@ export const TEXTS: Record<Language, Texts> = {
       close: "Cerrar el menú",
     },
     chat: {
-      opening:
-        "Hola, soy Faro, el asistente automático de LATAM Bank para sus tarjetas. ¿En qué le puedo ayudar?",
-      suggestion: "¿Qué tarjetas tengo y en qué estado están?",
+      greeting:
+        "Hola, soy Faro, el asistente automático de LATAM Bank para sus tarjetas.",
+      question: "¿En qué le puedo ayudar?",
+      suggestions: [
+        "¿Qué tarjetas tengo y en qué estado están?",
+        "Quiero bloquear una tarjeta",
+        "No reconozco un cargo en mi tarjeta",
+      ],
       placeholder: "Escriba su mensaje",
       send: "Enviar",
       working: "Faro está preparando su respuesta.",
@@ -199,9 +206,14 @@ export const TEXTS: Record<Language, Texts> = {
       close: "Fechar o menu",
     },
     chat: {
-      opening:
-        "Olá, sou o Faro, o assistente automático do LATAM Bank para os seus cartões. Como posso ajudar?",
-      suggestion: "Quais cartões eu tenho e qual é o status de cada um?",
+      greeting:
+        "Olá, sou o Faro, o assistente automático do LATAM Bank para os seus cartões.",
+      question: "Como posso ajudar?",
+      suggestions: [
+        "Quais cartões eu tenho e qual é o status de cada um?",
+        "Quero bloquear um cartão",
+        "Não reconheço uma compra no meu cartão",
+      ],
       placeholder: "Escreva sua mensagem",
       send: "Enviar",
       working: "O Faro está preparando sua resposta.",
