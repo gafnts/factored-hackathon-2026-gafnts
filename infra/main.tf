@@ -42,7 +42,8 @@ module "tools_data" {
 module "sandbox" {
   source = "./modules/sandbox"
 
-  prefix = local.prefix
+  prefix   = local.prefix
+  contract = "${path.root}/../src/banking_agent/contracts/overlay.schema.json"
 }
 
 module "gateway" {
@@ -58,6 +59,8 @@ module "gateway" {
   tools_data_table_arn     = module.tools_data.table_arn
   tools_data_attributes    = module.tools_data.readable_attributes
   overlay_table            = module.sandbox.overlay
+  overlay_attributes       = module.sandbox.readable_attributes
+  fault_attributes         = module.sandbox.counted_attributes
   confirmations_table      = module.sandbox.confirmations
 }
 
@@ -72,6 +75,7 @@ module "handoff" {
   tools_data_attributes    = module.tools_data.attributes
   customer_client_id       = module.identity.customer_client_id
   execution_records_table  = module.runtime.execution_records_table
+  overlay_table            = module.sandbox.overlay
 }
 
 module "runtime" {

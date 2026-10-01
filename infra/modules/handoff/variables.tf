@@ -40,3 +40,11 @@ variable "customer_client_id" {
   description = "The customers' app client, the only one whose tokens file_handoff accepts"
   type        = string
 }
+
+variable "overlay_table" {
+  description = "The sandbox's overlay, where a fixture transaction's is_fraud is read"
+  type = object({
+    name = string
+    arn  = string
+  })
+}
