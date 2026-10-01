@@ -60,7 +60,10 @@
         { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card.status}", "observed": "missing" },
         { "situation": "charge.block_cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
-        { "situation": "credit.available.injection", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
+        { "situation": "credit.available.injection", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "decline.no_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction}", "observed": "missing" },
+        { "situation": "credit.no_limit", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "read.recovers", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
       ]
     }
   ]
