@@ -14,6 +14,7 @@ How Faro sounds and looks. The [product brief](brief.md) says what Faro is; this
   - [Two modes](#two-modes)
   - [Palette](#palette)
   - [Type](#type)
+  - [Layout](#layout)
   - [The mark](#the-mark)
   - [Motifs](#motifs)
   - [Surfaces](#surfaces)
@@ -105,16 +106,16 @@ One word per idea, in each language, across the prompts, the chat, and the contr
 
 ## Visual identity
 
-Light at dusk: a warm lamp against a cold sea. The palette runs from the lamp's orange, through the pale light at the horizon, to the sea's blue. The mark is a tower of stripes with a light at the top.
+Light at dusk: a warm lamp against a cold sea. The palette runs from the lamp's orange, through the pale light at the horizon, to the sea's blue. The mark is a tower of stripes with a light at the top. The repository's banner sets the wordmark in a block cleared at the center of a hairline grid, with a few cells lit in the sea's blue; the customer's pages are drawn from it.
 
 ### Two modes
 
 | Mode | Ground | For |
 |---|---|---|
-| **Night** | Near black, with the horizon gradient | Brand moments: the sign-in page, the slides' covers, the video's titles |
-| **Paper** | A warm light gray | Work: the chat, the human agent's console, the evaluation report |
+| **Night** | Black, with the banner's grid | The customer's pages (the sign-in and the chat), the slides' covers, the video's titles |
+| **Paper** | A warm light gray | Work read at length: the human agent's console and the evaluation report |
 
-A customer reporting a stolen card needs a calm page that is easy to read, not a dramatic one, so every work surface is Paper.
+A customer reporting a stolen card needs a calm page that is easy to read, not a dramatic one. On Paper, the light ground gives that calm; on Night, restraint does: one accent, no motion but the sweep, and the grid only where nothing is being read. The console and the report, read for long stretches, stay Paper.
 
 ### Palette
 
@@ -122,37 +123,46 @@ Every text color meets WCAG AA (4.5:1) on its mode's ground and on its raised su
 
 | Token | Hex | Mode | Use | Contrast |
 |---|---|---|---|---|
-| `night` | `#131313` | Night | Ground | |
-| `night-raised` | `#1E1E1C` | Night | Panels | |
-| `bone` | `#E7E7DD` | Night | Text | 14.9:1 |
-| `bone-muted` | `#9C9C92` | Night | Secondary text | 6.7:1 |
-| `lamp` | `#EE7A3F` | Night | Accents, links, the mark's light | 6.6:1 |
-| `sea` | `#79AEE0` | Night | Focus, highlights, verified | 7.9:1 |
+| `night` | `#000000` | Night | Ground, the banner's | |
+| `night-raised` | `#1E1E1C` | Night | Panels and glass | |
+| `night-bubble` | `#2A2A27` | Night | The customer's messages | |
+| `bone` | `#E7E7DD` | Night | Text | 16.9:1 |
+| `bone-muted` | `#9C9C92` | Night | Secondary text | 7.6:1 |
+| `sea` | `#66C0FC` | Night | The accent, the banner's lit cells: the send button, focus, lit cells, verified | 10.5:1 |
+| `glow` | `#0557FF` | Night | The lit cells' bloom and the glow only, never text | |
+| `lamp` | `#EE7A3F` | Night | The sweep's beam, alerts, the mark's light | 7.5:1 |
 | `paper` | `#E3E5DC` | Paper | Ground | |
 | `paper-raised` | `#F1F2EC` | Paper | Messages, panels | |
 | `ink` | `#161816` | Paper | Text | 14.0:1 |
 | `ink-muted` | `#565A53` | Paper | Secondary text | 5.5:1 |
-| `ember` | `#A4431A` | Paper | Orange text and links, urgent | 4.9:1 |
+| `ember` | `#A4431A` | Paper | Orange text and links, urgent; never on Night (3.4:1) | 4.9:1 |
 | `deep-sea` | `#2B5A8A` | Paper | Focus, verified | 5.6:1 |
 | `lamp` | `#EE7A3F` | Paper | The mark's light and fills only, never text | 2.2:1 |
 | `dusk` | `#F4E7D4` | Both | The gradient only | |
 | `rule-night`, `rule-paper` | `#34342F`, `#C5C8BE` | Night, Paper | Hairlines | |
 
-The horizon, for Night only and never behind text:
+Text on glass meets the same ratios over the brightest thing that can sit behind it. On glass over the glow's brightest point, `bone` is 12.5:1 and `bone-muted` 5.6:1; over a lit cell, `bone-muted` would fall to 4.0:1, so no lit cell sits behind text or glass. `night` on `sea`, the send button's arrow, is 10.5:1.
+
+The horizon, for the slides' covers and the video's titles, never behind text:
 
 ```css
 background: radial-gradient(circle at 110% 115%,
-  #2B5A8A 0%, #79AEE0 24%, #F4E7D4 42%, #EE7A3F 50%, #A4431A 55%, #131313 61%);
+  #2B5A8A 0%, #66C0FC 24%, #F4E7D4 42%, #EE7A3F 50%, #A4431A 55%, #000000 61%);
 ```
 
 Color never carries a status alone: *verified* and *urgent* are always written out, with their color beside the word.
 
 ### Type
 
-- **Geist** for display and text. Headlines are bold and tightly set (−0.02 em); chat text is at least 16 px.
+- **Outfit** for display on Night: the wordmark, the empty chat's question, and the rail's labels, at 600 and tightly set (the banner's wordmark at −0.07 em, headlines at −0.03 em). Of 20 open sans compared with the banner's wordmark at its proportions, it matched most closely.
+- **Geist** for text, and for display on Paper. Headlines on Paper are bold and tightly set (−0.02 em); chat text is at least 16 px.
 - **Geist Mono** for what is read character by character, or is a label: references (`7K2M-9QXA`), last four digits, rule IDs, reason codes, and tool calls in the console. Labels are set in capitals, tracked +0.08 em.
 
-Both are under the SIL Open Font License, and cover the accents and punctuation of Spanish and Portuguese (*ñ*, *ç*, *ã*, *õ*, *¿*, *¡*). The site serves them itself rather than from a font CDN, in keeping with [ADR-0007](../adr/0007-role-gated-web-app.md#rendering-what-others-wrote)'s content security policy.
+All three are under the SIL Open Font License, and cover the accents and punctuation of Spanish and Portuguese (*ñ*, *ç*, *ã*, *õ*, *¿*, *¡*). The site serves them itself rather than from a font CDN, in keeping with [ADR-0007](../adr/0007-role-gated-web-app.md#rendering-what-others-wrote)'s content security policy.
+
+### Layout
+
+In the International Typographic Style. The page sits on a column grid whose module is the grid motif's cell. Text is set flush left and ragged right, a headline on the left edge of what follows it rather than centered. Hierarchy comes from size and weight alone. Hairlines separate, not shadows; the glow is the one light. Lists the reader picks from carry the numbered labels.
 
 ### The mark
 
@@ -161,25 +171,27 @@ A lighthouse drawn as horizontal stripes that narrow toward the top, with a ligh
 - The tower is lines of one weight, with no outline; `bone` on Night and `ink` on Paper.
 - The light is the only color in the mark: `lamp`, or the horizon gradient on Night.
 - It works in one color, and at 16 px as the favicon, where it keeps fewer stripes.
-- The wordmark is FARO in Geist Bold capitals, beside the mark at the tower's height. In running text the name is Faro.
+- The wordmark is Faro in Outfit SemiBold, as the banner sets it, beside the mark at the tower's height.
 - Clear space around the mark is the light's height on every side.
 
-The mark isn't drawn yet; until it is, the wordmark stands alone. The prototype is built in Paper only, the sign-in page included; Night comes with the mark.
+The mark isn't drawn yet; until it is, the wordmark stands alone, as in the banner. Night came before it, for the customer's pages, on 2026-09-30.
 
 ### Motifs
 
-- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the brief's three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), and the suggested prompts on the persona cards.
-- **The grid.** A hairline grid with a few cells lit in `sea`, behind Night surfaces. On Paper it goes unlit and lays out the console's queue.
+- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the brief's three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), the suggested prompts on the persona cards, and the suggestions under the empty chat's composer (`01` to `03`).
+- **The grid.** The banner's: hairlines, a block cleared at the center for the wordmark, the empty chat's question and composer, or the sign-in form, and a few cells lit in `sea` with a `glow` bloom in the outer columns. It sits behind the sign-in and the empty chat, static, and fades once a conversation starts; on phones it keeps to the top rows, so no lit cell sits behind text or glass. On Paper it goes unlit and lays out the console's queue.
+- **The glow.** The lit cells' two colors as one soft light beneath the empty chat's composer, and nowhere else; only `bone` sits on it, and it goes with the grid.
+- **Glass.** Smoked glass for what floats over the grid or the glow and carries something: the composer, the rail, the suggestions, the controls, and the sign-in form. `night-raised` at 80%, a 24 px backdrop blur, and a hairline of white at 10%. Replies sit on the ground, never on glass. Under `prefers-reduced-transparency` the glass turns solid.
 - **The sweep.** Faro's only motion: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
 
 ### Surfaces
 
 | Surface | Mode | What it carries |
 |---|---|---|
-| Sign-in | Night | The horizon, the mark, and the sign-in form |
-| `/chat` | Paper | LATAM Bank's name in the header, Faro labeled *asistente automático* or *assistente automático*, the persona's card, and the confirm and handoff controls |
-| `/agent` | Paper | The queues; Geist Mono for references, reason codes, rule IDs, and tool calls; urgent cases in `ember`, with the word |
+| The customer's sign-in | Night | The banner's grid, the wordmark, and the sign-in form on glass |
+| `/chat` | Night | LATAM Bank's name, Faro labeled *asistente automático* or *assistente automático*, the persona's card, the rail with a new conversation, the empty chat's question over the composer, and the confirm and handoff controls on glass |
+| `/agent` | Paper | Its sign-in; the queues; Geist Mono for references, reason codes, rule IDs, and tool calls; urgent cases in `ember`, with the word |
 | The evaluation report | Paper | `docs/evaluation/`, labeled as an offline measurement in its header (EVL-13) |
-| Slides and video | Night covers and titles, Paper content | The three numbered paths, and the demo in the chat's own colors |
+| Slides and video | Night covers and titles, Paper content | The banner, the three numbered paths, and the demo in the chat's own colors |
 
 LATAM Bank's name is set in Geist Medium, in `ink` or `bone`, with no mark: the bank is the organizers' fiction, and we don't invent a brand for it. Every page says it is a prototype over synthetic data (SEC-02, [ADR-0007](../adr/0007-role-gated-web-app.md#routes)).
