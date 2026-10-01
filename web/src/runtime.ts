@@ -48,12 +48,28 @@ export function createAgent(
   return new ChatAgent({ url, threadId, fetch: fetcher });
 }
 
-// Opens the runtime session before the first message, so it doesn't pay the cold start (ADR-0004, decision 20).
-export async function warmUp(
+// AgentCore turns a request away with a RUN_ERROR of its own while the runtime session's microVM is still starting
+// (ADR-0004, decision 20), and that error never reaches the entrypoint.
+function turnedAway(stream: string): boolean {
+  return stream
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .some((line) => {
+      try {
+        return (
+          (JSON.parse(line.slice(5)) as { type?: unknown }).type === "RUN_ERROR"
+        );
+      } catch {
+        return false;
+      }
+    });
+}
+
+async function warmUpOnce(
   url: string,
   threadId: string,
   fetcher: Fetch,
-): Promise<void> {
+): Promise<boolean> {
   const response = await fetcher(url, {
     method: "POST",
     headers: {
@@ -67,7 +83,24 @@ export async function warmUp(
       forwardedProps: { warmup: true },
     }),
   });
-  await response.text();
+  return response.ok && !turnedAway(await response.text());
+}
+
+// Opens the runtime session before the first message, so it doesn't pay the cold start (ADR-0004, decision 20). Each
+// new conversation sends one, so a warm-up that fails is sent once more after a pause; an ended sign-in isn't.
+export async function warmUp(
+  url: string,
+  threadId: string,
+  fetcher: Fetch,
+  pause = 2500,
+): Promise<void> {
+  try {
+    if (await warmUpOnce(url, threadId, fetcher)) return;
+  } catch (error) {
+    if (error instanceof SignInEndedError) throw error;
+  }
+  await new Promise((resolve) => setTimeout(resolve, pause));
+  await warmUpOnce(url, threadId, fetcher);
 }
 
 // A RUN_ERROR's message is never shown: the chat has a fixed sentence per code.

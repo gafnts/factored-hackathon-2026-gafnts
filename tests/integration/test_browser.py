@@ -5,8 +5,9 @@ reply sent whole, with the turn in the sign-in's execution record; a persona blo
 which a typed yes doesn't confirm, and is offered the replacement with the handoff control; the README's journey runs in
 two tabs, from a charge the customer doesn't recognize to the case's reference, while a human agent sees the case reach
 dispute intake within a poll, urgent when the block is cancelled, and reads it with each fact next to its call; the
-console shows a case's markup as text; another customer's ID, a staff user in the chat, a customer or the AI team in
-the console, and another sign-in's runtime session get nothing; and signing out revokes the sign-in's refresh token
+console shows a case's markup as text; a new conversation is a thread of its own on the same runtime session;
+another customer's ID, a staff user in the chat, a customer or the AI team in the console, and another sign-in's
+runtime session get nothing; and signing out revokes the sign-in's refresh token
 (SEC-04, SEC-05, POL-09 to POL-11, POL-27, POL-36 to POL-39, POL-45, POL-47, CTL-02, CTL-05, EVL-04, OPS-02).
 Assertions count and compare without printing a reply, a token, or an ID, and nothing the page shows is saved: no
 trace, screenshot, or video.
@@ -41,7 +42,7 @@ from banking_agent.contracts import validator
 from banking_agent.tools.cases import draw_reference, queue_order, reference_item
 
 from .conftest import SignIn, User, cases, claims, handoffs
-from .test_agent import records
+from .test_agent import checkpoint_messages, records
 from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
 
@@ -56,6 +57,7 @@ TEXTS = {
         "message": "Escriba su mensaje",
         "send": "Enviar",
         "sign_out": "Cerrar sesión",
+        "new_chat": "Nueva conversación",
         "refused": "No pudimos iniciar su sesión.",
         "session_refused": "No pudimos continuar esta conversación.",
     },
@@ -71,6 +73,7 @@ TEXTS = {
         "message": "Escreva sua mensagem",
         "send": "Enviar",
         "sign_out": "Sair",
+        "new_chat": "Nova conversa",
         "refused": "Não foi possível entrar.",
         "session_refused": "Não foi possível continuar esta conversa.",
     },
@@ -528,6 +531,52 @@ def test_a_persona_signs_in_and_reads_a_reply_sent_whole(
     own = {e["input"]["customer_id"] for e in listed} == {persona_ids["es"]}
     assert own, "list_cards read another customer's ID"
     assert re.fullmatch(r"[0-9a-f]{40}", entries[0]["versions"]["app"])
+    assert (customer.violations, customer.errors) == ([], 0)
+
+
+def test_a_new_conversation_is_a_thread_of_its_own_on_the_same_runtime_session(
+    outputs: dict[str, Any],
+    users: dict[str, User],
+    site: str,
+    tab: Callable[[str], Tab],
+) -> None:
+    """
+    The rail's new conversation (ADR-0007's amendment of 2026-09-30): the page empties, the chat warms up again, and the
+    next message opens a turn in a thread of its own on the same runtime session, whose checkpoint holds none of the
+    earlier conversation.
+    """
+    customer = tab("es")
+    customer.sign_in(site, users["customer"])
+    expect(customer.page.get_by_label(customer.texts["message"])).to_be_visible()
+    customer.ask(outputs, "¿Cuáles son mis tarjetas y en qué estado están?")
+    session = customer.stored(RUNTIME_SESSION)
+
+    customer.page.get_by_role("button", name=customer.texts["new_chat"]).click()
+    expect(customer.page.locator("[data-author]")).to_have_count(0)
+    customer.ask(outputs, "Hola, ¿qué puede hacer por mí?")
+
+    access = customer.stored(".accessToken")
+    assert access is not None
+    assert customer.stored(RUNTIME_SESSION) == session
+    opened = [
+        e
+        for e in records(outputs, claims(access)["origin_jti"])
+        if e["kind"] == "turn_opened"
+    ]
+    assert sorted(e["input"]["kind"] for e in opened) == [
+        "message",
+        "message",
+        "warmup",
+        "warmup",
+    ]
+    asked = [e["thread_key"] for e in opened if e["input"]["kind"] == "message"]
+    warmed = {e["thread_key"] for e in opened if e["input"]["kind"] == "warmup"}
+    assert len(set(asked)) == 2 and warmed == set(asked)
+    assert len({e["runtime_session_id"] for e in opened}) == 1
+    for key in set(asked):
+        held = checkpoint_messages(outputs, key)
+        assert sum(1 for m in held if m.type == "human") == 1
+    assert customer.page.locator('[data-author="customer"]').count() == 1
     assert (customer.violations, customer.errors) == ([], 0)
 
 

@@ -10,10 +10,12 @@ export type RunErrorCode = RunError["code"];
 export type Problem = RunErrorCode | "unreachable";
 
 export interface Texts {
-  assistant: string;
   notice: string;
-  notFound: string;
-  toChat: string;
+  notFound: {
+    code: string;
+    title: string;
+    home: string;
+  };
   broken: string;
   signIn: {
     title: string;
@@ -27,9 +29,17 @@ export interface Texts {
     signOut: string;
     endsAt: (time: string) => string;
   };
+  rail: {
+    label: string;
+    open: string;
+    close: string;
+    newChat: string;
+    unsaved: string;
+  };
   chat: {
-    opening: string;
-    suggestion: string;
+    question: string;
+    // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize.
+    suggestions: readonly [string, string, string];
     placeholder: string;
     send: string;
     working: string;
@@ -104,11 +114,13 @@ const REASONS: Record<Language, Record<BlockReason, string>> = {
 
 export const TEXTS: Record<Language, Texts> = {
   es: {
-    assistant: "Faro · asistente automático",
     notice:
-      "Prototipo sobre datos sintéticos: LATAM Bank y sus clientes son ficticios.",
-    notFound: "Esta página no existe.",
-    toChat: "Ir al chat",
+      "Prototipo sobre datos sintéticos. LATAM Bank y sus clientes son ficticios.",
+    notFound: {
+      code: "Error 404",
+      title: "Página no encontrada",
+      home: "Volver al inicio",
+    },
     broken: "No pudimos cargar la aplicación. Recargue la página.",
     signIn: {
       title: "Iniciar sesión",
@@ -121,12 +133,22 @@ export const TEXTS: Record<Language, Texts> = {
         "No pudimos comunicarnos con el banco. Inténtelo de nuevo en unos minutos.",
       ended: "Su sesión terminó. Inicie sesión de nuevo para continuar.",
       signOut: "Cerrar sesión",
-      endsAt: (time) => `Su sesión termina a las ${time}.`,
+      endsAt: (time) => `Su sesión terminará a las ${time}.`,
+    },
+    rail: {
+      label: "Menú",
+      open: "Abrir el menú",
+      close: "Cerrar el menú",
+      newChat: "Nueva conversación",
+      unsaved: "Las conversaciones no se guardan: una nueva empieza vacía.",
     },
     chat: {
-      opening:
-        "Hola, soy Faro, el asistente automático de LATAM Bank para sus tarjetas. ¿En qué le puedo ayudar?",
-      suggestion: "¿Qué tarjetas tengo y en qué estado están?",
+      question: "¿En qué le puedo ayudar?",
+      suggestions: [
+        "¿Qué tarjetas tengo y en qué estado están?",
+        "Quiero bloquear una tarjeta",
+        "No reconozco un cargo en mi tarjeta",
+      ],
       placeholder: "Escriba su mensaje",
       send: "Enviar",
       working: "Faro está preparando su respuesta.",
@@ -164,11 +186,13 @@ export const TEXTS: Record<Language, Texts> = {
     },
   },
   pt: {
-    assistant: "Faro · assistente automático",
     notice:
-      "Protótipo com dados sintéticos: o LATAM Bank e seus clientes são fictícios.",
-    notFound: "Esta página não existe.",
-    toChat: "Ir para o chat",
+      "Protótipo com dados sintéticos. O LATAM Bank e seus clientes são fictícios.",
+    notFound: {
+      code: "Erro 404",
+      title: "Página não encontrada",
+      home: "Voltar ao início",
+    },
     broken: "Não foi possível carregar o aplicativo. Recarregue a página.",
     signIn: {
       title: "Entrar",
@@ -181,12 +205,22 @@ export const TEXTS: Record<Language, Texts> = {
         "Não foi possível falar com o banco. Tente novamente em alguns minutos.",
       ended: "Sua sessão terminou. Entre de novo para continuar.",
       signOut: "Sair",
-      endsAt: (time) => `Sua sessão termina às ${time}.`,
+      endsAt: (time) => `Sua sessão terminará às ${time}.`,
+    },
+    rail: {
+      label: "Menu",
+      open: "Abrir o menu",
+      close: "Fechar o menu",
+      newChat: "Nova conversa",
+      unsaved: "As conversas não ficam salvas: uma nova começa vazia.",
     },
     chat: {
-      opening:
-        "Olá, sou o Faro, o assistente automático do LATAM Bank para os seus cartões. Como posso ajudar?",
-      suggestion: "Quais cartões eu tenho e qual é o status de cada um?",
+      question: "Como posso ajudar?",
+      suggestions: [
+        "Quais cartões eu tenho e qual é o status de cada um?",
+        "Quero bloquear um cartão",
+        "Não reconheço uma compra no meu cartão",
+      ],
       placeholder: "Escreva sua mensagem",
       send: "Enviar",
       working: "O Faro está preparando sua resposta.",

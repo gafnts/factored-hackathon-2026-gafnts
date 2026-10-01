@@ -10,9 +10,11 @@ import {
 import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
-import { Page } from "./layout";
+import { faces } from "./faces";
+import { LogOut, SquarePen } from "./icons";
 import { SignIn } from "./pages/sign-in";
 import { drawRuntimeSession, runtimeSession } from "./session";
+import { RailButton, Shell } from "./shell";
 import { TEXTS } from "./texts";
 
 type State =
@@ -25,6 +27,10 @@ type State =
 export function Customer({ language }: { language: Language }) {
   const texts = TEXTS[language];
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Each new conversation mounts the chat again, which draws a thread ID of its own on the same runtime session
+  // (ADR-0007's amendment of 2026-09-30); the earlier one is out of reach once left.
+  const [conversation, setConversation] = useState(0);
+  const [running, setRunning] = useState(false);
 
   const end = useCallback(async (config: Config, ended: boolean) => {
     await signOutHere().catch(() => undefined);
@@ -36,7 +42,7 @@ export function Customer({ language }: { language: Language }) {
     void (async () => {
       let config: Config;
       try {
-        config = await loadConfig();
+        [config] = await Promise.all([loadConfig(), faces()]);
       } catch {
         if (!unmounted.signal.aborted) setState({ kind: "broken" });
         return;
@@ -95,26 +101,30 @@ export function Customer({ language }: { language: Language }) {
     if (config) void end(config, true);
   }, [config, end]);
 
-  if (state.kind === "loading")
-    return (
-      <Page language={language} label={texts.assistant}>
-        {null}
-      </Page>
-    );
+  const newConversation = useCallback(() => {
+    setRunning(false);
+    setConversation((count) => count + 1);
+  }, []);
+
+  // The bare ground until the page can arrive whole, its faces in, rather than a frame first and the rest after.
+  if (state.kind === "loading") return <div className="h-dvh" />;
   if (state.kind === "broken") {
     return (
-      <Page language={language} label={texts.assistant}>
-        <p role="alert" className="py-10 text-ember">
+      <Shell language={language}>
+        <p
+          role="alert"
+          className="mx-auto w-full max-w-3xl px-4 py-10 text-lamp sm:px-6"
+        >
           {texts.broken}
         </p>
-      </Page>
+      </Shell>
     );
   }
   if (state.kind === "signed-out") {
     return (
-      <Page language={language} label={texts.assistant}>
+      <Shell language={language} signIn>
         <SignIn language={language} ended={state.ended} onSignIn={signIn} />
-      </Page>
+      </Shell>
     );
   }
 
@@ -122,30 +132,43 @@ export function Customer({ language }: { language: Language }) {
     state.signedIn.endsAt,
   );
   return (
-    <Page
+    <Shell
       language={language}
-      label={texts.assistant}
-      aside={
-        <div className="flex items-center gap-3 text-sm">
-          <span className="hidden text-ink-muted sm:inline">
-            {texts.signIn.endsAt(time)}
-          </span>
-          <button
-            type="button"
-            className="rounded-lg border border-rule px-3 py-1.5 font-medium hover:bg-paper-raised"
+      note={texts.signIn.endsAt(time)}
+      running={running}
+      onNew={newConversation}
+      rail={(expanded) => (
+        <>
+          <RailButton
+            icon={<SquarePen />}
+            label={texts.rail.newChat}
+            expanded={expanded}
+            disabled={running}
+            onClick={newConversation}
+          />
+          {expanded && (
+            <p className="hidden px-2.5 pt-1 text-xs text-bone-muted sm:block">
+              {texts.rail.unsaved}
+            </p>
+          )}
+          <RailButton
+            icon={<LogOut />}
+            label={texts.signIn.signOut}
+            expanded={expanded}
+            className="sm:mt-auto"
             onClick={() => void end(state.config, false)}
-          >
-            {texts.signIn.signOut}
-          </button>
-        </div>
-      }
+          />
+        </>
+      )}
     >
       <Chat
+        key={conversation}
         url={state.config.runtime_url}
         session={state.session}
         language={language}
         onSignInEnded={ended}
+        onRunning={setRunning}
       />
-    </Page>
+    </Shell>
   );
 }

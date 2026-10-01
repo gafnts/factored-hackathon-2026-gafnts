@@ -24,6 +24,7 @@
     "@aws-amplify/core": "6.19.1",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
+    "@fontsource-variable/outfit": "5.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",

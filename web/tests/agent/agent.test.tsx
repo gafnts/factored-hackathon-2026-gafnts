@@ -77,7 +77,9 @@ test("signs in through the staff app client, never the customers'", async () => 
     await screen.findByLabelText(texts.signIn.username),
   ).toBeInTheDocument();
   expect(configureAuth).toHaveBeenCalledWith(CONFIG, "staff");
-  expect(screen.getByText(AGENT.title)).toBeInTheDocument();
+  expect(screen.getByRole("banner")).toHaveTextContent(
+    `LATAM Bank${AGENT.title}`,
+  );
   expect(screen.getByText(texts.notice)).toBeInTheDocument();
 });
 
@@ -91,8 +93,13 @@ test("a human agent signs in and reaches the queues", async () => {
   await signInThroughTheForm();
 
   expect(await screen.findByText("the queues")).toBeInTheDocument();
+  // The same bar as the sign-in's: the console is the bank's.
+  expect(screen.getByRole("banner")).toHaveTextContent(
+    `LATAM Bank${AGENT.title}`,
+  );
+  expect(screen.queryByRole("link")).not.toBeInTheDocument();
   expect(signInWith).toHaveBeenCalledWith("agente", "secret");
-  expect(screen.getByText(/Su sesión termina a las/)).toBeInTheDocument();
+  expect(screen.getByText(/Su sesión terminará a las/)).toBeInTheDocument();
 });
 
 test("a customer's credentials, which get no token here, are refused without saying why", async () => {

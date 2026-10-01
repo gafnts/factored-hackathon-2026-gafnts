@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { App, routeOf } from "../src/app";
+import { browserLanguage } from "../src/language";
+import { TEXTS } from "../src/texts";
 
 vi.mock(import("../src/customer"), () => ({
   Customer: () => <p>the customer's chat</p>,
@@ -46,6 +48,17 @@ test("/agent opens the human agents' console, not the chat", async () => {
 test.each(["/nope", "/ops"])("%s says the page doesn't exist", (path) => {
   render(<App path={path} />);
 
-  expect(screen.getByRole("link")).toHaveAttribute("href", "/chat");
-  expect(screen.getByRole("heading")).toBeInTheDocument();
+  const texts = TEXTS[browserLanguage()].notFound;
+
+  expect(screen.getByText(texts.code)).toBeInTheDocument();
+  expect(screen.getByRole("heading")).toHaveTextContent(texts.title);
+  // The way back, and the wordmark in the bar.
+  expect(screen.getByRole("link", { name: texts.home })).toHaveAttribute(
+    "href",
+    "/chat",
+  );
+  expect(screen.getByRole("link", { name: "Faro" })).toHaveAttribute(
+    "href",
+    "/chat",
+  );
 });

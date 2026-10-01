@@ -2,6 +2,7 @@ import { type SubmitEvent, useCallback, useEffect, useState } from "react";
 
 import { SignInEndedError } from "../auth";
 import type { CaseDetail, CaseRow } from "../contracts/console";
+import { Search } from "../icons";
 import { fetchCase, fetchQueue, NoAccessError, normalized } from "./api";
 import { CaseView } from "./case";
 import { clockTime } from "./format";
@@ -198,18 +199,18 @@ function Desk({
   };
 
   return (
-    <div className="grid gap-6 py-6 lg:grid-cols-[22rem_1fr]">
-      <div className="flex flex-col gap-5">
+    <div className="grid gap-10 py-10 lg:grid-cols-[22rem_1fr]">
+      <div className="flex flex-col gap-6">
         <form
           role="search"
           onSubmit={search}
-          className="flex flex-col gap-1"
+          className="flex flex-col gap-2"
           noValidate
         >
           <label htmlFor="reference" className="text-sm font-medium">
             {AGENT.search.label}
           </label>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-night-raised p-1.5 pl-5 transition-colors focus-within:border-sea/60">
             <input
               id="reference"
               value={typed}
@@ -219,22 +220,23 @@ function Desk({
               placeholder={AGENT.search.placeholder}
               autoComplete="off"
               spellCheck={false}
-              className="min-w-0 flex-1 rounded-lg border border-rule bg-paper-raised px-3 py-2 font-mono uppercase"
+              className="min-w-0 flex-1 bg-transparent py-1.5 font-mono uppercase outline-none placeholder:text-bone-muted"
             />
             <button
               type="submit"
-              className="rounded-lg bg-ink px-3 py-2 font-medium text-paper-raised"
+              aria-label={AGENT.search.submit}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea text-night"
             >
-              {AGENT.search.submit}
+              <Search />
             </button>
           </div>
           {invalid && (
-            <p role="alert" className="text-sm text-ember">
+            <p role="alert" className="text-sm text-lamp">
               {AGENT.search.invalid}
             </p>
           )}
         </form>
-        <p role="status" className="text-sm text-ink-muted">
+        <p role="status" className="text-sm text-bone-muted">
           {stale
             ? AGENT.stale
             : refreshedAt && AGENT.refreshed(clockTime(refreshedAt))}
@@ -260,18 +262,18 @@ function Desk({
       </div>
       <div className="min-w-0">
         {opened.kind === "none" && (
-          <p className="text-ink-muted">{AGENT.case.none}</p>
+          <p className="text-bone-muted">{AGENT.case.none}</p>
         )}
         {opened.kind === "loading" && (
-          <p className="text-ink-muted">{AGENT.case.loading}</p>
+          <p className="animate-fade text-bone-muted">{AGENT.case.loading}</p>
         )}
         {opened.kind === "missing" && (
-          <p role="alert" className="text-ember">
+          <p role="alert" className="text-lamp">
             {AGENT.search.notFound(opened.reference)}
           </p>
         )}
         {opened.kind === "failed" && (
-          <p role="alert" className="text-ember">
+          <p role="alert" className="text-lamp">
             {AGENT.case.failed}
           </p>
         )}
@@ -291,7 +293,7 @@ export function Console({ onEnded }: { onEnded: () => void }) {
   }, []);
   if (noAccess) {
     return (
-      <p role="alert" className="py-10 text-ember">
+      <p role="alert" className="py-10 text-lamp">
         {AGENT.noAccess}
       </p>
     );

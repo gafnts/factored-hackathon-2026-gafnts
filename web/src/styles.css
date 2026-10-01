@@ -1,20 +1,28 @@
 @import "tailwindcss";
 
-/* The identity guide's Paper mode; Night waits for the mark (D7). */
 @theme {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-display:
+    "Outfit Variable", "Geist Variable", ui-sans-serif, sans-serif;
 
-  --color-paper: #e3e5dc;
-  --color-paper-raised: #f1f2ec;
-  --color-ink: #161816;
-  --color-ink-muted: #565a53;
-  --color-ember: #a4431a;
-  --color-deep-sea: #2b5a8a;
+  --color-night: #000000;
+  --color-night-raised: #1e1e1c;
+  --color-night-bubble: #2a2a27;
+  --color-bone: #e7e7dd;
+  --color-bone-muted: #9c9c92;
+  --color-sea: #66c0fc;
+  --color-glow: #0557ff;
   --color-lamp: #ee7a3f;
-  --color-rule: #c5c8be;
+  --color-rule-night: #34342f;
 
   --animate-sweep: sweep 2.4s ease-in-out infinite;
+  /* A page's arrival (the identity guide's Motifs): the frame fades in, the content rises after it, the lights come
+     on last; a message arrives as the content does, sooner. */
+  --animate-fade: fade 600ms ease-out backwards;
+  --animate-arrive: arrive 800ms cubic-bezier(0.16, 1, 0.3, 1) 100ms backwards;
+  --animate-light: fade 1400ms ease-in-out 300ms backwards;
+  --animate-message: arrive 500ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 
   @keyframes sweep {
     from {
@@ -24,14 +32,71 @@
       transform: translateX(250%);
     }
   }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+}
+
+/* Smoked glass: text on it keeps AA over the glow's brightest point (the identity guide's Palette). */
+@utility glass {
+  background-color: --alpha(var(--color-night-raised) / 80%);
+  backdrop-filter: blur(24px);
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-night-raised);
+    backdrop-filter: none;
+  }
+}
+
+/* Thinner, for the rail and the bar: only the grid's lines and the conversation pass under them, never the glow. */
+@utility glass-thin {
+  background-color: --alpha(var(--color-night-raised) / 55%);
+  backdrop-filter: blur(24px) saturate(150%);
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-night-raised);
+    backdrop-filter: none;
+  }
+}
+
+/* A cell of the banner's grid, lit: the light blue, with its saturated bloom. */
+@utility lit {
+  background-color: var(--color-sea);
+  box-shadow: 0 0 28px 4px --alpha(var(--color-glow) / 75%);
+}
+
+/* The lit cells' two colors as one soft light beneath the empty chat's composer; only bone sits on it. */
+@utility glow {
+  background: radial-gradient(
+    closest-side,
+    --alpha(var(--color-sea) / 35%),
+    --alpha(var(--color-glow) / 45%) 55%,
+    transparent
+  );
+  filter: blur(60px);
 }
 
 @layer base {
+  /* Every page of the site is Night (the identity guide's Two modes), from the stylesheet's first paint. */
+  :root {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-paper font-sans text-ink antialiased;
+    @apply bg-night font-sans text-bone antialiased;
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-deep-sea;
+    @apply outline-2 outline-offset-2 outline-sea;
   }
 }

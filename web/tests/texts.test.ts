@@ -33,7 +33,9 @@ test("the fixed sentences cover exactly the contract's error codes", () => {
 
 test("the session's end reads naturally in both languages", () => {
   expect(TEXTS.es.signIn.endsAt("15:42")).toBe(
-    "Su sesión termina a las 15:42.",
+    "Su sesión terminará a las 15:42.",
   );
-  expect(TEXTS.pt.signIn.endsAt("15:42")).toBe("Sua sessão termina às 15:42.");
+  expect(TEXTS.pt.signIn.endsAt("15:42")).toBe(
+    "Sua sessão terminará às 15:42.",
+  );
 });
