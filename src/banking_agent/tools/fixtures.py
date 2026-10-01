@@ -44,17 +44,32 @@ class SignInData:
         self._cards: dict[str, Record] | None = None
         self._transactions: list[Record] | None = None
 
+    def _customers(self, item: Record) -> bool:
+        checked("fixture_card", item)
+        _keyed("fixture_card", "item", f"{FIXTURE_CARD}{item['card_id']}", item)
+        return bool(item["customer_id"] == self.customer_id)
+
     def _fixture_cards(self, customer_id: str) -> dict[str, Record]:
         if customer_id != self.customer_id:
             return {}
         if self._cards is None:
-            self._cards = {}
-            for item in self.overlay.fixtures(self.sign_in, FIXTURE_CARD):
-                checked("fixture_card", item)
-                _keyed("fixture_card", "item", f"{FIXTURE_CARD}{item['card_id']}", item)
-                if item["customer_id"] == self.customer_id:
-                    self._cards[item["card_id"]] = item
+            self._cards = {
+                item["card_id"]: item
+                for item in self.overlay.fixtures(self.sign_in, FIXTURE_CARD)
+                if self._customers(item)
+            }
         return self._cards
+
+    def _fixture_card(self, customer_id: str, card_id: str) -> Record | None:
+        """
+        Read by its key, so a card read needs no query of the overlay, and a card without the prefix none at all.
+        """
+        if customer_id != self.customer_id:
+            return None
+        if self._cards is not None:
+            return self._cards.get(card_id)
+        item = self.overlay.fixture_card(self.sign_in, card_id)
+        return item if item is not None and self._customers(item) else None
 
     def _fixture_transactions(self, customer_id: str) -> list[Record]:
         if customer_id != self.customer_id:
@@ -97,20 +112,16 @@ class SignInData:
         return [*self.data.cards(customer_id), *(_only(c, CARD) for c in fixtures)]
 
     def card(self, customer_id: str, card_id: str) -> Record | None:
-        fixture = self._fixture_cards(customer_id).get(card_id)
-        if fixture is not None:
-            return _only(fixture, CARD)
-        if card_id.startswith(CARD_PREFIX):
-            return None
-        return self.data.card(customer_id, card_id)
+        if not card_id.startswith(CARD_PREFIX):
+            return self.data.card(customer_id, card_id)
+        fixture = self._fixture_card(customer_id, card_id)
+        return None if fixture is None else _only(fixture, CARD)
 
     def credit(self, customer_id: str, card_id: str) -> Record | None:
-        fixture = self._fixture_cards(customer_id).get(card_id)
-        if fixture is not None:
-            return _only(fixture, CREDIT)
-        if card_id.startswith(CARD_PREFIX):
-            return None
-        return self.data.credit(customer_id, card_id)
+        if not card_id.startswith(CARD_PREFIX):
+            return self.data.credit(customer_id, card_id)
+        fixture = self._fixture_card(customer_id, card_id)
+        return None if fixture is None else _only(fixture, CREDIT)
 
     def transactions(
         self, customer_id: str, card_id: str, before: str | None, limit: int

@@ -73,6 +73,12 @@ class Overlay(Protocol):
         """
         ...
 
+    def fixture_card(self, sign_in: str, card_id: str) -> Record | None:
+        """
+        One fixture card, read by its key, whatever customer it names.
+        """
+        ...
+
     def take_fault(self, sign_in: str, customer_id: str, tool: str) -> str | None:
         """
         One failure from the sign-in's plan for the tool, when it names the customer and has one left: its error.
@@ -169,6 +175,9 @@ class DynamoOverlay:
         definition = "fixture_card" if prefix == FIXTURE_CARD else "fixture_transaction"
         return self._query(sign_in, prefix, readable(definition))
 
+    def fixture_card(self, sign_in: str, card_id: str) -> Record | None:
+        return self._get(sign_in, f"{FIXTURE_CARD}{card_id}", readable("fixture_card"))
+
     def take_fault(self, sign_in: str, customer_id: str, tool: str) -> str | None:
         plan = self._get(sign_in, f"{FAULT}{tool}", readable("fault_plan"))
         if plan is None:
@@ -239,6 +248,10 @@ class MemoryOverlay:
             for (held, key), item in sorted(self.items.items())
             if held == sign_in and key.startswith(prefix)
         ]
+
+    def fixture_card(self, sign_in: str, card_id: str) -> Record | None:
+        item = self.items.get((sign_in, f"{FIXTURE_CARD}{card_id}"))
+        return None if item is None else dict(item)
 
     def take_fault(self, sign_in: str, customer_id: str, tool: str) -> str | None:
         plan = self.items.get((sign_in, f"{FAULT}{tool}"))
