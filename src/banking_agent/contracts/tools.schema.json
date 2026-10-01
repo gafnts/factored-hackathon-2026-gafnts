@@ -365,6 +365,16 @@
         }
       }
     },
+    "fault": {
+      "description": "An attempt a fault plan in the sign-in's overlay fails, answered before anything is read (ADR-0004's amendment of 2026-10-01; EVL-06). The Runtime records it as a failed tool call with this error, marked planned, and retries it as it would the real failure.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "error"],
+      "properties": {
+        "outcome": { "const": "fault" },
+        "error": { "enum": ["timeout", "throttled", "lambda_error"] }
+      }
+    },
     "not_found": {
       "description": "The customer has no card with this ID. Another customer's card reads the same way, so the answer says nothing about whether it exists (POL-08).",
       "type": "object",
@@ -416,7 +426,8 @@
             }
           }
         },
-        { "$ref": "#/$defs/invalid_input" }
+        { "$ref": "#/$defs/invalid_input" },
+        { "$ref": "#/$defs/fault" }
       ]
     },
     "get_card_input": {
@@ -445,7 +456,8 @@
           }
         },
         { "$ref": "#/$defs/not_found" },
-        { "$ref": "#/$defs/invalid_input" }
+        { "$ref": "#/$defs/invalid_input" },
+        { "$ref": "#/$defs/fault" }
       ]
     },
     "get_available_credit_input": {
@@ -486,7 +498,8 @@
           }
         },
         { "$ref": "#/$defs/not_found" },
-        { "$ref": "#/$defs/invalid_input" }
+        { "$ref": "#/$defs/invalid_input" },
+        { "$ref": "#/$defs/fault" }
       ]
     },
     "block_card_input": {
@@ -566,7 +579,8 @@
           "else": { "not": { "required": ["product_status"] } }
         },
         { "$ref": "#/$defs/not_found" },
-        { "$ref": "#/$defs/invalid_input" }
+        { "$ref": "#/$defs/invalid_input" },
+        { "$ref": "#/$defs/fault" }
       ]
     },
     "find_transactions_input": {
@@ -626,7 +640,8 @@
           }
         },
         { "$ref": "#/$defs/not_found" },
-        { "$ref": "#/$defs/invalid_input" }
+        { "$ref": "#/$defs/invalid_input" },
+        { "$ref": "#/$defs/fault" }
       ]
     },
     "file_handoff_input": {

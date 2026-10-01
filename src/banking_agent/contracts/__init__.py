@@ -16,7 +16,15 @@ from referencing.jsonschema import DRAFT202012
 
 from banking_agent.policy import handoff_schema
 
-NAMES = ("chat", "console", "execution-record", "handoff-case", "tools", "tools-data")
+NAMES = (
+    "chat",
+    "console",
+    "execution-record",
+    "handoff-case",
+    "overlay",
+    "tools",
+    "tools-data",
+)
 
 TOOLS = (
     "list_cards",

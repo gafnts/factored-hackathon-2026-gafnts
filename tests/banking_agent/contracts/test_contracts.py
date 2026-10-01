@@ -679,3 +679,80 @@ def test_a_recorded_row_holds_scalar_fields_only() -> None:
     nested = {**call["rows"][0], "stamp": {"snapshot": "b3b8b248f604ef9a"}}
 
     assert invalid("console", "recorded_call", {**call, "rows": [nested]})
+
+
+def test_a_fixture_carries_an_id_no_record_of_the_snapshot_can() -> None:
+    card = first("overlay.fixture_card.json")
+    transaction = first("overlay.fixture_transaction.json")
+    short = "PRD-FIXA00000001"
+
+    assert invalid(
+        "overlay",
+        "fixture_card",
+        {**card, "card_id": short, "item": f"FIXTURE#CARD#{short}"},
+    )
+    assert invalid(
+        "overlay",
+        "fixture_transaction",
+        {**transaction, "transaction_id": "TRX-FIX00000000000000001"},
+    )
+    assert invalid(
+        "overlay",
+        "fixture_transaction",
+        {**transaction, "item": "FIXTURE#TRX#TRX-EXAMPLE0000000000003"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("fixture", "exported"),
+    [("fixture_card", "card_item"), ("fixture_transaction", "transaction_item")],
+)
+def test_a_fixture_carries_the_exports_fields_under_the_overlays_keys(
+    fixture: str, exported: str
+) -> None:
+    export = set(schema("tools-data")["$defs"][exported]["required"])
+    item = set(schema("overlay")["$defs"][fixture]["required"])
+
+    assert item == export - {"pk", "sk"} | {"sign_in", "item", "customer_id", "ttl"}
+
+
+def test_a_planned_fault_names_a_failure_the_record_knows() -> None:
+    planned = schema("overlay")["$defs"]["fault_plan"]["properties"]["error"]["enum"]
+    answered = schema("tools")["$defs"]["fault"]["properties"]["error"]["enum"]
+    entry = schema("execution-record")["$defs"]["tool_call_entry"]
+    recorded = entry["properties"]["error"]["properties"]["code"]["enum"]
+
+    assert planned == answered
+    assert set(planned) == set(recorded) - {"transport", "denied"}
+
+
+def test_only_the_gateways_tools_answer_a_planned_fault() -> None:
+    fault = {"outcome": "fault", "error": "throttled"}
+    gateway = schema("overlay")["$defs"]["gateway_tool"]["enum"]
+
+    for tool in TOOLS:
+        assert invalid("tools", f"{tool}_output", fault) == (tool not in gateway)
+    assert invalid("tools", "get_card_output", {**fault, "error": "transport"})
+
+
+def test_a_fault_plan_counts_down_to_none_and_no_further() -> None:
+    plan = first("overlay.fault_plan.json")
+
+    assert not invalid("overlay", "fault_plan", {**plan, "failures": 0})
+    assert invalid("overlay", "fault_plan", {**plan, "failures": -1})
+    assert invalid("overlay", "fault_plan", {**plan, "failures": 10})
+    assert invalid("overlay", "fault_plan", {**plan, "item": "FAULT#file_handoff"})
+
+
+def test_a_planned_failure_is_marked_and_a_real_one_isnt() -> None:
+    failed = next(
+        e
+        for e in examples("execution-record.json")
+        if e["kind"] == "tool_call" and e["outcome"] == "failed"
+    )
+    real = {**failed, "error": {"code": "timeout", "jsonrpc_code": None}}
+    unmarked = {**failed, "error": {**failed["error"], "planned": False}}
+
+    assert failed["error"]["planned"] is True
+    assert not invalid("execution-record", None, real)
+    assert invalid("execution-record", None, unmarked)
