@@ -42,8 +42,10 @@ export function SignIn({
           : null;
 
   return (
-    <section className="mx-auto w-full max-w-sm py-10">
-      <h1 className="text-2xl font-bold tracking-tight">{texts.title}</h1>
+    <section className="mx-auto w-full max-w-sm py-10 night:my-auto night:rounded-3xl night:border night:border-white/10 night:glass night:px-8 night:py-8">
+      <h1 className="text-2xl font-bold tracking-tight night:font-display night:font-semibold night:tracking-[-0.03em]">
+        {texts.title}
+      </h1>
       <form
         method="post"
         className="mt-6 flex flex-col gap-4"
@@ -55,7 +57,7 @@ export function SignIn({
             name="username"
             autoComplete="username"
             required
-            className="rounded-lg border border-rule bg-paper-raised px-3 py-2.5 text-base"
+            className="rounded-lg border border-rule bg-paper-raised px-3 py-2.5 text-base night:rounded-xl night:border-white/10 night:bg-night"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -65,18 +67,18 @@ export function SignIn({
             type="password"
             autoComplete="current-password"
             required
-            className="rounded-lg border border-rule bg-paper-raised px-3 py-2.5 text-base"
+            className="rounded-lg border border-rule bg-paper-raised px-3 py-2.5 text-base night:rounded-xl night:border-white/10 night:bg-night"
           />
         </label>
         {message && (
-          <p role="alert" className="text-ember">
+          <p role="alert" className="text-ember night:text-lamp">
             {message}
           </p>
         )}
         <button
           type="submit"
           disabled={pending}
-          className="h-11 rounded-lg bg-ink font-medium text-paper-raised disabled:opacity-40"
+          className="h-11 rounded-lg bg-ink font-medium text-paper-raised disabled:opacity-40 night:rounded-full night:bg-sea night:text-night"
         >
           {pending ? texts.submitting : texts.submit}
         </button>

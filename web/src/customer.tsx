@@ -10,9 +10,10 @@ import {
 import { Chat } from "./chat/chat";
 import { type Config, loadConfig } from "./config";
 import type { Language } from "./contracts/chat";
-import { Page } from "./layout";
+import { LogOut } from "./icons";
 import { SignIn } from "./pages/sign-in";
 import { drawRuntimeSession, runtimeSession } from "./session";
+import { RailButton, Shell } from "./shell";
 import { TEXTS } from "./texts";
 
 type State =
@@ -96,25 +97,26 @@ export function Customer({ language }: { language: Language }) {
   }, [config, end]);
 
   if (state.kind === "loading")
-    return (
-      <Page language={language} label={texts.assistant}>
-        {null}
-      </Page>
-    );
+    return <Shell language={language}>{null}</Shell>;
   if (state.kind === "broken") {
     return (
-      <Page language={language} label={texts.assistant}>
-        <p role="alert" className="py-10 text-ember">
+      <Shell language={language}>
+        <p
+          role="alert"
+          className="mx-auto w-full max-w-3xl px-4 py-10 text-lamp sm:px-6"
+        >
           {texts.broken}
         </p>
-      </Page>
+      </Shell>
     );
   }
   if (state.kind === "signed-out") {
     return (
-      <Page language={language} label={texts.assistant}>
-        <SignIn language={language} ended={state.ended} onSignIn={signIn} />
-      </Page>
+      <Shell language={language}>
+        <div className="flex flex-1 flex-col px-4 py-6">
+          <SignIn language={language} ended={state.ended} onSignIn={signIn} />
+        </div>
+      </Shell>
     );
   }
 
@@ -122,23 +124,18 @@ export function Customer({ language }: { language: Language }) {
     state.signedIn.endsAt,
   );
   return (
-    <Page
+    <Shell
       language={language}
-      label={texts.assistant}
-      aside={
-        <div className="flex items-center gap-3 text-sm">
-          <span className="hidden text-ink-muted sm:inline">
-            {texts.signIn.endsAt(time)}
-          </span>
-          <button
-            type="button"
-            className="rounded-lg border border-rule px-3 py-1.5 font-medium hover:bg-paper-raised"
-            onClick={() => void end(state.config, false)}
-          >
-            {texts.signIn.signOut}
-          </button>
-        </div>
-      }
+      note={texts.signIn.endsAt(time)}
+      rail={(expanded) => (
+        <RailButton
+          icon={<LogOut />}
+          label={texts.signIn.signOut}
+          expanded={expanded}
+          className="sm:mt-auto"
+          onClick={() => void end(state.config, false)}
+        />
+      )}
     >
       <Chat
         url={state.config.runtime_url}
@@ -146,6 +143,6 @@ export function Customer({ language }: { language: Language }) {
         language={language}
         onSignInEnded={ended}
       />
-    </Page>
+    </Shell>
   );
 }

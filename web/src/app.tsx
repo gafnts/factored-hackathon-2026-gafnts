@@ -40,7 +40,7 @@ export function App({ path }: { path: string }) {
     case "chat": {
       const language = browserLanguage();
       return (
-        <Suspense fallback={<Page language={language}>{null}</Page>}>
+        <Suspense fallback={<div data-mode="night" className="h-dvh" />}>
           <Customer language={language} />
         </Suspense>
       );

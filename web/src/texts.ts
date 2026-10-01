@@ -27,6 +27,11 @@ export interface Texts {
     signOut: string;
     endsAt: (time: string) => string;
   };
+  rail: {
+    label: string;
+    open: string;
+    close: string;
+  };
   chat: {
     opening: string;
     suggestion: string;
@@ -123,6 +128,11 @@ export const TEXTS: Record<Language, Texts> = {
       signOut: "Cerrar sesión",
       endsAt: (time) => `Su sesión termina a las ${time}.`,
     },
+    rail: {
+      label: "Menú",
+      open: "Abrir el menú",
+      close: "Cerrar el menú",
+    },
     chat: {
       opening:
         "Hola, soy Faro, el asistente automático de LATAM Bank para sus tarjetas. ¿En qué le puedo ayudar?",
@@ -182,6 +192,11 @@ export const TEXTS: Record<Language, Texts> = {
       ended: "Sua sessão terminou. Entre de novo para continuar.",
       signOut: "Sair",
       endsAt: (time) => `Sua sessão termina às ${time}.`,
+    },
+    rail: {
+      label: "Menu",
+      open: "Abrir o menu",
+      close: "Fechar o menu",
     },
     chat: {
       opening:

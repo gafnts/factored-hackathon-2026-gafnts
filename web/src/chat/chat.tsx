@@ -42,7 +42,7 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root
       data-author="customer"
-      className="ml-auto max-w-[85%] rounded-lg bg-ink px-4 py-3 text-paper-raised"
+      className="ml-auto max-w-[85%] rounded-3xl bg-night-bubble px-4 py-3"
     >
       <MessagePrimitive.Parts components={{ Text: UserText }} />
     </MessagePrimitive.Root>
@@ -53,7 +53,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root
       data-author="faro"
-      className="max-w-[85%] rounded-lg border border-rule bg-paper-raised px-4 py-3 empty:hidden"
+      className="max-w-[85%] rounded-3xl border border-rule-night bg-night-raised px-4 py-3 empty:hidden"
     >
       <MessagePrimitive.Parts components={{ Text: ReplyText }} />
       <Controls />
@@ -65,7 +65,7 @@ function Working({ label }: { label: string }) {
   return (
     <div
       role="status"
-      className="relative h-1 w-32 overflow-hidden rounded bg-rule"
+      className="relative h-1 w-32 overflow-hidden rounded bg-rule-night"
     >
       <span className="sr-only">{label}</span>
       <span className="absolute inset-y-0 w-1/3 animate-sweep bg-lamp motion-reduce:animate-none" />
@@ -98,16 +98,16 @@ function Thread({
   };
 
   return (
-    <ThreadPrimitive.Root className="flex flex-1 flex-col">
+    <ThreadPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 sm:px-6">
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col gap-4 py-6">
-        <p className="max-w-[85%] rounded-lg border border-rule bg-paper-raised px-4 py-3">
+        <p className="max-w-[85%] rounded-3xl border border-rule-night bg-night-raised px-4 py-3">
           {texts.opening}
         </p>
         <AuiIf condition={(state) => state.thread.isEmpty}>
           <ThreadPrimitive.Suggestion
             prompt={texts.suggestion}
             send
-            className="self-start rounded-full border border-deep-sea px-4 py-2 text-deep-sea hover:bg-paper-raised"
+            className="self-start rounded-full border border-sea px-4 py-2 text-sea hover:bg-white/5"
           >
             {texts.suggestion}
           </ThreadPrimitive.Suggestion>
@@ -119,25 +119,25 @@ function Thread({
         </ThreadPrimitive.Messages>
         {running && <Working label={texts.working} />}
         {problem && (
-          <p role="alert" className="text-ember">
+          <p role="alert" className="text-lamp">
             {texts.problems[problem]}
           </p>
         )}
       </ThreadPrimitive.Viewport>
       <ComposerPrimitive.Root
         onSubmit={divert}
-        className="sticky bottom-0 flex items-end gap-2 border-t border-rule bg-paper py-4"
+        className="sticky bottom-0 flex items-end gap-2 bg-night py-4"
       >
         <ComposerPrimitive.Input
           aria-label={texts.placeholder}
           placeholder={texts.placeholder}
           maxLength={MAX_MESSAGE}
           rows={1}
-          className="min-h-11 flex-1 resize-none rounded-lg border border-rule bg-paper-raised px-3 py-2.5 text-base"
+          className="min-h-11 flex-1 resize-none rounded-xl border border-rule-night bg-night-raised px-3 py-2.5 text-base"
         />
         <ComposerPrimitive.Send
           onClick={divert}
-          className="h-11 rounded-lg bg-ink px-4 font-medium text-paper-raised disabled:opacity-40"
+          className="h-11 rounded-full bg-sea px-4 font-medium text-night disabled:opacity-40"
         >
           {texts.send}
         </ComposerPrimitive.Send>
