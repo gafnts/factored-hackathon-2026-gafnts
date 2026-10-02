@@ -11,6 +11,7 @@ Amended as built, each correction applied in the section it names:
 - 2026-10-01: the persona label as a group, the cards in `web/src/personas.json`, the credentials file never printed, and the injected message as the site's one negative-path addition ([Judges' access](#judges-access)); the console set in Night ([Routes](#routes)).
 - 2026-10-01: the amendments above folded into the sections they corrected, which now describe the site as built; this list is the map.
 - 2026-10-02: the persona cards withdrawn for one opening template, the split's guards moved to the opening's suggestions in `web/src/texts.ts` ([Judges' access](#judges-access)); the language switch built into the bar ([Routes](#routes)).
+- 2026-10-02: the console's route renamed from `/agent` to `/cases` and its bar retitled *Consola de casos*: on a site whose product is an agent, `/agent` read as the AI agent's page (the objection decision 1 already raised against `agente` as a hostname), where the page shows cases, as the console API under `/api/cases` already names them ([Routes](#routes)).
 
 ## Context
 
@@ -32,7 +33,7 @@ Serve one single-page app from S3 through CloudFront, at `faro.gabriel.com.gt`, 
 flowchart LR
   CF["CloudFront and S3: the app"]
   CUST["Customer tab: /chat"]
-  AGT["Human agent tab: /agent"]
+  AGT["Human agent tab: /cases"]
   COG["Cognito: customers' and staff app clients"]
   RT["AgentCore Runtime (ADR-0004)"]
   API["Console API: API Gateway and Lambda, under /api"]
@@ -52,10 +53,10 @@ flowchart LR
 | Route | For | Signs in through | Talks to | Shows |
 |---|---|---|---|---|
 | `/chat` | Customers (the `customer` group) | The customers' app client | The Runtime, over AG-UI | The chat in Spanish or Portuguese, the confirm and handoff controls, a handoff's reference, one opening with suggested prompts, the bar's language switch, and a new conversation on request |
-| `/agent` | Human agents (`human_agent`) | The staff app client | The console API | The queues, and each case's payload with every verified fact next to the tool call that read it; claim and resolve are designed, not built |
+| `/cases` | Human agents (`human_agent`) | The staff app client | The console API | The queues, and each case's payload with every verified fact next to the tool call that read it; claim and resolve are designed, not built |
 | `/ops` | The AI team (`ai_team`) | The staff app client | Nothing: the report would ship with the site | Designed, not built: the evaluation report is a document in the repository ([The AI team's page](#the-ai-teams-page)) |
 
-A route only decides what the browser draws. What a token can reach is decided on the server: the Runtime accepts the customers' app client and the customer group only (ADR-0004), and the console API accepts the staff app client only and checks each route's group. A customer who opens `/agent` meets a sign-in form their credentials can't pass: the pre-token trigger refuses them a token from the staff app client ([Sign-in](#sign-in)).
+A route only decides what the browser draws. What a token can reach is decided on the server: the Runtime accepts the customers' app client and the customer group only (ADR-0004), and the console API accepts the staff app client only and checks each route's group. A customer who opens `/cases` meets a sign-in form their credentials can't pass: the pre-token trigger refuses them a token from the staff app client ([Sign-in](#sign-in)).
 
 The console is in Spanish, the bank's working language, in which the payload's free text is written (POL-46). The chat's own text follows a language switch that starts from the browser's language; the agent's replies follow POL-50. Every page says it is a prototype over synthetic data (SEC-02). The customer's pages and the console are set in Night, as [the identity guide](../product/identity.md#two-modes) describes them.
 
@@ -63,7 +64,7 @@ The console is in Spanish, the bank's working language, in which the payload's f
 
 ### Hosting and the domain
 
-- **The app** is static files in a private S3 bucket, which CloudFront reads through origin access control. A CloudFront Function serves `index.html` for any path without a file extension, so `/agent` loads the app while a missing asset still returns 404. A response headers policy sets the content security policy ([Rendering what others wrote](#rendering-what-others-wrote)), HSTS, and `X-Content-Type-Options`.
+- **The app** is static files in a private S3 bucket, which CloudFront reads through origin access control. A CloudFront Function serves `index.html` for any path without a file extension, so `/cases` loads the app while a missing asset still returns 404. A response headers policy sets the content security policy ([Rendering what others wrote](#rendering-what-others-wrote)), HSTS, and `X-Content-Type-Options`.
 - **The console API is on the same origin,** under `/api`: a CloudFront behavior sends those paths to the HTTP API as a second origin, with caching off and every viewer header but `Host` forwarded, `Authorization` among them. On one origin the browser makes no cross-origin call at all: the API needs no CORS rules, no request waits for a preflight, and the policy's `'self'` already covers it, where allowing the distribution's domain in the API's CORS rules while the policy names the API's URL would make each depend on the other in Terraform. The Runtime answers the browser's preflight itself (S4), as Cognito's API does for sign-in.
 - **Configuration is read at load,** from a `config.json` written from Terraform's outputs: the user pool, both app clients, and the Runtime's ARN. The same build then runs in any fork, and a custom domain covers the API with no change.
 - **The custom domain is optional** (decision 1). Every merge to `main` applies the stack, and an apply that waited for DNS couldn't show the record it waits for, since Terraform prints outputs only when an apply ends; but ACM's validation record belongs to the name and the account, not to one certificate, so while it stays in DNS any new request for the name validates against it. We requested a certificate for `faro.gabriel.com.gt` by hand, added its validation record in Netlify's DNS, and deleted that certificate once ACM issued it, which proved the record; the name's CNAME to the distribution's domain went in at the same time. One change then sets `domain_name` and `attach_domain`: Terraform requests the certificate in us-east-1 with DNS validation, `aws_acm_certificate_validation` passes against the record, and the distribution takes the alias and the certificate. The two variables stay, so a fork whose DNS doesn't hold the record yet takes two changes (`domain_name` first, which outputs the validation record to add by hand, then `attach_domain`), and Terraform outputs both records either way. A distribution can carry several names, so a later rename can keep the old name working.
@@ -130,13 +131,13 @@ The payload's schema stays at version 1. A status isn't a fact about the handoff
 
 ### Freshness: the consoles poll
 
-- `/agent` asks for its queue every 3 seconds while its tab is visible; a hidden tab stops asking. A case appears in the queue within 3 seconds of being filed, and the console says when it last refreshed. It is a poll, not a push, and we call it one (decision 4).
+- `/cases` asks for its queue every 3 seconds while its tab is visible; a hidden tab stops asking. A case appears in the queue within 3 seconds of being filed, and the console says when it last refreshed. It is a poll, not a push, and we call it one (decision 4).
 - A few open staff tabs make a few requests a second at most, which Lambda and DynamoDB on demand absorb without notice; the stage's rate limit caps anything more.
 - Push is the production path: a DynamoDB stream on the cases table feeding AppSync Events, which the pinned provider supports ([Alternatives considered](#alternatives-considered)).
 
 ### The AI team's page
 
-Designed, not built (decision 6). `/ops` would show ADR-0005's committed evaluation report, bundled with the site when it is built, labeled as an offline measurement on held-out cases (EVL-13), calling no API, so it would hold no live number that could be read as a production result. Instead the report is a document in `docs/evaluation/`, linked from the README, and carries its own offline label; the site serves `/chat` and `/agent`. The `ai_team` group and the staff app client stay as designed, so the page can be added without a change to identity.
+Designed, not built (decision 6). `/ops` would show ADR-0005's committed evaluation report, bundled with the site when it is built, labeled as an offline measurement on held-out cases (EVL-13), calling no API, so it would hold no live number that could be read as a production result. Instead the report is a document in `docs/evaluation/`, linked from the README, and carries its own offline label; the site serves `/chat` and `/cases`. The `ai_team` group and the staff app client stay as designed, so the page can be added without a change to identity.
 
 The live monitoring stays in the account, as ADR-0004 describes it (OPS-03): alarms and metrics defined in Terraform, which the judges can't reach and the site doesn't show. A live view (the alarms' states and the metrics over the last day, and recent turns with no message text and a pseudonym per sign-in, read through the console API) is production work; in a bank it belongs to the observability stack ([In a bank](#in-a-bank-ops-11)).
 

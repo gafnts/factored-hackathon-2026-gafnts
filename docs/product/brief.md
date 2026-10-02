@@ -50,7 +50,7 @@ Three kinds of people use Faro. Only the cardholder talks to it; the AI team rea
 | Who | Their moment | What they get | Where |
 |---|---|---|---|
 | **The cardholder** | Their card was declined, is missing, or shows a charge they didn't make | An answer from their own records, in their language; a block they confirmed and Faro verified; a reference when a person takes over | `/chat` |
-| **The human agent** | A case lands in their queue | A case file: the request, each verified fact next to the tool call that read it, the actions with their verified outcomes, the customer's own words kept apart, and the open questions. No transcript to read back | `/agent` |
+| **The human agent** | A case lands in their queue | A case file: the request, each verified fact next to the tool call that read it, the actions with their verified outcomes, the customer's own words kept apart, and the open questions. No transcript to read back | `/cases` |
 | **The AI team** | Deciding whether Faro is safe to keep running | The evaluation report, failures and denominators included, labeled as an offline measurement | `docs/evaluation/`, linked from the README |
 
 **The cardholder** is a LATAM Bank customer in Mexico, Colombia, or Argentina who holds a credit or debit card and has signed in to the bank's chat. Spanish is the bank's language, and Portuguese is the customer's choice in the session ([policy](../policy/card-support.md#language)). No customer in the data writes Portuguese: every transcript is in Spanish. So our Portuguese rests on messages we wrote, and results are reported per language to show whether it holds up (SCP-07, EVL-12).
