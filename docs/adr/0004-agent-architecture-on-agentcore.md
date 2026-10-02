@@ -10,6 +10,7 @@ Amended as built, each correction applied in the section it names:
 - 2026-09-30: the forwarded token checked through `GetUser` ([Where the tools run](#the-graph)); handoffs checked against the execution record ([The handoff](#the-handoff)); the router's complaint flag ([The graph](#the-graph)).
 - 2026-10-01: the available credit tool and each label's reads, the extraction for every card request, POL-05's queue, the replies and the reply check, and the outcome of each situation ([The graph](#the-graph)); the evaluation harness's role, the zips without the evaluation package, the usage counters, and the alarms ([Operations](#operations)); the retries ([The graph](#the-graph)); fixtures and fault plans in the overlay ([Stores](#stores), [The tools as the seam to the bank's systems](#the-tools-as-the-seam-to-the-banks-systems)).
 - 2026-10-01: the amendments above and the answered items of the first deploys folded into the sections they corrected, which now describe the stack as built; this list is the map.
+- 2026-10-02: each message's language read by the model call that reads it, with POL-50 and POL-51 applied in code; before, word lists in code, which missed a third language and one Portuguese message in eight (D-003, D-005) ([The graph](#the-graph)).
 
 ## Context
 
@@ -99,17 +100,19 @@ We chose code over an open loop because the policy is explicit and the requests 
 
 An explicit `StateGraph`, with no prebuilt agent loop: code chooses each tool from the label, and the model fills only the fields a node asks for, through structured output. It is used in four places:
 
-- **Routing** a new request to the eight labels (POL-04 to POL-06). The router returns every supported request it finds, a separate yes or no on whether the message holds one at all, because a choice over labels alone picks the least bad label even for a greeting (S5), and whether the message is a complaint, since POL-44 hands off a request for a person (`customer_request`) and a complaint (`complaint`) under the one label `talk_to_human` and the handoff's reason code needs the distinction; both are required, to the same queue at the same priority, so a wrong flag changes the reason code and nothing else. While a page of transactions has more after it, the router reads one line of context saying so, so a bare "and the next ones?" is labeled as the request it continues. A message in a third language is told apart in code, as POL-50's languages are (no Spanish or Portuguese word, and at least two function words of English, French, Italian, or German): it keeps the conversation's language, skips the router, and gets POL-51's fixed reply. Not taken: a ninth label, which POL-04 doesn't have, or a second model call.
+- **Routing** a new request to the eight labels (POL-04 to POL-06). The router returns every supported request it finds, a separate yes or no on whether the message holds one at all, because a choice over labels alone picks the least bad label even for a greeting (S5), and whether the message is a complaint, since POL-44 hands off a request for a person (`customer_request`) and a complaint (`complaint`) under the one label `talk_to_human` and the handoff's reason code needs the distinction; both are required, to the same queue at the same priority, so a wrong flag changes the reason code and nothing else. While a page of transactions has more after it, the router reads one line of context saying so, so a bare "and the next ones?" is labeled as the request it continues.
 - **Extraction,** for every card request and every unsupported one, among the values each step allows: a card's type and last four digits, a block's reason, which listed transaction the customer means (a listed ID, "none", or "several"), whether they mean all their cards (POL-14), whether they ask for the next page or an earlier period (POL-25), whether the request is about someone else's card or account (POL-08), whether they ask which of two conflicting facts is right or whether the card still works (POL-31), and what an unsupported request asks for: an unblock, a replacement, a PIN, a limit increase, another card service, or something outside cards (POL-41 to POL-43). No date phrase is extracted and code resolves none: the step that finds a transaction states the business date as today and each listed transaction's weekday, and the model matches what the customer says ("ayer", "el viernes", "há uma semana") to them, as it matches an amount or a merchant; the clock stays the published data's (POL-19). Not taken: a router field for each of these, which would change the output that [ADR-0005](0005-offline-scenario-evaluation.md)'s router comparison measures.
 - **Replies,** for the four reads only, written around placeholders that code fills (below).
 - **Handoff text:** the payload's three free-text fields.
 
-Everything else is code: which tool runs and with which `customer_id` (always the token's), when to ask, abstain, decline, block, or hand off, the reply language, the question count, and the retries.
+**Language** (2026-10-02). Each of the three calls that read a message (the router, the extraction, and the transaction choice) also says which language the message is mostly in: `es`, `pt`, `other`, or `unclear` for words both languages share, digits, a name, or a bare "Ok". Code applies the rules: `es` or `pt` sets the conversation's language and `unclear` keeps it, Spanish until a message sets one (POL-50); `other` gets POL-51's fixed reply whatever labels came with it, and an answer in another language leaves the pending question pending; a call that fails, or isn't made this turn, keeps the conversation's language. Not taken: word lists in code, which read four of the six English paraphrases of one development family as one of the chat's languages and missed about one Portuguese message in eight (D-003, D-005); a ninth label for a third language, which POL-04 doesn't have; a second model call for the language alone.
+
+Everything else is code: which tool runs and with which `customer_id` (always the token's), when to ask, abstain, decline, block, or hand off, which language the reply is in (from the model's reading of each message, under POL-50), the question count, and the retries.
 
 ```mermaid
 flowchart TD
   IN(["message or resume"])
-  BEGIN["begin: language, a pending question, a third language"]
+  BEGIN["begin: a pending question"]
   ROUTE["route: the labels, in POL-05's order"]
   LIST["list_cards: is the customer served in full"]
   UNSUP["unsupported: decline, or hand off an unblock"]
@@ -131,10 +134,9 @@ flowchart TD
   BEGIN -->|"new message"| ROUTE
   BEGIN -->|"answer to a question"| CARD
   BEGIN -->|"answer to a question"| FIND
-  BEGIN -->|"third language"| CONCLUDE
   ROUTE -->|"a card request"| CARD
   ROUTE -->|"unsupported, talk_to_human"| LIST
-  ROUTE -->|"no request"| CONCLUDE
+  ROUTE -->|"no request, third language"| CONCLUDE
   LIST -->|"not active, talk_to_human"| HANDOFF
   LIST -->|"served in full"| UNSUP
   UNSUP --> HANDOFF
@@ -171,14 +173,14 @@ flowchart TD
 
 | Node | Kind | Does | Rules |
 |---|---|---|---|
-| `begin` | Code | Detects the language, tells a third language apart, and sends an answer to a pending question back to the node that asked | POL-06, POL-50, POL-51 |
-| `route` | Model, code | Labels new requests, flags a complaint, says whether the message holds a request at all, and orders several | POL-04, POL-05, POL-44 |
+| `begin` | Code | Sends an answer to a pending question back to the node that asked | POL-06 |
+| `route` | Model, code | Labels new requests, flags a complaint, says whether the message holds a request at all and which language it is in, and orders several | POL-04, POL-05, POL-44, POL-50, POL-51 |
 | `next_request` | Code | Serves the next queued request, from the message that asked for it | POL-05 |
 | `list_cards` | Tool | Reads whether the customer is served in full, for `unsupported` and `talk_to_human` | POL-12 |
 | `unsupported` | Code | Declines with the reason and offers a handoff, or hands off an unblock or a request for a person | POL-41 to POL-44 |
-| `resolve_card` | Tool, extraction, code | Reads the cards and matches what the customer said to them; asks, lists, or hands off | POL-08, POL-12 to POL-17 |
+| `resolve_card` | Tool, extraction, code | Reads the cards and matches what the customer said to them, the extraction saying the message's language too; asks, lists, or hands off | POL-08, POL-12 to POL-17, POL-50, POL-51 |
 | `read` | Tool, code | Calls the label's tools; keeps fields the model mustn't see away from it | POL-01, POL-02, POL-18 to POL-32 |
-| `find_transaction` | Tool, extraction | Lists the window's candidates; the model may pick one listed ID, "none", or "several" | POL-27, POL-39 |
+| `find_transaction` | Tool, extraction | Lists the window's candidates; the model may pick one listed ID, "none", or "several", and says the message's language | POL-27, POL-39, POL-50, POL-51 |
 | `ask_reason` | Code | Asks for a block reason, in fixed text | POL-35 |
 | `confirm` | Code | Creates the confirmation record and the control's payload | POL-36 |
 | `conclude` | Code | Ends the request served: its part of the reply, from the fixed texts and the answer its nodes left, and its decision entry; offers a person when a read or a model call failed | POL-05, POL-48 |
@@ -337,8 +339,8 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-47 | Graph, tool | Code sets the queue and priority; the schema ties the queue to the reason code, and `file_handoff` raises a priority the policy requires |
 | POL-48 | Graph | Three attempts per read or model call, then `tool_failure` offered in fixed text |
 | POL-49 | Graph | JSON-RPC `-32002` is classified as a denial and never retried |
-| POL-50 | Graph | Code identifies each message's language, keeps the conversation's language otherwise, and sets it for the reply |
-| POL-51 | Graph | Code tells a third language apart, and a fixed reply in Spanish, with one sentence in Portuguese, answers it |
+| POL-50 | Model, graph | The call that reads a message says which language it is mostly in; code sets the conversation's language from `es` or `pt`, keeps it on `unclear`, Spanish until one is set, and replies in it |
+| POL-51 | Model, graph | The call that reads a message says `other`; code answers with the fixed reply in Spanish, with one sentence in Portuguese, whatever labels came with it, and leaves a pending question pending |
 
 ### Card numbers
 
