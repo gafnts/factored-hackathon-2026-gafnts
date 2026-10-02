@@ -370,7 +370,7 @@ make destroy ENV=local   # Tear down your local resources
 
 `make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package without its evaluation, which never runs in the stack, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. On one machine, rebuilding the same tree gives the same zip, so a plan shows a change only when the code or a locked version changed; across uv versions the bytes can differ. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
 
-The four alarms ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#status), the alarms as built) notify an SNS topic that `make outputs` writes under `alarms.topic_arn`. Terraform subscribes no address to it, so none reaches the repository: subscribe once per environment, then confirm from the email AWS sends.
+The four alarms ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#operations), monitoring) notify an SNS topic that `make outputs` writes under `alarms.topic_arn`. Terraform subscribes no address to it, so none reaches the repository: subscribe once per environment, then confirm from the email AWS sends.
 
 ```bash
 aws sns subscribe --protocol email --notification-endpoint you@example.com \
