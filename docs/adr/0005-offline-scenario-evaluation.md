@@ -14,6 +14,7 @@ Amended as built, each correction applied in the section it names:
 - 2026-10-02: a message's language read by the model and tested by the live language check over development families, not by the offline gate ([The development regression set](#the-development-regression-set)).
 - 2026-10-02: the live language check also reads each development block request's reason, which the scripted models answer from the families (D-006) ([The development regression set](#the-development-regression-set)).
 - 2026-10-02: the router comparison narrowed to one provider, Claude Haiku 4.5 and Claude Sonnet 5.5 beside the keyword router, since the OpenAI and Google keys weren't obtained; the judge is Claude Opus 5.5, its shared family disclosed and its validation bar unchanged; both run on the Anthropic key the harness already reads, and the comparison calls its candidates directly, since it measures their latency ([The split](#the-split), [Budget and the pilot](#budget-and-the-pilot), [Grading](#grading), [Baselines](#baselines), [Reporting](#reporting), [Settled at acceptance](#settled-at-acceptance), [Consequences](#consequences)).
+- 2026-10-02: the development sets' sizes as redrawn, 67 and 155 cases ([The development regression set](#the-development-regression-set), [The development selection set](#the-development-selection-set)).
 
 ## Context
 
@@ -83,7 +84,7 @@ Tests guard the split. No development artifact (cases, prompts, router data, per
 
 ### The development regression set
 
-61 cases as drawn, from development customers and development families: the three paths in both languages, and one case for each main failure mode (a confirmation, an access attempt, an injection, a tool failure, missing data). It runs on every change to the graph, prompts, tools, or policy, is logged like any run, and never appears as a reported result. The held-out workload runs only for reported results, each run with its manifest.
+67 cases as drawn, from development customers and development families: the three paths in both languages, and one case for each main failure mode (a confirmation, an access attempt, an injection, a tool failure, missing data). It runs on every change to the graph, prompts, tools, or policy, is logged like any run, and never appears as a reported result. The held-out workload runs only for reported results, each run with its manifest.
 
 **Cases stay out of the repository.** A case names its customer, its messages carry that customer's last four digits, merchants, amounts, and dates, and its expected facts are record values, so a case is row-level data (SEC-03). Case sets live in `data/evaluation/` and in the evaluation bucket, and only their manifests are committed under `docs/evaluation/sets/`: opaque case IDs, hashes, and counts. A set is rebuilt from the snapshot, the families, the generator's commit, and its seed (OPS-07).
 
@@ -93,7 +94,7 @@ Tests guard the split. No development artifact (cases, prompts, router data, per
 
 ### The development selection set
 
-147 cases as drawn, drawn by the same generator from development customers and development families, in the held-out workload's groups and proportions, and sharing no case with the regression set, which fixes are made against (decision 10). It is played end to end by Claude Haiku 4.5, and the judge is validated on its replies to it. Its results are reported as development measurements (DML-12), never as held-out results. For choosing, more cases beat repeats, since repeated runs of one case aren't independent draws: 150 cases resolve a rate near 90% to about 5 points either way.
+155 cases as drawn, drawn by the same generator from development customers and development families, in the held-out workload's groups and proportions, and sharing no case with the regression set, which fixes are made against (decision 10). It is played end to end by Claude Haiku 4.5, and the judge is validated on its replies to it. Its results are reported as development measurements (DML-12), never as held-out results. For choosing, more cases beat repeats, since repeated runs of one case aren't independent draws: 150 cases resolve a rate near 90% to about 5 points either way.
 
 ### The oracle
 
