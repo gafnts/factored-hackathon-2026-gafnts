@@ -109,66 +109,85 @@ Everything else is code: which tool runs and with which `customer_id` (always th
 ```mermaid
 flowchart TD
   IN(["message or resume"])
-  P{"control pending?"}
-  ROUTE["route"]
-  CARD["resolve_card"]
-  DH["decline or hand off"]
-  READ["read tools"]
+  BEGIN["begin: language, a pending question, a third language"]
+  ROUTE["route: the labels, in POL-05's order"]
+  LIST["list_cards: is the customer served in full"]
+  UNSUP["unsupported: decline, or hand off an unblock"]
+  CARD["resolve_card: which card, and what the request names"]
+  READ["read: status, credit, transactions, a decline"]
+  FIND["find_transaction: which listed one"]
   REASON["ask_reason"]
-  FIND["find_transaction"]
-  CONFIRM["confirm: interrupt"]
-  OFFER["offer: interrupt"]
-  BLOCK["block"]
-  VERIFY["verify"]
-  AFTER{"handoff required?"}
-  HANDOFF["handoff"]
-  REPLY["reply and reply check"]
+  CONFIRM["confirm: create the record"]
+  CONCLUDE["conclude: the request's reply part and decision"]
+  NEXT["next_request: the queue"]
+  REPLY["reply: fill placeholders, check, send whole"]
+  AWAIT["await_control: interrupt"]
+  HOLD["hold: nothing changed"]
+  BLOCK["block: use the confirmation"]
+  VERIFY["verify: read the card back"]
+  HANDOFF["handoff: build, validate, file"]
   OUT(["events to the chat"])
-  IN --> P
-  P -->|"no"| ROUTE
-  P -->|"confirmation"| CONFIRM
-  P -->|"handoff offer"| OFFER
+  IN --> BEGIN
+  BEGIN -->|"new message"| ROUTE
+  BEGIN -->|"answer to a question"| CARD
+  BEGIN -->|"answer to a question"| FIND
+  BEGIN -->|"third language"| CONCLUDE
   ROUTE -->|"a card request"| CARD
-  ROUTE -->|"unsupported, talk_to_human"| DH
-  ROUTE -->|"no request"| REPLY
-  CARD -->|"card_status, available_credit, recent_transactions, decline_reason"| READ
-  CARD -->|"block_card"| REASON
-  CARD -->|"unrecognized_charge"| FIND
-  CARD -->|"ambiguous_card, customer_not_active"| HANDOFF
-  READ --> REPLY
-  REASON --> CONFIRM
-  FIND -->|"card Active"| CONFIRM
-  FIND -->|"card not Active"| HANDOFF
-  CONFIRM -->|"confirmed"| BLOCK
-  CONFIRM -->|"typed text, nothing changed"| CONFIRM
-  CONFIRM -->|"cancelled or lapsed"| AFTER
-  BLOCK --> VERIFY
-  VERIFY --> AFTER
-  AFTER -->|"yes"| HANDOFF
-  AFTER -->|"no"| REPLY
-  DH --> HANDOFF
-  DH --> REPLY
-  HANDOFF --> REPLY
-  REPLY -->|"a handoff offered"| OFFER
-  OFFER -->|"accepted"| HANDOFF
-  OFFER -->|"typed text, nothing changed"| OFFER
-  OFFER -->|"declined or lapsed"| REPLY
+  ROUTE -->|"unsupported, talk_to_human"| LIST
+  ROUTE -->|"no request"| CONCLUDE
+  LIST -->|"not active, talk_to_human"| HANDOFF
+  LIST -->|"served in full"| UNSUP
+  UNSUP --> HANDOFF
+  UNSUP --> CONCLUDE
+  CARD --> READ
+  CARD -->|"unrecognized_charge, decline_reason"| FIND
+  CARD -->|"block_card, no reason"| REASON
+  CARD -->|"block_card, with a reason"| CONFIRM
+  CARD -->|"ambiguous, someone else's, not active"| HANDOFF
+  CARD -->|"which card?"| CONCLUDE
+  READ --> CONCLUDE
+  READ -->|"missing data, conflict, failure"| HANDOFF
+  FIND -->|"active card"| CONFIRM
+  FIND --> HANDOFF
+  FIND --> CONCLUDE
+  REASON --> CONCLUDE
+  CONFIRM --> CONCLUDE
+  CONCLUDE -->|"another request queued"| NEXT
+  NEXT --> CARD
+  NEXT --> LIST
+  CONCLUDE --> REPLY
+  REPLY -->|"a control is pending"| AWAIT
   REPLY --> OUT
+  AWAIT -->|"confirmed"| BLOCK
+  AWAIT -->|"accepted"| HANDOFF
+  AWAIT -->|"cancelled, declined, or a new request"| CARD
+  AWAIT -->|"typed text"| HOLD
+  HOLD --> AWAIT
+  BLOCK --> VERIFY
+  VERIFY -->|"verified"| CONCLUDE
+  VERIFY -->|"not verified, or POL-39"| HANDOFF
+  HANDOFF --> CONCLUDE
 ```
 
 | Node | Kind | Does | Rules |
 |---|---|---|---|
-| `route` | Model, code | Labels new requests and flags a complaint, orders several, tracks the language | POL-04 to POL-06, POL-44, POL-50, POL-51 |
-| `resolve_card` | Tool, extraction, code | Matches what the customer said to their cards; asks, lists, or hands off | POL-12 to POL-17 |
-| read tools | Tool, code | Call the label's tools; keep fields the model mustn't see away from it | POL-01, POL-02, POL-18 to POL-32 |
+| `begin` | Code | Detects the language, tells a third language apart, and sends an answer to a pending question back to the node that asked | POL-06, POL-50, POL-51 |
+| `route` | Model, code | Labels new requests, flags a complaint, says whether the message holds a request at all, and orders several | POL-04, POL-05, POL-44 |
+| `next_request` | Code | Serves the next queued request, from the message that asked for it | POL-05 |
+| `list_cards` | Tool | Reads whether the customer is served in full, for `unsupported` and `talk_to_human` | POL-12 |
+| `unsupported` | Code | Declines with the reason and offers a handoff, or hands off an unblock or a request for a person | POL-41 to POL-44 |
+| `resolve_card` | Tool, extraction, code | Reads the cards and matches what the customer said to them; asks, lists, or hands off | POL-08, POL-12 to POL-17 |
+| `read` | Tool, code | Calls the label's tools; keeps fields the model mustn't see away from it | POL-01, POL-02, POL-18 to POL-32 |
 | `find_transaction` | Tool, extraction | Lists the window's candidates; the model may pick one listed ID, "none", or "several" | POL-27, POL-39 |
 | `ask_reason` | Code | Asks for a block reason, in fixed text | POL-35 |
-| `confirm` | Code, interrupt | Creates the confirmation, shows the control, waits | POL-36 |
-| `offer` | Code, interrupt | Shows the handoff control after the reply that offers a handoff, waits | POL-45 |
+| `confirm` | Code | Creates the confirmation record and the control's payload | POL-36 |
+| `conclude` | Code | Ends the request served: its part of the reply, from the fixed texts and the answer its nodes left, and its decision entry; offers a person when a read or a model call failed | POL-05, POL-48 |
+| `reply` | Model, code | Writes a read's reply with placeholders, fills them, adds the outcomes' fixed text, checks it, and sends it whole | POL-11, POL-18, POL-20, POL-37, POL-45 |
+| `await_control` | Code, interrupt | Shows the pending control and waits; only the control's resume confirms, cancels, accepts, or declines | POL-36, POL-45 |
+| `hold` | Code | Records the decision of a turn that changed nothing and shows the control again | POL-36, POL-45 |
 | `block` | Tool | Uses the confirmation: writes, reads back, retries | POL-33, POL-34, POL-37 |
 | `verify` | Tool | Reads the card again for the reply's and the handoff's evidence | POL-37 |
 | `handoff` | Code, model, tool | Builds, validates, and files the payload | POL-45 to POL-47 |
-| `reply` | Model, code | Writes a read's reply with placeholders, fills them, adds the outcomes' fixed text, and checks it | POL-11, POL-18, POL-20, POL-37, POL-45 |
 
 **What each label reads.** Every request but a block reads `list_cards` first. Then `card_status` reads `get_card` for each card meant, since only it returns the expiration POL-21 states; `available_credit` reads `get_available_credit` for each credit card meant; `recent_transactions` reads one page of `find_transactions`, and the page after it when the customer asks for the next 10, with the card and the cursor kept in the thread's private state until another page replaces them; `decline_reason` reads up to three pages, as an unrecognized charge does, and `get_card` when the transaction found carries code `54`, for POL-30's comparison with the recorded expiration.
 
@@ -197,7 +216,7 @@ flowchart TD
 | None | A third language | decline | | POL-51 |
 | A read | A read, the extraction, or the reply call fails | abstain | `tool_failure`, offered | POL-48 |
 
-**Offered handoffs** (POL-17, POL-24, POL-31, POL-32, POL-36, POL-38, POL-42, POL-48) come with the handoff control (POL-45). After the reply that offers one, `offer` interrupts with `{kind: "handoff_offer", offer_id, reason_code}`, and the chat renders the control from it in fixed text, as it does the confirm control. Only the control's resume, `{kind: "accept" | "decline", offer_id}`, answers it, and `offer` takes it only when the ID is the thread's pending offer and the request comes from the sign-in that saw it. Typed text arrives as a `message` resume, as during a confirmation: a new request ends the offer and goes to the router, and anything else shows the control again. The offer lives in the graph's private state, not in a table, since no tool acts on it: accepting it runs `handoff`. When POL-36 offers a handoff while its confirmation is pending, one interrupt carries both controls, and accepting the handoff ends the confirmation unused.
+**Offered handoffs** (POL-17, POL-24, POL-31, POL-32, POL-36, POL-38, POL-42, POL-48) come with the handoff control (POL-45). After the reply that offers one, `await_control` interrupts with `{kind: "handoff_offer", offer_id, reason_code}`, and the chat renders the control from it in fixed text, as it does the confirm control. Only the control's resume, `{kind: "accept" | "decline", offer_id}`, answers it, and `await_control` takes it only when the ID is the thread's pending offer and the request comes from the sign-in that saw it. Typed text arrives as a `message` resume, as during a confirmation: a new request ends the offer and goes to the router, and anything else shows the control again. The offer lives in the graph's private state, not in a table, since no tool acts on it: accepting it runs `handoff`. When POL-36 offers a handoff while its confirmation is pending, one interrupt carries both controls, and accepting the handoff ends the confirmation unused.
 
 **Tools.** Every tool takes `customer_id` and the sign-in (`origin_jti`), both filled by the graph from the token, never by the model. The sign-in chooses the overlay a tool reads and writes, and Cedar checks it against the token as it checks `customer_id`: a call that names another sign-in's `origin_jti`, earlier or made up, is denied (`test_cedar_denies_another_sign_ins_origin_jti`).
 
@@ -253,9 +272,9 @@ A block needs a confirmation record that the server creates when the graph reach
 | `expires_at` | Wall clock, five minutes after creation (decision 10) |
 | `confirmed_at`, `attempts`, `outcome` | When the control confirmed it, how many writes the block made, and whether the read-back showed `Blocked` |
 
-- **Created** by `confirm`, with a conditional put, before it interrupts with `{kind: "block_confirmation", confirmation_id, card: {type, last_four}, reason, expires_at}`. The chat renders the control from that payload, with fixed text in the conversation's language, so the model writes nothing the control says. A thread has at most one pending confirmation.
-- **Confirmed or cancelled** only by the control, which resumes the run with `{kind: "confirm" | "cancel", confirmation_id}` through AG-UI's `RunAgentInput.resume` (`ag-ui-langgraph` turns it into LangGraph's `Command(resume=...)`); assistant-ui's `useAgUiRuntime` sends it as one `resolved` entry carrying the control's answer. `confirm` accepts it only when the ID is the thread's pending one, the record's `thread`, `sub`, and `origin_jti` match the request, and it hasn't expired; a conditional update then records the answer. A stale control (a confirmation cancelled, lapsed, used, or from an earlier sign-in) changes nothing (`test_a_stale_control_changes_nothing`), and the chat disables controls whose confirmation is no longer pending.
-- **Typed text never confirms.** `ag-ui-langgraph` 0.0.45 answers a new message on a thread paused at an interrupt, sent without a resume, by re-emitting the interrupt and ending the run, so the message never reaches the graph or the checkpoint (read in its `prepare_stream`). The entrypoint therefore turns such a message into a resume of kind `message` that carries the masked text, and `confirm` applies POL-36. A new request, or another card or reason, lapses the record and moves on, to the router or to a new confirmation; anything else, a typed yes included, shows the control again, and the second time also offers a handoff, unless POL-39 already requires one. The chat's `steerAway` adds `cancelled` entries without a payload when a message is typed while a control shows, which the contract refuses, so the chat drops them before the request: a typed yes goes out as a message alone, the control shows again with the earlier one disabled, and the card stays active (`test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes`, in Chromium). Typed text can end a confirmation, and only the control can grant one.
+- **Created** by `confirm`, with a conditional put; `await_control` then interrupts with `{kind: "block_confirmation", confirmation_id, card: {type, last_four}, reason, expires_at}`. The chat renders the control from that payload, with fixed text in the conversation's language, so the model writes nothing the control says. A thread has at most one pending confirmation.
+- **Confirmed or cancelled** only by the control, which resumes the run with `{kind: "confirm" | "cancel", confirmation_id}` through AG-UI's `RunAgentInput.resume` (`ag-ui-langgraph` turns it into LangGraph's `Command(resume=...)`); assistant-ui's `useAgUiRuntime` sends it as one `resolved` entry carrying the control's answer. `await_control` accepts it only when the ID is the thread's pending one, the record's `thread`, `sub`, and `origin_jti` match the request, and it hasn't expired; a conditional update then records the answer. A stale control (a confirmation cancelled, lapsed, used, or from an earlier sign-in) changes nothing (`test_a_stale_control_changes_nothing`), and the chat disables controls whose confirmation is no longer pending.
+- **Typed text never confirms.** `ag-ui-langgraph` 0.0.45 answers a new message on a thread paused at an interrupt, sent without a resume, by re-emitting the interrupt and ending the run, so the message never reaches the graph or the checkpoint (read in its `prepare_stream`). The entrypoint therefore turns such a message into a resume of kind `message` that carries the masked text, and `await_control` applies POL-36. A new request, or another card or reason, lapses the record and moves on, to the router or to a new confirmation; anything else, a typed yes included, shows the control again, and the second time also offers a handoff, unless POL-39 already requires one. The chat's `steerAway` adds `cancelled` entries without a payload when a message is typed while a control shows, which the contract refuses, so the chat drops them before the request: a typed yes goes out as a message alone, the control shows again with the earlier one disabled, and the card stays active (`test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes`, in Chromium). Typed text can end a confirmation, and only the control can grant one.
 - **Used** by the block tool, whose call carries `confirmation_id` with the card and the reason, all filled by the graph. In one DynamoDB transaction, the tool moves the record from `confirmed` to `consumed`, on the condition that the customer, card, and reason match and the record hasn't expired, and writes `Blocked` to the overlay of the confirmation's sign-in, whatever sign-in the call names. It then reads the overlay back with a strongly consistent read; if that doesn't show `Blocked`, it writes and reads again, up to three writes in all (POL-37), counts them in `attempts`, and records the `outcome`. A second call with the same confirmation writes nothing unless the first left no outcome (a crash mid-call); then it reads first and continues within the same three writes. No confirmation blocks twice, and no block runs without one.
 - **Lapsed** also when the time limit passes (the next request finds it expired) or the sign-in ends, which the record's `origin_jti` and expiry make checkable.
 
@@ -277,7 +296,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-06 | Graph, entrypoint | A pending question routes the answer to the node that asked; typed text during a confirmation or a handoff offer becomes a `message` resume |
 | POL-07 | Cognito, entrypoint, graph, Cedar | `customer_id` comes only from the admin-written claim, and the entrypoint refuses a token without it; the graph fills every tool's `customer_id` from it; Cedar denies any other |
 | POL-08 | Cedar, tool | Cedar denies another customer's ID; tools look up records under the caller's customer only, so another's card reads as not found; `file_handoff`, off the Gateway, checks the payload's customer against the forwarded token |
-| POL-09 | Authorizers, frontend, graph | Both JWT authorizers reject an expired token; the chat asks the customer to sign in; `confirm` and `offer` refuse a resume from another sign-in, and `confirm` one after the confirmation expires |
+| POL-09 | Authorizers, frontend, graph | Both JWT authorizers reject an expired token; the chat asks the customer to sign in; `await_control` refuses a resume from another sign-in, and one after the confirmation expires |
 | POL-10 | Graph, tool | No rule lives in text: the model picks no tool and no customer, its outputs are typed, and tool results reach it as data |
 | POL-11 | Pipeline, entrypoint, graph, tool | The tools' data holds last four digits only; the entrypoint masks typed numbers; the reply check and the handoff schema reject runs of 13 or more digits; the chat's stream carries no private state |
 | POL-12 | Tool, graph | For a `Closed` or `Suspended` customer, `get_available_credit` and `find_transactions` refuse, while `list_cards` marks the customer as not served in full without naming the status; the graph hands off everything but a block from that mark |

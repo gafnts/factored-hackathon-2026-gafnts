@@ -3,7 +3,7 @@
 Faro on one page: what runs where, how a turn flows, what the graph decides, where each rule is enforced, how the data reaches the tools, and how we measure the result. Each section names the record that holds the full reasoning; the requirement IDs are from [prerequisites.md](prerequisites.md).
 
 > [!NOTE]
-> **As built.** This page describes `prototype` after promotion 3 (PR #47, 2026-10-01): sign-in for customers and staff, the chat and the human agent's console, every request in the policy's table served in both languages, the confirmation with the verified block, the handoff filed as a case, the reply check, the execution record, usage limits and alarms, the pipeline's export in the tools' data, and the evaluation harness with its first reported run. Three pieces are designed in the records and not built, each a stated limitation: a handoff filed after a confirmation's deadline when the customer has left ([ADR-0004](adr/0004-agent-architecture-on-agentcore.md#the-confirmation), decision 7); claim and resolve in the console, so every case stays `filed` ([ADR-0007](adr/0007-role-gated-web-app.md#status)); and the AI team's page, whose report lives in [docs/evaluation/](evaluation/) instead. The evaluation's deterministic baseline and its judge are defined in [ADR-0005](adr/0005-offline-scenario-evaluation.md) and still to come; the section on evaluation says what has run.
+> **As built.** This page describes `prototype` after promotion 3 (PR #47, 2026-10-01): sign-in for customers and staff, the chat and the human agent's console, every request in the policy's table served in both languages, the confirmation with the verified block, the handoff filed as a case, the reply check, the execution record, usage limits and alarms, the pipeline's export in the tools' data, and the evaluation harness with its first reported run. Three pieces are designed in the records and not built, each a stated limitation: a handoff filed after a confirmation's deadline when the customer has left ([ADR-0004](adr/0004-agent-architecture-on-agentcore.md#the-confirmation), decision 7); claim and resolve in the console, so every case stays `filed` ([ADR-0007](adr/0007-role-gated-web-app.md#the-console-api)); and the AI team's page, whose report lives in [docs/evaluation/](evaluation/) instead. The evaluation's deterministic baseline and its judge are defined in [ADR-0005](adr/0005-offline-scenario-evaluation.md) and still to come; the section on evaluation says what has run.
 
 ## The system
 
@@ -134,7 +134,7 @@ flowchart TD
   AWAIT -->|"confirmed"| BLOCK
   AWAIT -->|"accepted"| HANDOFF
   AWAIT -->|"cancelled, declined, or a new request"| CARD
-  AWAIT -->|"typed text: show the control again"| AWAIT
+  AWAIT -->|"typed text: hold, then the control again"| AWAIT
   BLOCK --> VERIFY
   VERIFY -->|"verified"| CONCLUDE
   VERIFY -->|"not verified, or POL-39"| HANDOFF
@@ -227,7 +227,7 @@ Still to come, as ADR-0005 defines them: the deterministic baseline on the same 
 |---|---|
 | [ADR-0003](adr/0003-choose-workflow-from-evidence.md) | Card support, from the [selection report](analysis/selection.md) |
 | [The policy](policy/card-support.md) | What Faro answers, does, refuses, and hands off, one ID per rule |
-| [ADR-0004](adr/0004-agent-architecture-on-agentcore.md) | The agent, the tools, the stores, the confirmation, the handoff, operations; its Status lists what was amended as the stack was built |
+| [ADR-0004](adr/0004-agent-architecture-on-agentcore.md) | The agent, the tools, the stores, the confirmation, the handoff, operations |
 | [ADR-0005](adr/0005-offline-scenario-evaluation.md) | The evaluation, the oracle, the baseline, the judge, reporting |
 | [ADR-0006](adr/0006-batch-medallion-pipeline.md) | The pipeline, its contracts and checks, freshness, lineage |
 | [ADR-0007](adr/0007-role-gated-web-app.md) | The web app, sign-in, the console API, handoffs as cases |
