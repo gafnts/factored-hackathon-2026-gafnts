@@ -200,11 +200,14 @@ language-check: ## Run the real prompts over the development paraphrases and ans
 	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL)) $(foreach f,$(FAMILIES),--only $(f))
 
 # The judge and the router comparison call models outside the system under test; ESTIMATE=1 prices a call and makes none.
-.PHONY: judge
+.PHONY: judge judge-sample
 
 judge: ## Judge a run's replies (RUN=data/evaluation/runs/<run>) or a sample's (ITEMS=) through the batch API (ENV_FILE=, LIMIT=, ESTIMATE=1)
 	uv run python -m banking_agent.evaluation judge $(if $(ITEMS),--items $(ITEMS),--run $(RUN)) --env-file $(or $(ENV_FILE),.env) \
 		$(if $(LIMIT),--limit $(LIMIT)) $(if $(filter 1,$(ESTIMATE)),--estimate)
+
+judge-sample: ## Draw the judge's blind sample and sheet from a run's replies, seeding failing ones (RUN=, SEEDED= per question)
+	uv run python -m banking_agent.evaluation judge-sample --run $(RUN) $(if $(SEEDED),--seeded $(SEEDED))
 
 ##@ Analysis
 
