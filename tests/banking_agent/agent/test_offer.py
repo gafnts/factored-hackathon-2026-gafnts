@@ -288,7 +288,7 @@ def test_declining_the_offer_beside_a_confirmation_leaves_it_pending(
 
 def test_confirming_ends_the_offer_beside_the_confirmation(harness: Harness) -> None:
     chat = Chat(harness)
-    twice = pointed_twice(chat, block_reason="customer_request")
+    twice = pointed_twice(chat, block_reason="other_reason")
 
     done = chat.press("confirm", twice)
 

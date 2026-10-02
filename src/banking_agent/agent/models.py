@@ -83,10 +83,16 @@ class RouterOutput(BaseModel):
     complaint: bool
 
 
+# The model never sees the name customer_request, which it read as "the customer asked for the block" (D-006).
+OTHER_REASON = "other_reason"
+REASON_CODES = {OTHER_REASON: "customer_request"}
+
+
 class RequestDetails(BaseModel):
     """
     What a message says about the request it holds, each field among the values the step allows and null when the
-    message doesn't say: the card (POL-13), a block's reason (POL-35), all the customer's cards (POL-14), the next page or
+    message doesn't say: the card (POL-13), a block's reason (POL-35; any other reason is other_reason to the model, and
+    details() gives the graph POL-35's customer_request for it), all the customer's cards (POL-14), the next page or
     an earlier period (POL-25), someone else's card (POL-08), a question about conflicting facts (POL-31), and what an
     unsupported request asks for (POL-41 to POL-43), and which language the message is mostly in. Every value is a
     string, as the execution record keeps them.
@@ -98,7 +104,7 @@ class RequestDetails(BaseModel):
     card_type: Literal["credit", "debit"] | None
     last_four: str | None
     block_reason: (
-        Literal["lost", "stolen", "unrecognized_charge", "customer_request"] | None
+        Literal["lost", "stolen", "unrecognized_charge", "other_reason"] | None
     )
     cards: Literal["all"] | None
     page: Literal["next", "earlier"] | None
@@ -115,6 +121,17 @@ class RequestDetails(BaseModel):
         ]
         | None
     )
+
+    def details(self) -> dict[str, Any]:
+        """
+        The fields as the graph reads them, after the call recorded the model's own values: the model's name for any
+        other block reason becomes POL-35's code.
+        """
+        found = self.model_dump()
+        found["block_reason"] = REASON_CODES.get(
+            found["block_reason"], found["block_reason"]
+        )
+        return found
 
 
 class TransactionChoice(BaseModel):

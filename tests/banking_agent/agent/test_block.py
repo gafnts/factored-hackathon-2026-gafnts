@@ -375,6 +375,74 @@ def test_another_reason_typed_while_the_control_shows_keeps_the_card(
     )
 
 
+def test_a_request_with_no_reason_is_asked_why_and_any_other_reason_reaches_the_control(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+
+    asked = chat.say("Bloquee mi tarjeta de crédito.", card_type="credit")
+
+    assert asked[-1]["outcome"] == {"type": "success"}
+    assert reply(asked) == FIXED["ask_reason"]["es"].format(
+        card="tarjeta de crédito terminada en 4821"
+    )
+    assert (chat.decision()["outcome_class"], chat.decision()["awaiting"]) == (
+        "clarify",
+        "reason",
+    )
+
+    shown = chat.say("Prefiero no decirlo.", requests=[], block_reason="other_reason")
+
+    control = interrupt(shown)["metadata"]["controls"][0]
+    assert control["reason"] == "customer_request"
+    assert reply(shown).endswith(
+        FIXED["confirm_prompt"]["es"].format(
+            card="tarjeta de crédito terminada en 4821", reason="su solicitud"
+        )
+    )
+    # The record keeps what the model said; the confirmation keeps POL-35's code.
+    extracted = [
+        e
+        for e in chat.entries()
+        if e["kind"] == "model_call" and e["purpose"] == "extract"
+    ]
+    assert extracted[-1]["output"]["extracted"]["block_reason"] == "other_reason"
+    record = harness.confirmations.records[control["confirmation_id"]]
+    assert record["reason"] == "customer_request"
+
+
+def test_the_same_reason_under_the_models_name_typed_while_the_control_shows_points_to_it(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    shown = control_shown(chat, block_reason="other_reason")
+
+    pointed = chat.say(
+        "Son motivos personales.", requests=[], block_reason="other_reason"
+    )
+
+    assert reply(pointed) == FIXED["control_pointer"]["es"]
+    assert (
+        interrupt(pointed)["metadata"]["controls"][0]["confirmation_id"]
+        == interrupt(shown)["metadata"]["controls"][0]["confirmation_id"]
+    )
+
+
+def test_another_reason_under_the_models_name_typed_while_the_control_shows_moves_the_block(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    control_shown(chat)
+
+    moved = chat.say("Mejor no digo por qué.", requests=[], block_reason="other_reason")
+
+    second = interrupt(moved)["metadata"]["controls"][0]
+    assert (second["card"]["last_four"], second["reason"]) == (
+        "4821",
+        "customer_request",
+    )
+
+
 def test_a_confirm_after_the_time_limit_is_refused_and_nothing_is_blocked(
     harness: Harness,
 ) -> None:
@@ -404,7 +472,7 @@ def test_a_message_after_the_time_limit_ends_the_confirmation_and_is_served(
     harness: Harness,
 ) -> None:
     chat = Chat(harness)
-    control_shown(chat, block_reason="customer_request")
+    control_shown(chat, block_reason="other_reason")
     harness.moved = timedelta(minutes=6)
 
     late = chat.say("Sí.", requests=[])
@@ -477,7 +545,7 @@ def test_a_resume_that_doesnt_answer_the_pending_control_changes_nothing(
 
 def test_a_control_answered_once_is_stale_afterwards(harness: Harness) -> None:
     chat = Chat(harness)
-    shown = control_shown(chat, block_reason="customer_request")
+    shown = control_shown(chat, block_reason="other_reason")
     chat.press("confirm", shown)
     calls = len(harness.script.tool_calls)
 

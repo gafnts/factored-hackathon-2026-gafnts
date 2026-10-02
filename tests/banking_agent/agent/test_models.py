@@ -218,6 +218,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
     ("field", "value"),
     [
         ("block_reason", "fraud"),
+        ("block_reason", "customer_request"),
         ("service", "loan"),
         ("page", "previous"),
         ("language", "en"),
@@ -229,6 +230,24 @@ def test_an_extraction_offers_only_the_values_its_step_allows(
     empty = {**dict.fromkeys(RequestDetails.model_fields), "language": "es"}
     with pytest.raises(ValueError):
         RequestDetails.model_validate({**empty, field: value})
+
+
+def test_any_other_reason_is_recorded_as_the_model_named_it_and_mapped_for_the_graph() -> (
+    None
+):
+    empty = {**dict.fromkeys(RequestDetails.model_fields), "language": "es"}
+    parsed = RequestDetails.model_validate({**empty, "block_reason": "other_reason"})
+    raw = answer(content="{}", usage_metadata=USAGE)
+    made, entries = recorded({"raw": raw, "parsed": parsed, "parsing_error": None})
+
+    found = asyncio.run(made.extract("Prefiero no decir por qué.", "A block."))
+
+    (entry,) = entries
+    assert entry["output"]["extracted"]["block_reason"] == "other_reason"
+    assert found.details()["block_reason"] == "customer_request"
+    lost = RequestDetails.model_validate({**empty, "block_reason": "lost"})
+    assert lost.details()["block_reason"] == "lost"
+    assert RequestDetails.model_validate(empty).details()["block_reason"] is None
 
 
 def test_the_router_reads_what_the_last_reply_offered_after_its_prompt() -> None:

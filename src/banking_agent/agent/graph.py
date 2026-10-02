@@ -743,7 +743,7 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 # POL-51: a question asked stays pending.
                 return {**turn, "case": "third_language"}
             turn |= heard(state, text, extracted.language)
-            details = extracted.model_dump()
+            details = extracted.details()
     # A charge someone else made on the customer's card is still theirs to report (POL-39).
     if details.get("owner") == "someone_else" and not charge:
         return {**turn, "case": "other_person", "asking": None}
@@ -2081,7 +2081,7 @@ async def typed_to_confirmation(
             await scope.models.extract(
                 text, "A block is waiting for the customer to confirm it."
             )
-        ).model_dump()
+        ).details()
     except ModelFailedError:
         details = {"card_type": None, "last_four": None, "block_reason": None}
     card_type, last_four = hints(details)

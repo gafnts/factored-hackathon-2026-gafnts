@@ -174,7 +174,7 @@ async def ask(models: Models, item: Item) -> Result:
             assert item.context is not None
             found = await models.extract(item.text, item.context)
             said = found.language
-            reason = found.model_dump()["block_reason"] or "none"
+            reason = found.details()["block_reason"] or "none"
         else:
             assert item.context is not None
             said = (await models.choose(item.text, item.context)).language

@@ -170,7 +170,8 @@ def test_the_check_counts_what_the_model_said_against_the_label(tmp_path: Path) 
         ),
     ]
     said = {"Meu cartão?": "es", "bloquear": "pt", "Quiero bloquear mi tarjeta.": "es"}
-    reasons = {"Quiero bloquear mi tarjeta.": "customer_request", "La perdí.": "lost"}
+    # The fake says the model's name; the check reports the code the graph maps it to.
+    reasons = {"Quiero bloquear mi tarjeta.": "other_reason", "La perdí.": "lost"}
     models, costs = saying(
         lambda text: (
             said.get(text) or next(i.expected for i in items if i.text == text)

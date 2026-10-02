@@ -17,6 +17,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from banking_agent.agent.models import (
+    REASON_CODES,
     HandoffText,
     RequestDetails,
     RouterOutput,
@@ -40,6 +41,8 @@ REASONS = {
     "reason_unrecognized_charge": "unrecognized_charge",
     "reason_customer_request": "customer_request",
 }
+# The families and the answers hold POL-35's codes; the model says its own name for any other reason.
+MODEL_REASONS = {code: value for value, code in REASON_CODES.items()}
 PLACEHOLDER = re.compile(r"^- (\{[a-z_.]+\}):", re.MULTILINE)
 LISTED = re.compile(r"^(\d+)\. ")
 HANDOFF_TEXT = {
@@ -190,6 +193,8 @@ class ScriptedModels:
                 details["card_type"] = "credit" if credit else "debit"
             if said != "card_type":
                 details["last_four"] = self.card["last_four"]
+        reason = details["block_reason"]
+        details["block_reason"] = MODEL_REASONS.get(reason, reason)
         return structured(RequestDetails.model_validate(details))
 
     async def choose(self, messages: list[BaseMessage]) -> dict[str, Any]:
