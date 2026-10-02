@@ -1,8 +1,10 @@
 """
 A drawn set played in process from a pipeline build, here the bank's: the tools' items are read for the set's
-customers only, each case's evidence and grade are kept, and the summary holds counts, situations, and checks alone.
+customers only, each case's evidence and grade are kept, the summary holds counts, situations, and checks alone, and
+the manifest says which models answered, with no provider, no latency, and the baseline's cost of zero.
 """
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -64,6 +66,49 @@ def test_a_set_is_played_kept_and_summarized_without_a_value(
         assert len((out / kept).read_text(encoding="utf-8").splitlines()) == len(chosen)
     written = (out / "summary.json").read_text(encoding="utf-8")
     assert json.loads(written)["passed"] == summary["passed"]
+    assert not any(c["customer_id"] in written for c in chosen)
+
+
+def test_the_baseline_plays_in_process_and_its_manifest_names_no_provider(
+    bank: Bank, drawn: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    chosen = [
+        c
+        for c in drawn
+        if c["situation"] in ("status.one_card", "block.reason_given", "person.asked")
+    ]
+    set_path = tmp_path / "sets" / "regression.jsonl"
+    cases.write(set_path, chosen)
+    out = tmp_path / "runs" / runs.run_id()
+    code = {"commit": "0" * 40, "clean": True}
+
+    summary = runs.play_set(
+        set_path, bank.database, out, {"snapshot": "bank"}, "baseline", code
+    )
+
+    assert (summary["models"], summary["cases"], summary["errors"]) == (
+        "baseline",
+        len(chosen),
+        0,
+    )
+    written = (out / "manifest.json").read_text(encoding="utf-8")
+    manifest = json.loads(written)
+    assert (manifest["mode"], manifest["system"], manifest["code"]) == (
+        "in_process",
+        "baseline",
+        code,
+    )
+    assert {"route", "reply"} <= {m["node"] for m in manifest["models"]}
+    assert {(m["model"], m["provider"]) for m in manifest["models"]} == {
+        ("baseline", None)
+    }
+    assert manifest["totals"]["cost_usd"] == 0.0
+    assert manifest["totals"]["model_calls"] > 0
+    assert "latency" not in written
+    assert manifest["results"] == {
+        name: hashlib.sha256((out / name).read_bytes()).hexdigest()
+        for name in ("evidence.jsonl", "grades.jsonl", "summary.json")
+    }
     assert not any(c["customer_id"] in written for c in chosen)
 
 

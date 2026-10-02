@@ -177,8 +177,8 @@ contracts: ## Rewrite the bronze contracts from the dictionary
 eval-sets: ## Draw the development sets; manifests to docs/evaluation/sets/
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
 
-eval-play: ## Play a set in process with scripted models and grade it (SET=regression|selection)
-	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) play --set $(or $(SET),regression)
+eval-play: ## Play a set in process and grade it (SET=regression|selection, MODELS=scripted|baseline)
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) play --set $(or $(SET),regression) --models $(or $(MODELS),scripted)
 
 eval-run: _check-profile ## Play a set against ENV's stack and grade it (SET=, SITUATIONS=, LANGUAGES=, LIMIT=, PARALLEL=)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) run --set $(or $(SET),regression) --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) \

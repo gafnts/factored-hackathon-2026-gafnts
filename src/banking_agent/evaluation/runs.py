@@ -1,11 +1,14 @@
 """
 A development set played in process on a machine that holds the snapshot (ADR-0005's amendment of 2026-10-01): each
-case through the player with the scripted models over the tools' items for its customer, graded, and its evidence and
-grade kept under data/evaluation/runs/<run>/, never committed, since both hold the case's values (SEC-03). The summary
-holds counts, and the findings no open disagreement entry matches by situation and check only, so it can be printed.
+case through the player over the tools' items for its customer, with the scripted models or the deterministic baseline's
+(ADR-0005, Baselines), graded, and its evidence and grade kept under data/evaluation/runs/<run>/, never committed, since
+both hold the case's values (SEC-03). The summary holds counts, and the findings no open disagreement entry matches by
+situation and check only, so it can be printed. The run's manifest says what ran (ADR-0005, The run manifest): no
+provider and no latency, since no model runs and the network is skipped, and a cost of zero.
 """
 
 import asyncio
+import hashlib
 import json
 import uuid
 from collections import Counter
@@ -14,15 +17,21 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from banking_agent.agent.models import Factory
 from banking_agent.evaluation import (
+    baseline,
     bronze,
     cases,
     disagreements,
     families,
+    generator,
     grader,
+    oracle,
     player,
 )
 from banking_agent.evaluation.scripted import ScriptedModels
+
+MODELS = ("scripted", "baseline")
 
 
 class PlayError(ValueError):
@@ -108,16 +117,117 @@ def summarize(
     }
 
 
-def play_set(
-    set_path: Path, database: Path, out: Path, versions: Mapping[str, Any]
+Played = list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]
+
+
+def digest(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+
+
+def answered(played: Played, models: str) -> list[dict[str, Any]]:
+    """
+    Per node and purpose, the calls the models answered. The record names the provider's model on every call
+    (models.py), so the manifest names the models that answered, with no provider.
+    """
+    calls: Counter[tuple[str, str]] = Counter(
+        (e["node"], e["purpose"])
+        for _, evidence, _ in played
+        for e in evidence["record"]
+        if e["kind"] == "model_call"
+    )
+    return [
+        {
+            "node": node,
+            "purpose": purpose,
+            "model": models,
+            "provider": None,
+            "calls": n,
+        }
+        for (node, purpose), n in sorted(calls.items())
+    ]
+
+
+def totals(played: Played) -> dict[str, Any]:
+    closed = [
+        e["totals"]
+        for _, evidence, _ in played
+        for e in evidence["record"]
+        if e["kind"] == "turn_closed"
+    ]
+    costs = [t["cost_usd"] for t in closed]
+    return {
+        "turns": sum(len(grader.record_turns(e["record"])) for _, e, _ in played),
+        **{
+            k: sum(t[k] for t in closed)
+            for k in ("model_calls", "tool_calls", "input_tokens", "output_tokens")
+        },
+        "cost_usd": None if None in costs else round(sum(costs), 6),
+    }
+
+
+def manifest(
+    run: str,
+    times: tuple[datetime, datetime],
+    code: Mapping[str, Any],
+    versions: Mapping[str, Any],
+    set_name: str,
+    drawn: Sequence[Mapping[str, Any]],
+    aside: int,
+    models: str,
+    played: Played,
+    results: Mapping[str, str],
 ) -> dict[str, Any]:
-    drawn = list(cases.read(set_path))
-    if any(c["side"] != "development" for c in drawn):
-        raise PlayError("only development cases play with the scripted models")
+    return {
+        "run": run,
+        "mode": "in_process",
+        "started_at": times[0].isoformat(),
+        "ended_at": times[1].isoformat(),
+        "code": dict(code),
+        "versions": dict(versions),
+        "stack": {"environment": "in_process"},
+        "set": {
+            "name": set_name,
+            "sha256": hashlib.sha256(
+                "".join(generator.digest(c) for c in drawn).encode()
+            ).hexdigest(),
+            "cases": len(drawn) - aside,
+            "set_aside": aside,
+        },
+        "oracle": {"policy": oracle.POLICY_VERSION},
+        "grader": grader.VERSION,
+        "system": models,
+        "judge": None,
+        "models": answered(played, models),
+        "fixtures": digest([c["fixtures"] for c, _, _ in played]),
+        "faults": digest([c["faults"] for c, _, _ in played]),
+        "parallelism": 1,
+        "repeats": 1,
+        "totals": totals(played),
+        "results": dict(sorted(results.items())),
+    }
+
+
+def play_set(
+    set_path: Path,
+    database: Path,
+    out: Path,
+    versions: Mapping[str, Any],
+    models: str = "scripted",
+    code: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    code is the commit the run's code is at, and whether the tree held changes besides.
+    """
+    started = datetime.now(UTC)
+    every = list(cases.read(set_path))
+    if any(c["side"] != "development" for c in every):
+        raise PlayError(f"only development cases play with the {models} models")
     # Access cases hold no conversation and need the deployed Gateway, so they play only end to end (ADR-0005's
     # amendment of 2026-10-01); the summary says how many were set aside.
-    aside = sum(c["situation"].startswith("access.") for c in drawn)
-    drawn = [c for c in drawn if not c["situation"].startswith("access.")]
+    aside = sum(c["situation"].startswith("access.") for c in every)
+    drawn = [c for c in every if not c["situation"].startswith("access.")]
     loaded, answers = families.load(), families.load_answers()
     by_family = {f.family_id: f for f in loaded}
     by_answer = {a.answer_id: a for a in answers}
@@ -127,34 +237,57 @@ def play_set(
     for item in items:
         by_customer.setdefault(item["pk"], []).append(item)
 
-    async def play_all() -> list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
+    async def play_all() -> Played:
         found = []
         for case in drawn:
             held = meta + by_customer.get(case["customer_id"], [])
-            models = ScriptedModels(case, by_family, by_answer, held)
-            evidence = await player.play(case, held, models)
+            factory: Factory = (
+                baseline.factory
+                if models == "baseline"
+                else ScriptedModels(case, by_family, by_answer, held)
+            )
+            evidence = await player.play(case, held, factory)
             found.append((case, evidence, grader.grade(case, evidence)))
         return found
 
     played = asyncio.run(play_all())
     out.mkdir(parents=True, exist_ok=True)
-    with (out / "evidence.jsonl").open("w", encoding="utf-8") as kept:
-        for _, evidence, _ in played:
-            kept.write(json.dumps(evidence, ensure_ascii=False, sort_keys=True) + "\n")
-    with (out / "grades.jsonl").open("w", encoding="utf-8") as kept:
-        for _, _, grade in played:
-            kept.write(json.dumps(grade, ensure_ascii=False, sort_keys=True) + "\n")
+    results = {
+        "evidence.jsonl": "".join(
+            json.dumps(e, ensure_ascii=False, sort_keys=True) + "\n"
+            for _, e, _ in played
+        ),
+        "grades.jsonl": "".join(
+            json.dumps(g, ensure_ascii=False, sort_keys=True) + "\n"
+            for _, _, g in played
+        ),
+    }
     summary = {
         "run": out.name,
         "set": set_path.stem,
         "mode": "in_process",
-        "models": "scripted",
+        "models": models,
         "grader": grader.VERSION,
         "versions": dict(versions),
         "set_aside": aside,
         **summarize([(c, g) for c, _, g in played], disagreements.load()),
     }
-    (out / "summary.json").write_text(
-        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    results["summary.json"] = json.dumps(summary, indent=2) + "\n"
+    for name, body in results.items():
+        (out / name).write_text(body, encoding="utf-8")
+    kept = manifest(
+        out.name,
+        (started, datetime.now(UTC)),
+        code or {},
+        versions,
+        set_path.stem,
+        every,
+        aside,
+        models,
+        played,
+        {n: hashlib.sha256(b.encode()).hexdigest() for n, b in results.items()},
+    )
+    (out / "manifest.json").write_text(
+        json.dumps(kept, indent=2) + "\n", encoding="utf-8"
     )
     return summary

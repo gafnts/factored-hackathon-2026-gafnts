@@ -1,12 +1,13 @@
 """
 The evaluation's commands. generate draws the development regression and selection sets from the pinned snapshot's
 bronze (the last pipeline build) into data/evaluation/sets/, and writes their manifests to docs/evaluation/sets/: case
-IDs, hashes, and counts. play plays a drawn set in process with the scripted models and grades it, keeping the evidence
-and grades under data/evaluation/runs/. run plays a drawn development set end to end against a deployed stack and grades
-it, keeping each case's results under data/evaluation/runs/ and in the stack's evaluation bucket; cleanup deletes the
-test users a stopped run left behind. disagreements regenerates the disagreement log's page. language runs the real
-prompts over the development side's paraphrases and answers and writes the language check's report and page under
-docs/evaluation/. Each prints counts, situations, and checks, never an ID, a token, or a value (SEC-03).
+IDs, hashes, and counts. play plays a drawn set in process with the scripted models, or the deterministic baseline's,
+and grades it, keeping the evidence, grades, and manifest under data/evaluation/runs/. run plays a drawn development set
+end to end against a deployed stack and grades it, keeping each case's results under data/evaluation/runs/ and in the
+stack's evaluation bucket; cleanup deletes the test users a stopped run left behind. disagreements regenerates the
+disagreement log's page. language runs the real prompts over the development side's paraphrases and answers and writes
+the language check's report and page under docs/evaluation/. Each prints counts, situations, and checks, never an ID, a
+token, or a value (SEC-03).
 """
 
 import argparse
@@ -106,7 +107,7 @@ def generate(lock_path: Path, data_dir: Path, docs: Path, seed: int) -> None:
             )
 
 
-def play(lock_path: Path, data_dir: Path, set_name: str) -> None:
+def play(lock_path: Path, data_dir: Path, set_name: str, models: str) -> None:
     lock = read_lock(lock_path)
     database = runner.workspace(data_dir, lock.snapshot_id).database
     set_path = data_dir / "evaluation" / "sets" / f"{set_name}.jsonl"
@@ -118,10 +119,11 @@ def play(lock_path: Path, data_dir: Path, set_name: str) -> None:
         built, _ = bronze.stamp(con)
     versions = {**built, "evaluation": commit(), "policy": oracle.POLICY_VERSION}
     out = data_dir / "evaluation" / "runs" / runs.run_id()
-    summary = runs.play_set(set_path, database, out, versions)
+    summary = runs.play_set(set_path, database, out, versions, models, tree())
     print(
-        f"{set_name}: {summary['passed']} of {summary['cases']} passed; {summary['diverged']} diverged, "
-        f"{summary['unsafe']} unsafe, {summary['errors']} not played; kept in {out}"
+        f"{set_name} with the {models} models: {summary['passed']} of {summary['cases']} passed; "
+        f"{summary['diverged']} diverged, {summary['unsafe']} unsafe, {summary['errors']} not played; "
+        f"{summary['set_aside']} set aside; kept in {out}"
     )
     print(f"findings matched by open entries: {summary['covered']}")
     print(f"findings no entry matches, by situation and check: {summary['uncovered']}")
@@ -226,9 +228,10 @@ def main(argv: list[str] | None = None) -> int:
     drawing.add_argument("--docs", type=Path, default=Path("docs/evaluation/sets"))
     playing = commands.add_parser(
         "play",
-        help="Play a drawn development set in process with the scripted models, and grade it",
+        help="Play a drawn development set in process with the scripted or the baseline's models, and grade it",
     )
     playing.add_argument("--set", dest="set_name", choices=SETS, default="regression")
+    playing.add_argument("--models", choices=runs.MODELS, default="scripted")
     running = commands.add_parser(
         "run",
         help="Play a drawn development set end to end against a deployed stack, and grade it",
@@ -288,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if found else 0
     try:
         if args.command == "play":
-            play(args.lock, args.data_dir, args.set_name)
+            play(args.lock, args.data_dir, args.set_name, args.models)
         elif args.command == "run":
             selection = {
                 "situations": args.situation,

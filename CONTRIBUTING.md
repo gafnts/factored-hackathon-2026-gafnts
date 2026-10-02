@@ -402,6 +402,7 @@ The evaluation ([ADR-0005](docs/adr/0005-offline-scenario-evaluation.md)) plays 
 ```bash
 make eval-sets                   # Draw the regression and selection sets; manifests to docs/evaluation/sets/
 make eval-play SET=regression    # Play a set in process with scripted models, and grade it (no credentials)
+make eval-play MODELS=baseline   # The same with the deterministic baseline's keywords, patterns, and templates
 make eval-run SET=selection      # Play a set end to end against ENV's deployed stack, and grade it
 make eval-cleanup                # Delete the test users a stopped run left behind
 make disagreements               # Regenerate docs/evaluation/disagreements.md from docs/evaluation/disagreements.json
@@ -498,6 +499,7 @@ Run `make help` for every target.
 | `DATA_DIR` | `data` | The pipeline and evaluation targets, for a worktree whose `data/` is empty |
 | `STACK_OUTPUTS` | `build/<env>.outputs.json` | `make eval-run`, `make eval-cleanup` |
 | `SET`, `SITUATIONS`, `LANGUAGES`, `LIMIT`, `PARALLEL` | `regression`, all, all, none, `2` | `make eval-play` (`SET` only) and `make eval-run` |
+| `MODELS` | `scripted` | `make eval-play`: `baseline` plays the deterministic baseline |
 | `RUN` | Unset: every stopped run | `make eval-cleanup` |
 | `SLOW` | Unset | Set to `1` to add the tests that wait out a token to `make integration` |
 | `WHAT`, `JUDGE` | `create`, every judge | `make judges` |
