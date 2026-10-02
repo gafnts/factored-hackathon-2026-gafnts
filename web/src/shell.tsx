@@ -185,7 +185,8 @@ export function Shell({
         className={`pt-2 pr-4 pb-5 pl-[calc(var(--rail)+1rem)] ${signIn ? "text-right" : "text-center"} text-xs text-balance text-bone-muted sm:pr-6 sm:pl-[calc(var(--rail)+1.5rem)]`}
       >
         <p key={signIn ? "sign-in" : "signed-in"} className="animate-fade">
-          <span>{texts.notice}</span>
+          {/* Two sentences once signed in: the synthetic-data label (SEC-02) and the session's end. */}
+          <span>{note ? texts.noticeBrief : texts.notice}</span>
           {note && <span> {note}</span>}
         </p>
       </footer>

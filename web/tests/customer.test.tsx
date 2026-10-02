@@ -109,7 +109,9 @@ test("signs in through the form and opens the chat in a runtime session of its o
   expect(screen.getByRole("banner")).toHaveTextContent(/^Faro/);
   expect(signInWith).toHaveBeenCalledWith("persona", "secret");
   expect(screen.getByText(/Su sesión terminará a las/)).toBeInTheDocument();
-  expect(screen.getByText(texts.notice)).toBeInTheDocument();
+  // Signed in, the footer keeps to two sentences: the brief label and the session's end.
+  expect(screen.getByText(texts.noticeBrief)).toBeInTheDocument();
+  expect(screen.queryByText(texts.notice)).not.toBeInTheDocument();
 });
 
 test("the bar's switch sets the page's language, starting from the browser's", async () => {

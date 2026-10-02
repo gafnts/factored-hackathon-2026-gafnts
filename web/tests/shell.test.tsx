@@ -117,6 +117,9 @@ test("the rail opens and closes, and each action is one button by its name", asy
   expect(
     screen.getByText(/Su sesión terminará a las 19:05/),
   ).toBeInTheDocument();
+  // A page with the session's end keeps the footer to two sentences.
+  expect(screen.getByText(TEXTS.es.noticeBrief)).toBeInTheDocument();
+  expect(screen.queryByText(TEXTS.es.notice)).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: rail.open }));
   expect(screen.getByRole("button", { name: rail.close })).toHaveAttribute(
     "aria-expanded",

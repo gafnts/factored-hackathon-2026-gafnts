@@ -11,6 +11,8 @@ export type Problem = RunErrorCode | "unreachable";
 
 export interface Texts {
   notice: string;
+  // Signed in, the footer keeps to two sentences: this label (SEC-02) and the session's end.
+  noticeBrief: string;
   notFound: {
     code: string;
     title: string;
@@ -123,6 +125,7 @@ export const TEXTS: Record<Language, Texts> = {
   es: {
     notice:
       "Prototipo sobre datos sintéticos. LATAM Bank y sus clientes son ficticios.",
+    noticeBrief: "Prototipo sobre datos sintéticos.",
     notFound: {
       code: "Error 404",
       title: "Página no encontrada",
@@ -200,6 +203,7 @@ export const TEXTS: Record<Language, Texts> = {
   pt: {
     notice:
       "Protótipo com dados sintéticos. O LATAM Bank e seus clientes são fictícios.",
+    noticeBrief: "Protótipo com dados sintéticos.",
     notFound: {
       code: "Erro 404",
       title: "Página não encontrada",
