@@ -96,6 +96,10 @@ def listed(context: str) -> list[tuple[int, str, Decimal, str]]:
 
 
 class ScriptedModels:
+    # What the record names on every call (models.Factory): no provider runs.
+    provider: str | None = None
+    model = MODEL
+
     def __init__(
         self,
         case: Mapping[str, Any],

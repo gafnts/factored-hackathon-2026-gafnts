@@ -9,9 +9,10 @@ decision 18 says (retries.py), and the client's own retries are off, since each 
 
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from hashlib import sha256
 from importlib.resources import files
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 import anthropic
 from langchain.chat_models import init_chat_model
@@ -64,8 +65,37 @@ ORDER: tuple[Label, ...] = (
 # Which language a message is mostly in (POL-50); other gets POL-51's reply (ADR-0004's amendment of 2026-10-02).
 Language = Literal["es", "pt", "other", "unclear"]
 
-Factory = Callable[[str], Runnable[Any, Any]]
 Record = Callable[..., Any]
+
+
+class Factory(Protocol):
+    """
+    Makes a model call's runnable for its purpose, and declares the provider and the model it runs, which the record
+    names on every call: no provider for ADR-0005's deterministic baseline and scripted models (ADR-0004's amendment
+    of 2026-10-02). A factory that declares nothing is refused before any call.
+    """
+
+    @property
+    def provider(self) -> str | None: ...
+
+    @property
+    def model(self) -> str: ...
+
+    def __call__(self, purpose: str) -> Runnable[Any, Any]: ...
+
+
+@dataclass(frozen=True)
+class Declared:
+    """
+    A function that makes a model call's runnable, with what it declares (Factory).
+    """
+
+    make: Callable[[str], Runnable[Any, Any]]
+    provider: str | None
+    model: str
+
+    def __call__(self, purpose: str) -> Runnable[Any, Any]:
+        return self.make(purpose)
 
 
 class RouterOutput(BaseModel):
@@ -204,7 +234,7 @@ def anthropic_factory(key: str) -> Factory:
         )
         return runnable.with_config(metadata=EMIT_OFF)
 
-    return make
+    return Declared(make, PROVIDER, MODEL)
 
 
 def failure(error: Exception) -> str:
@@ -277,6 +307,8 @@ class Models:
         elapsed is how long the turn has run, in seconds, which the retries' deadline reads.
         """
         self.factory = factory
+        self.provider = factory.provider
+        self.requested = factory.model
         self.record = record
         self.retries = retries
         self.elapsed = elapsed
@@ -346,8 +378,8 @@ class Models:
         entry: dict[str, Any] = {
             "node": node,
             "purpose": purpose,
-            "provider": PROVIDER,
-            "model_requested": MODEL,
+            "provider": self.provider,
+            "model_requested": self.requested,
             "model_returned": (
                 raw.response_metadata.get("model_name") if raw else None
             ),

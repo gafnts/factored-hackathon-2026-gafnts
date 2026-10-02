@@ -5,6 +5,7 @@ the tools, the facts, and the handoff the policy gives it, and agrees with get_a
 
 import json
 from collections.abc import Iterator
+from dataclasses import replace
 from importlib.resources import files
 from typing import Any
 
@@ -204,7 +205,7 @@ def test_a_page_then_the_next(con: duckdb.DuckDBPyConnection) -> None:
     assert expected["turns"][0]["facts"]["{window.from}"] == "20/03/2026 06:00"
 
 
-def test_facts_follow_the_conversations_language_turn_by_turn(
+def test_the_expected_language_and_its_facts_follow_the_conversation_turn_by_turn(
     con: duckdb.DuckDBPyConnection,
 ) -> None:
     played = case(
@@ -219,6 +220,7 @@ def test_facts_follow_the_conversations_language_turn_by_turn(
 
     first, last = play(con, played)["turns"]
 
+    assert (first["language"], last["language"]) == ("es", "pt")
     assert "Tarjeta de" in first["facts"]["{card_list}"]
     assert "Cartão" not in first["facts"]["{card_list}"]
     assert last["facts"]["{card}"].startswith("cartão de crédito final ")
@@ -552,6 +554,26 @@ def test_requests_that_end_in_one_turn(
 
     assert [d["outcome_class"] for d in turn["decisions"]] == [outcome]
     assert turn.get("handoff", {}).get("reason_code") == reason_code
+
+
+def test_a_status_the_policy_withholds_is_withheld_unless_a_card_shares_it(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    [suspended] = play(con, case("CLI-EVAL00000008", "card_status-01"))["turns"]
+    [served] = play(con, case("CLI-EVAL00000003", "card_status-01"))["turns"]
+    customer = state.read(con, "CLI-EVAL00000008")
+    assert customer is not None
+    card = replace(customer.cards[0], status="Suspended")
+    [sharing] = oracle.expect(
+        replace(customer, cards=(card,)),
+        case("CLI-EVAL00000008", "card_status-01"),
+        FAMILIES,
+        contract_words(),
+    )["turns"]
+
+    assert suspended["withheld"] == list(oracle.WITHHELD["Suspended"])
+    assert served["withheld"] == []
+    assert sharing["withheld"] == []
 
 
 def test_a_message_with_no_request_or_another_language_has_no_label(

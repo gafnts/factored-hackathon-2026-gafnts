@@ -27,6 +27,8 @@ from banking_agent.evaluation import (
     generator,
     grader,
     harness,
+    heldout,
+    metrics,
     oracle,
     runs,
     users,
@@ -73,9 +75,12 @@ class Keeper:
             self.hashes[name] = hashlib.sha256(body).hexdigest()
 
 
-def drawn(set_path: Path, manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
+def drawn(
+    set_path: Path, manifest: Mapping[str, Any], committed: bool = False
+) -> list[dict[str, Any]]:
     """
-    The drawn set, refused unless it's the one its committed manifest describes.
+    The drawn set, refused unless it's the one its manifest describes, and a held-out set unless that manifest is
+    committed (heldout.py).
     """
     found = list(cases.read(set_path))
     digest = hashlib.sha256(
@@ -83,8 +88,14 @@ def drawn(set_path: Path, manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
     ).hexdigest()
     if digest != manifest["sha256"]:
         raise RunError("the drawn set isn't the one its manifest describes")
-    if any(c["side"] != "development" for c in found):
-        raise RunError("only development cases run before the held-out set is drawn")
+    sides = {c["side"] for c in found}
+    if sides == {"held_out"}:
+        try:
+            heldout.verify(found, manifest, committed)
+        except heldout.HeldOutError as error:
+            raise RunError(str(error)) from error
+    elif sides - {"development"}:
+        raise RunError("a set holds cases of one side of the split")
     return found
 
 
@@ -137,38 +148,49 @@ def play_all(
 def latency(played: Sequence[Played]) -> dict[str, Any]:
     """
     Each turn's latency, from the send to its last event, with each case's first turn apart, since each case opens a
-    runtime session of its own (ADR-0005, Reporting). Fault cases are left out, since a planned failure answers at
-    once (ADR-0005's amendment of 2026-10-01).
+    runtime session of its own, and each case's, its turns' together (ADR-0005, Reporting). Fault cases are left out,
+    since a planned failure answers at once (ADR-0005's amendment of 2026-10-01).
     """
 
-    def spread(values: list[int]) -> dict[str, Any]:
+    def spread(values: list[int], unit: str = "turns") -> dict[str, Any]:
         if len(values) < 2:
-            return {"turns": len(values), "p50": values[0] if values else None}
+            return {unit: len(values), "p50": values[0] if values else None}
         cuts = statistics.quantiles(values, n=20, method="inclusive")
-        return {"turns": len(values), "p50": statistics.median(values), "p95": cuts[18]}
+        return {unit: len(values), "p50": statistics.median(values), "p95": cuts[18]}
 
     first: list[int] = []
     later: list[int] = []
+    whole: list[int] = []
     faulted = [case for case, _, _ in played if case["faults"]]
     for case, evidence, _ in played:
         if case["faults"]:
             continue
+        spent = []
         for n, turn in enumerate(evidence["turns"]):
             if turn["events"]:
-                (later if n else first).append(turn["events"][-1]["at_ms"])
+                spent.append(turn["events"][-1]["at_ms"])
+                (later if n else first).append(spent[-1])
+        if spent:
+            whole.append(sum(spent))
     return {
         "first": spread(first),
         "later": spread(later),
+        "cases": spread(whole, "cases"),
         "fault_cases_left_out": len(faulted),
     }
 
 
-def summarize(played: Sequence[Played]) -> dict[str, Any]:
+def summarize(played: Sequence[Played], parallel: int) -> dict[str, Any]:
+    graded = [(c, g) for c, _, g in played]
+    counted = totals(played)
+    timed = latency(played)
+    workload = {"turns": counted["turns"], "repeats": 1, "parallelism": parallel}
     return {
-        **runs.summarize([(c, g) for c, _, g in played], disagreements.load()),
+        **runs.summarize(graded, disagreements.load()),
         "not_stopped": sum(e.get("session") == "not_stopped" for _, e, _ in played),
         "resent": sum(t.get("resent", 0) for _, e, _ in played for t in e["turns"]),
-        "latency_ms": latency(played),
+        "latency_ms": timed,
+        "metrics": metrics.compute(graded, counted, workload, timed),
     }
 
 
@@ -316,10 +338,14 @@ def run(
     code: Mapping[str, Any],
     selection: Mapping[str, Any],
     parallel: int,
+    committed: bool = False,
 ) -> tuple[str, dict[str, Any]]:
+    """
+    committed says whether git holds the set's manifest as it is, which a held-out set needs to play.
+    """
     stack = deployed.read(stack_path)
     deployed.check(stack, set_manifest["versions"])
-    chosen = selected(drawn(set_path, set_manifest), **selection)
+    chosen = selected(drawn(set_path, set_manifest, committed), **selection)
     if not chosen:
         raise RunError("no case of the set matches the selection")
     run_id = runs.run_id()
@@ -333,13 +359,15 @@ def run(
         def play(case: dict[str, Any], name: str) -> dict[str, Any]:
             if case["situation"].startswith("access."):
                 return harness.play_access(case, name, test_users, gateway, tables)
+            if case["situation"].startswith("session."):
+                return harness.play_expired(case, name, test_users, agui, tables)
             return harness.play(case, name, test_users, agui, tables)
 
         try:
             played = play_all(chosen, run_id, play, keeper, parallel)
         finally:
             test_users.cleanup(run_id)
-    summary = {"run": run_id, "set": set_manifest["set"], **summarize(played)}
+    summary = {"run": run_id, "set": set_manifest["set"], **summarize(played, parallel)}
     keeper.keep("summary.json", summary)
     keeper.keep(
         "manifest.json",

@@ -143,6 +143,25 @@ def test_a_fact_the_reply_doesnt_state_fails_its_turn_by_placeholder(
     assert checks(graded["failures"]) == ["fact"] * len(placeholders)
 
 
+def test_a_turn_whose_decisions_record_another_language_fails_it(
+    played: dict[str, Any],
+) -> None:
+    case, evidence = take(played, "status.one_card")
+    expected = case["expected"]["turns"][0]["language"]
+    other = "pt" if expected == "es" else "es"
+    for decision in entries(evidence, "decision"):
+        decision["language"] = other
+
+    graded = grader.grade(case, evidence)
+    drawn_before = copy.deepcopy(case)
+    for turn in drawn_before["expected"]["turns"]:
+        del turn["language"]
+
+    assert graded["diverged_at"] is None
+    assert grader.finding(1, "language", expected, [other]) in graded["failures"]
+    assert "language" not in checks(grader.grade(drawn_before, evidence)["failures"])
+
+
 @pytest.mark.parametrize(
     ("said", "check"),
     [
@@ -163,6 +182,27 @@ def test_a_disclosure_in_any_event_is_unsafe(
 
     assert checks(graded["safety"]) == [check]
     assert not graded["passed"]
+
+
+def test_a_withheld_status_named_to_the_customer_fails_and_is_unsafe(
+    played: dict[str, Any],
+) -> None:
+    case, evidence = take(played, "status.one_card")
+    case = copy.deepcopy(case)
+    case["expected"]["turns"][0]["withheld"] = ["suspendida"]
+    events = evidence["turns"][0]["events"]
+    content = next(e for e in events if e["event"]["type"] == "TEXT_MESSAGE_CONTENT")
+    snapshot = next(e for e in events if e["event"]["type"] == "MESSAGES_SNAPSHOT")
+    own = next(m for m in snapshot["event"]["messages"] if m["role"] == "user")
+
+    own["content"] = "¿Mi cuenta está suspendida?"
+    customers = grader.grade(case, evidence)
+    content["event"]["delta"] += " Su cuenta está Suspendida."
+    named = grader.grade(case, evidence)
+
+    assert customers["passed"], customers
+    assert checks(named["failures"]) == ["withheld"]
+    assert checks(named["safety"]) == ["withheld_status"]
 
 
 def test_a_block_without_the_controls_confirmation_or_twice_under_one_is_unsafe(

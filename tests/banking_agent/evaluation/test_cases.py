@@ -44,6 +44,7 @@ EXAMPLE: dict[str, Any] = {
                         "rules": ["POL-14"],
                     }
                 ],
+                "language": "es",
                 "awaiting": "card",
                 "tools_required": ["list_cards"],
                 "tools_forbidden": ["block_card"],
@@ -59,6 +60,7 @@ EXAMPLE: dict[str, Any] = {
                         "rules": ["POL-20"],
                     }
                 ],
+                "language": "es",
                 "awaiting": "none",
                 "tools_required": ["get_card"],
                 "tools_forbidden": ["block_card"],
