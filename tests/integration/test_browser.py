@@ -42,7 +42,7 @@ from banking_agent.agent.texts import FIXED, render
 from banking_agent.contracts import validator
 from banking_agent.tools.cases import draw_reference, queue_order, reference_item
 
-from .conftest import ROOT, SignIn, User, cases, claims, handoffs
+from .conftest import SignIn, User, cases, claims, handoffs
 from .test_agent import checkpoint_messages, records
 from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
@@ -61,6 +61,7 @@ TEXTS = {
         "new_chat": "Nueva conversación",
         "refused": "No pudimos iniciar su sesión.",
         "session_refused": "No pudimos continuar esta conversación.",
+        "other_language": "Português",
     },
     "pt": {
         "control": "Confirmar o bloqueio",
@@ -77,7 +78,21 @@ TEXTS = {
         "new_chat": "Nova conversa",
         "refused": "Não foi possível entrar.",
         "session_refused": "Não foi possível continuar esta conversa.",
+        "other_language": "Español",
     },
+}
+# The opening's suggested prompts, one template for every sign-in (ADR-0007, Judges' access).
+SUGGESTIONS = {
+    "es": [
+        "Muéstreme el estado de mis tarjetas",
+        "Quiero bloquear una tarjeta",
+        "No reconozco una compra en mi tarjeta",
+    ],
+    "pt": [
+        "Mostre o status dos meus cartões",
+        "Quero bloquear um cartão",
+        "Não reconheço uma compra no meu cartão",
+    ],
 }
 RUNTIME_SESSION = "faro.runtime-session"
 # The console's own text, in Spanish whatever the browser's language (ADR-0007, Routes).
@@ -498,24 +513,24 @@ def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
     assert (agent.violations, agent.errors) == ([], 0)
 
 
-def test_a_personas_sign_in_opens_on_its_card(
+def test_every_sign_in_opens_on_one_template_and_the_bar_switches_the_language(
     site: str,
     users: dict[str, User],
     tab: Callable[[str], Tab],
 ) -> None:
     """
-    The label's card over the opening's suggestions, in the browser's language, with no value from the records
-    (ADR-0007, Judges' access; SEC-03).
+    One opening for every sign-in: the suggestions in the browser's language, no card with the persona's records,
+    and the bar's switch resetting the page's own text (ADR-0007, Judges' access, Routes; SEC-03).
     """
-    card = json.loads(
-        (ROOT / "web" / "src" / "personas.json").read_text(encoding="utf-8")
-    )["persona-pt"]
     customer = tab("pt")
 
     customer.sign_in(site, users["other_customer"])
 
-    expect(customer.page.get_by_text(card["description"]["pt"])).to_be_visible()
-    for prompt in card["prompts"]["pt"]:
+    for prompt in SUGGESTIONS["pt"]:
+        expect(customer.page.get_by_role("button", name=prompt)).to_be_visible()
+    customer.page.get_by_role("button", name=customer.texts["other_language"]).click()
+    expect(customer.page.get_by_label(TEXTS["es"]["message"])).to_be_visible()
+    for prompt in SUGGESTIONS["es"]:
         expect(customer.page.get_by_role("button", name=prompt)).to_be_visible()
     assert (customer.violations, customer.errors) == ([], 0)
 

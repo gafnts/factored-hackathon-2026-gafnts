@@ -169,7 +169,6 @@ export function Customer({ language: starting }: { language: Language }) {
         url={state.config.runtime_url}
         session={state.session}
         language={language}
-        persona={state.signedIn.persona}
         onSignInEnded={ended}
         onRunning={setRunning}
       />

@@ -3,7 +3,6 @@ import { cognitoUserPoolsTokenProvider } from "@aws-amplify/auth/cognito";
 import { Amplify, sessionStorage } from "@aws-amplify/core";
 
 import type { Config } from "./config";
-import { type PersonaLabel, personaLabel } from "./personas";
 import { dropRuntimeSession } from "./session";
 
 // The refresh token lasts 60 minutes, and no refresh extends it (ADR-0004, decision 10).
@@ -16,7 +15,6 @@ export class SignInEndedError extends Error {
 export interface SignedIn {
   sub: string;
   endsAt: number;
-  persona: PersonaLabel | null;
 }
 
 export type SignInOutcome = "signed_in" | "refused" | "unreachable";
@@ -46,11 +44,7 @@ export function configureAuth(config: Config, side: Side): void {
 function signedInFrom(payload: Record<string, unknown>): SignedIn | null {
   const { sub, auth_time: authTime } = payload;
   if (typeof sub !== "string" || typeof authTime !== "number") return null;
-  return {
-    sub,
-    endsAt: authTime * 1000 + SIGN_IN_LASTS_MS,
-    persona: personaLabel(payload["cognito:groups"]),
-  };
+  return { sub, endsAt: authTime * 1000 + SIGN_IN_LASTS_MS };
 }
 
 export async function currentSignIn(): Promise<SignedIn | null> {

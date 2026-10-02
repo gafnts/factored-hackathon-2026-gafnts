@@ -66,7 +66,7 @@ const CONFIG = {
 const texts = TEXTS.es;
 
 function signedIn(endsIn = 30 * 60 * 1000) {
-  return { sub: "sub", endsAt: Date.now() + endsIn, persona: null };
+  return { sub: "sub", endsAt: Date.now() + endsIn };
 }
 
 async function signInThroughTheForm() {
