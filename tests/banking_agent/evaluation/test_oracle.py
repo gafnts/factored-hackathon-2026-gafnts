@@ -201,6 +201,38 @@ def test_a_page_then_the_next(con: duckdb.DuckDBPyConnection) -> None:
     assert expected["turns"][0]["facts"]["{window.from}"] == "20/03/2026 06:00"
 
 
+def test_facts_follow_the_conversations_language_turn_by_turn(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    played = case(
+        EXAMPLE_CUSTOMER,
+        "recent_transactions-07",
+        answers={"card": "card_last_four-01"},
+        means={"product_id": "PRD-EXAMPLE00008"},
+        language="pt",
+    )
+    # The opener is a word both languages share, which the family marks, so Spanish holds until the answer (POL-50).
+    played["script"]["messages"][0]["id"] = "recent_transactions-07/pt/2"
+
+    first, last = play(con, played)["turns"]
+
+    assert "Tarjeta de" in first["facts"]["{cards}"]
+    assert "Cartão" not in first["facts"]["{cards}"]
+    assert last["facts"]["{card}"].startswith("cartão de crédito final ")
+
+    clear = case(
+        EXAMPLE_CUSTOMER,
+        "recent_transactions-07",
+        answers={"card": "card_last_four-01"},
+        means={"product_id": "PRD-EXAMPLE00008"},
+        language="pt",
+    )
+
+    first, _ = play(con, clear)["turns"]
+
+    assert "Cartão de" in first["facts"]["{cards}"]
+
+
 def test_a_card_with_no_transactions_in_the_window(
     con: duckdb.DuckDBPyConnection,
 ) -> None:

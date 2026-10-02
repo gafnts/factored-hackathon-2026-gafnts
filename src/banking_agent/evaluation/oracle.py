@@ -3,6 +3,8 @@ The oracle (ADR-0005, The oracle): a second reading of the policy's outcomes, fr
 state in bronze, never from the tools or the graph. For one case it plays the script against the policy and says, turn
 by turn, what each request served should record (its outcome class, what the turn waits for, the tools it must and must
 not call, the facts the reply must state, and the handoff it files) and which cards end blocked. It writes no reply.
+The facts are formatted in the conversation's language turn by turn: Spanish until a message clearly in one of the two
+languages sets it, which a paraphrase the family marks as unclear doesn't (POL-50; ADR-0005's amendment of 2026-10-02).
 
 Each request is a generator: it yields a step that waits on the customer (a question, a control) and receives the
 customer's answer, and returns the step that ends it. The outcome classes follow ADR-0005's amendment of 2026-09-29 and
@@ -34,6 +36,8 @@ from banking_agent.evaluation.state import (
 )
 
 POLICY_VERSION = 5
+# POL-50: the conversation's language until a message clearly in one of the two sets it.
+DEFAULT_LANGUAGE = "es"
 # POL-05's order.
 ORDER = (
     "block_card",
@@ -115,6 +119,7 @@ class Answer:
     sends: str
     hints: Hints = Hints()
     block_reason: str | None = None
+    language: str | None = None
 
 
 @dataclass
@@ -141,6 +146,16 @@ def handoff(reason_code: str, trigger: str, priority: str = "normal") -> dict[st
         "queue": queue,
         "priority": priority,
     }
+
+
+def said_in(answer: Any) -> str | None:
+    """
+    The language a scripted answer is written in, from its ID (answer_id/language); a control press has none.
+    """
+    if not isinstance(answer, Mapping):
+        return None
+    language: str = answer["id"].split("/")[1]
+    return language
 
 
 def fits(transaction: Transaction, hints: Hints) -> bool:
@@ -178,7 +193,7 @@ class Conversation:
         self.case = case
         self.script = case["script"]
         self.families = families
-        self.facts = Facts(case["language"], customer.country, words)
+        self.facts = Facts(DEFAULT_LANGUAGE, customer.country, words)
         means = self.script["means"]
         self.card = (
             customer.card(means["product_id"]) if "product_id" in means else None
@@ -219,17 +234,18 @@ class Conversation:
         if awaiting == "confirm_control":
             if "typed_yes" in answers and not self.typed:
                 self.typed = True
-                return Answer("typed_yes")
+                return Answer("typed_yes", language=said_in(answers["typed_yes"]))
             press = answers.get("confirm_control", "ignore")
             return None if press == "ignore" else Answer(press)
         if awaiting == "handoff_control":
             press = answers.get("handoff_control", "ignore")
             return None if press == "ignore" else Answer(press)
         if awaiting not in answers:
-            return Answer("dont_know")
+            return Answer("dont_know", language=said_in(answers.get("dont_know")))
         kind = answers[awaiting]["id"].split("/")[0].rsplit("-", 1)[0]
+        language = said_in(answers[awaiting])
         if awaiting == "reason":
-            return Answer("reason", block_reason=REASONS[kind])
+            return Answer("reason", block_reason=REASONS[kind], language=language)
         if awaiting == "card":
             assert self.card is not None
             return Answer(
@@ -238,6 +254,7 @@ class Conversation:
                     card_type=self.card.type if kind != "card_last_four" else None,
                     last_four=self.card.last_four if kind != "card_type" else None,
                 ),
+                language=language,
             )
         assert self.transaction is not None
         t = self.transaction
@@ -249,14 +266,27 @@ class Conversation:
                 on=t.at.date() if kind == "transaction_date" else None,
                 newest=kind == "transaction_newest",
             ),
+            language=language,
         )
+
+    def heard(self, family: Family, message_id: str) -> str | None:
+        """
+        The language a message sets (POL-50): the one it is filed under when it is clearly in it; a third language or
+        a paraphrase the family marks as unclear sets none.
+        """
+        if family.kind == "third_language":
+            return None
+        said = next((m for m in family.messages if m.id == message_id), None)
+        if said is None:
+            return message_id.split("/")[1]
+        return said.language if said.clear else None
 
     # The driver.
 
     def run(self) -> dict[str, Any]:
         for message in self.script["messages"]:
             family = self.families[message["id"].split("/")[0]]
-            turn = self.open("message")
+            turn = self.open("message", self.heard(family, message["id"]))
             if family.kind == "third_language":
                 self.decide(turn, None, Step("decline", ["POL-51"]))
                 continue
@@ -295,10 +325,15 @@ class Conversation:
                     answer = self.answer_for(step.awaiting)
                     if answer is None:
                         return self.expected()
-                    turn = self.open(answer.sends)
+                    turn = self.open(answer.sends, answer.language)
         return self.expected()
 
-    def open(self, sends: str) -> dict[str, Any]:
+    def open(self, sends: str, language: str | None = None) -> dict[str, Any]:
+        """
+        A turn, with its facts formatted in the language the message that opens it sets, or the one before (POL-50).
+        """
+        if language is not None:
+            self.facts = replace(self.facts, language=language)
         if len(self.turns) == MAX_TURNS:
             raise NotCoveredError("a conversation longer than a case holds")
         turn: dict[str, Any] = {
