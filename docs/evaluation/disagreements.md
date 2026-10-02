@@ -8,7 +8,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-002](#d-002) | Open | To triage | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
 | [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
 | [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
-| [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
+| [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
 | [D-006](#d-006) | Open | To triage | POL-35, POL-36 | `block.cancelled` |
 
 ## D-001
@@ -59,6 +59,7 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 - `decline.listed_code` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `decline.listed_code` (pt), turn 1: `fact`, expected `{transaction.meaning}`, observed `missing`
 - `block.cancelled` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `block.charge_blocked` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `status.one_card` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `status.one_card` (pt), turn 1: `fact`, expected `{card.status}`, observed `missing`
 - `charge.block_cancelled` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
