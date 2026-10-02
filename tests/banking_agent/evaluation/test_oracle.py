@@ -233,6 +233,26 @@ def test_facts_follow_the_conversations_language_turn_by_turn(
     assert "Cartão de" in first["facts"]["{cards}"]
 
 
+def test_the_reasons_answer_sets_the_language_of_the_confirm_prompt(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    played = case(
+        "CLI-EVAL00000007",
+        "block_card-07",
+        answers={"reason": "reason_lost-01", "confirm_control": "confirm"},
+        language="pt",
+    )
+    played["script"]["messages"][0]["id"] = "block_card-07/pt/2"
+
+    turns = play(con, played)["turns"]
+
+    asked = next(t for t in turns if t["awaiting"] == "reason")
+    shown = turns[turns.index(asked) + 1]
+    assert asked["facts"]["{card}"].startswith("tarjeta de ")
+    assert shown["awaiting"] == "confirm_control"
+    assert shown["facts"]["{card}"].startswith("cartão de ")
+
+
 def test_a_card_with_no_transactions_in_the_window(
     con: duckdb.DuckDBPyConnection,
 ) -> None:

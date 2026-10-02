@@ -669,19 +669,23 @@ class Conversation:
         card = yield from self.which_card(hints, lambda c: c.active)
         if isinstance(card, Step):
             return card
-        facts = {"{card}": self.facts.card(card)}
+
+        # Formatted as each step is built, since the reason's answer may set the language (POL-50).
+        def facts() -> dict[str, str]:
+            return {"{card}": self.facts.card(card)}
+
         if not card.active:
-            return Step("decline", ["POL-13", "POL-34"], facts=facts)
+            return Step("decline", ["POL-13", "POL-34"], facts=facts())
         reason = family.extract.get("block_reason")
         asked = 0
         while reason is None:
             if asked == QUESTIONS:
                 return (yield from self.unsettled())
             asked += 1
-            answer = yield Step("clarify", ["POL-35"], "reason", facts=facts)
+            answer = yield Step("clarify", ["POL-35"], "reason", facts=facts())
             reason = answer.block_reason
         shown = yield Step(
-            "block", ["POL-35", "POL-36"], "confirm_control", facts=facts
+            "block", ["POL-35", "POL-36"], "confirm_control", facts=facts()
         )
         while shown.sends == "typed_yes":
             shown = yield Step("block", ["POL-36"], "confirm_control")
