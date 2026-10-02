@@ -33,7 +33,7 @@ from banking_agent.evaluation.state import (
     merged,
 )
 
-POLICY_VERSION = 2
+POLICY_VERSION = 3
 # POL-05's order.
 ORDER = (
     "block_card",

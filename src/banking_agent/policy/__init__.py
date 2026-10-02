@@ -7,7 +7,7 @@ from importlib.resources import files
 from typing import Any
 
 # Stamped in every execution record and handoff; a changed rule raises it.
-POLICY_VERSION = 2
+POLICY_VERSION = 3
 
 
 def handoff_schema() -> dict[str, Any]:

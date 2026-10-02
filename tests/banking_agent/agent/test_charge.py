@@ -87,6 +87,29 @@ def test_a_charge_is_found_and_the_block_offered_with_the_confirm_control(
     )
 
 
+def test_a_charge_reported_after_a_cards_read_is_about_that_card(
+    harness: Harness,
+) -> None:
+    # POL-13, version 3: the message names no card, so the one the read settled on is meant.
+    chat = Chat(harness)
+    harness.script.replies = ["{card}, {window.from} - {window.to}:\n\n{transactions}"]
+    chat.say(
+        "Minhas transações do cartão de crédito final 4821.",
+        requests=["recent_transactions"],
+        card_type="credit",
+        last_four="4821",
+    )
+
+    shown = reported(chat, "Não reconheço essa compra.", card_type=None, last_four=None)
+
+    charge = window(harness)[0]
+    assert reply(shown).split("\n\n")[0] == render(
+        "charge_found", "pt", {"card": CARD, "transaction": charge}
+    )
+    control = interrupt(shown)["metadata"]["controls"][0]
+    assert control["card"]["last_four"] == "4821"
+
+
 def test_the_model_reads_the_window_numbered_and_never_an_id(harness: Harness) -> None:
     chat = Chat(harness)
 

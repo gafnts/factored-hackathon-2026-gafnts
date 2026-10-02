@@ -127,6 +127,42 @@ def test_several_cards_and_none_named_are_asked_about_then_answered(
     assert request.content == "¿En qué estado está mi tarjeta?"
 
 
+def test_a_request_that_names_no_card_is_about_the_card_last_settled_on(
+    harness: Harness,
+) -> None:
+    # POL-13, version 3: the debit card was just read, so "its transactions" are its, with no question asked.
+    chat = Chat(harness)
+    harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
+    chat.say("¿Cómo está mi débito 1177?", requests=["card_status"], last_four="1177")
+
+    events = chat.say("¿Y sus movimientos recientes?", requests=["recent_transactions"])
+
+    card = harness.bank.cards()[2]
+    assert reply(events).startswith(
+        render(
+            "transactions_none",
+            "es",
+            {"card": card, "window": harness.bank.window["window"]},
+        )
+    )
+    assert decisions(chat)[0]["outcome_class"] == "answer"
+
+
+def test_asking_about_all_the_cards_drops_the_card_last_settled_on(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
+    chat.say("¿Cómo está mi débito 1177?", requests=["card_status"], last_four="1177")
+    harness.script.replies = ["Estas son sus tarjetas:\n\n{cards}"]
+    chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all")
+
+    asked = chat.say("¿Y sus movimientos recientes?", requests=["recent_transactions"])
+
+    assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+    assert decisions(chat)[0]["awaiting"] == "card"
+
+
 def test_a_bare_four_digit_number_names_the_card_without_the_model(
     harness: Harness,
 ) -> None:

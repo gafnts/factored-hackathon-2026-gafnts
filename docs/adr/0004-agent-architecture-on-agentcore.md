@@ -300,7 +300,7 @@ Each rule's enforcement point, with the prompt never among them. The places are 
 | POL-10 | Graph, tool | No rule lives in text: the model picks no tool and no customer, its outputs are typed, and tool results reach it as data |
 | POL-11 | Pipeline, entrypoint, graph, tool | The tools' data holds last four digits only; the entrypoint masks typed numbers; the reply check and the handoff schema reject runs of 13 or more digits; the chat's stream carries no private state |
 | POL-12 | Tool, graph | For a `Closed` or `Suspended` customer, `get_available_credit` and `find_transactions` refuse, while `list_cards` marks the customer as not served in full without naming the status; the graph hands off everything but a block from that mark |
-| POL-13 | Graph, tool | Code matches extracted hints against `list_cards` |
+| POL-13 | Graph, tool | Code matches extracted hints against `list_cards`; a message with no hint means the card the thread's state last settled on |
 | POL-14 | Graph | Code asks, listing the cards that fit |
 | POL-15 | Graph | Code compares the types of cards that share the last four digits |
 | POL-16 | Graph | Code lists the customer's cards |

@@ -163,6 +163,7 @@ class State(ChatState, total=False):
     queue: dict[str, Any] | None
     text: str | None
     paging: dict[str, Any] | None
+    recent: str | None
     parts: list[str]
     names: list[str]
 
@@ -779,9 +780,20 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 "details": details,
                 "targets": meant,
                 "target": None,
+                "recent": None,
                 "text": asked.get("text") or state.get("text"),
             }
-        found, meant = match(cards, card_type, last_four, label)
+        # POL-13: a message that says nothing about which card means the one last settled on.
+        remembered = (
+            next((c for c in cards if c["card_id"] == state.get("recent")), None)
+            if not asked and card_type is None and last_four is None
+            else None
+        )
+        found, meant = (
+            ("settled", [remembered])
+            if remembered is not None
+            else match(cards, card_type, last_four, label)
+        )
         if found == "no_cards":
             if charge:
                 return {
@@ -851,6 +863,7 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 ),
             }
         settled = meant[0]
+    turn["recent"] = settled["card_id"]
     target = {
         **settled,
         "served_in_full": call.result["customer"]["served_in_full"],
