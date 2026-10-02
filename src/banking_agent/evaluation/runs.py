@@ -26,6 +26,7 @@ from banking_agent.evaluation import (
     families,
     generator,
     grader,
+    metrics,
     oracle,
     player,
 )
@@ -261,6 +262,8 @@ def play_set(
             for _, _, g in played
         ),
     }
+    graded = [(c, g) for c, _, g in played]
+    counted = totals(played)
     summary = {
         "run": out.name,
         "set": set_path.stem,
@@ -269,7 +272,10 @@ def play_set(
         "grader": grader.VERSION,
         "versions": dict(versions),
         "set_aside": aside,
-        **summarize([(c, g) for c, _, g in played], disagreements.load()),
+        **summarize(graded, disagreements.load()),
+        "metrics": metrics.compute(
+            graded, counted, {"turns": counted["turns"], "repeats": 1, "parallelism": 1}
+        ),
     }
     results["summary.json"] = json.dumps(summary, indent=2) + "\n"
     for name, body in results.items():

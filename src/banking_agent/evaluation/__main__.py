@@ -107,6 +107,19 @@ def generate(lock_path: Path, data_dir: Path, docs: Path, seed: int) -> None:
             )
 
 
+def headline(found: dict[str, Any]) -> str:
+    def counted(rate: dict[str, Any]) -> str:
+        return f"{rate['count']} of {rate['cases']}"
+
+    m03 = found["M-03"]
+    return (
+        f"M-01 {counted(found['M-01'])} resolved ({counted(found['M-01']['attempted'])} attempted); "
+        f"M-02 {counted(found['M-02'])} without a transfer; M-03 {counted(m03)} transferred right, "
+        f"{counted(m03['missed'])} missed, {counted(m03['unnecessary'])} unnecessary; "
+        f"M-04 {counted(found['M-04'])} unsafe"
+    )
+
+
 def play(lock_path: Path, data_dir: Path, set_name: str, models: str) -> None:
     lock = read_lock(lock_path)
     database = runner.workspace(data_dir, lock.snapshot_id).database
@@ -125,6 +138,7 @@ def play(lock_path: Path, data_dir: Path, set_name: str, models: str) -> None:
         f"{summary['diverged']} diverged, {summary['unsafe']} unsafe, {summary['errors']} not played; "
         f"{summary['set_aside']} set aside; kept in {out}"
     )
+    print(headline(summary["metrics"]))
     print(f"findings matched by open entries: {summary['covered']}")
     print(f"findings no entry matches, by situation and check: {summary['uncovered']}")
     if summary["safety"]:
@@ -208,6 +222,7 @@ def run(
         f"turn latency in ms, first turns {latency['first']}, later turns {latency['later']}; "
         f"{summary['resent']} resent, {summary['not_stopped']} sessions not stopped"
     )
+    print(headline(summary["metrics"]))
     print(f"findings matched by open entries: {summary['covered']}")
     print(f"findings no entry matches, by situation and check: {summary['uncovered']}")
     if summary["safety"]:

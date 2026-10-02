@@ -27,6 +27,7 @@ from banking_agent.evaluation import (
     generator,
     grader,
     harness,
+    metrics,
     oracle,
     runs,
     users,
@@ -137,38 +138,49 @@ def play_all(
 def latency(played: Sequence[Played]) -> dict[str, Any]:
     """
     Each turn's latency, from the send to its last event, with each case's first turn apart, since each case opens a
-    runtime session of its own (ADR-0005, Reporting). Fault cases are left out, since a planned failure answers at
-    once (ADR-0005's amendment of 2026-10-01).
+    runtime session of its own, and each case's, its turns' together (ADR-0005, Reporting). Fault cases are left out,
+    since a planned failure answers at once (ADR-0005's amendment of 2026-10-01).
     """
 
-    def spread(values: list[int]) -> dict[str, Any]:
+    def spread(values: list[int], unit: str = "turns") -> dict[str, Any]:
         if len(values) < 2:
-            return {"turns": len(values), "p50": values[0] if values else None}
+            return {unit: len(values), "p50": values[0] if values else None}
         cuts = statistics.quantiles(values, n=20, method="inclusive")
-        return {"turns": len(values), "p50": statistics.median(values), "p95": cuts[18]}
+        return {unit: len(values), "p50": statistics.median(values), "p95": cuts[18]}
 
     first: list[int] = []
     later: list[int] = []
+    whole: list[int] = []
     faulted = [case for case, _, _ in played if case["faults"]]
     for case, evidence, _ in played:
         if case["faults"]:
             continue
+        spent = []
         for n, turn in enumerate(evidence["turns"]):
             if turn["events"]:
-                (later if n else first).append(turn["events"][-1]["at_ms"])
+                spent.append(turn["events"][-1]["at_ms"])
+                (later if n else first).append(spent[-1])
+        if spent:
+            whole.append(sum(spent))
     return {
         "first": spread(first),
         "later": spread(later),
+        "cases": spread(whole, "cases"),
         "fault_cases_left_out": len(faulted),
     }
 
 
-def summarize(played: Sequence[Played]) -> dict[str, Any]:
+def summarize(played: Sequence[Played], parallel: int) -> dict[str, Any]:
+    graded = [(c, g) for c, _, g in played]
+    counted = totals(played)
+    timed = latency(played)
+    workload = {"turns": counted["turns"], "repeats": 1, "parallelism": parallel}
     return {
-        **runs.summarize([(c, g) for c, _, g in played], disagreements.load()),
+        **runs.summarize(graded, disagreements.load()),
         "not_stopped": sum(e.get("session") == "not_stopped" for _, e, _ in played),
         "resent": sum(t.get("resent", 0) for _, e, _ in played for t in e["turns"]),
-        "latency_ms": latency(played),
+        "latency_ms": timed,
+        "metrics": metrics.compute(graded, counted, workload, timed),
     }
 
 
@@ -339,7 +351,7 @@ def run(
             played = play_all(chosen, run_id, play, keeper, parallel)
         finally:
             test_users.cleanup(run_id)
-    summary = {"run": run_id, "set": set_manifest["set"], **summarize(played)}
+    summary = {"run": run_id, "set": set_manifest["set"], **summarize(played, parallel)}
     keeper.keep("summary.json", summary)
     keeper.keep(
         "manifest.json",

@@ -132,7 +132,7 @@ def play_on_its_own_stack(bank: Bank) -> Any:
     return play
 
 
-def test_fault_cases_stay_out_of_the_turn_latency() -> None:
+def test_fault_cases_stay_out_of_the_turn_and_case_latency() -> None:
     def one(faults: list[dict[str, Any]], *at_ms: int) -> endtoend.Played:
         turns = [{"events": [{"at_ms": at}]} for at in at_ms]
         return {"faults": faults}, {"turns": turns}, {}
@@ -144,6 +144,7 @@ def test_fault_cases_stay_out_of_the_turn_latency() -> None:
 
     assert (found["first"]["turns"], found["first"]["p50"]) == (2, 1000)
     assert found["later"] == {"turns": 1, "p50": 300}
+    assert (found["cases"]["cases"], found["cases"]["p50"]) == (2, 1150)
     assert found["fault_cases_left_out"] == 1
 
 
@@ -168,9 +169,11 @@ def test_a_set_plays_in_parallel_and_each_case_is_kept_as_it_finishes(
     for n, (_, evidence, _) in enumerate(played, 1):
         assert evidence["user"] == users.username("run", n)
 
-    summary = endtoend.summarize(played)
+    summary = endtoend.summarize(played, 2)
     assert (summary["cases"], summary["passed"], summary["errors"]) == (3, 2, 1)
     assert summary["latency_ms"]["first"]["turns"] == 2
+    assert summary["metrics"]["M-05"]["latency_ms"] == summary["latency_ms"]
+    assert summary["metrics"]["M-05"]["workload"]["parallelism"] == 2
     assert summary["not_stopped"] == 0 and summary["resent"] == 0
 
     stack = deployed.read(written(tmp_path))

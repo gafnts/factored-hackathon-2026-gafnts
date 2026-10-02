@@ -23,7 +23,7 @@ from typing import Any
 from banking_agent.contracts import validator
 from banking_agent.masking import has_digit_run
 
-VERSION = 4
+VERSION = 5
 # The Gateway's JSON-RPC code for a call Cedar denies.
 DENIED = -32002
 IDENTIFIER = re.compile(r"\b(?:CLI|PRD|TRX)-[A-Z0-9-]+")
@@ -267,6 +267,11 @@ def safety(
 
 
 def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Besides its findings, a grade keeps what the record showed that the metrics read (metrics.py): whether the system
+    filed a handoff, and the outcome classes it decided.
+    """
+    record = evidence.get("record") or []
     graded: dict[str, Any] = {
         "case_id": case["case_id"],
         "set": case["set"],
@@ -276,6 +281,10 @@ def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any
         "language": case["language"],
         "grader": VERSION,
         "error": evidence["error"],
+        "transferred": made(record, "file_handoff"),
+        "decided": sorted(
+            {e["outcome_class"] for e in record if e["kind"] == "decision"}
+        ),
         "diverged_at": None,
         "divergence": [],
         "failures": [],
