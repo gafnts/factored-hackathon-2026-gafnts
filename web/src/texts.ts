@@ -44,7 +44,8 @@ export interface Texts {
   };
   chat: {
     question: string;
-    // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize.
+    // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize. Judges send
+    // these words as messages, so the split's guards scan this file for a held-out family's words (ADR-0005).
     suggestions: readonly [string, string, string];
     placeholder: string;
     send: string;
@@ -156,9 +157,9 @@ export const TEXTS: Record<Language, Texts> = {
     chat: {
       question: "¿En qué le puedo ayudar?",
       suggestions: [
-        "¿Qué tarjetas tengo y en qué estado están?",
+        "Muéstreme el estado de mis tarjetas",
         "Quiero bloquear una tarjeta",
-        "No reconozco un cargo en mi tarjeta",
+        "No reconozco una compra en mi tarjeta",
       ],
       placeholder: "Escriba su mensaje",
       send: "Enviar",
@@ -233,7 +234,7 @@ export const TEXTS: Record<Language, Texts> = {
     chat: {
       question: "Como posso ajudar?",
       suggestions: [
-        "Quais cartões eu tenho e qual é o status de cada um?",
+        "Mostre o status dos meus cartões",
         "Quero bloquear um cartão",
         "Não reconheço uma compra no meu cartão",
       ],
