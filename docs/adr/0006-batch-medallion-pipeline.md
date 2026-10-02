@@ -156,4 +156,4 @@ Negative:
 - The full build runs by hand, so CI proves the models on fixtures, not on the snapshot.
 - It is not what a bank would run: no shared catalog, no scheduler, no change data capture. The production write-up states the distance (SCP-08, OPS-11).
 - Each export means a new table, and a moment when the tools switch from one to the next.
-- The build's time on the full snapshot hasn't been measured; the first build measures it.
+- The build's time on the full snapshot was measured on the first build: 40 s, and 83 s for the export, on a recent laptop ([the pipeline's README](../../pipeline/README.md)).

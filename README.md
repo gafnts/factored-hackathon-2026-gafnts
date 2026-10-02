@@ -3,7 +3,7 @@
 </p>
 <p align="center">
   <strong>A card support agent for LATAM Bank, in Spanish and Portuguese. <br>
-  It explains what the records say, blocks a card only when its holder confirms, and hands off to a person with a structured case file.</strong>
+  It explains the records, blocks a card only when its holder confirms, and hands off with a case file.</strong>
 </p>
 <p align="center">
   <a href="#introduction"><strong>Introduction</strong></a> ·
@@ -105,7 +105,7 @@ With the [toolchain](CONTRIBUTING.md#1-install-the-toolchain) installed:
 
 ```bash
 make install   # Python and web deps, pre-commit hooks, tflint plugins
-make check     # Every quality gate against every file, exactly as CI does
+make check     # Every hook against every file, as CI runs them
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, and teardown.
