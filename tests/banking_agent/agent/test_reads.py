@@ -180,6 +180,18 @@ def test_a_bare_four_digit_number_names_the_card_without_the_model(
     assert decisions(chat)[0]["outcome_class"] == "answer"
 
 
+def test_an_amounts_digits_dont_name_a_card(harness: Harness) -> None:
+    # 1177 ends the debit card, but here it is an amount's whole part.
+    chat = Chat(harness)
+    harness.script.replies = ["Su {card} está {card.status} ({card.expiration})."]
+
+    asked = chat.say(
+        "Pagué 1177.00 con mi tarjeta, ¿en qué estado está?", requests=["card_status"]
+    )
+
+    assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+
+
 def test_a_bare_number_that_ends_none_of_the_cards_still_asks_which(
     harness: Harness,
 ) -> None:

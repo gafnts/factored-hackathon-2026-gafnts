@@ -79,7 +79,8 @@ EMIT_MESSAGE = "manually_emit_message"
 TYPES = {"credit": "Tarjeta Crédito", "debit": "Tarjeta Débito"}
 KINDS = {product_type: kind for kind, product_type in TYPES.items()}
 LAST_FOUR = re.compile(r"^[0-9]{4}$")
-FOUR_DIGITS = re.compile(r"(?<![0-9])[0-9]{4}(?![0-9])")
+# Four digits on their own: not part of a longer number, and not an amount's whole part ("1177.00").
+FOUR_DIGITS = re.compile(r"(?<![0-9])(?<![0-9][.,])[0-9]{4}(?![0-9])(?![.,][0-9])")
 # POL-17: after two questions that don't settle the same detail, stop asking.
 QUESTIONS = 2
 # A lost or stolen card left unblocked is handed to a person (POL-38).
