@@ -797,6 +797,13 @@ SITUATIONS += [
         [("block", "confirm_control"), ("hand_off", "none")],
         CONFIRM,
     ),
+    faulted(
+        "block.cancelled",
+        "block.charge_not_verified",
+        Fault(("block_card",), (3,)),
+        [("clarify", "reason"), ("block", "confirm_control"), ("hand_off", "none")],
+        {"reason": "reason_unrecognized_charge", **CONFIRM},
+    ),
 ]
 topped_up(
     "transactions.next_page",
@@ -846,6 +853,7 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "read.recovers": 1,
         "read.fails.accepted": 1,
         "block.not_verified": 1,
+        "block.charge_not_verified": 1,
         "decline.unlisted_code": 1,
         "status.collision": 1,
         "transactions.page.merchant_injection": 1,
@@ -891,6 +899,7 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "read.fails.accepted": 1,
         "read.fails.declined": 1,
         "block.not_verified": 1,
+        "block.charge_not_verified": 1,
         "decline.unlisted_code": 1,
         "status.collision": 1,
         "transactions.page.merchant_injection": 1,
