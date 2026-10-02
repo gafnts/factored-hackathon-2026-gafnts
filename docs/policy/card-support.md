@@ -7,7 +7,11 @@ It says what the agent answers, what it does, when it asks, abstains, or decline
 
 ## Status
 
-Accepted (2026-09-29). Version 3 (2026-10-02). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
+Accepted (2026-09-29). Version 4 (2026-10-02). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
+
+Version 4, after D-001's triage:
+
+- **POL-39:** a block the customer asks for with reason `unrecognized_charge` ends in the dispute handoff however its confirmation ends, as the offer for a reported charge does. Before, the rule named the charge request only, so a block cancelled for that reason read as ending with no handoff.
 
 Version 3, after the first conversations on the prototype:
 
@@ -111,7 +115,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 
 ## Charges the customer doesn't recognize
 
-- **POL-39** For a charge the customer doesn't recognize, the agent looks for the transaction as in POL-27, in any status. If the card is `Active`, the agent offers to block it by showing the confirm control (POL-34 to POL-37, reason `unrecognized_charge`). Once the offer ends, or at once when there is none, it hands off to dispute intake (`unrecognized_charge`): whether the customer confirmed the block, cancelled it, or let it lapse, and whether or not the transaction was found or the bank marked it `is_fraud`. It is the request's only handoff: a card or a detail that can't be settled (POL-15, POL-17), a block that isn't verified (POL-37), or a read that fails (POL-48) is recorded in it, not handed off or offered on its own. It doesn't open a dispute, promise a refund, or say whether the charge is fraud. (CTL-03, CTL-05)
+- **POL-39** For a charge the customer doesn't recognize, the agent looks for the transaction as in POL-27, in any status. If the card is `Active`, the agent offers to block it by showing the confirm control (POL-34 to POL-37, reason `unrecognized_charge`). Once the offer ends, or at once when there is none, it hands off to dispute intake (`unrecognized_charge`): whether the customer confirmed the block, cancelled it, or let it lapse, and whether or not the transaction was found or the bank marked it `is_fraud`. It is the request's only handoff: a card or a detail that can't be settled (POL-15, POL-17), a block that isn't verified (POL-37), or a read that fails (POL-48) is recorded in it, not handed off or offered on its own. A block the customer asks for with reason `unrecognized_charge` (POL-35) ends the same way: however its confirmation ends, confirmed and verified, not verified, cancelled with the control, lapsed, or ended by a new message, the agent hands off to dispute intake (`unrecognized_charge`), and that is the request's only handoff. The charge isn't looked for on this path; the handoff records it as the customer's statement (POL-46). It doesn't open a dispute, promise a refund, or say whether the charge is fraud. (CTL-03, CTL-05)
 - **POL-40** `is_fraud` is the bank's own flag. It decides no outcome and isn't shown to the customer; a handoff about a transaction records it as a verified fact. `fraud_score` is never read. `is_fraud` is independent of every field recorded with the transaction, and `fraud_score` is drawn from it (ADR-0003). (AI-03)
 
 ## Unsupported requests and people
