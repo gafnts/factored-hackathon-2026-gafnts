@@ -149,11 +149,6 @@ export function Customer({ language: starting }: { language: Language }) {
             disabled={running}
             onClick={newConversation}
           />
-          {expanded && (
-            <p className="hidden px-2.5 pt-1 text-xs text-bone-muted sm:block">
-              {texts.rail.unsaved}
-            </p>
-          )}
           <RailButton
             icon={<LogOut />}
             label={texts.signIn.signOut}

@@ -36,7 +36,6 @@ export interface Texts {
     open: string;
     close: string;
     newChat: string;
-    unsaved: string;
   };
   // The bar's language switch (ADR-0007, Routes): each option named in its own language.
   language: {
@@ -150,7 +149,6 @@ export const TEXTS: Record<Language, Texts> = {
       open: "Abrir el menú",
       close: "Cerrar el menú",
       newChat: "Nueva conversación",
-      unsaved: "Las conversaciones no se guardan: una nueva empieza vacía.",
     },
     language: {
       label: "Idioma",
@@ -228,7 +226,6 @@ export const TEXTS: Record<Language, Texts> = {
       open: "Abrir o menu",
       close: "Fechar o menu",
       newChat: "Nova conversa",
-      unsaved: "As conversas não ficam salvas: uma nova começa vazia.",
     },
     language: {
       label: "Idioma",
