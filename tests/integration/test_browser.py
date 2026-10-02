@@ -99,11 +99,11 @@ RUNTIME_SESSION = "faro.runtime-session"
 CONSOLE = {
     "disputes": "Disputas",
     "service": "Servicio al cliente",
-    "normal": "Normal",
     "urgent": "Urgente",
     "verified": "Verificado",
     "facts": "Hechos verificados",
     "actions": "Acciones",
+    "record": "Registro de ejecución",
     "flagged": "Caso marcado",
     "reference": "Referencia",
     "search": "Buscar",
@@ -365,12 +365,15 @@ def at_the_console(site: str, agent: Tab, user: User) -> None:
 
 def arrives(agent: Tab, reference: str, priority: str) -> Locator:
     """
-    The case's row in dispute intake, there within a poll of its filing, with the rows above it.
+    The case's row in dispute intake, there within a poll of its filing; only an urgent row carries a word.
     """
     queue = agent.page.get_by_role("region", name=CONSOLE["disputes"])
     row = queue.get_by_role("button", name=re.compile(re.escape(reference)))
     expect(row).to_be_visible(timeout=ARRIVES_MS)
-    expect(row).to_contain_text(CONSOLE[priority])
+    if priority == "urgent":
+        expect(row).to_contain_text(CONSOLE["urgent"])
+    else:
+        expect(row).not_to_contain_text(CONSOLE["urgent"])
     return row
 
 
@@ -382,12 +385,14 @@ def reads_the_case(agent: Tab, reference: str, row: Locator, outcome: str) -> No
     expect(agent.page.get_by_role("heading", level=2, name=reference)).to_be_visible()
     actions = agent.page.get_by_role("region", name=CONSOLE["actions"])
     expect(actions).to_contain_text(outcome)
-    # A block cancelled with the control made no call to cite.
-    if outcome == CONSOLE["verified"]:
-        expect(actions).to_contain_text("block_card")
     facts = agent.page.get_by_role("region", name=CONSOLE["facts"])
     expect(facts).to_contain_text("find_transactions")
     expect(facts).to_contain_text("file_handoff")
+    # The registry opens on its fold; a block cancelled with the control made no call to cite.
+    registry = agent.page.locator("details")
+    registry.get_by_text(CONSOLE["record"]).click()
+    if outcome == CONSOLE["verified"]:
+        expect(registry).to_contain_text("block_card")
     expect(agent.page.get_by_text(CONSOLE["flagged"])).to_have_count(0)
     shown = agent.page.evaluate("new URLSearchParams(location.search).get('caso')")
     assert shown == reference, "the address doesn't keep the open case"

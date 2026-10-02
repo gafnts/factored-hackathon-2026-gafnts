@@ -1,7 +1,6 @@
 import type {
   Action,
   CardSupportHandoff,
-  CaseDetail,
   CaseList,
   CaseRow,
   Fact,
@@ -10,7 +9,6 @@ import type {
 
 export type Queue = CaseList["queue"];
 export type ReasonCode = CaseRow["reason_code"];
-export type Status = CaseDetail["case"]["status"];
 
 // Each is keyed by the contract's own values, so a value a schema adds fails the build until it has its text here
 // (ADR-0007, Types from the schemas).
@@ -114,15 +112,6 @@ export const AGENT = {
     es: "español",
     pt: "portugués",
   } satisfies Record<CaseRow["language"], string>,
-  statuses: {
-    filed: "Archivado",
-    claimed: "Tomado",
-    resolved: "Resuelto",
-  } satisfies Record<Status, string>,
-  triggers: {
-    required: "Requerido por la política",
-    accepted_offer: "Aceptado por el cliente",
-  } satisfies Record<CardSupportHandoff["trigger"], string>,
   outcomes: {
     verified: "Verificado",
     not_verified: "No verificado",
@@ -203,9 +192,7 @@ export const AGENT = {
     failed: "No se pudo cargar el caso; se intentará de nuevo.",
     close: "Cerrar el caso",
     filed: (time: string) => `Archivado el ${time}`,
-    businessDate: (date: string) => `Fecha del banco: ${date}`,
     answerIn: (language: string) => `Responder en ${language}`,
-    rules: "Reglas",
     flagged: "Caso marcado",
     flaggedBody:
       "Al archivarlo, el sistema dejó fuera o corrigió partes que no pudo verificar. Ninguna muestra su valor.",
@@ -219,12 +206,11 @@ export const AGENT = {
     readBy: "Leído por",
     statements: "Lo que dice el cliente, sin verificar",
     questions: "Preguntas sin resolver",
-    evidence: "Evidencia: las llamadas en el registro de ejecución",
+    evidence: "Registro de ejecución",
     attempt: (n: number) => `intento ${String(n)}`,
     latency: (ms: number) => `${String(ms)} ms`,
     requestId: "ID de la solicitud",
     notRecorded: "Aún no está en el registro de ejecución.",
-    identifiers: "Identificadores",
     customer: "Cliente",
     signIn: "Sesión del cliente",
     handoff: "Caso",

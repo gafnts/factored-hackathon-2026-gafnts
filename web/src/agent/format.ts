@@ -1,23 +1,23 @@
-// The console's two clocks (ADR-0004, Two clocks): wall times in the reader's own zone, and the bank's frozen date as
-// it was published, which no zone shifts.
+// Wall times in the reader's own zone (ADR-0004, Two clocks), to the minute: the registry keeps the seconds.
 const WALL = new Intl.DateTimeFormat("es", {
   dateStyle: "medium",
-  timeStyle: "medium",
+  timeStyle: "short",
 });
 const CLOCK = new Intl.DateTimeFormat("es", { timeStyle: "medium" });
-const BANK = new Intl.DateTimeFormat("es", {
-  dateStyle: "long",
-  timeZone: "UTC",
+const EXACT = new Intl.DateTimeFormat("es", {
+  dateStyle: "medium",
+  timeStyle: "medium",
 });
 
 export function wallTime(iso: string): string {
   return WALL.format(new Date(iso));
 }
 
-export function clockTime(at: Date): string {
-  return CLOCK.format(at);
+// The registry's clock, to the second: there order and latency are the point.
+export function exactTime(iso: string): string {
+  return EXACT.format(new Date(iso));
 }
 
-export function bankDate(date: string): string {
-  return BANK.format(new Date(`${date}T00:00:00Z`));
+export function clockTime(at: Date): string {
+  return CLOCK.format(at);
 }

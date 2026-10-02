@@ -8,7 +8,7 @@ import type {
   RecordedRow,
   ToolCall,
 } from "../contracts/console";
-import { bankDate, wallTime } from "./format";
+import { exactTime, wallTime } from "./format";
 import { AGENT } from "./texts";
 
 // Every string from a case is a React text node, never HTML or Markdown: the summary, the customer's words, a
@@ -34,7 +34,7 @@ function Mono({ children }: { children: ReactNode }) {
   return <span className="font-mono text-sm">{children}</span>;
 }
 
-// The call a fact or an action names, as the record holds it, or as the payload cites it until the record does.
+// The call a fact names, by its tool alone (ADR-0007, Routes): the registry below keeps the call's whole entry.
 function CallTag({
   callId,
   calls,
@@ -45,17 +45,14 @@ function CallTag({
   cited: ReadonlyMap<string, ToolCall>;
 }) {
   const call = calls.get(callId);
-  const named = cited.get(callId);
-  if (call?.recorded && call.tool && call.called_at) {
+  if (call?.recorded && call.tool) {
     return (
       <span className="text-xs text-bone-muted">
-        {AGENT.case.readBy} <Mono>{call.tool}</Mono> ·{" "}
-        {wallTime(call.called_at)}
-        {call.attempt !== undefined && ` · ${AGENT.case.attempt(call.attempt)}`}
-        {call.outcome && ` · ${AGENT.callOutcomes[call.outcome]}`}
+        {AGENT.case.readBy} <Mono>{call.tool}</Mono>
       </span>
     );
   }
+  const named = cited.get(callId);
   return (
     <span className="text-xs text-bone-muted">
       {AGENT.case.readBy} <Mono>{named?.tool ?? callId}</Mono> ·{" "}
@@ -137,48 +134,45 @@ function Facts({
 function Actions({
   actions,
   lastFour,
-  calls,
-  cited,
 }: {
   actions: readonly Action[];
   lastFour: ReadonlyMap<string, string>;
-  calls: ReadonlyMap<string, RecordedCall>;
-  cited: ReadonlyMap<string, ToolCall>;
 }) {
   if (actions.length === 0)
     return <p className="text-sm text-bone-muted">{AGENT.case.noActions}</p>;
   return (
     <ul className="flex flex-col gap-2">
-      {actions.map((action) => (
-        <li
-          key={action.confirmation_id}
-          className="flex flex-col gap-1 border border-white/10 bg-night-raised px-4 py-3"
-        >
-          <span className="flex flex-wrap items-baseline justify-between gap-2">
-            <span>
-              {AGENT.case.block(AGENT.blockReasons[action.reason])} ·{" "}
-              {subjectName("card", action.card_id, lastFour)}
+      {actions.map((action) => {
+        const four = lastFour.get(action.card_id);
+        return (
+          <li
+            key={action.confirmation_id}
+            className="flex flex-col gap-1 border border-white/10 bg-night-raised px-4 py-3"
+          >
+            <span className="flex flex-wrap items-baseline justify-between gap-2">
+              <span>
+                {AGENT.case.block(AGENT.blockReasons[action.reason])} ·{" "}
+                {AGENT.subjects.card}
+                {four ? ` ••${four}` : <Mono> {action.card_id}</Mono>}
+              </span>
+              <span
+                className={
+                  action.outcome === "verified"
+                    ? "font-medium text-sea"
+                    : "font-medium text-lamp"
+                }
+              >
+                {AGENT.outcomes[action.outcome]}
+              </span>
             </span>
-            <span
-              className={
-                action.outcome === "verified"
-                  ? "font-medium text-sea"
-                  : "font-medium text-lamp"
-              }
-            >
-              {AGENT.outcomes[action.outcome]}
-            </span>
-          </span>
-          {action.confirmed_at && (
-            <span className="text-sm text-bone-muted">
-              {AGENT.case.confirmedAt(wallTime(action.confirmed_at))}
-            </span>
-          )}
-          {action.evidence.map((callId) => (
-            <CallTag key={callId} callId={callId} calls={calls} cited={cited} />
-          ))}
-        </li>
-      ))}
+            {action.confirmed_at && (
+              <span className="text-sm text-bone-muted">
+                {AGENT.case.confirmedAt(wallTime(action.confirmed_at))}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -216,7 +210,7 @@ function Evidence({
               <Mono>{call?.tool ?? named.tool}</Mono>
               {call?.recorded ? (
                 <>
-                  {call.called_at && <span>{wallTime(call.called_at)}</span>}
+                  {call.called_at && <span>{exactTime(call.called_at)}</span>}
                   {call.via && (
                     <span className="text-bone-muted">
                       {AGENT.via[call.via]}
@@ -319,32 +313,17 @@ export function CaseView({
           </button>
         </div>
         <p className="flex flex-wrap gap-x-3 gap-y-1">
-          <span
-            className={
-              held.priority === "urgent"
-                ? "font-medium text-lamp"
-                : "font-medium"
-            }
-          >
-            {AGENT.priorities[held.priority]}
-          </span>
+          {held.priority === "urgent" && (
+            <span className="font-medium text-lamp">
+              {AGENT.priorities.urgent}
+            </span>
+          )}
           <span>{AGENT.queues[held.queue]}</span>
           <span>{AGENT.reason(held.reason_code)}</span>
-          <span className="text-bone-muted">{AGENT.statuses[held.status]}</span>
         </p>
         <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-bone-muted">
           <span>{AGENT.case.filed(wallTime(held.filed_at))}</span>
-          <span>
-            {AGENT.case.businessDate(bankDate(payload.business_date))}
-          </span>
           <span>{AGENT.case.answerIn(AGENT.languages[held.language])}</span>
-          <span>{AGENT.triggers[payload.trigger]}</span>
-        </p>
-        <p className="flex flex-wrap items-baseline gap-2 text-sm">
-          <span className="text-bone-muted">{AGENT.case.rules}</span>
-          {payload.rules.map((rule) => (
-            <Mono key={rule}>{rule}</Mono>
-          ))}
         </p>
       </header>
 
@@ -373,12 +352,7 @@ export function CaseView({
       </Section>
 
       <Section title={AGENT.case.actions}>
-        <Actions
-          actions={actions}
-          lastFour={lastFour}
-          calls={calls}
-          cited={cited}
-        />
+        <Actions actions={actions} lastFour={lastFour} />
       </Section>
 
       <Section title={AGENT.case.facts}>
@@ -406,32 +380,35 @@ export function CaseView({
         </Section>
       )}
 
-      <Section title={AGENT.case.evidence}>
-        <Evidence evidence={payload.evidence} calls={calls} />
-      </Section>
-
-      <Section title={AGENT.case.identifiers}>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="text-bone-muted">{AGENT.case.customer}</dt>
-          <dd>
-            <Mono>{payload.customer_id}</Mono>
-          </dd>
-          <dt className="text-bone-muted">{AGENT.case.signIn}</dt>
-          <dd>
-            <Mono>{payload.session_id}</Mono>
-          </dd>
-          <dt className="text-bone-muted">{AGENT.case.handoff}</dt>
-          <dd>
-            <Mono>{payload.handoff_id}</Mono>
-          </dd>
-        </dl>
-        <p className="text-sm text-bone-muted">
-          {AGENT.case.versions(
-            payload.versions.policy,
-            payload.versions.snapshot,
-          )}
-        </p>
-      </Section>
+      {/* The audit under the story: every recorded call, then the case's identifiers, behind one fold. */}
+      <details className="flex flex-col">
+        <summary className="cursor-pointer font-mono text-xs tracking-[0.08em] text-bone-muted uppercase transition-colors marker:text-bone-muted hover:text-bone">
+          <span className="pl-1.5">{AGENT.case.evidence}</span>
+        </summary>
+        <div className="flex flex-col gap-6 pt-3">
+          <Evidence evidence={payload.evidence} calls={calls} />
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <dt className="text-bone-muted">{AGENT.case.customer}</dt>
+            <dd>
+              <Mono>{payload.customer_id}</Mono>
+            </dd>
+            <dt className="text-bone-muted">{AGENT.case.signIn}</dt>
+            <dd>
+              <Mono>{payload.session_id}</Mono>
+            </dd>
+            <dt className="text-bone-muted">{AGENT.case.handoff}</dt>
+            <dd>
+              <Mono>{payload.handoff_id}</Mono>
+            </dd>
+          </dl>
+          <p className="text-sm text-bone-muted">
+            {AGENT.case.versions(
+              payload.versions.policy,
+              payload.versions.snapshot,
+            )}
+          </p>
+        </div>
+      </details>
     </article>
   );
 }
