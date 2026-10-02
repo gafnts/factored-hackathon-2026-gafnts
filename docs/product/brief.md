@@ -21,7 +21,7 @@ Faro is the card support agent we are building for LATAM Bank. This brief says w
 
 ## In one sentence
 
-> **Faro is LATAM Bank's card support agent, in Spanish and Portuguese. It explains a declined card from the bank's own records, blocks a card only when its holder confirms, and hands a disputed charge to a person with the evidence already gathered.**
+> **Faro is LATAM Bank's card support agent, in Spanish and Portuguese. It explains what the records say, blocks a card only when its holder confirms, and hands off to a person with a structured case file.**
 
 The name carries the idea. In Spanish, *faro* is a lighthouse; in Portuguese, *ter faro* is to have a nose for things. Guidance in one language, judgment in the other. The [identity guide](identity.md) says how Faro sounds and looks.
 

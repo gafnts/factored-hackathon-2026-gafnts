@@ -3,7 +3,7 @@
 </p>
 <p align="center">
   <strong>A card support agent for LATAM Bank, in Spanish and Portuguese. <br>
-  It acts only when the cardholder confirms, and knows when to hand off to a person.</strong>
+  It explains what the records say, blocks a card only when its holder confirms, and hands off to a person with a structured case file.</strong>
 </p>
 <p align="center">
   <a href="#introduction"><strong>Introduction</strong></a> ·

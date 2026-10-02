@@ -1,6 +1,6 @@
 # Hello, Factored! 👋
 
-This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package, the web app, and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
+This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package, the web app, and the Terraform infrastructure for Faro, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
 
 Setup commands are idempotent, so re-running one after a failure is always safe, and `make doctor` tells you at any point which steps are done and which are left.
 

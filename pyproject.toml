@@ -5,7 +5,7 @@ requires = [ "uv-build>=0.10.7,<0.11" ]
 [project]
 name = "banking-agent"
 version = "0.1.0"
-description = "AI-first banking customer service agent for the Factored AI & Data Hackathon 2026"
+description = "Faro, a card support agent in Spanish and Portuguese, built for the Factored AI & Data Hackathon 2026"
 readme = "README.md"
 license = "MIT"
 requires-python = "~=3.13.0"
