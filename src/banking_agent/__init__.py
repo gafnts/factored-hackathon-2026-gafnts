@@ -1,5 +1,5 @@
 """
-AI-first banking customer service agent.
+Faro, a card support agent in Spanish and Portuguese.
 """
 
 from importlib.metadata import version

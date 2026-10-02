@@ -1,16 +1,19 @@
 # Documentation
 
-What we decided about Faro, why, and the evidence behind it. Every document cites the requirement IDs in [hackathon-requirements.md](hackathon-requirements.md), and the policy's rule IDs wherever a rule applies.
+What we decided about Faro, why, and the evidence behind it. Every document cites the requirement IDs in [prerequisites.md](prerequisites.md), and the policy's rule IDs wherever a rule applies.
 
 | Path | Holds |
 |---|---|
 | [adr/](adr/README.md) | The architecture decision records and their index |
+| [analysis/](analysis/) | The profiling, traffic, workflow selection, and card support reports, with their JSON and figures, from `make analysis` |
 | [architecture.md](architecture.md) | The system on one page: what runs where, a turn, the graph, where each rule holds, the data, and the evaluation |
-| [analysis/](analysis/) | The profiling, traffic, workflow selection, and card support reports, each with its JSON, computed from the pinned snapshot by `make analysis` |
+| [evaluation/](evaluation/) | The request [families](evaluation/families.md), the [disagreement log](evaluation/disagreements.md), the [run index](evaluation/runs.md), and the manifests of the sets and the reported runs |
+| [images/](images/) | The README's banner, screenshot, and diagrams |
 | [pipeline/](pipeline/) | The manifest of each gold export, from `make export`: the stamp, the clock, rows per model, content hashes, and every check's result ([the pipeline](../pipeline/README.md)) |
-| [policy/](policy/) | The [card support policy](policy/card-support.md): what Faro answers, does, and refuses, one ID per rule (synthetic) |
-| [product/](product/) | The [product brief](product/brief.md), covering the problem, who Faro serves, and the outcomes we intend; and the [identity guide](product/identity.md), covering Faro's name, voice, and look |
-| [hackathon-requirements.md](hackathon-requirements.md) | Everything the organizers evaluate, with stable requirement IDs |
+| [policy/](policy/) | The [card support policy](policy/card-support.md) we wrote for the synthetic bank: what Faro answers, does, and refuses, one ID per rule |
+| [prerequisites.md](prerequisites.md) | Everything the organizers evaluate, with stable requirement IDs |
+| [product/](product/) | The [product brief](product/brief.md): the problem, who Faro serves, and the outcomes we intend; the [identity guide](product/identity.md): its name, voice, and look |
+| `hackathon/` | The organizers' materials, including the dataset keys (gitignored) |
 
 ## Reading order
 
