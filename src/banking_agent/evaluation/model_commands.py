@@ -2,7 +2,8 @@
 The commands that call models outside the system under test, and the judge's validation, which __main__ adds to its
 own. judge has Claude Opus 5.5 grade a run's replies, or a sample's, through the batch API, keeping its items,
 attempts, judgments, and manifest under data/evaluation/judge/. judge-sample draws the blind sample and its sheet from
-a run's replies, calling no model. With --estimate a command prices its calls and makes none; otherwise it reads the
+a run's replies, and judge-agreement scores a judge run against the filled sheet; neither calls a model. With
+--estimate a command prices its calls and makes none; otherwise it reads the
 Anthropic key from the env file, as the live language check does, and sends it to the client only. Each prints
 counts, never a reply, a value, or the key (SEC-03).
 """
@@ -15,10 +16,10 @@ from typing import Any
 
 import anthropic
 
-from banking_agent.evaluation import blind, judge, rubric, runs
+from banking_agent.evaluation import agreement, blind, judge, rubric, runs
 from banking_agent.model_key import ModelKeyError, read_key
 
-COMMANDS = ("judge", "judge-sample")
+COMMANDS = ("judge", "judge-sample", "judge-agreement")
 
 
 def add(commands: Any) -> None:
@@ -37,6 +38,22 @@ def add(commands: Any) -> None:
         type=int,
         default=None,
         help="Seeded replies per question (the bar's count)",
+    )
+    agreeing = commands.add_parser(
+        "judge-agreement",
+        help="Score the judge's agreement and kappa against a filled blind sheet, with intervals",
+    )
+    agreeing.add_argument(
+        "--sample",
+        type=Path,
+        required=True,
+        help="A sample under data/evaluation/judge/samples/",
+    )
+    agreeing.add_argument(
+        "--judged",
+        type=Path,
+        required=True,
+        help="The judge run over the sample's items",
     )
     judging = commands.add_parser(
         "judge",
@@ -110,13 +127,32 @@ def run_sample(args: argparse.Namespace) -> None:
     print(f"grade {out / 'sheet.csv'} blind, reading {out / 'guide.md'} first")
 
 
+def run_agreement(args: argparse.Namespace) -> None:
+    found = agreement.report(args.sample, args.judged, rubric.load())
+    for q in found["questions"]:
+        share, kappa = q["agreement"], q["kappa"]
+        print(
+            f"{q['question']}: {q['pairs']} graded ({q['natural']} natural, {q['seeded']} seeded); agreement "
+            f"{share['value']} [{share['low']}, {share['high']}]; {q['kappa']['kind']} kappa {kappa['value']} "
+            f"[{kappa['low']}, {kappa['high']}]; {sum(q['deserve_no'].values())} deserve a no, caught "
+            f"{q['caught']['natural']['caught'] + q['caught']['seeded']['caught']}; {q['verdict']}"
+        )
+    if not found["validates"]:
+        print(
+            "this sample doesn't validate the judge: its replies aren't the selection set's played end to end"
+        )
+    print(f"kept in {agreement.write(found, args.sample)}")
+
+
 def main(args: argparse.Namespace, code: dict[str, Any]) -> int:
     try:
         if args.command == "judge":
             run_judge(args, code)
         elif args.command == "judge-sample":
             run_sample(args)
-    except (ModelKeyError, blind.SampleError) as error:
+        elif args.command == "judge-agreement":
+            run_agreement(args)
+    except (ModelKeyError, blind.SampleError, agreement.AgreementError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     return 0
