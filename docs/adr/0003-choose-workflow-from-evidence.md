@@ -14,15 +14,11 @@
 
 ## Status
 
-Accepted (2026-09-27): card support (see [Result](#result)).
+Accepted (2026-09-27): card support (see [Result](#result)). The rule was revised three times before acceptance: once before any gate ran, fixed by the table-level [data quality profile](../analysis/profiling.md), which showed that agent time and customer pain can't be measured (see Context); once on how each gate is measured (see Measurement); and once with every gate result in view, as the rule requires (see [Revisit](#revisit)), since no candidate passed all four. Acceptance added the result and its consequences for the evaluation; the rule is unchanged since the revisit.
 
-Amended (2026-09-29) by [ADR-0004](0004-agent-architecture-on-agentcore.md#state-a-frozen-master-snapshot-with-an-event-cutoff): the sentence in [Dates](#dates) that every table then shows the bank at the same moment holds for event tables only. Customers and products carry no history, so they show their values as delivered, flagged when updated after the as-of instant.
+Amended as built, the correction applied in the section it names:
 
-The first revision fixed the rule before any gate had been computed for any workflow. A second, also before any gate ran, fixed how each gate is measured (see Measurement); for it we read the distinct values of `product_type` and `response_code`, never their counts.
-
-The table-level [data quality profile](../analysis/profiling.md) ran before the first revision was committed, and it changed the rule. The first draft ranked the workflows by the agent time and customer pain of their contacts, which the profile showed can't be measured (see Context). Its table-wide null rates also bear on gate F1, which keeps the threshold it was drafted with; the rows F1 reads come from the dictionary's own scopes, not from those rates.
-
-The gates ran on 2026-09-27, and no candidate passed all four (see the [selection report](../analysis/selection.md)). A third revision, written with every gate result in view, revisits them as the rule requires (see [Revisit](#revisit)); it was committed before `make analysis` ran again. It also corrects two sentences that called `fraud_score` the bank's existing model. Acceptance adds the result and its consequences for the evaluation; the rule is unchanged since the revisit.
+- 2026-09-29, by [ADR-0004](0004-agent-architecture-on-agentcore.md#state-a-frozen-master-snapshot-with-an-event-cutoff): the sentence in [Dates](#dates) that every table shows the bank at the same moment holds for event tables only.
 
 ## Context
 
@@ -52,7 +48,7 @@ The four workflows the brief names. A candidate may end by handing off to anothe
 
 The business date is the last day for which every daily table can be expected to hold at least 99% of its rows, given how late rows arrived over the rest of the history. Each processing day runs past midnight, to a fixed cutoff the next morning.
 
-Everything is read as of one instant: the end of the business date's processing day, taken as the earliest of the daily tables' cutoffs on the following morning (06:00 in the profile, set by transactions and campaign sends). Every table then shows the bank at the same moment; rows and fields dated after it are ignored. A window such as "the 30 days before the business date" is the 30 × 24 hours ending at the as-of instant, counted by each event's own timestamp, never by `process_date`.
+Everything is read as of one instant: the end of the business date's processing day, taken as the earliest of the daily tables' cutoffs on the following morning (06:00 in the profile, set by transactions and campaign sends). Every event table then shows the bank at the same moment, with rows dated after it ignored; customers and products carry no history, so they show their values as delivered, flagged when updated after the as-of instant ([ADR-0004](0004-agent-architecture-on-agentcore.md#state-a-frozen-master-snapshot-with-an-event-cutoff)). A window such as "the 30 days before the business date" is the 30 × 24 hours ending at the as-of instant, counted by each event's own timestamp, never by `process_date`.
 
 ### Gates
 
