@@ -110,6 +110,23 @@ def test_a_charge_reported_after_a_cards_read_is_about_that_card(
     assert control["card"]["last_four"] == "4821"
 
 
+def test_the_charge_is_matched_against_the_message_that_reported_it(
+    harness: Harness,
+) -> None:
+    # After the which-card question, the model reads the report, not the answer "A 4821."
+    chat = Chat(harness)
+    reported(chat, "Não reconheço uma cobrança.", card_type=None, last_four=None)
+
+    shown = chat.say("A 4821.", requests=[], card_type="credit", last_four="4821")
+
+    (messages,) = harness.script.model_inputs["choose"]
+    assert messages[-1].content == "Não reconheço uma cobrança."
+    charge = window(harness)[0]
+    assert reply(shown).split("\n\n")[0] == render(
+        "charge_found", "pt", {"card": CARD, "transaction": charge}
+    )
+
+
 def test_the_model_reads_the_window_numbered_and_never_an_id(harness: Harness) -> None:
     chat = Chat(harness)
 

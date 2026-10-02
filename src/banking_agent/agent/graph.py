@@ -870,7 +870,13 @@ async def resolve_card(state: State) -> dict[str, Any]:
         "listed": call.call_id,
     }
     if charge:
-        return {**turn, "case": "find", "asking": None, "target": target}
+        return {
+            **turn,
+            "case": "find",
+            "asking": None,
+            "target": target,
+            "text": asked.get("text") or state.get("text"),
+        }
     if reading:
         return {
             **turn,
@@ -1007,7 +1013,9 @@ async def find_transaction(state: State) -> dict[str, Any]:
     fitting: list[dict[str, Any]] = []
     if candidates:
         try:
-            chosen = await scope.models.choose(latest_text(state), context)
+            chosen = await scope.models.choose(
+                latest_text(state) if answering else request_text(state), context
+            )
             fitting = [
                 candidates[n - 1]
                 for n in dict.fromkeys(chosen.fitting)
