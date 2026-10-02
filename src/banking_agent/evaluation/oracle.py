@@ -503,7 +503,7 @@ class Conversation:
                 rules,
                 "card",
                 tools=tools,
-                facts={"{cards}": self.facts.cards(listed)},
+                facts={"{card_list}": self.facts.card_list(listed)},
             )
             hints = hints.merged(answer.hints)
 

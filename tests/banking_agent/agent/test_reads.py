@@ -114,6 +114,13 @@ def test_several_cards_and_none_named_are_asked_about_then_answered(
     asked = chat.say("¿En qué estado está mi tarjeta?", requests=["card_status"])
 
     assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+    assert reply(asked).split("\n\n", 1)[1] == "\n".join(
+        [
+            "- Tarjeta de crédito terminada en 4821",
+            "- Tarjeta de crédito terminada en 9034",
+            "- Tarjeta de débito terminada en 1177",
+        ]
+    )
     assert decisions(chat)[0]["awaiting"] == "card"
     assert decisions(chat)[0]["outcome_class"] == "clarify"
 

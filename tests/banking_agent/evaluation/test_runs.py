@@ -57,8 +57,9 @@ def test_a_set_is_played_kept_and_summarized_without_a_value(
         0,
         0,
     )
-    assert summary["covered"] == {"D-004": 2}
-    assert summary["uncovered"] == {}
+    # D-004's match is gone since the question lists the cards under {card_list}.
+    assert (summary["covered"], summary["uncovered"]) == ({}, {})
+    assert summary["passed"] == len(chosen)
     for kept in ("evidence.jsonl", "grades.jsonl"):
         assert len((out / kept).read_text(encoding="utf-8").splitlines()) == len(chosen)
     written = (out / "summary.json").read_text(encoding="utf-8")

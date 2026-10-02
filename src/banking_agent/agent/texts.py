@@ -53,12 +53,12 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-13 to POL-16, for the reads.
     "which_card_read": {
-        "es": "¿Sobre cuál de estas tarjetas me pregunta?\n\n{cards}",
-        "pt": "Sobre qual destes cartões você está perguntando?\n\n{cards}",
+        "es": "¿Sobre cuál de estas tarjetas me pregunta?\n\n{card_list}",
+        "pt": "Sobre qual destes cartões você está perguntando?\n\n{card_list}",
     },
     "no_matching_card_read": {
-        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿Sobre cuál me pregunta?",
-        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nSobre qual você está perguntando?",
+        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{card_list}\n\n¿Sobre cuál me pregunta?",
+        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{card_list}\n\nSobre qual você está perguntando?",
     },
     # POL-01 and POL-21: a status answer's fixed reply, for one card and for each.
     "card_status": {
@@ -169,8 +169,8 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-14.
     "which_card": {
-        "es": "¿Cuál de estas tarjetas quiere bloquear?\n\n{cards}",
-        "pt": "Qual destes cartões você quer bloquear?\n\n{cards}",
+        "es": "¿Cuál de estas tarjetas quiere bloquear?\n\n{card_list}",
+        "pt": "Qual destes cartões você quer bloquear?\n\n{card_list}",
     },
     # POL-15: two cards of the same type share the last four digits.
     "ambiguous_card": {
@@ -184,17 +184,17 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-16.
     "no_matching_card": {
-        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿Cuál quiere bloquear?",
-        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nQual você quer bloquear?",
+        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{card_list}\n\n¿Cuál quiere bloquear?",
+        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{card_list}\n\nQual você quer bloquear?",
     },
     # POL-14 and POL-16, for a charge the customer doesn't recognize.
     "which_card_charge": {
-        "es": "¿En cuál de estas tarjetas está el cargo que no reconoce?\n\n{cards}",
-        "pt": "Em qual destes cartões está a cobrança que você não reconhece?\n\n{cards}",
+        "es": "¿En cuál de estas tarjetas está el cargo que no reconoce?\n\n{card_list}",
+        "pt": "Em qual destes cartões está a cobrança que você não reconhece?\n\n{card_list}",
     },
     "no_matching_card_charge": {
-        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{cards}\n\n¿En cuál está el cargo que no reconoce?",
-        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{cards}\n\nEm qual está a cobrança que você não reconhece?",
+        "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{card_list}\n\n¿En cuál está el cargo que no reconoce?",
+        "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{card_list}\n\nEm qual está a cobrança que você não reconhece?",
     },
     # POL-39, as in POL-27: the charge is looked for in any status, and whether it is fraud is never said.
     "charge_found": {
@@ -388,7 +388,7 @@ def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
         if "expiration_date" in card:
             filled["card.expiration"] = expiration(card["expiration_date"], language)
     if "cards" in facts:
-        filled["cards"] = "\n".join(
+        filled["card_list"] = "\n".join(
             f"- {card_name(card, language).capitalize()}" for card in facts["cards"]
         )
     if "statuses" in facts:

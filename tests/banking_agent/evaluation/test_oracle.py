@@ -100,7 +100,10 @@ def test_a_status_asks_which_card_then_answers_it(
     ]
     first, last = expected["turns"]
     assert first["tools_required"] == ["list_cards"]
-    assert first["facts"]["{cards}"].count("\n") == 4
+    # The question lists the cards without their statuses (POL-14); the all-cards answer carries them.
+    assert first["facts"]["{card_list}"].count("\n") == 4
+    assert "{cards}" not in first["facts"]
+    assert ":" not in first["facts"]["{card_list}"]
     assert last["facts"] == {
         "{card}": "tarjeta de crédito terminada en 6610",
         "{card.status}": "activa",
@@ -216,8 +219,8 @@ def test_facts_follow_the_conversations_language_turn_by_turn(
 
     first, last = play(con, played)["turns"]
 
-    assert "Tarjeta de" in first["facts"]["{cards}"]
-    assert "Cartão" not in first["facts"]["{cards}"]
+    assert "Tarjeta de" in first["facts"]["{card_list}"]
+    assert "Cartão" not in first["facts"]["{card_list}"]
     assert last["facts"]["{card}"].startswith("cartão de crédito final ")
 
     clear = case(
@@ -230,7 +233,7 @@ def test_facts_follow_the_conversations_language_turn_by_turn(
 
     first, _ = play(con, clear)["turns"]
 
-    assert "Cartão de" in first["facts"]["{cards}"]
+    assert "Cartão de" in first["facts"]["{card_list}"]
 
 
 def test_the_reasons_answer_sets_the_language_of_the_confirm_prompt(
