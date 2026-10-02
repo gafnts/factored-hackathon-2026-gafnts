@@ -6,9 +6,9 @@ Where the system and the oracle differ, we record the question here and, once tr
 |---|---|---|---|---|
 | [D-001](#d-001) | Closed | The policy's wording was unclear | POL-35, POL-36, POL-39 | `block.cancelled` |
 | [D-002](#d-002) | Closed | The policy's wording was unclear | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
-| [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
+| [D-003](#d-003) | Closed | The system was wrong | POL-06, POL-51 | `none.third_language` |
 | [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
-| [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
+| [D-005](#d-005) | Closed | The system was wrong | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
 | [D-006](#d-006) | Open | To triage | POL-35, POL-36 | `block.cancelled` |
 
 ## D-001
@@ -39,7 +39,9 @@ A paraphrase in a third language isn't recognized as one by the agent's language
 
 - `none.third_language` (es), turn 1: `outcome_class`, expected `decline`, observed `answer`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. The word lists it told a third language apart with needed two listed words and had none of several English ones, so most English paraphrases were routed and answered as a message with no request. Since 2026-10-02 the model call that reads a message says which language it is mostly in, and code gives POL-51's reply to a message in another language whatever labels came with it; the word lists are gone (ADR-0004, as amended on 2026-10-02). The live language check reads every development paraphrase with the real prompts and reports the English ones beside the rest.
 
 ## D-004
 
@@ -70,7 +72,9 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 - `credit.no_limit` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `read.recovers` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system, with the oracle's part settled by the policy's wording. The word lists missed about one Portuguese message in eight, and the oracle formatted every fact in the case's language, even after a word both languages share, which POL-50 leaves in the conversation's language. Since 2026-10-02 the model call that reads a message says which language it is mostly in and code applies POL-50; the policy's new version (2026-10-02) says that clearly one of them means the language a message is mostly in, and that words both languages share set nothing; the families mark the paraphrases that are such words, and the oracle follows the conversation's language turn by turn, Spanish until a message sets one. Known limitation: the model at times reads a Portuguese sentence that names a Spanish merchant as Spanish, and reads a shared word as Spanish rather than unclear; the live language check lists these misses.
 
 ## D-006
 
