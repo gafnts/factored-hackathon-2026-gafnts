@@ -95,11 +95,18 @@ def expected_language(family: Family, message_id: str) -> str:
 
 
 def development_items(
-    families: Sequence[Family], answers: Sequence[Answer], held: frozenset[str]
+    families: Sequence[Family],
+    answers: Sequence[Answer],
+    held: frozenset[str],
+    only: Iterable[str] = (),
 ) -> list[Item]:
+    """
+    only narrows the check to the families named, for a look at a prompt change before a whole run.
+    """
+    wanted = set(only)
     items = []
     for family in families:
-        if family.family_id in held:
+        if family.family_id in held or (wanted and family.family_id not in wanted):
             continue
         for message in family.messages:
             items.append(
@@ -111,7 +118,7 @@ def development_items(
                 )
             )
     for answer in answers:
-        if answer.answer_id in held:
+        if answer.answer_id in held or wanted:
             continue
         call, context = CALLS[answer.kind]
         for language, text in answer.texts.items():

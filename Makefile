@@ -196,8 +196,8 @@ eval-index: ## Regenerate docs/evaluation/runs.md
 regression: ## Play and grade the regression set in process, as CI does
 	uv run pytest -m regression -v --tb=short
 
-language-check: ## Run the real prompts over the development paraphrases and answers; report to docs/evaluation/ (ENV_FILE=.env)
-	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL))
+language-check: ## Run the real prompts over the development paraphrases and answers; report to docs/evaluation/ (ENV_FILE=.env, FAMILIES= to try some)
+	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL)) $(foreach f,$(FAMILIES),--only $(f))
 
 ##@ Analysis
 

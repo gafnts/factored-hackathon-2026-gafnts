@@ -129,13 +129,16 @@ def play(lock_path: Path, data_dir: Path, set_name: str) -> None:
         print(f"safety checks failed: {summary['safety']}")
 
 
-def check_language(env_file: Path, reports: Path, page: Path, parallel: int) -> None:
+def check_language(
+    env_file: Path, reports: Path, page: Path, parallel: int, only: list[str]
+) -> None:
     """
-    The key goes from the file to the client only, as make model-key sends it to the secret.
+    The key goes from the file to the client only, as make model-key sends it to the secret. A check narrowed to some
+    families is printed and not kept, since the page reports whole runs.
     """
     loaded, answers = families.load(), families.load_answers()
     held = families.held_out_ids(loaded, answers)
-    items = language.development_items(loaded, answers, held)
+    items = language.development_items(loaded, answers, held, only)
     costs: list[float] = []
 
     async def record(kind: str, **fields: Any) -> None:
@@ -144,9 +147,16 @@ def check_language(env_file: Path, reports: Path, page: Path, parallel: int) -> 
     models = Models(anthropic_factory(read_key(env_file)), record)
     results = asyncio.run(language.check(models, items, parallel))
     found = language.report(results, sum(costs))
-    written = language.write(found, reports, page)
     for name, counts in found["by_language"].items():
         print(f"{name}: {counts['read']} of {counts['items']} read as expected")
+    for miss in found["misses"]:
+        print(f"  {miss['id']}: expected {miss['expected']}, said {miss['said']}")
+    if only:
+        print(
+            f"{len(found['misses'])} misses over {found['items']} items; {found['cost_usd']:.4f} USD; not kept"
+        )
+        return
+    written = language.write(found, reports, page)
     print(
         f"{len(found['misses'])} misses over {found['items']} items; {found['cost_usd']:.4f} USD; "
         f"kept in {written} and {page}"
@@ -246,10 +256,18 @@ def main(argv: list[str] | None = None) -> int:
     checking.add_argument("--reports", type=Path, default=language.REPORTS)
     checking.add_argument("--page", type=Path, default=language.PAGE)
     checking.add_argument("--parallel", type=int, default=4)
+    checking.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        help="A family to check alone, repeatable",
+    )
     args = parser.parse_args(argv)
     if args.command == "language":
         try:
-            check_language(args.env_file, args.reports, args.page, args.parallel)
+            check_language(
+                args.env_file, args.reports, args.page, args.parallel, args.only
+            )
         except ModelKeyError as error:
             print(f"Error: {error}", file=sys.stderr)
             return 1

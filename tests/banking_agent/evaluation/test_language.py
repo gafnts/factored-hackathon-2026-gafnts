@@ -89,6 +89,8 @@ def test_the_items_are_the_development_side_filled_and_labeled() -> None:
         "pt",
         "choose",
     )
+    some = language.development_items(LOADED, ANSWERS, HELD, only=[third.family_id])
+    assert {i.id.split("/")[0] for i in some} == {third.family_id}
 
 
 def test_the_check_counts_what_the_model_said_against_the_label(tmp_path: Path) -> None:

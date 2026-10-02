@@ -76,10 +76,11 @@ class RouterOutput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # First, so the model settles the language before it labels (ADR-0004's amendment of 2026-10-02).
+    language: Language
     requests: list[Label] = Field(max_length=8)
     has_request: bool
     complaint: bool
-    language: Language
 
 
 class RequestDetails(BaseModel):
@@ -93,6 +94,7 @@ class RequestDetails(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    language: Language
     card_type: Literal["credit", "debit"] | None
     last_four: str | None
     block_reason: (
@@ -113,7 +115,6 @@ class RequestDetails(BaseModel):
         ]
         | None
     )
-    language: Language
 
 
 class TransactionChoice(BaseModel):
@@ -125,8 +126,8 @@ class TransactionChoice(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    fitting: list[int] = Field(max_length=10)
     language: Language
+    fitting: list[int] = Field(max_length=10)
 
 
 class HandoffText(BaseModel):
