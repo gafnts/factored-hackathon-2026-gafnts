@@ -1,0 +1,683 @@
+{
+  "check": "baseline",
+  "date": "2026-10-02",
+  "side": "development",
+  "detector": "the word lists in language.py, which the agent read languages with until 2026-10-02",
+  "measure": "a message counts as read when, from the other language's conversation, the detector sets the message's own language; a third language counts when it is told apart",
+  "items": 910,
+  "by_language": {
+    "es": {
+      "items": 448,
+      "read": 383
+    },
+    "other": {
+      "items": 6,
+      "read": 2
+    },
+    "pt": {
+      "items": 446,
+      "read": 384
+    },
+    "unclear": {
+      "items": 10,
+      "read": 10
+    }
+  },
+  "misses": [
+    {
+      "id": "block_card-07/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "block_card-07/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "block_card-07/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "block_card-07/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "block_card-11/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "block_card-11/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "block_card-11/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-05/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-05/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-07/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-09/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-09/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-12/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "unrecognized_charge-12/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-01/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-01/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-03/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-03/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-03/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-03/pt/0",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-03/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-03/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-06/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-06/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-07/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-11/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-11/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-11/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-11/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-12/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "talk_to_human-12/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-03/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-08/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-08/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-08/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-08/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-08/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-08/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "decline_reason-10/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "card_status-07/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "card_status-07/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "card_status-07/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "card_status-07/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "card_status-11/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "card_status-11/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/es/2",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/pt/0",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-07/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-11/pt/0",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-11/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-12/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-12/es/2",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-12/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-12/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-04/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-04/pt/0",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-04/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-04/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-07/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-07/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-07/es/2",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-07/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-07/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-12/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "recent_transactions-12/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "unsupported-12/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "unsupported-12/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-01/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-01/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-02/es/2",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-03/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-03/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-07/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-07/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-07/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-08/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/2",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/4",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/0",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/1",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/5",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-10/en/2",
+      "expected": "other",
+      "said": "es"
+    },
+    {
+      "id": "none-10/en/3",
+      "expected": "other",
+      "said": "es"
+    },
+    {
+      "id": "none-10/en/4",
+      "expected": "other",
+      "said": "es"
+    },
+    {
+      "id": "none-10/en/5",
+      "expected": "other",
+      "said": "es"
+    },
+    {
+      "id": "none-12/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-12/es/3",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-12/pt/0",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-12/pt/3",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "none-12/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "card_last_four-03/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "card_last_four-03/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "card_type-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "card_type-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "card_both-03/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "reason_lost-02/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "reason_lost-03/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "reason_stolen-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "reason_stolen-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "reason_stolen-02/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "reason_customer_request-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_merchant-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_merchant-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_amount-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_amount-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_amount-02/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_date-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_newest-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_newest-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_newest-02/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_newest-02/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "dont_know-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "dont_know-03/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "typed_yes-01/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "typed_yes-01/pt",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "typed_yes-03/es",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "typed_yes-03/pt",
+      "expected": "pt",
+      "said": "unclear"
+    }
+  ]
+}

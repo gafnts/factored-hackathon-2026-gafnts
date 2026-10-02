@@ -4,11 +4,13 @@ bronze (the last pipeline build) into data/evaluation/sets/, and writes their ma
 IDs, hashes, and counts. play plays a drawn set in process with the scripted models and grades it, keeping the evidence
 and grades under data/evaluation/runs/. run plays a drawn development set end to end against a deployed stack and grades
 it, keeping each case's results under data/evaluation/runs/ and in the stack's evaluation bucket; cleanup deletes the
-test users a stopped run left behind. disagreements regenerates the disagreement log's page. Each prints counts,
-situations, and checks, never an ID, a token, or a value (SEC-03).
+test users a stopped run left behind. disagreements regenerates the disagreement log's page. language runs the real
+prompts over the development side's paraphrases and answers and writes the language check's report and page under
+docs/evaluation/. Each prints counts, situations, and checks, never an ID, a token, or a value (SEC-03).
 """
 
 import argparse
+import asyncio
 import hashlib
 import json
 import subprocess
@@ -16,6 +18,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from banking_agent.agent.models import Models, anthropic_factory
 from banking_agent.dataset.lock import LockError, read_lock
 from banking_agent.evaluation import (
     bronze,
@@ -25,11 +28,13 @@ from banking_agent.evaluation import (
     endtoend,
     families,
     generator,
+    language,
     oracle,
     runs,
     state,
 )
 from banking_agent.evaluation.facts import contract_words
+from banking_agent.model_key import ModelKeyError, read_key
 from banking_agent.pipeline import runner
 
 SETS = ("regression", "selection")
@@ -124,6 +129,30 @@ def play(lock_path: Path, data_dir: Path, set_name: str) -> None:
         print(f"safety checks failed: {summary['safety']}")
 
 
+def check_language(env_file: Path, reports: Path, page: Path, parallel: int) -> None:
+    """
+    The key goes from the file to the client only, as make model-key sends it to the secret.
+    """
+    loaded, answers = families.load(), families.load_answers()
+    held = families.held_out_ids(loaded, answers)
+    items = language.development_items(loaded, answers, held)
+    costs: list[float] = []
+
+    async def record(kind: str, **fields: Any) -> None:
+        costs.append(fields.get("cost_usd") or 0.0)
+
+    models = Models(anthropic_factory(read_key(env_file)), record)
+    results = asyncio.run(language.check(models, items, parallel))
+    found = language.report(results, sum(costs))
+    written = language.write(found, reports, page)
+    for name, counts in found["by_language"].items():
+        print(f"{name}: {counts['read']} of {counts['items']} read as expected")
+    print(
+        f"{len(found['misses'])} misses over {found['items']} items; {found['cost_usd']:.4f} USD; "
+        f"kept in {written} and {page}"
+    )
+
+
 def tree() -> dict[str, Any]:
     """
     The commit a run's code is at, and whether the tree held changes besides.
@@ -209,7 +238,22 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "index", help="Regenerate the run index from the committed manifests"
     )
+    checking = commands.add_parser(
+        "language",
+        help="Run the real prompts over the development paraphrases and answers, and report each language",
+    )
+    checking.add_argument("--env-file", type=Path, default=Path(".env"))
+    checking.add_argument("--reports", type=Path, default=language.REPORTS)
+    checking.add_argument("--page", type=Path, default=language.PAGE)
+    checking.add_argument("--parallel", type=int, default=4)
     args = parser.parse_args(argv)
+    if args.command == "language":
+        try:
+            check_language(args.env_file, args.reports, args.page, args.parallel)
+        except ModelKeyError as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
+        return 0
     if args.command == "index":
         print(f"{runs.index()} reported runs in {runs.INDEX_PAGE}")
         return 0

@@ -172,7 +172,7 @@ contracts: ## Rewrite the bronze contracts from the dictionary
 
 ##@ Evaluation
 
-.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index regression
+.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index regression language-check
 
 eval-sets: ## Draw the development sets; manifests to docs/evaluation/sets/
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
@@ -195,6 +195,9 @@ eval-index: ## Regenerate docs/evaluation/runs.md
 
 regression: ## Play and grade the regression set in process, as CI does
 	uv run pytest -m regression -v --tb=short
+
+language-check: ## Run the real prompts over the development paraphrases and answers; report to docs/evaluation/ (ENV_FILE=.env)
+	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL))
 
 ##@ Analysis
 
