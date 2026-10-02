@@ -38,6 +38,46 @@ export function RailButton({
   );
 }
 
+// The language switch, flush right in the bar (ADR-0007, Routes): mono capitals, each option named in its own
+// language, the chosen one in full color and the other muted. It only sets the page's own text; the agent's replies
+// follow the conversation (POL-50).
+function LanguageSwitch({
+  language,
+  onLanguage,
+}: {
+  language: Language;
+  onLanguage: (language: Language) => void;
+}) {
+  const texts = TEXTS[language].language;
+  return (
+    <div
+      role="group"
+      aria-label={texts.label}
+      className="ml-auto flex shrink-0 items-center"
+    >
+      {(["es", "pt"] as const).map((option) => (
+        <button
+          key={option}
+          type="button"
+          lang={option}
+          aria-pressed={option === language}
+          aria-label={texts[option]}
+          onClick={() => {
+            onLanguage(option);
+          }}
+          className={`flex h-8 items-center px-2.5 font-mono text-xs tracking-[0.08em] transition-colors ${
+            option === language
+              ? "text-bone"
+              : "text-bone-muted hover:bg-white/5 hover:text-bone"
+          }`}
+        >
+          {option.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // The site's pages, the customer's and the console's: the rail once signed in (its icons in the bar on phones), the
 // bar, and the synthetic-data notice on every page (SEC-02). A sign-in's bar carries the bank's name, its notice flush
 // right; once signed in, the bar carries Faro's wordmark, the notice centered. The console's bar reads the bank's name
@@ -52,6 +92,7 @@ export function Shell({
   rail,
   running = false,
   onNew,
+  onLanguage,
   children,
 }: {
   language: Language;
@@ -61,6 +102,7 @@ export function Shell({
   rail?: (expanded: boolean) => ReactNode;
   running?: boolean;
   onNew?: () => void;
+  onLanguage?: (language: Language) => void;
   children: ReactNode;
 }) {
   const texts = TEXTS[language];
@@ -132,6 +174,9 @@ export function Shell({
             </>
           )}
         </div>
+        {onLanguage && (
+          <LanguageSwitch language={language} onLanguage={onLanguage} />
+        )}
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-(--bar) pl-(--rail)">
         {children}

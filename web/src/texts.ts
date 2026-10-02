@@ -36,6 +36,12 @@ export interface Texts {
     newChat: string;
     unsaved: string;
   };
+  // The bar's language switch (ADR-0007, Routes): each option named in its own language.
+  language: {
+    label: string;
+    es: string;
+    pt: string;
+  };
   chat: {
     question: string;
     // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize.
@@ -142,6 +148,11 @@ export const TEXTS: Record<Language, Texts> = {
       newChat: "Nueva conversación",
       unsaved: "Las conversaciones no se guardan: una nueva empieza vacía.",
     },
+    language: {
+      label: "Idioma",
+      es: "Español",
+      pt: "Português",
+    },
     chat: {
       question: "¿En qué le puedo ayudar?",
       suggestions: [
@@ -213,6 +224,11 @@ export const TEXTS: Record<Language, Texts> = {
       close: "Fechar o menu",
       newChat: "Nova conversa",
       unsaved: "As conversas não ficam salvas: uma nova começa vazia.",
+    },
+    language: {
+      label: "Idioma",
+      es: "Español",
+      pt: "Português",
     },
     chat: {
       question: "Como posso ajudar?",

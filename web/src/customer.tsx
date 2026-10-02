@@ -23,8 +23,10 @@ type State =
   | { kind: "signed-out"; config: Config; ended: boolean }
   | { kind: "signed-in"; config: Config; signedIn: SignedIn; session: string };
 
-// The customer's route: sign-in, then the chat, until the sign-in's hour ends (POL-09).
-export function Customer({ language }: { language: Language }) {
+// The customer's route: sign-in, then the chat, until the sign-in's hour ends (POL-09). The page's language starts
+// from the browser's and follows the bar's switch (ADR-0007, Routes); the agent's replies follow POL-50 on their own.
+export function Customer({ language: starting }: { language: Language }) {
+  const [language, setLanguage] = useState(starting);
   const texts = TEXTS[language];
   const [state, setState] = useState<State>({ kind: "loading" });
   // Each new conversation mounts the chat again, which draws a thread ID of its own on the same runtime session
@@ -110,7 +112,7 @@ export function Customer({ language }: { language: Language }) {
   if (state.kind === "loading") return <div className="h-dvh" />;
   if (state.kind === "broken") {
     return (
-      <Shell language={language}>
+      <Shell language={language} onLanguage={setLanguage}>
         <p
           role="alert"
           className="mx-auto w-full max-w-3xl px-4 py-10 text-lamp sm:px-6"
@@ -122,7 +124,7 @@ export function Customer({ language }: { language: Language }) {
   }
   if (state.kind === "signed-out") {
     return (
-      <Shell language={language} signIn>
+      <Shell language={language} signIn onLanguage={setLanguage}>
         <SignIn language={language} ended={state.ended} onSignIn={signIn} />
       </Shell>
     );
@@ -137,6 +139,7 @@ export function Customer({ language }: { language: Language }) {
       note={texts.signIn.endsAt(time)}
       running={running}
       onNew={newConversation}
+      onLanguage={setLanguage}
       rail={(expanded) => (
         <>
           <RailButton

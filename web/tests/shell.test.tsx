@@ -13,6 +13,29 @@ test("every page says it is a prototype over synthetic data (SEC-02)", () => {
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });
 
+test("the bar's switch names each language in its own, marks the page's, and hands over the other", async () => {
+  const onLanguage = vi.fn();
+  render(
+    <Shell language="es" onLanguage={onLanguage}>
+      {null}
+    </Shell>,
+  );
+  const options = screen.getByRole("group", {
+    name: TEXTS.es.language.label,
+  });
+  const chosen = screen.getByRole("button", { name: TEXTS.es.language.es });
+  const other = screen.getByRole("button", { name: TEXTS.es.language.pt });
+
+  expect(options).toContainElement(chosen);
+  expect(chosen).toHaveAttribute("aria-pressed", "true");
+  expect(chosen).toHaveTextContent("ES");
+  expect(other).toHaveAttribute("aria-pressed", "false");
+  expect(other).toHaveAttribute("lang", "pt");
+  await userEvent.setup().click(other);
+
+  expect(onLanguage).toHaveBeenCalledWith("pt");
+});
+
 test("the sign-in's bar carries the bank's name, and no link", () => {
   render(
     <Shell language="es" signIn>
