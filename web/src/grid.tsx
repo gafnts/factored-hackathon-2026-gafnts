@@ -3,19 +3,25 @@ import type { ReactNode } from "react";
 type Layout = "sign-in" | "chat";
 
 // Placed in cells from the center, where a line runs, so the cleared block and the lit cells sit on the lines. The
-// block holds the content; the lit cells keep to the outer columns, or to the top rows of a phone's sign-in, so
-// none sits behind text or glass (the identity guide's Motifs). A phone's empty chat fills its screen, so it has none.
+// block holds the content; the lit cells keep to the outer columns, or to the rows above and below a phone's
+// sign-in, so none sits behind text or glass (the identity guide's Motifs). A phone's empty chat fills its screen,
+// so it has none.
 const BLOCK: Record<Layout, string> = {
   "sign-in":
     "left-[calc(50%-7*var(--cell)+1px)] top-[calc(50%-7*var(--cell)+1px)] h-[calc(14*var(--cell)-1px)] w-[calc(14*var(--cell)-1px)] sm:left-[calc(50%-5*var(--cell)+1px)] sm:top-[calc(50%-5*var(--cell)+1px)] sm:h-[calc(10*var(--cell)-1px)] sm:w-[calc(10*var(--cell)-1px)]",
   chat: "left-[calc(50%-7*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] h-[calc(16*var(--cell)-1px)] w-[calc(14*var(--cell)-1px)] sm:left-[calc(50%-8*var(--cell)+1px)] sm:top-[calc(50%-5*var(--cell)+1px)] sm:h-[calc(10*var(--cell)-1px)] sm:w-[calc(16*var(--cell)-1px)]",
 };
 
+// The rows above the block, then the same cells turned half around below it, so the ring reads as one beam's pass.
 const ON_PHONES = [
   "sm:hidden left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   "sm:hidden left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   "sm:hidden left-[calc(50%+1*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
   "sm:hidden left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%+7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%+2*var(--cell)+1px)] top-[calc(50%+8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%+8*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+  "sm:hidden left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%+7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
 ];
 
 const LIT: Record<Layout, string[]> = {
@@ -40,7 +46,8 @@ const LIT: Record<Layout, string[]> = {
   ],
 };
 
-// A sign-in's beacon: each cell's turn as the beam passes, in the order LIT lists them, the left cells, then the right.
+// A sign-in's beacon: each cell's turn as the beam passes, in the order LIT lists them; around the block on a
+// phone, the left cells then the right on wider screens.
 const BEAT = [
   "[--beat:0ms]",
   "[--beat:180ms]",
@@ -53,6 +60,10 @@ const BEAT = [
   "[--beat:1440ms]",
   "[--beat:1620ms]",
   "[--beat:1800ms]",
+  "[--beat:1980ms]",
+  "[--beat:2160ms]",
+  "[--beat:2340ms]",
+  "[--beat:2520ms]",
 ];
 
 // The banner's grid behind a page's content: hairlines that fade toward the edges, a block cleared for the content,
