@@ -115,7 +115,7 @@ Light at dusk: a warm lamp against a cold sea. The palette runs from the lamp's 
 | **Night** | Black, with the banner's grid | The site's pages (the customer's sign-in and chat, the human agent's sign-in and console), the slides' covers, the video's titles |
 | **Paper** | A warm light gray | Work read at length off the site: the evaluation report and the slides' content |
 
-A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, no motion but the arrival, the sweep, and the sign-ins' beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
+A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, no motion but the arrival, the sweep, and the beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
 
 ### Palette
 
@@ -184,7 +184,7 @@ The mark isn't drawn yet; until it is, the wordmark stands alone, as in the bann
 - **Glass.** Smoked glass for what floats over the grid or the glow and carries something: the composer, the suggestions, the controls, the sign-in forms, and the missing page's card. `night-raised` at 80%, a 24 px backdrop blur, and a hairline of white at 10%; the rail and the bar are thinner, at 55%, with a hairline on their inner edge. Replies sit on the ground, never on glass, and the console's panels float over nothing, so they are solid `night-raised`. Under `prefers-reduced-transparency` the glass turns solid.
 - **The arrival.** A page arrives whole, on Night from its first frame, once its faces have loaded: the bar, the rail, and the notice fade in, the content rises 12 px as it fades in, and the lit cells and the glow come on last, in under two seconds. A sign-in, a new conversation, a message, an opened case, and a case new to a queue arrive the same way, in place. Nothing moves once it has arrived but the beacon and the sweep, and under `prefers-reduced-motion` nothing rises: it only fades in.
 - **The sweep.** The only motion in a conversation: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
-- **The beacon.** On the two sign-ins, the lighthouse at work: every ten seconds a beam passes over the lit cells, left to right, each brightening toward white for a moment. A sign-in is a wait before the work, where a slow sign of life is welcome; the empty chat, where a customer arrives with a problem, keeps still. Under `prefers-reduced-motion` the cells only come on.
+- **The beacon.** Wherever the grid's cells are lit, the lighthouse at work: the first beam passes as the cells come on, then one every ten seconds, each cell brightening toward white for a moment in its turn. The two sign-ins and the empty chat are a wait before the work, where a slow sign of life is welcome. Under `prefers-reduced-motion` the cells only come on.
 
 ### Surfaces
 
