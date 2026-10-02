@@ -4,7 +4,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 
 | ID | Status | Verdict | Rules | Situations |
 |---|---|---|---|---|
-| [D-001](#d-001) | Open | To triage | POL-35, POL-36, POL-39 | `block.cancelled` |
+| [D-001](#d-001) | Closed | The policy's wording was unclear | POL-35, POL-36, POL-39 | `block.cancelled` |
 | [D-002](#d-002) | Open | To triage | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
 | [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
 | [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
@@ -13,12 +13,14 @@ Where the system and the oracle differ, we record the question here and, once tr
 
 ## D-001
 
-A customer asks to block a card because of a charge they don't recognize, then cancels the block with the control. The system files POL-39's handoff to dispute intake, reading the block's reason as the charge's report; the oracle reads POL-39 as the rule of the unrecognized-charge request only, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.
+A customer asks to block a card, gives a charge they don't recognize when asked for the block's reason, then cancels the block with the control. The system files POL-39's handoff to dispute intake, going by the block's reason; the oracle reads POL-39 as the rule of the unrecognized-charge request only, going by the request's label, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.
 
 - `block.cancelled`, turn 3: `outcome_class`, expected `answer`, observed `hand_off`
 - `block.cancelled`, turn 3: `tool_forbidden`, expected `file_handoff`, observed `made`
 
-**Verdict:** To triage.
+**Verdict:** The policy's wording was unclear.
+
+**Resolution:** The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch would disagree as D-002 does and stays undrawn.
 
 ## D-002
 
