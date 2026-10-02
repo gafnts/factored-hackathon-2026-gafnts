@@ -64,7 +64,7 @@ TEXTS = {
     },
     "pt": {
         "control": "Confirmar o bloqueio",
-        "block": "Bloquear",
+        "block": "Confirmar o bloqueio",
         "cancel": "Cancelar",
         "offer": "Encaminhar seu caso para uma pessoa",
         "locale": "pt-BR",
