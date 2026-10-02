@@ -1,18 +1,24 @@
 """
 The deterministic baseline: its language read by the retired word lists, which the graph applies as it applies the
-model's (POL-50, POL-51); its keyword router, which labels in POL-05's order; its extraction by pattern; and its choice
-of a transaction by match, each through the agent's own model calls.
+model's (POL-50, POL-51); its keyword router, which labels in POL-05's order; its extraction by pattern; its choice of a
+transaction by match; and its templates, which pass the reply check and the payload's text rules, each through the
+agent's own model calls.
 """
 
 import asyncio
 from typing import Any
 
 import pytest
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 
-from banking_agent.agent.graph import ASKS, MORE, listing, today
+from banking_agent.agent.check import failures
+from banking_agent.agent.graph import ASKS, MORE, instructions, listing, today
 from banking_agent.agent.language import settled
 from banking_agent.agent.models import Models
+from banking_agent.agent.payload import context, required, transcript, written
+from banking_agent.agent.texts import FIXED, LANGUAGE_NAMES, placeholders
 from banking_agent.evaluation import baseline
+from banking_agent.policy.handoffs import HANDOFFS
 
 
 def models() -> tuple[Models, list[dict[str, Any]]]:
@@ -287,3 +293,67 @@ def test_the_extraction_and_the_choice_answer_through_the_agents_model_calls() -
     assert (chosen.fitting, chosen.language) == ([2], "pt")
     assert [e["outcome"] for e in recorded] == ["ok", "ok"]
     assert recorded[1]["output"]["extracted"] == {"fitting": "2", "language": "pt"}
+
+
+# The reads' fixed replies, by the request whose answer the model writes in their place.
+WRITTEN = {
+    "card_status": "card_status",
+    "cards_status": "card_status",
+    "credit_available": "available_credit",
+    "credit_over_limit": "available_credit",
+    "transactions_page": "recent_transactions",
+    "transactions_next": "recent_transactions",
+    "decline_explained": "decline_reason",
+    "decline_status": "decline_reason",
+}
+
+
+@pytest.mark.parametrize("language", ["es", "pt"])
+@pytest.mark.parametrize("fixed", sorted(WRITTEN))
+def test_each_reads_answer_has_a_template_the_reply_check_passes(
+    fixed: str, language: str
+) -> None:
+    called, recorded = models()
+    names = list(dict.fromkeys(placeholders(FIXED[fixed][language])))
+    facts = instructions({"messages": []}, WRITTEN[fixed], {"shown": "A card."}, names)
+
+    text = asyncio.run(called.reply("¿Y mi tarjeta?", facts, LANGUAGE_NAMES[language]))
+
+    assert set(placeholders(text)) == set(names)
+    assert failures(text, dict.fromkeys(names, "valor")) == []
+    assert text != FIXED[fixed][language]
+    assert recorded[0]["cost_usd"] == 0.0
+
+
+def test_a_request_without_a_template_gets_its_placeholders_alone() -> None:
+    facts = instructions(
+        {"messages": []}, "card_status", {"shown": "A card."}, ["card", "as_of"]
+    )
+
+    text = baseline.reply(LANGUAGE_NAMES["es"], facts)
+
+    assert text == "{card}\n\n{as_of}"
+
+
+def test_a_handoffs_text_states_its_reason_and_quotes_the_customer() -> None:
+    called, _ = models()
+    request = required("block_lapsed", "block_card", ["POL-38"])
+    messages: list[AnyMessage] = [
+        HumanMessage("Perdí mi tarjeta, bloquéela."),
+        AIMessage("¿Por qué quiere bloquear su tarjeta?"),
+        HumanMessage("Se me cayó en la calle."),
+    ]
+
+    text = asyncio.run(called.handoff_text(transcript(messages), context(request)))
+
+    assert text.summary == HANDOFFS["block_lapsed"].summary
+    assert text.customer_statements == [
+        "El cliente escribió: «Perdí mi tarjeta, bloquéela.»",
+        "El cliente escribió: «Se me cayó en la calle.»",
+    ]
+    payload = {
+        "request": {"summary": ""},
+        "customer_statements": [],
+        "unresolved_questions": [],
+    }
+    assert written(payload, text)["customer_statements"] == text.customer_statements

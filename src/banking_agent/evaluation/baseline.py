@@ -22,6 +22,11 @@ families ask for no earlier period and about no one else's card, so it reads nei
 The choice of a transaction keeps the listed ones that fit every amount, date, and merchant the message gives, a date
 read as written or as today, yesterday, or the day before from the business date the listing states (POL-19, POL-27);
 the newest when the customer says so, every one when the message tells none apart, and none when nothing fits.
+
+A read's answer is a fixed template per request and language, chosen by the placeholders the graph lists, each written
+once and no other (decision 8), so code fills it, the reply check reads it, and the oracle's facts compare with it as
+they do with the model's; "usted" in Spanish and "você" in Portuguese (POL-50). A handoff's free text, in Spanish
+(POL-46), states why the case goes to a person, as the graph gives it, and quotes the customer's latest messages.
 """
 
 import re
@@ -36,12 +41,14 @@ from langchain_core.runnables import Runnable, RunnableLambda
 
 from banking_agent.agent.models import (
     ORDER,
+    HandoffText,
     Label,
     Language,
     RequestDetails,
     RouterOutput,
     TransactionChoice,
 )
+from banking_agent.agent.texts import LANGUAGE_NAMES, placeholders
 from banking_agent.evaluation.scripted import listed
 
 MODEL = "baseline"
@@ -405,9 +412,87 @@ def choose(text: str, listing: str) -> TransactionChoice:
     return TransactionChoice(language=language(text), fitting=fitting[:10])
 
 
-def raw() -> AIMessage:
+REPLIES: dict[str, tuple[dict[str, str], ...]] = {
+    "card_status": (
+        {
+            "es": "Su {card} está {card.status}. Vencimiento: {card.expiration}.",
+            "pt": "Seu {card} está {card.status}. Validade: {card.expiration}.",
+        },
+        {
+            "es": "El estado de sus tarjetas es el siguiente:\n\n{cards}",
+            "pt": "Este é o status dos seus cartões:\n\n{cards}",
+        },
+    ),
+    "available_credit": (
+        {
+            "es": "Su {card} tiene {credit.available} de crédito disponible al {as_of}.",
+            "pt": "Seu {card} tem {credit.available} de crédito disponível em {as_of}.",
+        },
+        {
+            "es": "Su {card} no tiene crédito disponible al {as_of}: el saldo supera el límite en {credit.over_by}.",
+            "pt": "Seu {card} não tem crédito disponível em {as_of}: o saldo ultrapassa o limite em {credit.over_by}.",
+        },
+    ),
+    "recent_transactions": (
+        {
+            "es": "Movimientos de su {card} del {window.from} al {window.to}:\n\n{transactions}",
+            "pt": "Transações do seu {card} de {window.from} a {window.to}:\n\n{transactions}",
+        },
+    ),
+    "decline_reason": (
+        {
+            "es": "La transacción {transaction} de su {card} fue rechazada. Motivo registrado: {transaction.meaning}.",
+            "pt": "A transação {transaction} do seu {card} foi recusada. Motivo registrado: {transaction.meaning}.",
+        },
+        {
+            "es": "La transacción {transaction} de su {card} figura como {transaction.status}.",
+            "pt": "A transação {transaction} do seu {card} consta como {transaction.status}.",
+        },
+    ),
+}
+REQUEST = re.compile(r"^Request: ([a-z_]+)\.$", re.MULTILINE)
+LISTED = re.compile(r"^- \{([a-z_.]+)\}:", re.MULTILINE)
+
+
+def reply(instructions: str, facts: str) -> str:
+    """
+    instructions is the reply's prompt, which names the language; facts is the request, the records in words, and the
+    placeholders to write. A request the templates don't cover gets its placeholders alone, one per paragraph.
+    """
+    language = next(c for c, name in LANGUAGE_NAMES.items() if name in instructions)
+    label = REQUEST.search(facts)
+    wanted = list(dict.fromkeys(LISTED.findall(facts)))
+    for template in REPLIES.get(label.group(1) if label else "", ()):
+        if set(placeholders(template[language])) == set(wanted):
+            return template[language]
+    return "\n\n".join(f"{{{name}}}" for name in wanted)
+
+
+# What a staff member reads, in the bank's working language whatever the customer's (POL-46).
+QUOTED = "El cliente escribió: «{}»"
+STATEMENTS = 5
+
+
+def handoff_text(conversation: str, context: str) -> HandoffText:
+    """
+    conversation is the transcript the graph sends, its turns apart by a blank line; context says why the case goes to
+    a person.
+    """
+    said = [
+        turn.removeprefix("Customer: ").strip()
+        for turn in conversation.split("\n\n")
+        if turn.startswith("Customer: ")
+    ]
+    return HandoffText(
+        summary=context.partition(": ")[2].strip() or context.strip(),
+        customer_statements=[QUOTED.format(s) for s in said[-STATEMENTS:]],
+        unresolved_questions=[],
+    )
+
+
+def raw(content: str = "{}") -> AIMessage:
     return AIMessage(
-        content="{}", usage_metadata=USAGE, response_metadata={"model_name": MODEL}
+        content=content, usage_metadata=USAGE, response_metadata={"model_name": MODEL}
     )
 
 
@@ -444,11 +529,27 @@ async def chosen(messages: list[BaseMessage]) -> dict[str, Any]:
     return structured(choose(messages[-1].text, added(messages) or ""))
 
 
-PURPOSES = {"route": routed, "extract": extracted, "choose": chosen}
+async def handed(messages: list[BaseMessage]) -> dict[str, Any]:
+    return structured(handoff_text(messages[-1].text, added(messages) or ""))
+
+
+async def written(messages: list[BaseMessage]) -> AIMessage:
+    return raw(reply(blocks(messages[0])[0], added(messages) or ""))
+
+
+STRUCTURED = {
+    "route": routed,
+    "extract": extracted,
+    "choose": chosen,
+    "handoff_text": handed,
+}
 
 
 def factory(purpose: str) -> Runnable[Any, Any]:
     """
-    The baseline's runnable for a model call's purpose, in place of the provider's (models.Factory).
+    The baseline's runnable for a model call's purpose, in place of the provider's (models.Factory): a reply for any
+    purpose without a structured output, as the provider's factory gives plain text.
     """
-    return RunnableLambda(PURPOSES[purpose])
+    if purpose in STRUCTURED:
+        return RunnableLambda(STRUCTURED[purpose])
+    return RunnableLambda(written)
