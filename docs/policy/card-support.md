@@ -3,30 +3,17 @@
 > [!IMPORTANT]
 > **Synthetic policy (SEC-02).** The organizers supplied no policy, so we wrote these rules; they are not a real bank's. It governs the card support agent, the workflow [ADR-0003](../adr/0003-choose-workflow-from-evidence.md) chose on the organizers' synthetic snapshot, and it is where expected outcomes come from: the evaluation applies these rules to the frozen state, never to historical outcomes.
 
-It says what the agent answers, what it does, when it asks, abstains, or declines, and when a person takes over. Every rule has a stable ID (`POL-01`, …) that tests, evaluation cases, and handoffs cite, and the policy's version is stamped in every execution record and handoff.
+It says what the agent answers, what it does, when it asks, abstains, or declines, and when a person takes over. Every rule has a stable ID (`POL-01`, …) that tests, evaluation cases, and handoffs cite.
 
 ## Status
 
-Accepted (2026-09-29). Version 2 (2026-10-01).
+Accepted (2026-09-29). Version 2 (2026-10-01). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
 
-Changed in version 2, as the reads were built:
+Version 2, as the reads were built:
 
 - **POL-14:** "all my cards" is answered for each card for a status or available credit only. Transactions and a decline are read one card at a time (POL-25, POL-27), so for those the agent asks which.
 - **POL-27:** when several transactions fit, the `Declined` ones among them are meant, if there are any, as POL-13 prefers the cards a request applies to. Otherwise "why was my card declined?" would list the newest purchases, approved or not.
 - **POL-42:** it covers every card service the chat doesn't serve, not only the three it named, which left activating a card or changing its details under no rule.
-
-Revised before acceptance, so the version stayed 1:
-
-- **2026-09-27:** a block is confirmed only with the confirm control, never with typed text (POL-36, and with it POL-03, POL-06, POL-09, POL-37, and POL-39).
-- **2026-09-29:**
-  - An offered handoff is accepted only with the handoff control (POL-45, and with it POL-06, POL-09, and POL-36).
-  - POL-36 offers no handoff when POL-39 already requires one.
-  - An unrecognized charge gets one handoff, which records a failed block or read (POL-39).
-  - POL-13 finds the card the customer named before checking whether the request applies to it.
-  - A `lost` or `stolen` block left unconfirmed when the customer leaves is handed off (POL-38, `block_lapsed`).
-  - POL-48 covers model calls as well as reads.
-
-Once accepted, a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
 
 ## How to read it
 
@@ -221,4 +208,4 @@ Every customer in the snapshot is in Mexico, Colombia, or Argentina, so Spanish 
 
 - Which component enforces each rule, tool names, timeouts, and session length: ADR-0004.
 - How evaluation cases are built and sized, and how expected outcomes are computed from these rules: ADR-0005.
-- How the pipeline flags records that conflict or changed after the as-of instant (6.23% of active cards were updated after it): the data contracts.
+- How the pipeline flags records that conflict or changed after the as-of instant (6.23% of active cards were updated after it): [ADR-0006](../adr/0006-batch-medallion-pipeline.md).
