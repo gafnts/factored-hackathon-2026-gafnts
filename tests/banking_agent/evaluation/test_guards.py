@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 import banking_agent.evaluation
-from banking_agent.evaluation import families, guards
+from banking_agent.evaluation import baseline, families, guards
 
 from .bank import HELD_OUT_CUSTOMER
 from .test_cases import example
@@ -80,6 +80,15 @@ def test_the_agents_prompts_hold_no_held_out_message(
 
     assert artifacts
     assert guards.leaks(artifacts, held_messages) == []
+
+
+def test_the_baselines_words_hold_no_held_out_message(
+    held_messages: list[tuple[str, str]],
+) -> None:
+    # Its keywords, patterns, and templates are authored from development families only (ADR-0005, Baselines).
+    source = Path(baseline.__file__)
+
+    assert guards.leaks({source.name: source.read_text("utf-8")}, held_messages) == []
 
 
 def test_the_persona_cards_hold_no_held_out_message(
