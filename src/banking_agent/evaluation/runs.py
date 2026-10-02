@@ -1,7 +1,7 @@
 """
-A development set played in process on a machine that holds the snapshot (ADR-0005's amendment of 2026-10-01): each
-case through the player over the tools' items for its customer, with the scripted models or the deterministic baseline's
-(ADR-0005, Baselines), graded, and its evidence and grade kept under data/evaluation/runs/<run>/, never committed, since
+A set played in process on a machine that holds the snapshot (ADR-0005's amendment of 2026-10-01): each case through
+the player over the tools' items for its customer, a development set's with the scripted models or the deterministic
+baseline's, and the held-out set's with the baseline's alone (ADR-0005, Baselines), graded, and its evidence and grade kept under data/evaluation/runs/<run>/, never committed, since
 both hold the case's values (SEC-03). The summary holds counts, and the findings no open disagreement entry matches by
 situation and check only, so it can be printed. The run's manifest says what ran (ADR-0005, The run manifest): no
 provider and no latency, since no model runs and the network is skipped, and a cost of zero.
@@ -26,6 +26,7 @@ from banking_agent.evaluation import (
     families,
     generator,
     grader,
+    heldout,
     metrics,
     oracle,
     player,
@@ -216,14 +217,29 @@ def play_set(
     versions: Mapping[str, Any],
     models: str = "scripted",
     code: Mapping[str, Any] | None = None,
+    held: tuple[Mapping[str, Any], bool] | None = None,
 ) -> dict[str, Any]:
     """
-    code is the commit the run's code is at, and whether the tree held changes besides.
+    code is the commit the run's code is at, and whether the tree held changes besides. held is a held-out set's
+    manifest and whether it is committed: the held-out side plays in process with the baseline alone (ADR-0005,
+    Baselines), and only as its committed manifest describes it (heldout.py).
     """
     started = datetime.now(UTC)
     every = list(cases.read(set_path))
-    if any(c["side"] != "development" for c in every):
-        raise PlayError(f"only development cases play with the {models} models")
+    sides = {c["side"] for c in every}
+    if sides == {"held_out"}:
+        if models != "baseline":
+            raise PlayError(
+                f"the held-out side plays in process with the baseline alone, not the {models} models"
+            )
+        if held is None:
+            raise PlayError("a held-out set plays only with its committed manifest")
+        try:
+            heldout.verify(every, *held)
+        except heldout.HeldOutError as error:
+            raise PlayError(str(error)) from error
+    elif sides - {"development"}:
+        raise PlayError("a set holds cases of one side of the split")
     # Access cases hold no conversation and need the deployed Gateway, so they play only end to end (ADR-0005's
     # amendment of 2026-10-01); the summary says how many were set aside.
     aside = sum(c["situation"].startswith("access.") for c in every)

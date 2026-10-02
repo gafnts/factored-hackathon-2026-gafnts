@@ -174,10 +174,10 @@ contracts: ## Rewrite the bronze contracts from the dictionary
 
 .PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index regression language-check
 
-eval-sets: ## Draw the development sets; manifests to docs/evaluation/sets/
-	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
+eval-sets: ## Draw the development sets, and the held-out set at HELD_OUT=600|400|240; manifests to docs/evaluation/sets/
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate $(if $(HELD_OUT),--held-out $(HELD_OUT))
 
-eval-play: ## Play a set in process and grade it (SET=regression|selection, MODELS=scripted|baseline)
+eval-play: ## Play a set in process and grade it (SET=regression|selection|held_out, MODELS=scripted|baseline)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) play --set $(or $(SET),regression) --models $(or $(MODELS),scripted)
 
 eval-run: _check-profile ## Play a set against ENV's stack and grade it (SET=, SITUATIONS=, LANGUAGES=, LIMIT=, PARALLEL=)

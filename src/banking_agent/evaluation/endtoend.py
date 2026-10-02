@@ -27,6 +27,7 @@ from banking_agent.evaluation import (
     generator,
     grader,
     harness,
+    heldout,
     metrics,
     oracle,
     runs,
@@ -74,9 +75,12 @@ class Keeper:
             self.hashes[name] = hashlib.sha256(body).hexdigest()
 
 
-def drawn(set_path: Path, manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
+def drawn(
+    set_path: Path, manifest: Mapping[str, Any], committed: bool = False
+) -> list[dict[str, Any]]:
     """
-    The drawn set, refused unless it's the one its committed manifest describes.
+    The drawn set, refused unless it's the one its manifest describes, and a held-out set unless that manifest is
+    committed (heldout.py).
     """
     found = list(cases.read(set_path))
     digest = hashlib.sha256(
@@ -84,8 +88,14 @@ def drawn(set_path: Path, manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
     ).hexdigest()
     if digest != manifest["sha256"]:
         raise RunError("the drawn set isn't the one its manifest describes")
-    if any(c["side"] != "development" for c in found):
-        raise RunError("only development cases run before the held-out set is drawn")
+    sides = {c["side"] for c in found}
+    if sides == {"held_out"}:
+        try:
+            heldout.verify(found, manifest, committed)
+        except heldout.HeldOutError as error:
+            raise RunError(str(error)) from error
+    elif sides - {"development"}:
+        raise RunError("a set holds cases of one side of the split")
     return found
 
 
@@ -328,10 +338,14 @@ def run(
     code: Mapping[str, Any],
     selection: Mapping[str, Any],
     parallel: int,
+    committed: bool = False,
 ) -> tuple[str, dict[str, Any]]:
+    """
+    committed says whether git holds the set's manifest as it is, which a held-out set needs to play.
+    """
     stack = deployed.read(stack_path)
     deployed.check(stack, set_manifest["versions"])
-    chosen = selected(drawn(set_path, set_manifest), **selection)
+    chosen = selected(drawn(set_path, set_manifest, committed), **selection)
     if not chosen:
         raise RunError("no case of the set matches the selection")
     run_id = runs.run_id()

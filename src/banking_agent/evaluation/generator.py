@@ -834,8 +834,8 @@ topped_up(
 BY_NAME = {s.name: s for s in SITUATIONS}
 
 # The access attempt (ADR-0005's amendment of 2026-10-01): direct Gateway calls with the case's token, drawn outside
-# the situations since they hold no conversation and no family, into the selection set only; the regression set
-# leaves the same paths to the stack's integration tests. Each name carries the rules its case exercises.
+# the situations since they hold no conversation and no family, into the selection and held-out sets only; the
+# regression set leaves the same paths to the stack's integration tests. Each name carries the rules its case exercises.
 ACCESS: dict[str, tuple[str, ...]] = {
     "access.direct.other": ("POL-07", "POL-08"),
     "access.direct.own": ("POL-11",),
@@ -932,6 +932,20 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
 }
 
 
+# The held-out set's sizes in both languages, before the access cases: about 600, then the scope rule's 400 and 240
+# (ADR-0005, Coverage and size; Budget and the pilot), chosen when it is drawn.
+HELD_OUT_SIZES = (600, 400, 240)
+
+
+def held_out(size: int) -> dict[str, int]:
+    """
+    The held-out workload: the selection's situations in their proportions, scaled to the size, each at least once.
+    """
+    selection = COMPOSITIONS["selection"]
+    scale = size / (2 * sum(selection.values()))
+    return {name: max(1, round(n * scale)) for name, n in selection.items()}
+
+
 @dataclass
 class Drawn:
     cases: list[dict[str, Any]]
@@ -1004,10 +1018,15 @@ class Generator:
         self.used: set[str] = set()
         summarize(con)
 
-    def draw(self, set_name: str, seed: int) -> Drawn:
+    def draw(
+        self, set_name: str, seed: int, composition: Mapping[str, int] | None = None
+    ) -> Drawn:
+        """
+        composition is the set's cases per language by situation, when it isn't one of COMPOSITIONS (held_out()).
+        """
         drawn: list[dict[str, Any]] = []
         short = []
-        for name, per_language in COMPOSITIONS[set_name].items():
+        for name, per_language in (composition or COMPOSITIONS[set_name]).items():
             situation = BY_NAME[name]
             for language in situation.languages:
                 rng = random.Random(f"{seed}/{name}/{language}")
@@ -1024,7 +1043,7 @@ class Generator:
                             "drawn": len(made),
                         }
                     )
-        if set_name == "selection":
+        if set_name == "selection" or self.side == "held_out":
             drawn += self._access(set_name, seed, len(drawn))
         return Drawn(drawn, short)
 
