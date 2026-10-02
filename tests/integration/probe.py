@@ -28,9 +28,10 @@ from .conftest import ROOT, claims, signed_in, throwaway_users
 from .test_stack import arguments, call, tool_output
 
 KEY_SHAPE = re.compile(r"sk-ant-[A-Za-z0-9_-]{8,}")
+# The journeys' two personas, one asked in each of the chat's languages.
 QUESTIONS = {
-    "es": "¿Cuáles son mis tarjetas y en qué estado están?",
-    "pt": "Quais são os meus cartões e qual é o status de cada um?",
+    "declines": "¿Cuáles son mis tarjetas y en qué estado están?",
+    "dispute": "Quais são os meus cartões e qual é o status de cada um?",
 }
 
 
@@ -82,7 +83,7 @@ def held_secrets(text: str, token: str) -> dict[str, bool]:
 
 
 def probe(
-    outputs: dict[str, Any], language: str, token: str, started: float
+    outputs: dict[str, Any], scenario: str, token: str, started: float
 ) -> dict[str, Any]:
     session, thread = f"probe-{uuid.uuid4().hex}", f"thread-{uuid.uuid4().hex[:12]}"
     digits = "4" + "".join(secrets.choice("0123456789") for _ in range(15))
@@ -93,9 +94,9 @@ def probe(
             run_body(None, thread, forwardedProps={"warmup": True}),
             session,
         ),
-        "first": timed(outputs, token, run_body(QUESTIONS[language], thread), session),
+        "first": timed(outputs, token, run_body(QUESTIONS[scenario], thread), session),
         "second": timed(
-            outputs, token, run_body(f"{QUESTIONS[language]} {digits}", thread), session
+            outputs, token, run_body(f"{QUESTIONS[scenario]} {digits}", thread), session
         ),
     }
     cards = {
@@ -165,13 +166,13 @@ def main() -> int:
     cognito = boto3.client("cognito-idp", region_name="us-east-1")
     started = time.time()
     wanted: dict[str, tuple[list[str], str | None]] = {
-        lang: (["customer"], ids[lang]) for lang in ("es", "pt")
+        scenario: (["customer"], ids[scenario].customer_id) for scenario in QUESTIONS
     }
     report: dict[str, Any] = {}
     with throwaway_users(outputs["user_pool_id"], cognito, wanted) as users:
-        for language, user in users.items():
+        for scenario, user in users.items():
             token = signed_in(outputs, cognito, user, "customer")["access"]
-            report[language] = probe(outputs, language, token, started)
+            report[scenario] = probe(outputs, scenario, token, started)
     print(json.dumps(report, indent=2))
     return 0
 
