@@ -1,6 +1,9 @@
-<h1 align="center">Faro</h1>
 <p align="center">
-  <strong>LATAM Bank's card support agent, in Spanish and Portuguese, that acts only when the cardholder confirms and knows when to hand off to a person.</strong>
+  <a href="https://faro.gabriel.com.gt"><img src="docs/images/banner.png" alt="Faro" width="100%"></a>
+</p>
+<p align="center">
+  <strong>LATAM Bank's card support agent, in Spanish and Portuguese. <br>
+  Acts only when the cardholder confirms and knows when to hand off to a person.</strong>
 </p>
 <p align="center">
 <a href="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/quality-gates.yml"><img src="https://github.com/gafnts/factored-hackathon-2026-gafnts/actions/workflows/quality-gates.yml/badge.svg" alt="Quality gates"></a>
