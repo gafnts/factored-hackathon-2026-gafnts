@@ -1,6 +1,7 @@
 """
 The deterministic baseline: its language read by the retired word lists, which the graph applies as it applies the
-model's (POL-50, POL-51), and its keyword router, which labels in POL-05's order through the agent's own model calls.
+model's (POL-50, POL-51); its keyword router, which labels in POL-05's order; its extraction by pattern; and its choice
+of a transaction by match, each through the agent's own model calls.
 """
 
 import asyncio
@@ -8,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from banking_agent.agent.graph import MORE
+from banking_agent.agent.graph import ASKS, MORE, listing, today
 from banking_agent.agent.language import settled
 from banking_agent.agent.models import Models
 from banking_agent.evaluation import baseline
@@ -136,3 +137,153 @@ def test_the_router_answers_through_the_agents_model_call_at_no_cost() -> None:
         0.0,
     )
     assert entry["output"]["requests"] == ["block_card"]
+
+
+@pytest.mark.parametrize(
+    ("text", "card_type", "last_four"),
+    [
+        (
+            "¿En qué estado está mi tarjeta de débito terminada en 4821?",
+            "debit",
+            "4821",
+        ),
+        ("Meu cartão de crédito final 4821 está ativo?", "credit", "4821"),
+        ("La de crédito.", "credit", None),
+        ("Me refiero a la 4821.", None, "4821"),
+        ("Es la de crédito, número 4821.", "credit", "4821"),
+        ("¿Cuánto crédito disponible tengo?", None, None),
+    ],
+)
+def test_the_card_is_read_by_its_types_words_and_four_digits_standing_alone(
+    text: str, card_type: str | None, last_four: str | None
+) -> None:
+    details = baseline.extract(text)
+
+    assert (details.card_type, details.last_four) == (card_type, last_four)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "No hice la compra del 14/06/2026.",
+        "Me cargaron 1177.00 USD en Tienda Ejemplo y yo no fui.",
+        "Tengo la 4821 y la 1177, ¿cuál está activa?",
+    ],
+)
+def test_a_dates_year_an_amount_or_two_endings_give_no_last_four(text: str) -> None:
+    assert baseline.extract(text).last_four is None
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        ("Me robaron la tarjeta de crédito, necesito bloquearla.", "stolen"),
+        ("Perdi meu cartão, bloqueie por favor.", "lost"),
+        ("No la encuentro, creo que se me cayó.", "lost"),
+        ("Porque tiene un cobro que no reconozco.", "unrecognized_charge"),
+        ("Prefiro não dizer.", "customer_request"),
+        ("Quiero bloquear mi tarjeta.", None),
+    ],
+)
+def test_a_blocks_reason_is_read_by_its_words_as_pol_35_codes_it(
+    text: str, reason: str | None
+) -> None:
+    assert baseline.extract(text).details()["block_reason"] == reason
+
+
+def test_all_the_cards_are_meant_whatever_their_type() -> None:
+    details = baseline.extract("Quiero el disponible de todas mis tarjetas de crédito.")
+
+    assert (details.cards, details.card_type) == ("all", None)
+
+
+@pytest.mark.parametrize(
+    ("text", "field", "value"),
+    [
+        ("Muéstreme los que siguen.", "page", "next"),
+        ("Recusaram por cartão vencido. Qual é a verdade?", "conflict", "asks_which"),
+        ("Quiero desbloquear mi tarjeta.", "service", "unblock"),
+        ("Preciso de uma segunda via do meu cartão.", "service", "replacement"),
+        ("Olvidé la clave de mi tarjeta.", "service", "pin"),
+        ("Quero um limite maior no meu cartão.", "service", "limit_increase"),
+        ("Necesito el estado de cuenta.", "service", "other_card_service"),
+        ("Quero saber o saldo da minha conta corrente.", "service", "outside_cards"),
+        ("Quiero algo que este chat no hace.", "service", None),
+    ],
+)
+def test_the_other_fields_are_read_by_their_words(
+    text: str, field: str, value: str | None
+) -> None:
+    assert getattr(baseline.extract(text), field) == value
+
+
+TRANSACTIONS = [
+    {
+        "transaction_date": "2026-06-16 09:12:00",
+        "transaction_type": "Purchase",
+        "amount": 25.0,
+        "currency": "USD",
+        "merchant_name": "Mercado Central",
+        "transaction_status": "Approved",
+        "transaction_country": "Colombia",
+    },
+    {
+        "transaction_date": "2026-06-14 21:07:33",
+        "transaction_type": "Purchase",
+        "amount": 1189.9,
+        "currency": "USD",
+        "merchant_name": "Tienda Ejemplo",
+        "transaction_status": "Approved",
+        "transaction_country": "Colombia",
+    },
+    {
+        "transaction_date": "2026-06-14 08:00:00",
+        "transaction_type": "Purchase",
+        "amount": 25.0,
+        "currency": "USD",
+        "merchant_name": None,
+        "transaction_status": "Declined",
+        "transaction_country": "Colombia",
+    },
+]
+LISTING = "\n".join(
+    [
+        "The customer reports a charge they don't recognize.",
+        today("2026-06-17"),
+        listing(TRANSACTIONS),
+    ]
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "fitting"),
+    [
+        ("La de Tienda Ejemplo.", [2]),
+        ("El pago por 25.00 USD.", [1, 3]),
+        ("Me cargaron 1,189.90 USD y no fui yo.", [2]),
+        ("O pagamento de 1.189,90 USD.", [2]),
+        ("La del 14/06/2026.", [2, 3]),
+        ("Ayer me cobraron algo que no reconozco.", [1]),
+        ("Anteontem alguém comprou com o meu cartão.", []),
+        ("Mercado Central me cobró 25.00 USD sin que yo comprara nada.", [1]),
+        ("La más reciente.", [1]),
+        ("No lo sé.", [1, 2, 3]),
+        ("La de Tienda Ejemplo por 25.00 USD.", []),
+    ],
+)
+def test_a_transaction_is_chosen_by_every_amount_date_and_merchant_given(
+    text: str, fitting: list[int]
+) -> None:
+    assert baseline.choose(text, LISTING).fitting == fitting
+
+
+def test_the_extraction_and_the_choice_answer_through_the_agents_model_calls() -> None:
+    called, recorded = models()
+
+    details = asyncio.run(called.extract("Me la robaron.", ASKS["block_card"]))
+    chosen = asyncio.run(called.choose("É a compra em Tienda Ejemplo.", LISTING))
+
+    assert details.details()["block_reason"] == "stolen"
+    assert (chosen.fitting, chosen.language) == ([2], "pt")
+    assert [e["outcome"] for e in recorded] == ["ok", "ok"]
+    assert recorded[1]["output"]["extracted"] == {"fitting": "2", "language": "pt"}

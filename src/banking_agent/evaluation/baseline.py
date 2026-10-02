@@ -12,17 +12,37 @@ The router labels a message by keyword lists, one per label, matched as whole wo
 accents, and returns every label that matched in POL-05's order; a message no list matches holds no request (S5). A
 complaint's words label it talk_to_human and mark it a complaint (POL-44). A request for the next page is a request for
 transactions only when the chat's last reply offered one.
+
+The extraction reads the card by its type's words and by four digits standing alone, as in "terminada en 4821" or a
+bare "la 4821", never a date's year or an amount's (POL-13 to POL-16); a block's reason by the words for a loss, a
+theft, a charge not recognized, or a reason kept to oneself (POL-35); all the cards (POL-14), the next page (POL-25), a
+question about conflicting facts (POL-31), and what an unsupported request asks for (POL-41 to POL-43). The development
+families ask for no earlier period and about no one else's card, so it reads neither.
+
+The choice of a transaction keeps the listed ones that fit every amount, date, and merchant the message gives, a date
+read as written or as today, yesterday, or the day before from the business date the listing states (POL-19, POL-27);
+the newest when the customer says so, every one when the message tells none apart, and none when nothing fits.
 """
 
 import re
 import unicodedata
 from collections.abc import Iterable
+from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
-from banking_agent.agent.models import ORDER, Label, Language, RouterOutput
+from banking_agent.agent.models import (
+    ORDER,
+    Label,
+    Language,
+    RequestDetails,
+    RouterOutput,
+    TransactionChoice,
+)
+from banking_agent.evaluation.scripted import listed
 
 MODEL = "baseline"
 USAGE = {
@@ -180,24 +200,39 @@ FOLLOWING = (
     "proxima pagina", "seguintes", "vem depois", "tem mais",
     "outras movimentacoes", "mais movimentacoes",
 )  # fmt: skip
-UNSUPPORTED = (
-    "desbloquear", "desbloqueo", "desbloqueio", "reactiven", "reactivar",
-    "reativem", "reativar", "quitarle el bloqueo", "tirar o bloqueio",
-    "de nuevo", "de novo", "volver a usar", "volver a usarla", "voltar a usar",
-    "volver a activar", "ya no quiero que", "nao quero mais que", "por error",
-    "por engano", "recupere", "recuperei", "la encontre", "achei o cartao",
-    "sin avisarme", "sem avisar", "frenada", "travado", "la necesito",
-    "preciso usar", "preciso dele", "reposicion", "tarjeta nueva", "duplicado",
-    "danada", "reemplazo", "plastico nuevo", "plastico novo", "segunda via",
-    "cartao novo", "via nova", "danificado", "substituicao", "pin", "clave",
-    "contrasena", "senha", "aumentar", "aumentarme", "suban", "ampliacion",
-    "ampliacao", "mas limite", "mais limite", "incrementar", "limite mas alto",
-    "limite maior", "aumentem", "mi cuenta", "estado de cuenta",
-    "cuenta de ahorros", "cuenta corriente", "cuenta bancaria", "minha conta",
-    "conta corrente", "conta bancaria", "poupanca", "prestamo", "emprestimo",
-    "extracto mensual", "fecha de corte", "cuotas", "diferir", "adicional",
-    "certificado", "fatura", "parcelar", "declaracao",
+# What an unsupported request asks for, in the order a message naming two is read (POL-41 to POL-43).
+SERVICES = (
+    ("unblock", (
+        "desbloquear", "desbloqueo", "desbloqueio", "reactiven", "reactivar",
+        "reativem", "reativar", "quitarle el bloqueo", "tirar o bloqueio",
+        "de nuevo", "de novo", "volver a usar", "volver a usarla",
+        "voltar a usar", "volver a activar", "ya no quiero que",
+        "nao quero mais que", "por error", "por engano", "recupere", "recuperei",
+        "la encontre", "achei o cartao", "sin avisarme", "sem avisar", "frenada",
+        "travado", "la necesito", "preciso usar", "preciso dele",
+    )),
+    ("replacement", (
+        "reposicion", "tarjeta nueva", "duplicado", "danada", "reemplazo",
+        "plastico nuevo", "plastico novo", "segunda via", "cartao novo",
+        "via nova", "danificado", "substituicao",
+    )),
+    ("pin", ("pin", "clave", "contrasena", "senha")),
+    ("limit_increase", (
+        "aumentar", "aumentarme", "suban", "ampliacion", "ampliacao",
+        "mas limite", "mais limite", "incrementar", "limite mas alto",
+        "limite maior", "aumentem",
+    )),
+    ("other_card_service", (
+        "estado de cuenta", "extracto mensual", "fecha de corte", "cuotas",
+        "diferir", "adicional", "certificado", "fatura", "parcelar", "declaracao",
+    )),
+    ("outside_cards", (
+        "mi cuenta", "cuenta de ahorros", "cuenta corriente", "cuenta bancaria",
+        "minha conta", "conta corrente", "conta bancaria", "poupanca",
+        "prestamo", "emprestimo",
+    )),
 )  # fmt: skip
+UNSUPPORTED = tuple(word for _, words in SERVICES for word in words)
 KEYWORDS: dict[Label, tuple[str, ...]] = {
     "block_card": (*BLOCKING, *LOST, *STOLEN),
     "unrecognized_charge": UNRECOGNIZED,
@@ -244,6 +279,132 @@ def route(text: str, context: str | None = None) -> RouterOutput:
     )
 
 
+CREDIT_CARD = ("de credito",)
+DEBIT_CARD = ("debito",)
+ALL_CARDS = (
+    "todas mis tarjetas", "todas las tarjetas", "cada una de mis tarjetas",
+    "cada tarjeta", "mis tarjetas", "de todas", "todos os meus cartoes",
+    "todos os cartoes", "cada um dos meus cartoes", "cada cartao",
+    "meus cartoes", "de todos",
+)  # fmt: skip
+KEPT_TO_ONESELF = (
+    "prefiero no", "prefiro nao", "personal", "personales", "pessoal",
+    "pessoais", "sin indicar", "sem informar", "explicaciones", "explicacoes",
+    "decision mia", "decisao minha",
+)  # fmt: skip
+# The model's names for POL-35's codes (models.REASON_CODES), in the order a message naming two is read.
+REASONS = (
+    ("stolen", STOLEN),
+    ("lost", LOST),
+    ("unrecognized_charge", UNRECOGNIZED),
+    ("other_reason", KEPT_TO_ONESELF),
+)
+CONFLICTS = (
+    "cual es la verdad", "quien tiene razon", "que vale", "cual dato",
+    "cual de las dos", "todavia sirve", "puedo usarla o no",
+    "aunque haya pasado", "como que vencida", "no cuadra", "expliqueme cual",
+    "qual e a verdade", "quem tem razao", "o que vale", "qual informacao",
+    "qual dos dois", "ainda serve", "posso usar ou nao", "mesmo depois",
+    "como assim vencido", "nao bate", "me explique qual",
+)  # fmt: skip
+# Not part of a longer number, a date, or an amount: "4821", but not "2026" in "14/06/2026" or "1177" in "1177.00".
+LAST_FOUR = re.compile(r"(?<![0-9/-])(?<![0-9][.,])[0-9]{4}(?![0-9/-])(?![.,][0-9])")
+
+
+def first[T](plain: str, lists: Iterable[tuple[T, tuple[str, ...]]]) -> T | None:
+    return next((name for name, words in lists if has(plain, words)), None)
+
+
+def last_four(text: str) -> str | None:
+    found = set(LAST_FOUR.findall(text))
+    return found.pop() if len(found) == 1 else None
+
+
+def extract(text: str) -> RequestDetails:
+    plain = normalized(text)
+    every = has(plain, ALL_CARDS)
+    credit, debit = has(plain, CREDIT_CARD), has(plain, DEBIT_CARD)
+    return RequestDetails.model_validate(
+        {
+            "language": language(text),
+            "card_type": (
+                None if every or credit == debit else "credit" if credit else "debit"
+            ),
+            "last_four": last_four(text),
+            "block_reason": first(plain, REASONS),
+            "cards": "all" if every else None,
+            "page": "next" if has(plain, FOLLOWING) else None,
+            "owner": None,
+            "conflict": "asks_which" if has(plain, CONFLICTS) else None,
+            "service": first(plain, SERVICES),
+        }
+    )
+
+
+NEWEST = (
+    "la mas reciente", "el mas reciente", "la ultima", "a mais recente",
+    "o mais recente", "a ultima",
+)  # fmt: skip
+# Days back from the business date, the day before first, since "antes de ayer" holds "ayer".
+DAYS_BACK = (
+    (2, ("anteayer", "antier", "antes de ayer", "anteontem", "antes de ontem")),
+    (1, ("ayer", "ontem")),
+    (0, ("hoy", "hoje")),
+)
+TODAY = re.compile(r"Today is \w+ ([0-9]{4}-[0-9]{2}-[0-9]{2})")
+WRITTEN_DAY = re.compile(r"\b([0-9]{2})/([0-9]{2})/([0-9]{4})\b")
+ISO_DAY = re.compile(r"\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b")
+AMOUNT = re.compile(r"[0-9][0-9.,]*[.,][0-9]{2}(?![0-9])")
+
+
+def amounts(text: str) -> set[Decimal]:
+    """
+    Every amount the text gives with its cents, grouped either way ("1,234.56" or "1.234,56").
+    """
+    found = set()
+    for written in AMOUNT.findall(text):
+        whole = re.sub(r"[.,]", "", written[:-3])
+        found.add(Decimal(f"{whole}.{written[-2:]}"))
+    return found
+
+
+def days(text: str, plain: str, listing: str) -> set[str]:
+    found = {f"{y}-{m}-{d}" for d, m, y in WRITTEN_DAY.findall(text)}
+    found |= set(ISO_DAY.findall(text))
+    today = TODAY.search(listing)
+    back = first(plain, DAYS_BACK)
+    if today is not None and back is not None:
+        found.add(
+            (date.fromisoformat(today.group(1)) - timedelta(days=back)).isoformat()
+        )
+    return found
+
+
+def choose(text: str, listing: str) -> TransactionChoice:
+    """
+    listing is what the graph gives the choice: the request, the business date, and the transactions, numbered.
+    """
+    shown = listed(listing)
+    plain = normalized(text)
+    if has(plain, NEWEST):
+        fitting = [n for n, *_ in shown[:1]]
+    else:
+        given, on = amounts(text), days(text, plain, listing)
+        named = {
+            n
+            for n, _, _, merchant in shown
+            if normalized(merchant) and has(plain, [normalized(merchant)])
+        }
+        fitting = [
+            n
+            for n, day, value, _ in shown
+            if (not given or value in given)
+            and (not on or day in on)
+            and (not named or n in named)
+        ]
+    return TransactionChoice(language=language(text), fitting=fitting[:10])
+
+
 def raw() -> AIMessage:
     return AIMessage(
         content="{}", usage_metadata=USAGE, response_metadata={"model_name": MODEL}
@@ -263,12 +424,27 @@ def blocks(message: BaseMessage) -> list[str]:
     return [b["text"] for b in message.content if isinstance(b, dict)]
 
 
-async def routed(messages: list[BaseMessage]) -> dict[str, Any]:
+def added(messages: list[BaseMessage]) -> str | None:
+    """
+    What the graph adds after a step's instructions: the router's offer, the extraction's request, the listing.
+    """
     given = blocks(messages[0])
-    return structured(route(messages[-1].text, given[1] if len(given) > 1 else None))
+    return given[1] if len(given) > 1 else None
 
 
-PURPOSES = {"route": routed}
+async def routed(messages: list[BaseMessage]) -> dict[str, Any]:
+    return structured(route(messages[-1].text, added(messages)))
+
+
+async def extracted(messages: list[BaseMessage]) -> dict[str, Any]:
+    return structured(extract(messages[-1].text))
+
+
+async def chosen(messages: list[BaseMessage]) -> dict[str, Any]:
+    return structured(choose(messages[-1].text, added(messages) or ""))
+
+
+PURPOSES = {"route": routed, "extract": extracted, "choose": chosen}
 
 
 def factory(purpose: str) -> Runnable[Any, Any]:
