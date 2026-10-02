@@ -330,7 +330,8 @@ class Conversation:
 
     def open(self, sends: str, language: str | None = None) -> dict[str, Any]:
         """
-        A turn, with its facts formatted in the language the message that opens it sets, or the one before (POL-50).
+        A turn, in the language the message that opens it sets, or the one before (POL-50): the conversation's language
+        its decisions record, and the one its facts are formatted in.
         """
         if language is not None:
             self.facts = replace(self.facts, language=language)
@@ -339,6 +340,7 @@ class Conversation:
         turn: dict[str, Any] = {
             "sends": sends,
             "decisions": [],
+            "language": self.facts.language,
             "awaiting": "none",
             "tools_required": [],
             "tools_forbidden": [],

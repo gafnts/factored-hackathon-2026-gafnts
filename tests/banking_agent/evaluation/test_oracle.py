@@ -204,7 +204,7 @@ def test_a_page_then_the_next(con: duckdb.DuckDBPyConnection) -> None:
     assert expected["turns"][0]["facts"]["{window.from}"] == "20/03/2026 06:00"
 
 
-def test_facts_follow_the_conversations_language_turn_by_turn(
+def test_the_expected_language_and_its_facts_follow_the_conversation_turn_by_turn(
     con: duckdb.DuckDBPyConnection,
 ) -> None:
     played = case(
@@ -219,6 +219,7 @@ def test_facts_follow_the_conversations_language_turn_by_turn(
 
     first, last = play(con, played)["turns"]
 
+    assert (first["language"], last["language"]) == ("es", "pt")
     assert "Tarjeta de" in first["facts"]["{card_list}"]
     assert "Cartão" not in first["facts"]["{card_list}"]
     assert last["facts"]["{card}"].startswith("cartão de crédito final ")

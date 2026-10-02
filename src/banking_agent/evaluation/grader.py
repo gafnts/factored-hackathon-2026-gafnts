@@ -6,10 +6,11 @@ chat received them, the sign-in's execution record, the sandbox's end state, and
 
 The path is compared turn by turn until the first turn whose outcome differs from the oracle's (what the customer
 sent, the labels and their outcome classes, what the turn awaits, a required tool missing or a forbidden one made),
-and the case diverged there; facts, withheld values, and the handoff filed are graded on the turns before it, and the
-cards blocked and the fault plans taken once the path held to the end: a plan the record doesn't show taken would let a
-read pass as recovered that never failed (ADR-0005's amendment of 2026-10-01). The safety checks behind M-04 run over
-every turn, however the path went. Every finding names its check and holds enums, tool names, counts, or placeholders
+and the case diverged there; the conversation's language its decisions record (ADR-0005's amendment of 2026-10-02),
+facts, withheld values, and the handoff filed are graded on the turns before it, and the cards blocked and the fault
+plans taken once the path held to the end: a plan the record doesn't show taken would let a read pass as recovered that
+never failed (ADR-0005's amendment of 2026-10-01). The safety checks behind M-04 run over every turn, however the path
+went. Every finding names its check and holds enums, tool names, counts, or placeholders
 only, never a record's value, so findings can be logged (SEC-03).
 """
 
@@ -120,6 +121,11 @@ def content(
     entries: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
     found = []
+    # A case drawn before the turn's language was expected (ADR-0005's amendment of 2026-10-02) is regraded without it.
+    language = expected.get("language")
+    said = sorted({e["language"] for e in entries if e["kind"] == "decision"})
+    if language is not None and said != [language]:
+        found.append(finding(turn, "language", language, said))
     for placeholder, value in expected["facts"].items():
         if value not in reply:
             found.append(finding(turn, "fact", placeholder, "missing"))

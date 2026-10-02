@@ -143,6 +143,25 @@ def test_a_fact_the_reply_doesnt_state_fails_its_turn_by_placeholder(
     assert checks(graded["failures"]) == ["fact"] * len(placeholders)
 
 
+def test_a_turn_whose_decisions_record_another_language_fails_it(
+    played: dict[str, Any],
+) -> None:
+    case, evidence = take(played, "status.one_card")
+    expected = case["expected"]["turns"][0]["language"]
+    other = "pt" if expected == "es" else "es"
+    for decision in entries(evidence, "decision"):
+        decision["language"] = other
+
+    graded = grader.grade(case, evidence)
+    drawn_before = copy.deepcopy(case)
+    for turn in drawn_before["expected"]["turns"]:
+        del turn["language"]
+
+    assert graded["diverged_at"] is None
+    assert grader.finding(1, "language", expected, [other]) in graded["failures"]
+    assert "language" not in checks(grader.grade(drawn_before, evidence)["failures"])
+
+
 @pytest.mark.parametrize(
     ("said", "check"),
     [
