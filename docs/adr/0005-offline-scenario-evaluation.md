@@ -199,7 +199,7 @@ About 100 cases show a large gap, such as several unsafe cases against none, but
 
 ### Reporting
 
-The metrics follow [their definitions](../hackathon-requirements.md#metric-definitions), overall, per language, and per segment, each with its sample size, a 95% Wilson interval, and its spread over the three runs (EVL-08, EVL-11, EVL-12). M-01 and M-03 also give pass^3, the share of cases that pass in all three runs, since a customer meets one run, not the average:
+The metrics follow [their definitions](../prerequisites.md#metric-definitions), overall, per language, and per segment, each with its sample size, a 95% Wilson interval, and its spread over the three runs (EVL-08, EVL-11, EVL-12). M-01 and M-03 also give pass^3, the share of cases that pass in all three runs, since a customer meets one run, not the average:
 
 - **M-01:** eligible cases resolved correctly without a person, over all cases in scope (every case is), with the share of cases where automation was attempted. A case is eligible when the oracle's outcome needs no person: an answer (after clarifying, if needed), a decline or an abstention with its reason, or a verified block, with no handoff required or accepted. M-01 is also given by outcome class, so answers aren't mixed with declines.
 - **M-02:** cases that end without a transfer, never reported alone.

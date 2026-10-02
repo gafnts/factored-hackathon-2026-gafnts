@@ -1,6 +1,6 @@
 # Documentation
 
-What we decided about Faro, why, and the evidence behind it. Every document cites the requirement IDs in [hackathon-requirements.md](hackathon-requirements.md), and the policy's rule IDs wherever a rule applies.
+What we decided about Faro, why, and the evidence behind it. Every document cites the requirement IDs in [prerequisites.md](prerequisites.md), and the policy's rule IDs wherever a rule applies.
 
 | Path | Holds |
 |---|---|
@@ -10,7 +10,7 @@ What we decided about Faro, why, and the evidence behind it. Every document cite
 | [pipeline/](pipeline/) | The manifest of each gold export, from `make export`: the stamp, the clock, rows per model, content hashes, and every check's result ([the pipeline](../pipeline/README.md)) |
 | [policy/](policy/) | The [card support policy](policy/card-support.md): what Faro answers, does, and refuses, one ID per rule (synthetic) |
 | [product/](product/) | The [product brief](product/brief.md), covering the problem, who Faro serves, and the outcomes we intend; and the [identity guide](product/identity.md), covering Faro's name, voice, and look |
-| [hackathon-requirements.md](hackathon-requirements.md) | Everything the organizers evaluate, with stable requirement IDs |
+| [prerequisites.md](prerequisites.md) | Everything the organizers evaluate, with stable requirement IDs |
 
 ## Reading order
 
