@@ -48,6 +48,7 @@ def reported(
     return chat.say(
         text,
         requests=["unrecognized_charge"],
+        language="pt",
         **({"card_type": "credit", "last_four": "4821"} | extracted),
     )
 
@@ -83,7 +84,7 @@ def test_a_charge_is_found_and_the_block_offered_with_the_confirm_control(
     (choice,) = [e for e in chat.entries() if e.get("node") == "find_transaction"]
     assert (choice["purpose"], choice["output"]) == (
         "extract",
-        {"extracted": {"fitting": "1"}},
+        {"extracted": {"fitting": "1", "language": "pt"}},
     )
 
 
@@ -96,6 +97,7 @@ def test_a_charge_reported_after_a_cards_read_is_about_that_card(
     chat.say(
         "Minhas transações do cartão de crédito final 4821.",
         requests=["recent_transactions"],
+        language="pt",
         card_type="credit",
         last_four="4821",
     )

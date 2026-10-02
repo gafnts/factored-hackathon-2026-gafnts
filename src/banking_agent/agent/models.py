@@ -61,14 +61,17 @@ ORDER: tuple[Label, ...] = (
     "unsupported",
 )
 
+# Which language a message is mostly in (POL-50); other gets POL-51's reply (ADR-0004's amendment of 2026-10-02).
+Language = Literal["es", "pt", "other", "unclear"]
+
 Factory = Callable[[str], Runnable[Any, Any]]
 Record = Callable[..., Any]
 
 
 class RouterOutput(BaseModel):
     """
-    Every supported request the message holds, whether it holds one at all (S5), and whether it is a complaint, which
-    POL-44 hands off under its own reason code (ADR-0004's amendment of 2026-09-30).
+    Every supported request the message holds, whether it holds one at all (S5), whether it is a complaint, which
+    POL-44 hands off under its own reason code (ADR-0004's amendment of 2026-09-30), and which language it is mostly in.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -76,6 +79,7 @@ class RouterOutput(BaseModel):
     requests: list[Label] = Field(max_length=8)
     has_request: bool
     complaint: bool
+    language: Language
 
 
 class RequestDetails(BaseModel):
@@ -83,7 +87,8 @@ class RequestDetails(BaseModel):
     What a message says about the request it holds, each field among the values the step allows and null when the
     message doesn't say: the card (POL-13), a block's reason (POL-35), all the customer's cards (POL-14), the next page or
     an earlier period (POL-25), someone else's card (POL-08), a question about conflicting facts (POL-31), and what an
-    unsupported request asks for (POL-41 to POL-43). Every value is a string, as the execution record keeps them.
+    unsupported request asks for (POL-41 to POL-43), and which language the message is mostly in. Every value is a
+    string, as the execution record keeps them.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -108,17 +113,20 @@ class RequestDetails(BaseModel):
         ]
         | None
     )
+    language: Language
 
 
 class TransactionChoice(BaseModel):
     """
     The transactions listed that fit what the customer says about a charge they don't recognize, by their number in
-    the list the model reads, never by ID (POL-27, POL-39). Code keeps only numbers in the list.
+    the list the model reads, never by ID (POL-27, POL-39), and which language the message is mostly in. Code keeps
+    only numbers in the list.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     fitting: list[int] = Field(max_length=10)
+    language: Language
 
 
 class HandoffText(BaseModel):
@@ -344,7 +352,9 @@ class Models:
             entry["output"] = {"extracted": parsed.model_dump()}
         if outcome == "ok" and isinstance(parsed, TransactionChoice):
             fitting = ",".join(str(n) for n in parsed.fitting)
-            entry["output"] = {"extracted": {"fitting": fitting or None}}
+            entry["output"] = {
+                "extracted": {"fitting": fitting or None, "language": parsed.language}
+            }
         await self.record("model_call", **entry)
         return raw, parsed, outcome, provider
 

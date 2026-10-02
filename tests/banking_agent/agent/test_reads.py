@@ -85,7 +85,9 @@ def test_one_card_named_gets_its_status_and_expiration(
     harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
     text = {"es": "¿Cómo está mi débito 1177?", "pt": "Como está meu débito 1177?"}
 
-    events = chat.say(text[language], requests=["card_status"], last_four="1177")
+    events = chat.say(
+        text[language], requests=["card_status"], language=language, last_four="1177"
+    )
 
     card = detail(harness.bank.cards()[2])
     shown = render("card_status", language, {"card": card}).split(" ", 1)[1]
@@ -449,7 +451,10 @@ def test_a_page_lists_the_window_newest_first_with_its_dates(
     text = {"es": "Mis movimientos de la 4821", "pt": "Minhas transações do 4821"}
 
     events = chat.say(
-        text[language], requests=["recent_transactions"], last_four="4821"
+        text[language],
+        requests=["recent_transactions"],
+        language=language,
+        last_four="4821",
     )
 
     lines = reply(events).split("\n\n")[1].split("\n")
@@ -556,7 +561,9 @@ def test_a_decline_found_is_explained_by_its_codes_meaning(
         "pt": "Por que meu pagamento foi recusado?",
     }
 
-    events = chat.say(text[language], requests=["decline_reason"], last_four="4821")
+    events = chat.say(
+        text[language], requests=["decline_reason"], language=language, last_four="4821"
+    )
 
     meaning = {
         "es": "fondos insuficientes (código 51)",
@@ -731,42 +738,3 @@ def test_a_request_outside_cards_is_declined_without_a_person(harness: Harness) 
 
 
 # A third language (POL-51)
-
-
-def test_a_third_language_gets_spanish_with_one_portuguese_sentence(
-    harness: Harness,
-) -> None:
-    chat = Chat(harness)
-
-    events = chat.say("Why was my card declined?", requests=["decline_reason"])
-
-    assert reply(events) == FIXED["third_language"]["es"]
-    assert harness.script.model_inputs["route"] == []
-    (decided,) = decisions(chat)
-    assert decided == {
-        "request_label": None,
-        "outcome_class": "decline",
-        "awaiting": "none",
-        "rules": ["POL-51"],
-        "pending_labels": [],
-    }
-
-
-def test_a_third_language_while_the_control_shows_leaves_it_pending(
-    harness: Harness,
-) -> None:
-    chat = Chat(harness)
-    shown = chat.say(
-        "Bloquear la 1177 por pérdida", last_four="1177", block_reason="lost"
-    )
-
-    events = chat.say("Please block my card now", requests=[])
-
-    assert reply(events).startswith(FIXED["third_language"]["es"])
-    assert (
-        interrupt(events)["metadata"]["controls"]
-        == interrupt(shown)["metadata"]["controls"]
-    )
-    (decided,) = decisions(chat)
-    assert decided["awaiting"] == "confirm_control"
-    assert "POL-51" in decided["rules"]

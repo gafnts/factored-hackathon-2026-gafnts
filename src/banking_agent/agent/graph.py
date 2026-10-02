@@ -7,8 +7,9 @@ which reads list_cards first, since the customer's status comes before the reque
 find_transaction for a decline; and a request for a person or one the chat may not serve reads list_cards, then is
 handed off, declined, or offered a person (POL-41 to POL-44). A request that ends on a question or a control keeps the
 rest queued until it ends (POL-05). An answer to the agent's own question goes back to the step that asked, and a pending
-control's answer, or a message typed while it shows, resumes await_control (POL-06). A third language gets POL-51's
-reply. Code decides every step: the model labels the request, extracts what the step allows, writes the reads' answers
+control's answer, or a message typed while it shows, resumes await_control (POL-06). The model call that reads a
+message says which language it is mostly in, and code applies POL-50 and POL-51 to it: a third language gets POL-51's
+reply, whatever labels came with it. Code decides every step: the model labels the request, extracts what the step allows, writes the reads' answers
 with placeholders that code fills and checks, and writes a handoff's free text; every other reply is fixed text code
 chooses (decision 8). Only the control confirms a block, and block_card acts only under the confirmation it confirmed
 (POL-36). A handoff the policy requires is filed by the handoff node, from the evidence the thread's tool calls left in
@@ -45,7 +46,7 @@ from banking_agent.agent.confirmations import new_record
 from banking_agent.agent.filing import new_call_id
 from banking_agent.agent.formats import moment
 from banking_agent.agent.gateway import ToolCall
-from banking_agent.agent.language import DEFAULT, detect, third
+from banking_agent.agent.language import DEFAULT, OTHER, settled
 from banking_agent.agent.models import (
     ORDER,
     ModelFailedError,
@@ -206,6 +207,16 @@ def routing(routed: RouterOutput, text: str) -> dict[str, Any]:
     }
 
 
+def heard(state: State, text: str, found: str) -> dict[str, Any]:
+    """
+    The conversation's language after a model call read text as found (POL-50). Only the latest message sets it, so a
+    queued request served later can't move it back.
+    """
+    if text != latest_text(state):
+        return {}
+    return {"language": settled(state.get("language", DEFAULT), found)}
+
+
 def queued(state: State) -> list[str]:
     return list((state.get("queue") or {}).get("labels", []))
 
@@ -340,13 +351,12 @@ def citing(node: Node) -> Node:
 
 async def begin(state: State) -> dict[str, Any]:
     """
-    A message clearly in a third language keeps the conversation's language and gets POL-51's reply.
+    Opens the turn's state; the language stays until the model call that reads the message says otherwise (POL-50).
     """
-    text, language = latest_text(state), state.get("language", DEFAULT)
     return {
-        "language": language if third(text) else detect(text, language),
+        "language": state.get("language", DEFAULT),
         "label": None,
-        "case": "third_language" if third(text) else "fixed",
+        "case": "fixed",
         "cards": [],
         "targets": [],
         "text": None,
@@ -373,7 +383,10 @@ async def route(state: State) -> dict[str, Any]:
         routed = await scope.models.route(text, paged(state))
     except ModelFailedError:
         return {"case": "unavailable", "queue": None}
-    return routing(routed, text)
+    if routed.language == OTHER:
+        # POL-51, whatever labels came with it.
+        return {"label": None, "case": "third_language", "queue": None}
+    return {**heard(state, text, routed.language), **routing(routed, text)}
 
 
 async def next_request(state: State) -> dict[str, Any]:
@@ -455,15 +468,16 @@ async def unsupported(state: State) -> dict[str, Any]:
     """
     scope = SCOPE.get()
     label = "unsupported"
+    text = request_text(state)
     try:
-        details = (
-            await scope.models.extract(
-                request_text(state),
-                "The customer asks for something the chat may not serve.",
-            )
-        ).model_dump()
+        extracted = await scope.models.extract(
+            text, "The customer asks for something the chat may not serve."
+        )
     except ModelFailedError:
         return {"case": "unavailable"}
+    if extracted.language == OTHER:
+        return {"case": "third_language"}
+    details = extracted.model_dump()
     if details.get("owner") == "someone_else":
         return {"case": "other_person"}
     service = details.get("service") or "other_card_service"
@@ -714,17 +728,22 @@ async def resolve_card(state: State) -> dict[str, Any]:
         }
     details = state.get("details")
     if details is None:
+        text = latest_text(state) if asked else request_text(state)
         try:
             extracted = await scope.models.extract(
-                latest_text(state) if asked else request_text(state),
-                extraction_context(state, asked, cards, label),
+                text, extraction_context(state, asked, cards, label)
             )
-            details = extracted.model_dump()
         except ModelFailedError:
             if not charge:
                 return {**turn, "case": "unavailable", "asking": None}
             # A charge's card can still be asked for.
             details = dict(EMPTY)
+        else:
+            if extracted.language == OTHER:
+                # POL-51: a question asked stays pending.
+                return {**turn, "case": "third_language"}
+            turn |= heard(state, text, extracted.language)
+            details = extracted.model_dump()
     # A charge someone else made on the customer's card is still theirs to report (POL-39).
     if details.get("owner") == "someone_else" and not charge:
         return {**turn, "case": "other_person", "asking": None}
@@ -1013,17 +1032,21 @@ async def find_transaction(state: State) -> dict[str, Any]:
         )
     fitting: list[dict[str, Any]] = []
     if candidates:
+        text = latest_text(state) if answering else request_text(state)
         try:
-            chosen = await scope.models.choose(
-                latest_text(state) if answering else request_text(state), context
-            )
+            chosen = await scope.models.choose(text, context)
+        except ModelFailedError:
+            failed = True
+        else:
+            if chosen.language == OTHER:
+                # POL-51: a question asked stays pending.
+                return {**turn, "case": "third_language", "asking": state.get("asking")}
+            turn |= heard(state, text, chosen.language)
             fitting = [
                 candidates[n - 1]
                 for n in dict.fromkeys(chosen.fitting)
                 if 1 <= n <= len(candidates)
             ]
-        except ModelFailedError:
-            failed = True
     if declined:
         # POL-27: among several that fit, the Declined ones are meant, if any.
         fitting = [
@@ -1928,10 +1951,8 @@ async def typed(state: State, scope: Scope, answer: dict[str, Any]) -> dict[str,
     """
     pending, offer = state.get("pending"), state.get("offer")
     text = answer["text"]
-    language = state.get("language", DEFAULT)
     update: dict[str, Any] = {
-        "messages": [HumanMessage(id=answer["message_id"], content=text)],
-        "language": language if third(text) else detect(text, language),
+        "messages": [HumanMessage(id=answer["message_id"], content=text)]
     }
     await scope.turn.write(
         "resume",
@@ -1940,7 +1961,13 @@ async def typed(state: State, scope: Scope, answer: dict[str, Any]) -> dict[str,
         **({} if offer is None else {"offer_id": offer["offer_id"]}),
         accepted=True,
     )
-    if third(text):
+    try:
+        labeled: RouterOutput | None = await scope.models.route(text, paged(state))
+    except ModelFailedError:
+        labeled = None
+    if labeled is not None:
+        update["language"] = settled(state.get("language", DEFAULT), labeled.language)
+    if labeled is not None and labeled.language == OTHER:
         # POL-51: not a request, so what shows stays, and the chat points to it.
         if pending is not None:
             pointer, waits = (
@@ -1955,10 +1982,7 @@ async def typed(state: State, scope: Scope, answer: dict[str, Any]) -> dict[str,
             "say": said(("third_language", {}), (pointer, {})),
             "decision": waits,
         }
-    try:
-        routed = routing(await scope.models.route(text, paged(state)), text)
-    except ModelFailedError:
-        routed = None
+    routed = None if labeled is None else routing(labeled, text)
     if pending is None:
         assert offer is not None
         return update | (await typed_to_offer(scope, offer, routed))
@@ -2515,8 +2539,6 @@ async def hold(state: State) -> dict[str, Any]:
 
 
 def after_begin(state: State) -> str:
-    if state["case"] == "third_language":
-        return "conclude"
     asking = state.get("asking")
     if asking is None:
         return "route"
@@ -2595,7 +2617,7 @@ def build(
     starts = ["resolve_card", "list_cards", "conclude"]
     graph.add_edge(START, "begin")
     graph.add_conditional_edges(
-        "begin", after_begin, ["route", "resolve_card", "find_transaction", "conclude"]
+        "begin", after_begin, ["route", "resolve_card", "find_transaction"]
     )
     graph.add_conditional_edges("route", serve, starts)
     graph.add_conditional_edges("next_request", serve, starts)

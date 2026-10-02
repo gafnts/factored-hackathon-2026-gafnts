@@ -113,7 +113,8 @@
         "block_card"
       ],
       "has_request": true,
-      "complaint": false
+      "complaint": false,
+      "language": "es"
     },
     "outcome": "ok"
   },
@@ -214,7 +215,8 @@
       "extracted": {
         "card_type": "credit",
         "last_four": "4821",
-        "block_reason": "lost"
+        "block_reason": "lost",
+        "language": "es"
       }
     }
   },

@@ -84,7 +84,9 @@ def test_the_calls_run_on_haiku_without_retries_streaming_or_emitted_events() ->
 
 
 def test_a_route_call_records_its_output_usage_and_cost() -> None:
-    parsed = RouterOutput(requests=["card_status"], has_request=True, complaint=False)
+    parsed = RouterOutput(
+        requests=["card_status"], has_request=True, complaint=False, language="es"
+    )
     raw = answer(content="{}", usage_metadata=USAGE)
     made, entries = recorded({"raw": raw, "parsed": parsed, "parsing_error": None})
 
@@ -96,6 +98,7 @@ def test_a_route_call_records_its_output_usage_and_cost() -> None:
         "requests": ["card_status"],
         "has_request": True,
         "complaint": False,
+        "language": "es",
     }
     assert entry["usage"] == {
         "input_tokens": 1_000,
@@ -184,6 +187,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
         owner=None,
         conflict=None,
         service=None,
+        language="es",
     )
     raw = answer(content="{}", usage_metadata=USAGE)
     made, entries = recorded({"raw": raw, "parsed": parsed, "parsing_error": None})
@@ -204,6 +208,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
             "owner": None,
             "conflict": None,
             "service": None,
+            "language": "es",
         }
     }
     assert entry["prompt_version"] == prompt_version("resolve_card")
@@ -211,19 +216,27 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("block_reason", "fraud"), ("service", "loan"), ("page", "previous")],
+    [
+        ("block_reason", "fraud"),
+        ("service", "loan"),
+        ("page", "previous"),
+        ("language", "en"),
+    ],
 )
 def test_an_extraction_offers_only_the_values_its_step_allows(
     field: str, value: str
 ) -> None:
-    empty = dict.fromkeys(RequestDetails.model_fields)
+    empty = {**dict.fromkeys(RequestDetails.model_fields), "language": "es"}
     with pytest.raises(ValueError):
         RequestDetails.model_validate({**empty, field: value})
 
 
 def test_the_router_reads_what_the_last_reply_offered_after_its_prompt() -> None:
     parsed = RouterOutput(
-        requests=["recent_transactions"], has_request=True, complaint=False
+        requests=["recent_transactions"],
+        has_request=True,
+        complaint=False,
+        language="es",
     )
     sent: list[Any] = []
 

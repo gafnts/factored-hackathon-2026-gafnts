@@ -326,8 +326,10 @@ def test_the_thread_is_keyed_by_the_user_not_by_the_clients_id(
 def test_the_conversation_carries_over_turns_in_its_language(harness: Harness) -> None:
     who, session = customer(), session_id()
 
+    harness.script.language = "pt"
     harness.post(run_body("Quais são os meus cartões?"), who.token(), session)
     harness.script.requests, harness.script.has_request = [], False
+    harness.script.language = "unclear"
     events = harness.post(run_body("ok"), who.token(), session)
 
     assert events[2]["delta"] == FIXED["no_request"]["pt"]

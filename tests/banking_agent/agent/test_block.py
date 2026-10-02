@@ -74,11 +74,16 @@ class Chat:
         return events
 
     def say(
-        self, text: str, requests: list[str] | None = None, **extracted: Any
+        self,
+        text: str,
+        requests: list[str] | None = None,
+        language: str = "unclear",
+        **extracted: Any,
     ) -> list[dict[str, Any]]:
         script = self.harness.script
         script.requests = ["block_card"] if requests is None else requests
         script.has_request = bool(script.requests)
+        script.language = language
         script.extracted = extracted
         body = run_body(text, thread=THREAD)
         return self.check(self.harness.post(body, self.who.token(), self.session))
@@ -736,6 +741,7 @@ def test_the_control_speaks_the_conversations_language(harness: Harness) -> None
 
     shown = chat.say(
         "Perdi meu cartão de crédito, quero bloqueá-lo.",
+        language="pt",
         card_type="credit",
         block_reason="lost",
     )
