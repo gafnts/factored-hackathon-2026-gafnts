@@ -27,7 +27,7 @@ on:
 
 permissions: {}
 
-# Explicit bash adds -o pipefail, so `make plan | tee` fails when the plan does.
+# bash adds pipefail, so `make plan | tee` fails when the plan does.
 defaults:
   run:
     shell: bash
@@ -54,7 +54,7 @@ jobs:
       group: deploy-prototype-plan-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
-      # Full history, so the build stamps the Runtime with the commit that last changed its code.
+      # Full history, for the build's commit stamp.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -80,7 +80,6 @@ jobs:
       - run: terraform -chdir=infra fmt -check -recursive
       - run: make init ENV=${{ env.ENV }}
 
-      # make plan builds the zips first.
       - name: Plan
         id: plan
         env:
@@ -116,8 +115,7 @@ jobs:
       - if: steps.plan.outcome == 'failure'
         run: exit 1
 
-  # The deploy role trusts only the `prototype` Environment (limit it to main).
-  # Applies queue instead of cancelling; a newer pending run replaces an older one.
+  # Applies queue instead of cancelling.
   apply:
     name: Apply
     runs-on: ubuntu-latest
@@ -131,12 +129,12 @@ jobs:
     concurrency:
       group: deploy-prototype-apply
       cancel-in-progress: false
-    # The site's URL is the link the submission gives (SUB-02).
+    # The submission's link.
     environment:
       name: prototype
       url: ${{ steps.site.outputs.url }}
     steps:
-      # Full history, so the build stamps the Runtime with the commit that last changed its code.
+      # Full history, for the build's commit stamp.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -177,7 +175,7 @@ jobs:
           cache: true
           cache_dependency_path: web/pnpm-lock.yaml
 
-      # After the apply, so the build lands beside the config.json that names the stack it applied.
+      # After the apply, beside the config.json it wrote.
       - name: Deploy the site
         id: site
         run: |

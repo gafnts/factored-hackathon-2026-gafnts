@@ -7,12 +7,10 @@ BACKEND := -backend-config=envs/$(ENV).backend.tfbackend
 PLAN    := build/$(ENV).tfplan
 OUTPUTS := build/$(ENV).outputs.json
 
-# The pinned AWS provider can't assume a role on top of an `aws login` sign-in, so Terraform
-# gets the CLI's credentials for AWS_PROFILE; a failed export stops it before another profile can.
+# The pinned provider can't assume a role over an `aws login` sign-in, so Terraform gets the CLI's credentials.
 TF_AWS := $(if $(AWS_PROFILE),creds="$$(aws configure export-credentials --format env)" && eval "$$creds" && env -u AWS_PROFILE ,)$(TF)
 
-# The IAM and dataset roots are admin-only, so they ignore the scoped AWS_PROFILE
-# that .envrc sets (that profile can't exist until the IAM root has run).
+# The IAM and dataset roots run as admin: the scoped profile doesn't exist until the IAM root has run.
 AWS_ADMIN_PROFILE ?= default
 IAM_TF      := AWS_PROFILE=$(AWS_ADMIN_PROFILE) terraform -chdir=infra/iam
 IAM_VARS    := -var-file=iam.tfvars
@@ -22,7 +20,7 @@ DATASET_BACKEND := -backend-config=backend.tfbackend
 
 .PHONY: help install tflint-init \
 	check lint format type tf-format \
-	test integration browser probe \
+	test integration browser probe judges \
 	build web web-dev site \
 	bootstrap backend doctor provision teardown \
 	data snapshot personas tiny-export pipeline export contracts analysis \
@@ -37,42 +35,43 @@ help:
 	awk -v t="$$t" -v h="$$h" -v r="$$r" 'BEGIN {FS = ":.*## "} \
 		NR == 1 {printf "Usage: make %s<target>%s [ENV=local]\n", t, r} \
 		/^##@ / {printf "\n%s%s%s\n", h, substr($$0, 5), r} \
-		/^[a-zA-Z_-]+:.*## / {printf "  %s%-15s%s %s\n", t, $$1, r, $$2}' $(MAKEFILE_LIST)
+		/^[a-zA-Z_-]+:.*## / {printf "  %s%-15s%s %s\n", t, $$1, r, $$2} \
+		END {printf "\nDetails in CONTRIBUTING.md\n"}' $(MAKEFILE_LIST)
 
 
 ##@ Setup
 
-install: ## Sync Python and web deps, install pre-commit hooks (both stages), install tflint plugins
+install: ## Install Python and web deps, both hook stages, and tflint plugins
 	uv sync --all-groups --all-extras
 	pnpm --dir web install --frozen-lockfile
 	uv run pre-commit install
 	uv run pre-commit install --hook-type pre-push
 	tflint --init
 
-tflint-init: ## Refresh tflint plugins after a .tflint.hcl version bump
+tflint-init: ## Refresh tflint plugins after a .tflint.hcl bump
 	tflint --init
 
 
 ##@ Quality gates
 
-# A hook without `stages` runs in every stage, so the pre-push stage alone covers both.
-check: ## Run every pre-commit hook against every file (both stages)
+# Hooks without `stages` run in every stage, so pre-push covers both.
+check: ## Run every hook against every file, as CI does
 	uv run pre-commit run --all-files --hook-stage pre-push
 
-lint: ## Run ruff check on src and tests, and ESLint on the web app
+lint: ## Run ruff check and ESLint
 	uv run ruff check src tests
 	pnpm --dir web lint
 
-format: ## Apply ruff's fixes and formatting to src and tests, and Prettier's and ESLint's to the web app
+format: ## Apply ruff's, Prettier's, and ESLint's fixes
 	uv run ruff check src tests --fix
 	uv run ruff format src tests
 	pnpm --dir web format
 
-type: ## Run mypy on src and tests, and tsc on the web app
+type: ## Run mypy and tsc
 	uv run mypy src tests
 	pnpm --dir web typecheck
 
-tf-format: ## Format all Terraform files
+tf-format: ## Format the Terraform files
 	$(TF) fmt -recursive
 
 
@@ -82,36 +81,36 @@ test: ## Run pytest and Vitest, each with its coverage floor
 	uv run pytest -n auto --cov --cov-report=term-missing
 	pnpm --dir web test
 
-# Short tracebacks against a deployed stack: a long one prints a failing helper's arguments, tokens included.
-integration: _check-profile outputs ## Run integration-marked tests against ENV's deployed stack (requires credentials; SLOW=1 adds those that wait out a token)
+# Short tracebacks: a long one prints a failing helper's arguments, tokens included.
+integration: _check-profile outputs ## Test ENV's deployed stack (SLOW=1 adds the tests that wait out a token)
 	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser$(if $(SLOW),, and not slow)" -v --tb=short
 
-browser: _check-profile outputs ## Play the chat and the console in Chromium against ENV's deployed site (prints no text or IDs)
+browser: _check-profile outputs ## Play the chat and the console in Chromium against ENV's site
 	uv run playwright install chromium
 	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v --tb=short
 
-probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces (prints no text or IDs)
+probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
 
 # JUDGE, not USER: make inherits USER from the shell as the login name, so it is always set.
-judges: _check-profile outputs ## Create or manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable, JUDGE= for one; credentials under data/judges/, never printed)
+judges: _check-profile outputs ## Manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable, JUDGE=)
 	uv run python -m banking_agent.judges $(or $(WHAT),create) --stack $(OUTPUTS) $(if $(JUDGE),--user $(JUDGE))
 
 
 ##@ Build
 
-build: ## Build the Runtime's and the Lambdas' zips into build/, and rewrite the Gateway's tool definitions
+build: ## Build the Runtime's and the Lambdas' zips, and rewrite the Gateway's tools.json
 	uv run python -m banking_agent.build
 
-web: ## Build the web app into web/dist
+web: ## Build the web app
 	pnpm --dir web build
 
-site: _check-profile outputs web ## Build the web app and upload it to ENV's site (refuses prototype unless I_KNOW=1)
+site: _check-profile outputs web ## Build the web app and upload it to ENV's site
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to deploy prototype's site from local. CI owns prototype."; exit 1; fi
 	@bash scripts/site.sh $(OUTPUTS)
 
-web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack, with the config.json its site holds
+web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against ENV's stack
 	@mkdir -p web/public
 	uv run python -c 'import json, sys; json.dump(json.load(open(sys.argv[1]))["site"]["value"]["config"], sys.stdout)' $(OUTPUTS) > web/public/config.json
 	SITE_URL=$$(uv run python -c 'import json, sys; print(json.load(open(sys.argv[1]))["site"]["value"]["url"])' $(OUTPUTS)) \
@@ -120,11 +119,11 @@ web-dev: _check-profile outputs ## Serve the web app on localhost:5173 against E
 
 ##@ Bootstrap
 
-bootstrap: ## Create state bucket and write backend files for all environments (admin profile)
+bootstrap: ## Create the state bucket and write the backend files (admin)
 	@bash scripts/bootstrap.sh
 
-# The local deploy profile doesn't exist until step 3.4 of CONTRIBUTING.md, so local is initialized as admin.
-provision: ## One-time: create IAM roles and the dataset bucket, and initialize Terraform for ENV=local
+# The local deploy profile doesn't exist yet, so local initializes as admin.
+provision: ## Create the deploy roles and the data bucket, and initialize local (admin)
 	$(MAKE) iam-init
 	$(MAKE) iam-apply
 	$(MAKE) dataset-init
@@ -132,91 +131,91 @@ provision: ## One-time: create IAM roles and the dataset bucket, and initialize 
 	$(MAKE) init ENV=local AWS_PROFILE=$(AWS_ADMIN_PROFILE)
 
 
-doctor: ## Check that every AWS profile resolves to the right account (read-only)
+doctor: ## Check every AWS profile and setup step (read-only)
 	@bash scripts/doctor.sh
 
-backend: ## Write backend files for all environments (used by CI; one STS call for the account ID)
+backend: ## Write the backend files (CI)
 	@bash scripts/bootstrap-backend.sh
 
-teardown: ## Last step of a full teardown: delete the state bucket (admin profile; asks you to confirm)
+teardown: ## Delete the state bucket, last of all (admin; asks you to confirm)
 	@bash scripts/teardown.sh
 
 ##@ Dataset snapshot
 
-data: ## Download the pinned dataset snapshot into data/ and verify it (ADOPT=1 accepts a changed source)
+data: ## Download and verify the pinned snapshot into data/ (ADOPT=1 accepts a changed source)
 	uv run python -m banking_agent.dataset download $(if $(filter 1,$(ADOPT)),--adopt)
 
-snapshot: _check-profile data ## Copy the pinned snapshot into this account's data bucket
+snapshot: _check-profile data ## Copy the pinned snapshot into the data bucket
 	uv run python -m banking_agent.dataset upload
 
 ##@ Tools' data
 
-personas: ## Choose the development personas from the pinned snapshot into data/personas/ (prints counts, never IDs)
+personas: ## Choose the development personas into data/personas/
 	uv run python -m banking_agent.export personas
 
-tiny-export: _check-profile ## Build the personas' tiny export and upload it to the data bucket (ADR-0006's amendment)
+tiny-export: _check-profile ## Build and upload the personas' tiny export
 	uv run python -m banking_agent.export tiny --upload
 
 ##@ Pipeline
 
-# The worktree's own data/ is empty, so point it at the main tree's: make pipeline DATA_DIR=<path>/data
+# A worktree's data/ is empty: make pipeline DATA_DIR=<main tree>/data
 DATA_DIR ?= data
 
-pipeline: ## Build bronze, silver, and gold from the pinned snapshot into DATA_DIR/pipeline/ (ADR-0006; prints counts, never values)
+pipeline: ## Build bronze, silver, and gold from the snapshot into DATA_DIR/pipeline/
 	uv run python -m banking_agent.pipeline --data-dir $(DATA_DIR) build
 
-export: _check-profile ## Export the last build's gold, stamped, and upload it to the data bucket (ADR-0006)
+export: _check-profile ## Export and upload the last build's gold
 	uv run python -m banking_agent.pipeline --data-dir $(DATA_DIR) export --upload
 
-contracts: ## Rewrite the bronze contracts from the dictionary and pipeline/contracts/corrections.yml
+contracts: ## Rewrite the bronze contracts from the dictionary
 	uv run python -m banking_agent.pipeline contracts
 
 ##@ Evaluation
 
-.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements regression
+.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index regression
 
-eval-sets: ## Draw the development regression and selection sets from the last pipeline build into DATA_DIR/evaluation/, manifests to docs/evaluation/sets/ (ADR-0005; prints counts, never IDs)
+eval-sets: ## Draw the development sets; manifests to docs/evaluation/sets/
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate
 
-eval-play: ## Play a drawn development set (SET=regression or selection) in process with scripted models and grade it; evidence under DATA_DIR/evaluation/runs/ (prints counts, never IDs)
+eval-play: ## Play a set in process with scripted models and grade it (SET=regression|selection)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) play --set $(or $(SET),regression)
 
-eval-run: _check-profile ## Play a drawn development set (SET=) end to end against the stack in STACK_OUTPUTS (default build/ENV.outputs.json), narrowed by SITUATIONS=, LANGUAGES=, LIMIT=, with PARALLEL= cases at once; results under DATA_DIR/evaluation/runs/ and in the evaluation bucket (prints counts, never IDs)
+eval-run: _check-profile ## Play a set against ENV's stack and grade it (SET=, SITUATIONS=, LANGUAGES=, LIMIT=, PARALLEL=)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) run --set $(or $(SET),regression) --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) \
 		$(foreach s,$(SITUATIONS),--situation $(s)) $(foreach l,$(LANGUAGES),--language $(l)) $(if $(LIMIT),--limit $(LIMIT)) --parallel $(or $(PARALLEL),2)
 
-eval-cleanup: _check-profile ## Delete the test users a stopped run left in the evaluation group of the stack in STACK_OUTPUTS (RUN= for one run's only)
+eval-cleanup: _check-profile ## Delete the test users a stopped run left behind (RUN= for one)
 	uv run python -m banking_agent.evaluation cleanup --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) $(if $(RUN),--run $(RUN))
 
-disagreements: ## Regenerate docs/evaluation/disagreements.md from its entries
+disagreements: ## Regenerate docs/evaluation/disagreements.md
 	uv run python -m banking_agent.evaluation disagreements
 
-eval-index: ## Regenerate docs/evaluation/runs.md from the manifests committed under docs/evaluation/runs/
+eval-index: ## Regenerate docs/evaluation/runs.md
 	uv run python -m banking_agent.evaluation index
 
-regression: ## Play and grade the regression set's composition on the bank in process, as CI does (ADR-0005; no credentials)
+regression: ## Play and grade the regression set in process, as CI does
 	uv run pytest -m regression -v --tb=short
 
 ##@ Analysis
 
-analysis: ## Profile the pinned snapshot, compute the workflow selection (ADR-0003), and analyze card support and traffic into docs/analysis/
+analysis: ## Write the four reports under docs/analysis/ from the snapshot
 	uv run python -m banking_agent.analysis all
 
 ##@ IAM module
 
-iam-init: ## Initialize Terraform backend for the IAM bootstrap module
+iam-init: ## Initialize the IAM root's backend
 	$(IAM_TF) init -reconfigure $(IAM_BACKEND)
 
-iam-plan: ## Preview changes to the IAM bootstrap module
+iam-plan: ## Preview the IAM root
 	$(IAM_TF) plan $(IAM_VARS)
 
-iam-apply: ## Apply the IAM bootstrap module (creates deploy roles)
+iam-apply: ## Apply the IAM root (the deploy roles)
 	$(IAM_TF) apply $(IAM_VARS)
 
-iam-output: ## Print the deploy role ARNs (for your AWS profile and the GitHub variables)
+iam-output: ## Print the deploy role ARNs
 	$(IAM_TF) output
 
-iam-destroy: ## Destroy the IAM bootstrap module (removes every deploy role; requires I_KNOW=1)
+iam-destroy: ## Destroy the deploy roles (I_KNOW=1)
 	@if [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy the deploy roles for every env. Re-run with I_KNOW=1."; exit 1; fi
 	$(IAM_TF) destroy $(IAM_VARS)
@@ -224,16 +223,16 @@ iam-destroy: ## Destroy the IAM bootstrap module (removes every deploy role; req
 
 ##@ Dataset bucket
 
-dataset-init: ## Initialize Terraform backend for the dataset bucket
+dataset-init: ## Initialize the dataset root's backend
 	$(DATASET_TF) init -reconfigure $(DATASET_BACKEND)
 
-dataset-plan: ## Preview changes to the dataset bucket
+dataset-plan: ## Preview the dataset root
 	$(DATASET_TF) plan
 
-dataset-apply: ## Apply the dataset bucket (holds the pinned snapshots)
+dataset-apply: ## Apply the dataset root (the data bucket)
 	$(DATASET_TF) apply
 
-dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (requires I_KNOW=1)
+dataset-destroy: ## Destroy the data bucket and every snapshot in it (I_KNOW=1)
 	@if [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to delete every dataset snapshot. Re-run with I_KNOW=1."; exit 1; fi
 	$(DATASET_TF) destroy
@@ -241,16 +240,16 @@ dataset-destroy: ## Destroy the dataset bucket and every snapshot in it (require
 
 ##@ Terraform (per ENV)
 
-init: _check-profile ## Initialize Terraform backend for ENV
+init: _check-profile ## Initialize ENV's backend
 	$(TF_AWS) init -reconfigure $(BACKEND)
 
-model-key: _check-profile ## Store ANTHROPIC_API_KEY from .env in ENV's secret (prototype needs AWS_PROFILE=default)
+model-key: _check-profile ## Store ANTHROPIC_API_KEY from .env in ENV's secret
 	uv run python -m banking_agent.model_key --env $(ENV)
 
-plan: _check-profile build ## Build, then preview infrastructure changes for ENV and save them to build/ENV.tfplan
+plan: _check-profile build ## Build, then plan ENV and save the plan
 	$(TF_AWS) plan $(VARS) -out=../$(PLAN)
 
-apply: _check-profile _check-backend ## Apply the plan that make plan saved for ENV (refuses prototype unless I_KNOW=1)
+apply: _check-profile _check-backend ## Apply the saved plan (prototype needs I_KNOW=1)
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to apply prototype from local. CI owns prototype."; exit 1; fi
 	@if [ ! -f $(PLAN) ]; then \
@@ -258,21 +257,21 @@ apply: _check-profile _check-backend ## Apply the plan that make plan saved for 
 	$(TF_AWS) apply ../$(PLAN)
 
 # Terraform reads the zips even to plan a destroy.
-destroy: _check-profile _check-backend build ## Destroy all infrastructure for ENV (requires explicit ENV; refuses prototype unless I_KNOW=1)
+destroy: _check-profile _check-backend build ## Destroy ENV (explicit ENV; prototype needs I_KNOW=1)
 	@if [ "$(origin ENV)" != "command line" ] && [ "$(origin ENV)" != "environment" ]; then \
 		echo "destroy requires explicit ENV (e.g. make destroy ENV=local). Refusing default."; exit 1; fi
 	@if [ "$(ENV)" = "prototype" ] && [ "$(I_KNOW)" != "1" ]; then \
 		echo "Refusing to destroy prototype. Re-run with I_KNOW=1."; exit 1; fi
 	$(TF_AWS) destroy $(VARS)
 
-outputs: _check-profile _check-backend ## Write ENV's Terraform outputs to build/ENV.outputs.json
+outputs: _check-profile _check-backend ## Write ENV's outputs to build/ENV.outputs.json
 	@mkdir -p build
 	$(TF_AWS) output -json > $(OUTPUTS)
 
 
 ##@ Maintenance
 
-lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) in every root
+lock: ## Regenerate the provider lock files for linux and darwin
 	@find infra -name ".terraform.lock.hcl" -not -path "*/.terraform/*" -not -path "infra/modules/*" -exec dirname {} \; | \
 		xargs -I{} terraform -chdir={} providers lock \
 		-platform=linux_amd64 -platform=darwin_amd64 -platform=darwin_arm64
@@ -280,17 +279,15 @@ lock: ## Regenerate .terraform.lock.hcl for linux_amd64 + darwin (arm64/amd64) i
 
 # INTERNAL
 
-# Without AWS_PROFILE, Terraform and boto3 fall back to the default profile, usually an admin sign-in, so a local
-# target would run outside the local deploy role. prototype takes the credentials the environment provides, as in CI.
+# Without AWS_PROFILE a local target would run as the default profile, usually admin; prototype uses the
+# environment's credentials, as in CI.
 _check-profile:
 	@if [ "$(ENV)" = "local" ] && [ -z "$(AWS_PROFILE)" ]; then \
 		echo "AWS_PROFILE is unset, so this would run as your default profile. Run 'direnv allow',"; \
 		echo "or 'export AWS_PROFILE=banking-agent-local'."; exit 1; fi
 
-# Verify the configured backend key matches ENV. Prevents the footgun where
-# `make init ENV=prototype` followed by `make destroy` (defaulting to local)
-# operates on the prototype state because the backend pointer persists in
-# infra/.terraform/terraform.tfstate across runs.
+# The backend pointer persists across runs, so `make init ENV=prototype` then `make destroy` would hit
+# prototype's state.
 _check-backend:
 	@if [ ! -f infra/.terraform/terraform.tfstate ]; then \
 		echo "Terraform not initialized. Run 'make init ENV=$(ENV)' first."; exit 1; fi
