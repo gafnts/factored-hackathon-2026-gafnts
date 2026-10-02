@@ -7,13 +7,15 @@ one language, and `other` for a third language (POL-50, POL-51; [ADR-0005](../ad
 The development regression set). The baseline is the word-list detector the agent used until 2026-10-02, read
 from the other language's conversation, so a message had to set its own language to count. Claude Opus 5.5, an
 Anthropic model, wrote the paraphrases, and an Anthropic model reads them here, so the result may flatter it
-([ADR-0005](../adr/0005-offline-scenario-evaluation.md), The split).
+([ADR-0005](../adr/0005-offline-scenario-evaluation.md), The split). The check also sends each development
+block request through the extraction and compares the block reason read with the family's, in the last
+section; those items stay out of the language tables, so the tables compare across reports (POL-35, D-006).
 
-Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1.0552 USD at list price. Prompts: `route` ea87a737013fea24, `resolve_card` e5a7b712a2445616, `find_transaction` 0ddb0aba8c8f86c7.
+Latest live check: 2026-10-02T17:37:10Z, claude-haiku-4-5-20251001, 910 items, 1.2556 USD at list price. Prompts: `route` ea87a737013fea24, `resolve_card` f1f09ed4b206e971, `find_transaction` 0ddb0aba8c8f86c7.
 
 | Expected | Baseline read | Live read |
 |---|---|---|
-| es | 383 of 448 (85.5%) | 443 of 448 (98.9%) |
+| es | 383 of 448 (85.5%) | 442 of 448 (98.7%) |
 | other | 2 of 6 (33.3%) | 6 of 6 (100.0%) |
 | pt | 384 of 446 (86.1%) | 429 of 446 (96.2%) |
 | unclear | 10 of 10 (100.0%) | 0 of 10 (0.0%) |
@@ -22,7 +24,7 @@ Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1
 |---|---|
 | choose | 15 of 16 (93.8%) |
 | extract | 32 of 32 (100.0%) |
-| route | 831 of 862 (96.4%) |
+| route | 830 of 862 (96.3%) |
 
 ## Misses, latest live check
 
@@ -31,6 +33,7 @@ Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1
 | block_card-07/es/2 | unclear | es |
 | block_card-07/pt/2 | unclear | es |
 | block_card-11/es/0 | es | pt |
+| block_card-11/es/1 | es | pt |
 | block_card-11/pt/1 | pt | es |
 | block_card-11/pt/2 | pt | es |
 | unrecognized_charge-12/pt/1 | pt | es |
@@ -41,7 +44,6 @@ Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1
 | talk_to_human-03/pt/1 | unclear | es |
 | talk_to_human-03/pt/2 | unclear | es |
 | talk_to_human-03/pt/4 | unclear | es |
-| talk_to_human-03/pt/5 | pt | es |
 | talk_to_human-05/pt/4 | pt | es |
 | decline_reason-03/pt/0 | pt | es |
 | decline_reason-03/pt/2 | pt | es |
@@ -49,6 +51,7 @@ Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1
 | decline_reason-08/es/3 | es | pt |
 | decline_reason-08/pt/3 | unclear | es |
 | card_status-07/pt/3 | pt | es |
+| card_status-11/pt/1 | pt | es |
 | available_credit-07/pt/4 | pt | unclear |
 | available_credit-12/pt/1 | pt | es |
 | recent_transactions-07/pt/2 | unclear | pt |
@@ -60,3 +63,22 @@ Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1
 | none-09/es/5 | es | unclear |
 | none-09/pt/2 | pt | unclear |
 | transaction_merchant-01/pt | pt | es |
+
+## Block reasons, latest live check
+
+111 of 112 (99.1%) of the block requests and reason answers read with the reason we expect: the family's, `none`
+when the request gives no reason, so POL-35's question should follow, or the reason answer's kind.
+
+| Expected | Live read |
+|---|---|
+| customer_request | 15 of 16 (93.8%) |
+| lost | 40 of 40 (100.0%) |
+| none | 36 of 36 (100.0%) |
+| stolen | 16 of 16 (100.0%) |
+| unrecognized_charge | 4 of 4 (100.0%) |
+
+### Misses
+
+| Message | Expected | Said |
+|---|---|---|
+| block_card-05/pt/5 | customer_request | none |

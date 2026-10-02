@@ -1,0 +1,245 @@
+{
+  "check": "live",
+  "date": "2026-10-02T17:37:10Z",
+  "side": "development",
+  "model": "claude-haiku-4-5-20251001",
+  "prompts": {
+    "route": "ea87a737013fea24",
+    "resolve_card": "f1f09ed4b206e971",
+    "find_transaction": "0ddb0aba8c8f86c7"
+  },
+  "items": 910,
+  "by_language": {
+    "es": {
+      "items": 448,
+      "read": 442
+    },
+    "other": {
+      "items": 6,
+      "read": 6
+    },
+    "pt": {
+      "items": 446,
+      "read": 429
+    },
+    "unclear": {
+      "items": 10,
+      "read": 0
+    }
+  },
+  "by_call": {
+    "choose": {
+      "items": 16,
+      "read": 15
+    },
+    "extract": {
+      "items": 32,
+      "read": 32
+    },
+    "route": {
+      "items": 862,
+      "read": 830
+    }
+  },
+  "misses": [
+    {
+      "id": "block_card-07/es/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "block_card-07/pt/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "block_card-11/es/0",
+      "expected": "es",
+      "said": "pt"
+    },
+    {
+      "id": "block_card-11/es/1",
+      "expected": "es",
+      "said": "pt"
+    },
+    {
+      "id": "block_card-11/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "block_card-11/pt/2",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "unrecognized_charge-12/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "unrecognized_charge-12/pt/3",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/es/1",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/es/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/es/4",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/1",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/4",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-05/pt/4",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-03/pt/0",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-03/pt/2",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-03/pt/4",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-08/es/3",
+      "expected": "es",
+      "said": "pt"
+    },
+    {
+      "id": "decline_reason-08/pt/3",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "card_status-07/pt/3",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "card_status-11/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "available_credit-07/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-12/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "recent_transactions-07/pt/2",
+      "expected": "unclear",
+      "said": "pt"
+    },
+    {
+      "id": "unsupported-12/pt/2",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "unsupported-12/pt/3",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "none-03/pt/5",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "none-09/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_merchant-01/pt",
+      "expected": "pt",
+      "said": "es"
+    }
+  ],
+  "block_reasons": {
+    "items": 112,
+    "read": 111,
+    "by_reason": {
+      "customer_request": {
+        "items": 16,
+        "read": 15
+      },
+      "lost": {
+        "items": 40,
+        "read": 40
+      },
+      "none": {
+        "items": 36,
+        "read": 36
+      },
+      "stolen": {
+        "items": 16,
+        "read": 16
+      },
+      "unrecognized_charge": {
+        "items": 4,
+        "read": 4
+      }
+    },
+    "misses": [
+      {
+        "id": "block_card-05/pt/5",
+        "expected": "customer_request",
+        "said": "none"
+      }
+    ]
+  },
+  "cost_usd": 1.255632
+}
