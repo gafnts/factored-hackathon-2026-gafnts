@@ -75,12 +75,12 @@
   box-shadow: 0 0 28px 4px --alpha(var(--color-glow) / 75%);
 }
 
-/* A lit cell as the lighthouse's beam passes it: the cells come on as the page arrives, then every ten seconds they
-   brighten in turn, left to right, by --beat. Under reduced motion they only come on. */
+/* A lit cell as the lighthouse's beam passes it: the first beam crests as the cell's fade completes, then one
+   every ten seconds, each cell's turn by --beat. Under reduced motion they only come on. */
 @utility beacon {
   animation:
     fade 1400ms ease-in-out 300ms backwards,
-    beam 10s ease-in-out calc(2.5s + var(--beat, 0ms)) infinite;
+    beam 10s ease-in-out calc(1.1s + var(--beat, 0ms)) infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: fade 1400ms ease-in-out 300ms backwards;

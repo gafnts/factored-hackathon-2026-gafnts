@@ -12,63 +12,45 @@ const BLOCK: Record<Layout, string> = {
   chat: "left-[calc(50%-7*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] h-[calc(16*var(--cell)-1px)] w-[calc(14*var(--cell)-1px)] sm:left-[calc(50%-8*var(--cell)+1px)] sm:top-[calc(50%-5*var(--cell)+1px)] sm:h-[calc(10*var(--cell)-1px)] sm:w-[calc(16*var(--cell)-1px)]",
 };
 
-// The rows above the block, then the same cells turned half around below it, so the ring reads as one beam's pass.
+// Each cell carries its --beat, its turn as the beam passes. Only one set shows at a time, so each starts at zero:
+// around the block on a phone (the rows above it, then the same cells turned half around below, one beam's pass),
+// the left cells then the right on wider screens.
 const ON_PHONES = [
-  "sm:hidden left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%+1*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%+7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%+2*var(--cell)+1px)] top-[calc(50%+8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%+8*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-  "sm:hidden left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%+7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden [--beat:0ms] left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden [--beat:180ms] left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden [--beat:360ms] left-[calc(50%+1*var(--cell)+1px)] top-[calc(50%-9*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+  "sm:hidden [--beat:540ms] left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%-8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden [--beat:720ms] left-[calc(50%+3*var(--cell)+1px)] top-[calc(50%+7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden [--beat:900ms] left-[calc(50%+2*var(--cell)+1px)] top-[calc(50%+8*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+  "sm:hidden [--beat:1080ms] left-[calc(50%-3*var(--cell)+1px)] top-[calc(50%+8*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+  "sm:hidden [--beat:1260ms] left-[calc(50%-4*var(--cell)+1px)] top-[calc(50%+7*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
 ];
 
 const LIT: Record<Layout, string[]> = {
   "sign-in": [
     ...ON_PHONES,
-    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-8*var(--cell)+1px)] top-[calc(50%+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+6*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+7*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:0ms] left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:180ms] left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:360ms] left-[calc(50%-8*var(--cell)+1px)] top-[calc(50%+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+    "max-sm:hidden [--beat:540ms] left-[calc(50%+6*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:720ms] left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:900ms] left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:1080ms] left-[calc(50%+7*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   ],
   chat: [
-    "max-sm:hidden left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
-    "max-sm:hidden left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%+2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:0ms] left-[calc(50%-9*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:180ms] left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:360ms] left-[calc(50%-10*var(--cell)+1px)] top-[calc(50%+1*var(--cell)+1px)] h-[calc(var(--cell)-1px)] w-[calc(2*var(--cell)-1px)]",
+    "max-sm:hidden [--beat:540ms] left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%-3*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:720ms] left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%-2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:900ms] left-[calc(50%+9*var(--cell)+1px)] top-[calc(50%+1px)] size-[calc(var(--cell)-1px)]",
+    "max-sm:hidden [--beat:1080ms] left-[calc(50%+8*var(--cell)+1px)] top-[calc(50%+2*var(--cell)+1px)] size-[calc(var(--cell)-1px)]",
   ],
 };
 
-// A sign-in's beacon: each cell's turn as the beam passes, in the order LIT lists them; around the block on a
-// phone, the left cells then the right on wider screens.
-const BEAT = [
-  "[--beat:0ms]",
-  "[--beat:180ms]",
-  "[--beat:360ms]",
-  "[--beat:540ms]",
-  "[--beat:720ms]",
-  "[--beat:900ms]",
-  "[--beat:1080ms]",
-  "[--beat:1260ms]",
-  "[--beat:1440ms]",
-  "[--beat:1620ms]",
-  "[--beat:1800ms]",
-  "[--beat:1980ms]",
-  "[--beat:2160ms]",
-  "[--beat:2340ms]",
-  "[--beat:2520ms]",
-];
-
 // The banner's grid behind a page's content: hairlines that fade toward the edges, a block cleared for the content,
-// and a few lit cells. The lines fade in, the content rises, and the cells come on last; then only a sign-in's
-// beacon moves (the identity guide's Motifs). The hairlines run on under the shell's rail and bar (by --rail and
+// and a few lit cells. The lines fade in, the content rises, and the cells come on last, the first beam passing
+// with them; then only the beacon moves (the identity guide's Motifs). The hairlines run on under the shell's rail and bar (by --rail and
 // --bar), centered on the content all the same; the block and the lit cells keep to the page. The cells are whole
 // pixels, and the lines are drawn from a corner whole cells off the center, as the block is placed, so a browser
 // rounds the two alike and the lines meet the block on every side.
@@ -93,11 +75,8 @@ export function Grid({
         </div>
         <div className="absolute inset-0 overflow-hidden">
           <div className={`absolute bg-night ${BLOCK[layout]}`} />
-          {LIT[layout].map((place, index) => (
-            <div
-              key={place}
-              className={`absolute lit ${layout === "sign-in" ? `beacon ${BEAT[index] ?? ""}` : "animate-light"} ${place}`}
-            />
+          {LIT[layout].map((place) => (
+            <div key={place} className={`absolute beacon lit ${place}`} />
           ))}
         </div>
       </div>
