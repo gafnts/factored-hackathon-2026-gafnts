@@ -536,7 +536,7 @@ def test_a_block_that_fails_or_is_denied_is_never_reported_as_done(
     assert "consumed" not in [e.get("to") for e in chat.entries()]
 
 
-def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
+def test_an_unrecognized_charge_is_blocked_and_the_turn_is_handed_off(
     harness: Harness,
 ) -> None:
     chat = Chat(harness)
@@ -550,7 +550,7 @@ def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
         reference=filed["reference"]
     )
     assert (filed["queue"], filed["priority"]) == ("dispute_intake", "normal")
-    assert chat.decision()["outcome_class"] == "block"
+    assert chat.decision()["outcome_class"] == "hand_off"
     assert chat.decision()["rules"] == ["POL-36", "POL-37", "POL-39", "POL-45"]
 
 

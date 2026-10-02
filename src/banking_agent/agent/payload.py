@@ -53,13 +53,13 @@ def required(
     actions: Sequence[Mapping[str, Any]] = (),
     reported: str | None = None,
     handoff_id: str | None = None,
-    outcome: str = "hand_off",
     transactions: Sequence[str] = (),
 ) -> dict[str, Any]:
     """
     A handoff the policy requires, as a node hands it to the handoff node: the calls whose results hold its facts, the
-    records those facts are about, the actions, the reason the customer gave, the rules the turn's decision cites and
-    its outcome, and the ID of the draft it files, if one was saved.
+    records those facts are about, the actions, the reason the customer gave, the rules the turn's decision cites, and
+    the ID of the draft it files, if one was saved. The turn that files it is hand_off, a verified block included
+    (ADR-0005, as amended on 2026-10-02).
     """
     return {
         "reason_code": reason_code,
@@ -67,7 +67,7 @@ def required(
         "label": label,
         "rules": list(HANDOFFS[reason_code].rules),
         "decided": decided,
-        "outcome": outcome,
+        "outcome": "hand_off",
         "calls": list(calls),
         "cards": list(cards),
         "transactions": list(transactions),

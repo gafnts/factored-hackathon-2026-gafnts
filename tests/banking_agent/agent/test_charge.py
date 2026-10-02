@@ -178,6 +178,7 @@ def test_however_the_block_offer_ends_the_charge_goes_to_dispute_intake(
         "unrecognized_charge",
     )
     assert payload["request"]["label"] == "unrecognized_charge"
+    assert chat.decision()["outcome_class"] == "hand_off"
     (action,) = payload["actions"]
     assert action["outcome"] == outcome
     charge = window(harness)[0]["transaction_id"]

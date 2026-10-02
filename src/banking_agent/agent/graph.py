@@ -2223,7 +2223,6 @@ async def verify(state: State) -> dict[str, Any]:
                     **cited(pending, done["call_id"], call.call_id),
                     actions=actions,
                     handoff_id=pending.get("handoff_id"),
-                    outcome="block",
                 ),
             }
         return turn | {"say": say, "decision": decided("block", rules)}
