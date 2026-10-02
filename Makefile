@@ -214,7 +214,7 @@ judge-agreement: ## Score the judge against a filled blind sheet: agreement and 
 
 # SIDE=held_out runs only once the candidates are frozen, from a clean tree, and never with FOLDS.
 router-compare: ## Compare router candidates per language, paired over families (ROUTERS=, SIDE=development, FOLDS=, ENV_FILE=, ESTIMATE=1)
-	uv run python -m banking_agent.evaluation router $(foreach c,$(or $(ROUTERS),haiku sonnet),--candidate $(c)) --side $(or $(SIDE),development) \
+	uv run python -m banking_agent.evaluation router $(foreach c,$(or $(ROUTERS),keyword haiku sonnet),--candidate $(c)) --side $(or $(SIDE),development) \
 		--env-file $(or $(ENV_FILE),.env) $(if $(FOLDS),--folds $(FOLDS)) $(if $(PARALLEL),--parallel $(PARALLEL)) $(if $(filter 1,$(ESTIMATE)),--estimate)
 
 ##@ Analysis

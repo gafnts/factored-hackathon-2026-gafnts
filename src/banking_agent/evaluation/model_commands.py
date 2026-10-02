@@ -21,6 +21,7 @@ import anthropic
 
 from banking_agent.evaluation import (
     agreement,
+    baseline,
     blind,
     classifier,
     families,
@@ -34,9 +35,9 @@ from banking_agent.model_key import ModelKeyError, read_key
 COMMANDS = ("judge", "judge-sample", "judge-agreement", "router")
 
 # Each maker takes the env file and the list the candidate records its calls into, and reads no key until it calls.
-# The keyword baseline's entry is "keyword": lambda env_file, calls: router.routed("keyword", baseline.route).
 Make = Callable[[Path, list[dict[str, Any]]], router.Candidate]
 CANDIDATES: dict[str, Make] = {
+    "keyword": lambda env_file, calls: router.routed("keyword", baseline.route),
     "haiku": classifier.haiku,
     "sonnet": classifier.sonnet,
 }
