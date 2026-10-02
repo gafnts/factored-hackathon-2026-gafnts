@@ -7,9 +7,9 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-001](#d-001) | Closed | The policy's wording was unclear | POL-35, POL-36, POL-39 | `block.cancelled` |
 | [D-002](#d-002) | Closed | The policy's wording was unclear | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
 | [D-003](#d-003) | Closed | The system was wrong | POL-06, POL-51 | `none.third_language` |
-| [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
+| [D-004](#d-004) | Closed | The oracle was wrong | POL-14 | `status.which_card` |
 | [D-005](#d-005) | Closed | The system was wrong | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
-| [D-006](#d-006) | Open | To triage | POL-35, POL-36 | `block.cancelled` |
+| [D-006](#d-006) | Closed | The system was wrong | POL-35, POL-36 | `block.cancelled` |
 
 ## D-001
 
@@ -49,7 +49,9 @@ When the agent asks which card a read is about, the system lists each card by ty
 
 - `status.which_card`, turn 1: `fact`, expected `{cards}`, observed `missing`
 
-**Verdict:** To triage.
+**Verdict:** The oracle was wrong.
+
+**Resolution:** The oracle. ADR-0004's format table defined the cards placeholder only as the all-cards answer's line, with each card's status and expiration, and the oracle filled the which-card question with it; the agent listed each card by type and last four digits, as POL-14 says a question does. Since 2026-10-02 the question's list has its own placeholder, card_list, one line per card without its status, in the agent's fixed texts and the oracle alike, for POL-14's question and POL-16's list; the cards placeholder keeps its meaning (ADR-0004, as amended on 2026-10-02). The development sets were redrawn, with a block that asks which card among several active ones added to both, and every case passes.
 
 ## D-005
 
@@ -78,9 +80,11 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 
 ## D-006
 
-A terse block request that gives no reason, played live: the system shows the confirm control at once, reading the request itself as reason enough; the oracle expects the reason asked first, since POL-35 says the agent asks for one when the customer hasn't given it. The scripted models never take this path, so it first appeared on the deployed stack, where the request's sibling in Portuguese was asked as expected. Our lean: the oracle, since POL-35's wording is plain and POL-36's control names a reason the customer should have given.
+A terse block request that gives no reason, played live: the system shows the confirm control at once, reading the request itself as reason enough; the oracle expects the reason asked first, since POL-35 says the agent asks for one when the customer hasn't given it. The scripted models never take this path, so it first appeared on the deployed stack, where the request's sibling in Portuguese was asked as expected. Our lean: the system, since POL-35's wording is plain and POL-36's control names a reason the customer should have given.
 
 - `block.cancelled` (es), turn 1: `outcome_class`, expected `clarify`, observed `block`
 - `block.cancelled` (es), turn 1: `awaiting`, expected `reason`, observed `confirm_control`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. The extraction prompt named the reason for any other motive customer_request, and the model read a bare request as that: the customer requested the block. The live language check, extended to send each development block request through the extraction, reproduced it: half of the bare requests in two families read as customer_request in both languages. Since 2026-10-02 the model names any other reason other_reason, the prompt says that asking for the block is not a reason, and code maps other_reason to POL-35's customer_request after the call is recorded, so the control, the handoff, and the contracts keep POL-35's codes and the execution record keeps what the model said (ADR-0004, as amended on 2026-10-02). After the fix every bare request reads as giving no reason, so POL-35's question follows; over all development block requests and reason answers one in a hundred and twelve misses, a Portuguese paraphrase that declines to give the reason read as giving none, which is a known limitation; the figures are on the language check's page. The scripted models answer the reason from the families, so the offline gate can't see this; a confirming live play of the situation waits for this change to be deployed.
