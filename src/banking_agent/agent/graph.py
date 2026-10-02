@@ -79,6 +79,7 @@ EMIT_MESSAGE = "manually_emit_message"
 TYPES = {"credit": "Tarjeta Crédito", "debit": "Tarjeta Débito"}
 KINDS = {product_type: kind for kind, product_type in TYPES.items()}
 LAST_FOUR = re.compile(r"^[0-9]{4}$")
+FOUR_DIGITS = re.compile(r"(?<![0-9])[0-9]{4}(?![0-9])")
 # POL-17: after two questions that don't settle the same detail, stop asking.
 QUESTIONS = 2
 # A lost or stolen card left unblocked is handed to a person (POL-38).
@@ -536,6 +537,15 @@ def hints(details: dict[str, Any]) -> tuple[str | None, str | None]:
     return TYPES.get(details.get("card_type") or ""), last_four
 
 
+def mentioned(text: str, cards: list[dict[str, Any]]) -> str | None:
+    """
+    The last four digits a message gives bare, as in "la 4821", when exactly one of them ends a card of the customer's.
+    """
+    endings = {c["last_four"] for c in cards}
+    found = {m for m in FOUR_DIGITS.findall(text) if m in endings}
+    return found.pop() if len(found) == 1 else None
+
+
 def fits(card: dict[str, Any], card_type: str | None, last_four: str | None) -> bool:
     return (card_type is None or card["product_type"] == card_type) and (
         last_four is None or card["last_four"] == last_four
@@ -732,6 +742,10 @@ async def resolve_card(state: State) -> dict[str, Any]:
             "decision": decided("decline", ["POL-25"], label=label),
         }
     card_type, last_four = hints(details)
+    if last_four is None and asked.get("detail") != "reason":
+        last_four = mentioned(
+            latest_text(state) if asked else request_text(state), cards
+        )
     reason = (
         "unrecognized_charge"
         if charge

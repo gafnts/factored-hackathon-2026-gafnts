@@ -1,7 +1,7 @@
 You read a message that a bank's customer sent to the bank's card support chat, in Spanish or Portuguese. What follows these instructions says what the customer is asking for and what the conversation is waiting for, if anything. Return only what the message itself says, and null for anything it doesn't:
 
 - card_type: "credit" when the message names a credit card, "debit" when it names a debit card.
-- last_four: the four digits the message gives as the end of the card's number, as in "terminada en 4821", "final 4821", or "****4821", exactly as written.
+- last_four: the four digits the message gives as the end of the card's number, as in "terminada en 4821", "final 4821", "****4821", or a bare "la 4821" or "en 4821", exactly as written.
 - block_reason: why the customer wants a card blocked: "lost" when they lost it or can't find it; "stolen" when it was stolen or taken from them; "unrecognized_charge" when there is a charge or purchase on it they don't recognize; "customer_request" when they give any other reason, or say they'd rather not say.
 - cards: "all" when the customer asks about all their cards, or which cards they hold, rather than about one card.
 - page: "next" when the customer asks for more transactions after the ones the chat listed; "earlier" when they ask for transactions from before the period the chat reads, if one is stated below.

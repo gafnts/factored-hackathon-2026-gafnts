@@ -127,6 +127,39 @@ def test_several_cards_and_none_named_are_asked_about_then_answered(
     assert request.content == "¿En qué estado está mi tarjeta?"
 
 
+def test_a_bare_four_digit_number_names_the_card_without_the_model(
+    harness: Harness,
+) -> None:
+    # The extractor returns nothing; code reads "en 4821" as the card that ends in it (POL-13).
+    chat = Chat(harness)
+    harness.script.replies = ["{card}, {window.from} - {window.to}:\n\n{transactions}"]
+
+    events = chat.say(
+        "¿Cuáles son mis movimientos recientes en 4821?",
+        requests=["recent_transactions"],
+    )
+
+    assert reply(events).startswith(f"{CARD}, ")
+    assert tools(harness) == ["list_cards", "find_transactions"]
+    assert decisions(chat)[0]["outcome_class"] == "answer"
+
+
+def test_a_bare_number_that_ends_none_of_the_cards_still_asks_which(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    harness.script.replies = ["Su {card} está {card.status} ({card.expiration})."]
+
+    asked = chat.say("¿En qué estado está mi tarjeta 2054?", requests=["card_status"])
+
+    assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+
+    answered = chat.say("La 1177.", requests=["card_status"])
+
+    assert reply(answered).startswith("Su tarjeta de débito terminada en 1177 ")
+    assert decisions(chat)[0]["outcome_class"] == "answer"
+
+
 def test_a_reply_call_that_fails_keeps_what_was_said_before_it(
     harness: Harness,
 ) -> None:
