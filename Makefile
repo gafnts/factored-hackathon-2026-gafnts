@@ -93,7 +93,7 @@ probe: _check-profile outputs ## Time ENV's Runtime per persona and check what i
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
 
 # JUDGE, not USER: make inherits USER from the shell as the login name, so it is always set.
-judges: _check-profile outputs ## Manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable, JUDGE=)
+judges: _check-profile outputs ## Manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable|delete, JUDGE=)
 	uv run python -m banking_agent.judges $(or $(WHAT),create) --stack $(OUTPUTS) $(if $(JUDGE),--user $(JUDGE))
 
 

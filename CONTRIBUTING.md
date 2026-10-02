@@ -256,7 +256,7 @@ make export        # Write gold's items into data/exports/ and upload them under
 
 On a recent laptop, `make pipeline` takes under a minute and `make export` about a minute and a half before its upload. Both read the snapshot in `data/` and print counts, never a customer's ID or values; what they write under `data/` stays out of git. `make export` prints the export's snapshot and pipeline version, which `tools_data_export` in `infra/envs/<env>.tfvars` must name. The version is a hash of the code that shapes the export, so the same code gives the same version on every machine, and the committed value works in your fork once your bucket holds the export. The first import in an account logs to `/aws-dynamodb/imports`, which [step 3.3](#33-create-the-deploy-roles) created with a retention.
 
-For a faster first deploy, a tiny export holds only the development personas' items: run `make personas` and `make tiny-export`, and set the version it prints instead. The personas' items are the same in both exports.
+For a faster first deploy, a tiny export holds only the two journey personas' items: run `make personas` and `make tiny-export`, and set the version it prints instead. The personas' items are the same in both exports.
 
 #### 3.7 Verify and deploy `local`
 
@@ -361,7 +361,7 @@ make site                # Build the web app, upload it to the site, and invalid
 make integration         # Test the deployed stack with throwaway users (SLOW=1 also waits out a token, 15 minutes)
 make browser             # Play the chat and the console in Chromium against the deployed site
 make probe               # Time the Runtime per persona and check what it stores and traces
-make judges              # Create or manage the judges' users in the pool (credentials under data/judges/, never printed)
+make judges              # Create or manage the judges' users in the pool (credentials and the private note under data/judges/, never printed)
 make web-dev             # Serve the web app on localhost:5173 against the deployed stack, /api included
 make destroy ENV=local   # Tear down your local resources
 ```
@@ -538,5 +538,5 @@ Gitignored files worth knowing about:
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables
-- `data/`: the dataset snapshots, the personas, the pipeline's DuckDB file, the exports, the evaluation's sets and run evidence, and the judges' credentials; nothing under it may ever be committed
+- `data/`: the dataset snapshots, the personas, the pipeline's DuckDB file, the exports, the evaluation's sets and run evidence, and the judges' credentials and private note; nothing under it may ever be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys
