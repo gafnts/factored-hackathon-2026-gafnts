@@ -6,6 +6,7 @@ POL-09, POL-13 to POL-17, POL-31, POL-34 to POL-39; CTL-02, CTL-04, AI-02, AI-05
 """
 
 import json
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -28,8 +29,6 @@ THREAD = "thread-block-0001"
 # What the chat must never receive: the graph's private state, the router's and the extraction's outputs, and the
 # tools' identifiers and flags.
 PRIVATE = (
-    "PRD-",
-    "CLI-",
     '"case"',
     '"pending"',
     '"asking"',
@@ -42,6 +41,8 @@ PRIVATE = (
     "block_card",
     "await_control",
 )
+# A case reference's four-letter groups can spell a prefix, so the identifiers are matched by their shape.
+IDENTIFIER = re.compile(r"(PRD|CLI)-[A-Z0-9]{12}")
 
 
 def kinds(entries: list[dict[str, Any]]) -> list[str]:
@@ -69,6 +70,7 @@ class Chat:
         sent = json.dumps(events, ensure_ascii=False)
         for private in PRIVATE:
             assert private not in sent, private
+        assert not IDENTIFIER.search(sent)
         for entry in self.harness.records.of(self.who.origin_jti):
             validator("execution-record").validate(entry)
         return events
