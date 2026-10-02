@@ -13,7 +13,7 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-ROUTES = ["/", "/chat", "/chat/", "/agent", "/ops", "/nowhere/at/all"]
+ROUTES = ["/", "/chat", "/chat/", "/cases", "/ops", "/nowhere/at/all"]
 
 
 @pytest.fixture(scope="module")

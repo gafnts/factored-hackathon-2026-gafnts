@@ -50,21 +50,21 @@ test("the sign-in's bar carries the bank's name, and no link", () => {
 
 test("the console's bar reads the bank's name and the console's, signed in or not, with no link", () => {
   const { rerender } = render(
-    <Shell language="es" label="Consola de agentes" signIn>
+    <Shell language="es" label="Consola de casos" signIn>
       {null}
     </Shell>,
   );
 
   expect(screen.getByRole("banner")).toHaveTextContent(
-    /^LATAM BankConsola de agentes$/,
+    /^LATAM BankConsola de casos$/,
   );
   rerender(
-    <Shell language="es" label="Consola de agentes">
+    <Shell language="es" label="Consola de casos">
       {null}
     </Shell>,
   );
   expect(screen.getByRole("banner")).toHaveTextContent(
-    /^LATAM BankConsola de agentes$/,
+    /^LATAM BankConsola de casos$/,
   );
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
 });

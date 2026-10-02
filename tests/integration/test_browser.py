@@ -107,7 +107,7 @@ CONSOLE = {
     "flagged": "Caso marcado",
     "reference": "Referencia",
     "search": "Buscar",
-    "no_access": "Su usuario no tiene acceso a la consola de agentes",
+    "no_access": "Su usuario no tiene acceso a la consola de casos",
 }
 # Within a poll: 3 seconds, the queue index's lag, and a request's time.
 ARRIVES_MS = 10_000
@@ -357,9 +357,9 @@ def charged(
 
 def at_the_console(site: str, agent: Tab, user: User) -> None:
     """
-    A human agent, signed in at /agent through the staff client, with the queues polling.
+    A human agent, signed in at /cases through the staff client, with the queues polling.
     """
-    agent.sign_in(site, user, "/agent")
+    agent.sign_in(site, user, "/cases")
     expect(agent.page.get_by_role("region", name=CONSOLE["disputes"])).to_be_visible()
 
 
@@ -670,7 +670,7 @@ def test_a_customer_gets_no_sign_in_through_the_console(
 ) -> None:
     customer = tab("es")
 
-    customer.sign_in(site, users["customer"], "/agent")
+    customer.sign_in(site, users["customer"], "/cases")
 
     # The pre-token trigger refuses a customer a staff token, and the form says only that the sign-in failed.
     expect(customer.page.get_by_role("alert")).to_contain_text(
@@ -688,7 +688,7 @@ def test_the_ai_team_signs_in_but_reads_no_case(
 ) -> None:
     member = tab("es")
 
-    member.sign_in(site, users["ai_team"], "/agent")
+    member.sign_in(site, users["ai_team"], "/cases")
 
     expect(member.page.get_by_role("alert")).to_contain_text(CONSOLE["no_access"])
     expect(member.page.get_by_role("region", name=CONSOLE["disputes"])).to_have_count(0)

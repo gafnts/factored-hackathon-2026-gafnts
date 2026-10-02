@@ -13,7 +13,7 @@ One backend on Amazon Bedrock AgentCore. A Runtime serves the chat and runs an e
 flowchart LR
   subgraph Browser["Browser (S3 and CloudFront)"]
     CHAT["/chat: the customer"]
-    AGT["/agent: the human agent"]
+    AGT["/cases: the human agent"]
   end
   COG["Cognito: customers' and staff app clients, pre-token trigger"]
   RT["AgentCore Runtime: entrypoint and graph"]

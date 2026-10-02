@@ -101,7 +101,7 @@ const WHOLE: Record<string, string> = {
 };
 
 export const AGENT = {
-  title: "Consola de agentes",
+  title: "Consola de casos",
   queues: {
     dispute_intake: "Disputas",
     customer_service: "Servicio al cliente",
@@ -188,7 +188,7 @@ export const AGENT = {
   refreshed: (time: string) => `Actualizado a las ${time}`,
   stale: "No se pudo actualizar; se intentará de nuevo.",
   noAccess:
-    "Su usuario no tiene acceso a la consola de agentes. Cierre la sesión e inicie con un usuario de agente.",
+    "Su usuario no tiene acceso a la consola de casos. Cierre la sesión e inicie con un usuario de agente.",
   search: {
     label: "Referencia",
     submit: "Buscar",

@@ -35,7 +35,7 @@ function listing(pages: Record<Queue, CaseList> = PAGES) {
 }
 
 beforeEach(() => {
-  window.history.replaceState(null, "", "/agent");
+  window.history.replaceState(null, "", "/cases");
   listing();
   vi.mocked(fetchCase).mockImplementation((reference) =>
     Promise.resolve(
@@ -123,7 +123,7 @@ test("a reference no case holds, or that isn't one, says so", async () => {
 });
 
 test("a reference in the address opens its case at load", async () => {
-  window.history.replaceState(null, "", "/agent?caso=7k2m-9qxa");
+  window.history.replaceState(null, "", "/cases?caso=7k2m-9qxa");
   render(<Console onEnded={vi.fn()} />);
 
   expect(
@@ -168,7 +168,7 @@ test("a failed refresh keeps the queues and says so", async () => {
 
 test("a case filed a moment ago is read again until the record holds its call", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  window.history.replaceState(null, "", "/agent?caso=Q4TR-8B2N");
+  window.history.replaceState(null, "", "/cases?caso=Q4TR-8B2N");
   render(<Console onEnded={vi.fn()} />);
   await screen.findByRole("heading", { level: 2, name: "Q4TR-8B2N" });
   const recorded = structuredClone(flagged);
