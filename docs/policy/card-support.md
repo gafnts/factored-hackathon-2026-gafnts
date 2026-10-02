@@ -7,7 +7,11 @@ It says what the agent answers, what it does, when it asks, abstains, or decline
 
 ## Status
 
-Accepted (2026-09-29). Version 4 (2026-10-02). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
+Accepted (2026-09-29). Version 5 (2026-10-02). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
+
+Version 5, after D-003's and D-005's triage:
+
+- **POL-50:** "clearly one of them" is the language a message is mostly in: a message mostly in Portuguese with a Spanish word in it is Portuguese, and words both languages share, digits alone, or a bare "Ok" set nothing, so the conversation keeps its language. Before, the rule left "clearly" to the reader, and the system read it as a count of listed words.
 
 Version 4, after D-001's triage:
 
@@ -209,7 +213,7 @@ A Portuguese-speaking customer doesn't recognize a purchase and confirms a block
 
 Every customer in the snapshot is in Mexico, Colombia, or Argentina, so Spanish is the bank's language and Portuguese is the customer's choice in the session.
 
-- **POL-50** The agent replies in Spanish or Brazilian Portuguese: the language of the customer's latest message that is clearly one of them, and Spanish until the customer writes one. Spanish replies use "usted"; Portuguese ones use "você". (SCP-06, EVL-07)
+- **POL-50** The agent replies in Spanish or Brazilian Portuguese: the language of the customer's latest message that is clearly one of them (the language the message is mostly in; words both languages share, digits alone, or a bare "Ok" set nothing), and Spanish until the customer writes one. Spanish replies use "usted"; Portuguese ones use "você". (SCP-06, EVL-07)
 - **POL-51** A message in another language gets a reply in Spanish, with one sentence in Portuguese, saying which languages the chat serves. (SCP-06, EVL-07)
 
 ## Left to other documents
