@@ -377,6 +377,41 @@ def test_a_lost_card_is_blocked_with_the_control_and_a_replacement_offered(
     assert expected["blocked"] == ["PRD-EVAL00000301"]
 
 
+def test_a_block_among_several_active_cards_asks_which_then_why(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    expected = play(
+        con,
+        case(
+            "CLI-EVAL00000005",
+            "block_card-01",
+            answers={
+                "card": "card_last_four-01",
+                "reason": "reason_customer_request-01",
+                "confirm_control": "confirm",
+            },
+            means={"product_id": "PRD-EVAL00000502"},
+        ),
+    )
+
+    assert path(expected) == [
+        ("message", [("block_card", "clarify")], "card"),
+        ("card", [("block_card", "clarify")], "reason"),
+        ("reason", [("block_card", "block")], "confirm_control"),
+        ("confirm", [("block_card", "block")], "none"),
+    ]
+    first, second = expected["turns"][:2]
+    assert first["facts"]["{card_list}"] == "\n".join(
+        [
+            "- Tarjeta de crédito terminada en 4417",
+            "- Tarjeta de crédito terminada en 7302",
+            "- Tarjeta de débito terminada en 6650",
+        ]
+    )
+    assert second["facts"]["{card}"] == "tarjeta de crédito terminada en 4417"
+    assert expected["blocked"] == ["PRD-EVAL00000502"]
+
+
 def test_a_cancelled_block_leaves_the_card(con: duckdb.DuckDBPyConnection) -> None:
     expected = play(
         con,
