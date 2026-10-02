@@ -555,6 +555,89 @@ def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
 
 
 @pytest.mark.parametrize(
+    ("ending", "cause", "rules"),
+    [
+        ("time_limit", "time_limit", ["POL-36", "POL-39", "POL-45"]),
+        ("other_sign_in", "session_end", ["POL-09", "POL-36", "POL-39", "POL-45"]),
+    ],
+)
+def test_an_unrecognized_charge_block_that_lapses_is_left_for_a_person(
+    harness: Harness, ending: str, cause: str, rules: list[str]
+) -> None:
+    chat = Chat(harness)
+    shown = control_shown(chat, block_reason="unrecognized_charge")
+    if ending == "time_limit":
+        harness.moved = timedelta(minutes=5, seconds=1)
+    else:
+        chat.who = Customer(
+            chat.who.sub, "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50", chat.who.customer_id
+        )
+
+    late = chat.press("confirm", shown)
+
+    assert "block___block_card" not in called(harness)
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+    assert reply(late).split("\n\n") == [
+        FIXED["confirmation_lapsed"]["es"].format(
+            card="tarjeta de crédito terminada en 4821"
+        ),
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
+    ]
+    confirmation = [e for e in chat.entries() if e["kind"] == "confirmation"]
+    assert [(e["to"], e["cause"]) for e in confirmation] == [("lapsed", cause)]
+    assert (filed["reason_code"], filed["queue"], filed["priority"]) == (
+        "unrecognized_charge",
+        "dispute_intake",
+        "urgent",
+    )
+    assert chat.decision() == {
+        "request_label": "block_card",
+        "outcome_class": "hand_off",
+        "awaiting": "none",
+        "rules": rules,
+    }
+
+
+@pytest.mark.parametrize("failure", ["read_back", "error"])
+def test_an_unrecognized_charge_block_that_isnt_verified_is_left_for_a_person(
+    harness: Harness, failure: str
+) -> None:
+    from .conftest import tool_error
+
+    chat = Chat(harness)
+    shown = control_shown(chat, block_reason="unrecognized_charge")
+    if failure == "read_back":
+        harness.bank.verified = False
+    else:
+        bank = harness.bank.answer
+
+        def fails_the_block(request: Any) -> Any:
+            name = json.loads(request.content)["params"]["name"]
+            return tool_error() if name == "block___block_card" else bank(request)
+
+        harness.script.gateway = fails_the_block
+
+    done = chat.press("confirm", shown)
+
+    assert "quedó bloqueada" not in reply(done)
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+    assert reply(done).endswith(
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"])
+    )
+    assert (filed["reason_code"], filed["queue"], filed["priority"]) == (
+        "unrecognized_charge",
+        "dispute_intake",
+        "urgent",
+    )
+    assert chat.decision() == {
+        "request_label": "block_card",
+        "outcome_class": "hand_off",
+        "awaiting": "none",
+        "rules": ["POL-37", "POL-39", "POL-45"],
+    }
+
+
+@pytest.mark.parametrize(
     ("last_four", "name"),
     [("9034", "not_blockable"), ("4821", "already_blocked")],
 )

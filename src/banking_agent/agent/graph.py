@@ -2227,7 +2227,8 @@ async def verify(state: State) -> dict[str, Any]:
                 ),
             }
         return turn | {"say": say, "decision": decided("block", rules)}
-    # POL-39's handoff is the request's only one: a block it offered that isn't verified is recorded in it.
+    # POL-39's handoff is the request's only one: a block for the charge, offered or asked for, that isn't verified is
+    # recorded in it.
     charge = pending["reason"] == "unrecognized_charge"
     scope.turn.emit(
         "block_not_verified",
