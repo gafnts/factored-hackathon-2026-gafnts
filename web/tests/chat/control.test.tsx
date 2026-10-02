@@ -217,9 +217,12 @@ test("pressing it sends the control's answer as the contract's resume, and leave
   });
   expect(confirm).toBeDisabled();
   expect(confirm).toHaveAttribute("aria-pressed", "true");
-  expect(
-    within(control()).getByRole("button", { name: TEXTS.pt.control.cancel }),
-  ).toBeDisabled();
+  expect(confirm).not.toHaveClass("disabled:opacity-40");
+  const cancel = within(control()).getByRole("button", {
+    name: TEXTS.pt.control.cancel,
+  });
+  expect(cancel).toBeDisabled();
+  expect(cancel).toHaveClass("disabled:opacity-40");
 });
 
 test("a message typed while it shows goes out alone, and the control the Runtime shows again replaces it", async () => {
