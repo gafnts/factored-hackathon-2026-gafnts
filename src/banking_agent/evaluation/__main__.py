@@ -29,6 +29,7 @@ from banking_agent.evaluation import (
     families,
     generator,
     language,
+    model_commands,
     oracle,
     runs,
     state,
@@ -266,7 +267,10 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help="A family to check alone, repeatable",
     )
+    model_commands.add(commands)
     args = parser.parse_args(argv)
+    if args.command in model_commands.COMMANDS:
+        return model_commands.main(args, tree())
     if args.command == "language":
         try:
             check_language(

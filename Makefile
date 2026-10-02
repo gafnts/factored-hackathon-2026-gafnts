@@ -199,6 +199,13 @@ regression: ## Play and grade the regression set in process, as CI does
 language-check: ## Run the real prompts over the development paraphrases and answers; report to docs/evaluation/ (ENV_FILE=.env, FAMILIES= to try some)
 	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL)) $(foreach f,$(FAMILIES),--only $(f))
 
+# The judge and the router comparison call models outside the system under test; ESTIMATE=1 prices a call and makes none.
+.PHONY: judge
+
+judge: ## Judge a run's replies (RUN=data/evaluation/runs/<run>) or a sample's (ITEMS=) through the batch API (ENV_FILE=, LIMIT=, ESTIMATE=1)
+	uv run python -m banking_agent.evaluation judge $(if $(ITEMS),--items $(ITEMS),--run $(RUN)) --env-file $(or $(ENV_FILE),.env) \
+		$(if $(LIMIT),--limit $(LIMIT)) $(if $(filter 1,$(ESTIMATE)),--estimate)
+
 ##@ Analysis
 
 analysis: ## Write the four reports under docs/analysis/ from the snapshot
