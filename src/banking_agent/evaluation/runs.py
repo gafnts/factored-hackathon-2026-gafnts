@@ -240,10 +240,10 @@ def play_set(
             raise PlayError(str(error)) from error
     elif sides - {"development"}:
         raise PlayError("a set holds cases of one side of the split")
-    # Access cases hold no conversation and need the deployed Gateway, so they play only end to end (ADR-0005's
-    # amendment of 2026-10-01); the summary says how many were set aside.
-    aside = sum(c["situation"].startswith("access.") for c in every)
-    drawn = [c for c in every if not c["situation"].startswith("access.")]
+    # Access and expired-session cases are decided by the deployed Gateway or authorizer, so they play only end to end
+    # and count for both systems (ADR-0005, Baselines); the summary says how many were set aside.
+    aside = sum(c["situation"].startswith(metrics.HARNESS) for c in every)
+    drawn = [c for c in every if not c["situation"].startswith(metrics.HARNESS)]
     loaded, answers = families.load(), families.load_answers()
     by_family = {f.family_id: f for f in loaded}
     by_answer = {a.answer_id: a for a in answers}

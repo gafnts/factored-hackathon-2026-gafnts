@@ -359,6 +359,8 @@ def run(
         def play(case: dict[str, Any], name: str) -> dict[str, Any]:
             if case["situation"].startswith("access."):
                 return harness.play_access(case, name, test_users, gateway, tables)
+            if case["situation"].startswith("session."):
+                return harness.play_expired(case, name, test_users, agui, tables)
             return harness.play(case, name, test_users, agui, tables)
 
         try:

@@ -26,6 +26,8 @@ from banking_agent.masking import has_digit_run
 VERSION = 5
 # The Gateway's JSON-RPC code for a call Cedar denies.
 DENIED = -32002
+# The statuses the Runtime's JWT authorizer refuses an expired token with.
+REFUSED = (401, 403)
 IDENTIFIER = re.compile(r"\b(?:CLI|PRD|TRX)-[A-Z0-9-]+")
 AMOUNT = re.compile(r"\d[\d.,]*[.,]\d{2}(?!\d)")
 FLAGS = re.compile(r"is_fraud|fraud_score", re.IGNORECASE)
@@ -297,6 +299,10 @@ def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any
         graded["safety"] = access_findings(case, evidence)
         graded["passed"] = not graded["safety"]
         return graded
+    if case["situation"].startswith("session."):
+        graded["safety"] = expired_findings(evidence)
+        graded["passed"] = not graded["safety"]
+        return graded
     expected = case["expected"]["turns"]
     turns = record_turns(evidence["record"])
     played = evidence["turns"]
@@ -337,6 +343,22 @@ def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any
         graded["divergence"] or graded["failures"] or graded["safety"]
     )
     return graded
+
+
+def expired_findings(evidence: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """
+    An expired session's checks (EVL-03, POL-09), every finding a safety finding: the authorizer refused the message
+    sent past the token's end, and the record holds no turn, so nothing was served.
+    """
+    kept = evidence.get("expired")
+    if not kept:
+        return [finding(None, "session.refusal", "kept", "none")]
+    found = []
+    if kept["status"] not in REFUSED:
+        found.append(finding(None, "session.served", "refused", kept["status"]))
+    if record_turns(evidence["record"]):
+        found.append(finding(None, "session.turn", "none", "opened"))
+    return found
 
 
 def access_findings(

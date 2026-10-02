@@ -841,9 +841,13 @@ ACCESS: dict[str, tuple[str, ...]] = {
     "access.direct.own": ("POL-11",),
 }
 
+# An expired session (EVL-03): a message sent once the sign-in's token has expired, which the Runtime's authorizer
+# refuses before the entrypoint, so nothing is served and the record holds no turn (POL-09). Drawn as the access
+# attempt is, by the harness, into the same sets; the oracle has nothing to predict.
+EXPIRED: dict[str, tuple[str, ...]] = {"session.expired": ("POL-09",)}
+
 # Cases per language. The regression set (ADR-0005, The development regression set): the three paths in both
-# languages and a case for each main failure mode the graph meets, tool failures and built records among them;
-# expired sessions come from the harness, which these sets don't hold yet.
+# languages and a case for each main failure mode the graph meets, tool failures and built records among them.
 COMPOSITIONS: dict[str, dict[str, int]] = {
     "regression": {
         "status.one_card": 1,
@@ -1045,6 +1049,7 @@ class Generator:
                     )
         if set_name == "selection" or self.side == "held_out":
             drawn += self._access(set_name, seed, len(drawn))
+            drawn += self._expired(set_name, seed, len(drawn))
         return Drawn(drawn, short)
 
     def _access(self, set_name: str, seed: int, offset: int) -> list[dict[str, Any]]:
@@ -1085,6 +1090,74 @@ class Generator:
                         "answers": {},
                         "means": means,
                         "slots": {},
+                    },
+                    "fixtures": [],
+                    "faults": [],
+                    "expected": {
+                        "turns": [],
+                        "blocked": [],
+                        "rules": list(rules),
+                        "policy_version": oracle.POLICY_VERSION,
+                    },
+                }
+                found = cases.problems(case) + guards.case_problems(case, self.held)
+                if found:
+                    raise AssertionError(
+                        f"{name}/{language} drew an invalid case: {found}"
+                    )
+                made.append(case)
+                self.used.add(chosen)
+        return made
+
+    def _expired(self, set_name: str, seed: int, offset: int) -> list[dict[str, Any]]:
+        """
+        EXPIRED's cases: a status question the harness sends once the sign-in's token has expired, from a family
+        on the set's side that holds no slot, so no value of the customer's is sent.
+        """
+        made: list[dict[str, Any]] = []
+        for name, rules in EXPIRED.items():
+            for language in ("es", "pt"):
+                salt = f"{seed}/{name}/{language}"
+                asked = sorted(
+                    (
+                        f
+                        for f in self.families
+                        if f.labels == ("card_status",) and not f.slots
+                    ),
+                    key=lambda f: hashlib.md5(
+                        f"{f.family_id}{salt}".encode()
+                    ).hexdigest(),
+                )
+                message = next(
+                    (m for f in asked for m in f.in_language(language) if m.clear), None
+                )
+                rows = self.con.execute(
+                    f"select customer_id from eval_summary where {SERVED} "
+                    "order by md5(customer_id || $salt) limit $n",
+                    {"salt": salt, "n": CANDIDATES},
+                ).fetchall()
+                chosen = next(
+                    (r[0] for r in rows if r[0] not in self.used or self.reuse), None
+                )
+                if message is None or chosen is None:
+                    continue
+                case: dict[str, Any] = {
+                    "version": cases.VERSION,
+                    "case_id": cases.case_id(set_name, seed, offset + len(made)),
+                    "set": set_name,
+                    "side": self.side,
+                    "group": "expired_sessions",
+                    "situation": name,
+                    "source": "harness",
+                    "language": language,
+                    "customer_id": chosen,
+                    "family_id": message.id.split("/")[0],
+                    "script": {
+                        "messages": [{"id": message.id, "text": message.text}],
+                        "answers": {},
+                        "means": {},
+                        "slots": {},
+                        "actions": [{"before_turn": 1, "action": "wait_past_token"}],
                     },
                     "fixtures": [],
                     "faults": [],

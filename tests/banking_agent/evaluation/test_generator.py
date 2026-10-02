@@ -198,7 +198,28 @@ def test_the_selection_composition_follows_the_held_out_groups(
     groups: dict[str, Any] = generator.counts(drawn.cases, "group")
 
     assert groups["reads"] > groups["block"] > 0
-    assert "expired_sessions" not in groups
+    assert groups["expired_sessions"] == 2
+
+
+def test_the_selection_set_holds_an_expired_session_per_language_and_the_regression_set_none(
+    con: duckdb.DuckDBPyConnection, regression: generator.Drawn
+) -> None:
+    drawn = draw(con, "selection")
+    expired = [c for c in drawn.cases if c["situation"] == "session.expired"]
+
+    assert sorted(c["language"] for c in expired) == ["es", "pt"]
+    for case in expired:
+        family = next(f for f in LOADED if f.family_id == case["family_id"])
+        [message] = case["script"]["messages"]
+        assert (case["group"], case["source"]) == ("expired_sessions", "harness")
+        assert family.labels == ("card_status",) and not family.slots
+        assert message["id"].split("/")[1] == case["language"]
+        assert case["script"]["actions"] == [
+            {"before_turn": 1, "action": "wait_past_token"}
+        ]
+        assert case["expected"]["turns"] == []
+        assert case["expected"]["rules"] == ["POL-09"]
+    assert not any(c["group"] == "expired_sessions" for c in regression.cases)
 
 
 def test_the_selection_set_holds_the_access_cases_and_the_regression_set_none(
