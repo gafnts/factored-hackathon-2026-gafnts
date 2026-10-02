@@ -127,6 +127,16 @@ function Composer({
   );
 }
 
+// A suggestion's hairlines by its place, which the divide utilities can't give a list in more than one row.
+function ruled(index: number, count: number, columns: number): string {
+  const lastRow = Math.floor((count - 1) / columns) * columns;
+  return [
+    index < count - 1 ? "border-b" : "",
+    index >= lastRow ? "sm:border-b-0" : "",
+    index % columns < columns - 1 ? "sm:border-r" : "",
+  ].join(" ");
+}
+
 // The empty chat, after assistant-ui's Gemini example (MIT): the question over the composer, the glow beneath it, and
 // the numbered suggestions, in the banner's cleared block. Twelve cells wide, so the composer's edges and the
 // suggestions' dividers fall on the grid's lines; the conversation keeps the same column. A sign-in with a persona
@@ -143,6 +153,7 @@ function Opening({
   const texts = TEXTS[language].chat;
   const card = persona ? personaCard(persona, language) : null;
   const prompts = card ? card.prompts : texts.suggestions;
+  const columns = prompts.length === 3 ? 3 : 2;
   return (
     <Grid layout="chat">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:mx-0 sm:ml-[max(1.5rem,calc(50%-6*var(--cell)))] sm:w-[calc(12*var(--cell)+1px)] sm:max-w-[calc(100%-3rem)] sm:px-0">
@@ -164,12 +175,15 @@ function Opening({
           <Composer language={language} divert={divert} />
         </div>
         <ol
-          className={`grid divide-y divide-white/10 border border-white/10 glass sm:divide-x sm:divide-y-0 ${
-            prompts.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          className={`grid border border-white/10 glass ${
+            columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
           }`}
         >
           {prompts.map((prompt, index) => (
-            <li key={prompt} className="flex">
+            <li
+              key={prompt}
+              className={`flex border-white/10 ${ruled(index, prompts.length, columns)}`}
+            >
               <ThreadPrimitive.Suggestion
                 prompt={prompt}
                 send

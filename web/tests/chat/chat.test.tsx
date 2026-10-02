@@ -319,6 +319,41 @@ test("a persona's sign-in opens on the label's card, its prompts over the sugges
   ).not.toBeInTheDocument();
 });
 
+test.each([
+  {
+    persona: null,
+    rules: [
+      ["border-b", "sm:border-b-0", "sm:border-r"],
+      ["border-b", "sm:border-b-0", "sm:border-r"],
+      ["sm:border-b-0"],
+    ],
+  },
+  {
+    persona: "persona-pt" as const,
+    rules: [
+      ["border-b", "sm:border-r"],
+      ["border-b"],
+      ["border-b", "sm:border-b-0", "sm:border-r"],
+      ["sm:border-b-0"],
+    ],
+  },
+])(
+  "rules $rules.length prompts between rows and between columns, never on the list's edge",
+  ({ persona, rules }) => {
+    runtime(() => sse([]));
+    chat("pt", vi.fn(), persona);
+
+    const found = screen
+      .getAllByRole("listitem")
+      .map((item) =>
+        ["border-b", "sm:border-b-0", "sm:border-r"].filter((rule) =>
+          item.classList.contains(rule),
+        ),
+      );
+    expect(found).toEqual(rules);
+  },
+);
+
 test("opens on Faro's question, with three numbered prompts that send themselves", async () => {
   const texts = TEXTS.es.chat;
   const [, block] = texts.suggestions;
