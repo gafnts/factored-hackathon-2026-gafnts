@@ -1,9 +1,9 @@
 name: Quality gates
 
-# PRs from develop check the tree main gets; the push to main warms the caches PRs restore.
+# PRs from develop check the tree main gets; a push checks each merge into develop, and warms the caches PRs restore.
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
   pull_request:
     branches: [develop, main]
 
