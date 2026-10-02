@@ -44,6 +44,9 @@ class FakeCognito:
     def admin_enable_user(self, **kwargs: object) -> None:
         self.calls.append(("enable", kwargs))
 
+    def admin_delete_user(self, **kwargs: object) -> None:
+        self.calls.append(("delete", kwargs))
+
 
 # Development IDs only: 2, 8, and 9 are held out.
 DEVELOPMENT = (1, 3, 4, 5, 6, 7, 10, 11)
@@ -192,9 +195,80 @@ def test_run_prints_no_password_username_or_customer_id(tmp_path: Path) -> None:
         assert persona.customer_id not in said
 
 
+def test_the_note_renders_every_account_ready_to_send(tmp_path: Path) -> None:
+    path = judges.note_path(tmp_path, "local")
+    users = {
+        "team.quiet": {"password": "a", "briefing": "brief quiet"},
+        "agente": {"password": "b", "briefing": "brief agente"},
+        # An entry an older file wrote as a bare password still renders.
+        "legacy": "c",
+    }
+
+    judges.write_note(path, "https://example.test", users)
+
+    note = path.read_text(encoding="utf-8")
+    assert "https://example.test" in note
+    assert "one hour" in note
+    for username in users:
+        assert f"## {username}" in note
+    assert "Password: `a`" in note
+    assert "brief quiet" in note
+    assert "Password: `c`" in note
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_delete_retires_the_user_from_the_pool_the_file_and_the_note(
+    tmp_path: Path,
+) -> None:
+    stack = tmp_path / "local.outputs.json"
+    stack.write_text(
+        json.dumps(
+            {
+                "user_pool_id": {"value": "pool"},
+                "site": {"value": {"url": "https://example.test"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    path = judges.credentials_path(tmp_path, "local")
+    judges.write_credentials(
+        path,
+        "local",
+        {
+            "team.quiet": {"password": "a", "briefing": "brief quiet"},
+            "agente": {"password": "b", "briefing": "brief agente"},
+        },
+    )
+    cognito = FakeCognito()
+    args = judges.parse(
+        [
+            "delete",
+            "--stack",
+            str(stack),
+            "--user",
+            "team.quiet",
+            "--data-dir",
+            str(tmp_path),
+        ]
+    )
+
+    said = judges.run(args, cognito)
+
+    assert [kind for kind, _ in cognito.calls] == ["delete"]
+    assert cognito.calls[0][1]["Username"] == "team.quiet"
+    assert "team.quiet" not in said
+    body = json.loads(path.read_text(encoding="utf-8"))
+    assert sorted(body["users"]) == ["agente"]
+    note = judges.note_path(tmp_path, "local").read_text(encoding="utf-8")
+    assert "team.quiet" not in note
+    assert "## agente" in note
+
+
 def test_a_command_on_one_user_needs_the_user() -> None:
     with pytest.raises(SystemExit):
         judges.parse(["reset", "--stack", "build/local.outputs.json"])
+    with pytest.raises(SystemExit):
+        judges.parse(["delete", "--stack", "build/local.outputs.json"])
 
 
 def test_a_stack_file_that_isnt_an_outputs_file_is_refused() -> None:
