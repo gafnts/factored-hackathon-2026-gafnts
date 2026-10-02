@@ -31,6 +31,9 @@ from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
 from banking_agent.agent.models import (
     MODEL,
+    PROVIDER,
+    Declared,
+    Factory,
     HandoffText,
     RequestDetails,
     RouterOutput,
@@ -463,7 +466,7 @@ class Harness:
             return self.script.gateway(request)
         return self.bank.answer(request)
 
-    def factory(self, key: str) -> Callable[[str], Runnable[Any, Any]]:
+    def factory(self, key: str) -> Factory:
         assert key == "model-key"
         script = self.script
 
@@ -548,7 +551,7 @@ class Harness:
             }.get(purpose, reply)
             return RunnableLambda(chosen)
 
-        return make
+        return Declared(make, PROVIDER, MODEL)
 
     def post(
         self,

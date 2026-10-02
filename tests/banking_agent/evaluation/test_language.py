@@ -15,6 +15,9 @@ from langchain_core.runnables import RunnableLambda
 
 from banking_agent.agent.graph import ASKS
 from banking_agent.agent.models import (
+    MODEL,
+    PROVIDER,
+    Declared,
     Models,
     RequestDetails,
     RouterOutput,
@@ -68,7 +71,7 @@ def saying(
     async def record(kind: str, **fields: Any) -> None:
         costs.append(fields["cost_usd"])
 
-    return Models(make, record), costs
+    return Models(Declared(make, PROVIDER, MODEL), record), costs
 
 
 def test_the_items_are_the_development_side_filled_and_labeled() -> None:

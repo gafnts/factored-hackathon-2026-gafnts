@@ -17,6 +17,7 @@ from langchain_core.runnables import RunnableLambda
 from banking_agent.agent import models
 from banking_agent.agent.models import (
     MODEL,
+    PROVIDER,
     Declared,
     ModelFailedError,
     Models,
@@ -53,7 +54,8 @@ def recorded(respond: Any) -> tuple[Models, list[dict[str, Any]]]:
             raise respond
         return respond
 
-    return Models(lambda _: RunnableLambda(invoke), record), entries
+    declared = Declared(lambda _: RunnableLambda(invoke), PROVIDER, MODEL)
+    return Models(declared, record), entries
 
 
 def entry_fits(fields: dict[str, Any]) -> bool:
@@ -106,6 +108,14 @@ def test_a_call_names_the_provider_and_the_model_its_factory_declares() -> None:
         "baseline",
         "baseline",
     )
+
+
+def test_a_factory_that_declares_nothing_is_refused_before_any_call() -> None:
+    async def record(kind: str, **fields: Any) -> None:
+        raise AssertionError(kind)
+
+    with pytest.raises(AttributeError, match="provider"):
+        Models(lambda _: RunnableLambda(str), record)  # type: ignore[arg-type]
 
 
 def test_a_route_call_records_its_output_usage_and_cost() -> None:
@@ -292,7 +302,7 @@ def test_the_router_reads_what_the_last_reply_offered_after_its_prompt() -> None
     async def record(kind: str, **fields: Any) -> None:
         pass
 
-    made = Models(lambda _: RunnableLambda(invoke), record)
+    made = Models(Declared(lambda _: RunnableLambda(invoke), PROVIDER, MODEL), record)
 
     asyncio.run(made.route("¿Y los siguientes?", "A page was listed."))
 

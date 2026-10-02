@@ -15,7 +15,14 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from banking_agent.agent.models import MODEL, ModelFailedError, Models, failure
+from banking_agent.agent.models import (
+    MODEL,
+    PROVIDER,
+    Declared,
+    ModelFailedError,
+    Models,
+    failure,
+)
 from banking_agent.agent.retries import Retries, Wait, retry_after
 from banking_agent.agent.texts import FIXED
 from banking_agent.contracts import validator
@@ -131,7 +138,8 @@ def scripted(
         waits.append(seconds)
 
     timed = Retries(sleep=slept, jitter=policy.jitter)
-    made = Models(lambda _: RunnableLambda(invoke), record, timed, lambda: elapsed)
+    declared = Declared(lambda _: RunnableLambda(invoke), PROVIDER, MODEL)
+    made = Models(declared, record, timed, lambda: elapsed)
     return made, entries, waits
 
 
