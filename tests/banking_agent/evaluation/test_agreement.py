@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from banking_agent.evaluation import __main__ as cli
 from banking_agent.evaluation import agreement, blind, intervals, judge, rubric
 from banking_agent.evaluation.judge import Judged
 
@@ -252,3 +253,28 @@ def test_an_ungraded_cell_or_another_judge_run_is_refused(
     (judged_run / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(agreement.AgreementError, match="didn't judge"):
         agreement.report(sample, judged_run, RUBRIC)
+
+
+def test_the_commands_draw_a_sample_and_score_a_judge_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sample, judged_run, _ = graded(tmp_path, monkeypatch)
+    fill(sample, lambda q, item, key: passing(q, item.language))
+    run = tmp_path / "run"
+    out = tmp_path / "samples"
+
+    drawn = cli.main(
+        ["judge-sample", "--run", str(run), "--out", str(out), "--seeded", "1"]
+    )
+    scored = cli.main(
+        ["judge-agreement", "--sample", str(sample), "--judged", str(judged_run)]
+    )
+
+    printed = capsys.readouterr().out
+    assert drawn == 0 and scored == 0
+    assert "from the regression set played in_process" in printed
+    assert "this sample checks the tooling" in printed
+    assert all(f"{q.id}: " in printed for q in RUBRIC.questions)
+    assert (sample / f"agreement-{judged_run.name}.json").is_file()
+    monkeypatch.setattr(judge, "run_items", lambda run: [])
+    assert cli.main(["judge-sample", "--run", str(run), "--out", str(out)]) == 1

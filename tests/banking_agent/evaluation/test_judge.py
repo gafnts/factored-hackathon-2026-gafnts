@@ -453,3 +453,58 @@ def test_a_missing_key_stops_the_command(
         == 1
     )
     assert "Error:" in capsys.readouterr().err
+
+
+class Answering:
+    """
+    A batch API that answers every request at once from its own schema: each question's first allowed answer.
+    """
+
+    def __init__(self, client: Any) -> None:
+        self.requests: list[dict[str, Any]] = []
+
+    def create(self, requests: list[dict[str, Any]]) -> str:
+        self.requests = requests
+        return "batch-1"
+
+    def status(self, batch_id: str) -> str:
+        return "ended"
+
+    def results(self, batch_id: str) -> Iterable[tuple[str, dict[str, Any]]]:
+        for made in self.requests:
+            schema = made["params"]["output_config"]["format"]["schema"]
+            body = {
+                q: {
+                    "reason": "r",
+                    "answer": part["properties"]["answer"]["enum"][0],
+                    "confidence": "high",
+                }
+                for q, part in schema["properties"].items()
+            }
+            yield made["custom_id"], succeeded(body)
+
+
+def test_the_command_judges_a_run_and_keeps_what_it_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "evidence.jsonl").write_text(json.dumps(evidence()) + "\n", encoding="utf-8")
+    env = tmp_path / ".env"
+    env.write_text("ANTHROPIC_API_KEY=sk-test\n", encoding="utf-8")
+    monkeypatch.setattr(judge, "AnthropicBatches", Answering)
+    out = tmp_path / "judged"
+
+    code = cli.main(
+        ["judge", "--run", str(run), "--env-file", str(env), "--out", str(out)]
+    )
+
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert printed.startswith("judged 2 replies in 2 attempts")
+    assert "sk-test" not in printed
+    (kept,) = out.iterdir()
+    manifest = json.loads((kept / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["outcomes"] == {"ok": 2}
+    assert manifest["source"]["run"] == "run"
+    assert manifest["code"]["commit"]

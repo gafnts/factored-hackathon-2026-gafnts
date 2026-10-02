@@ -282,3 +282,22 @@ def test_the_command_prices_registered_candidates_without_a_call(
     assert capsys.readouterr().out.startswith(f"silent: {len(DEVELOPMENT)} calls")
     with pytest.raises(SystemExit):
         cli.main(["router", "--candidate", "nobody", "--estimate"])
+
+
+def test_the_command_runs_a_comparison_with_folds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setitem(model_commands.CANDIDATES, "silent", lambda e, c: SILENT)
+    monkeypatch.setitem(model_commands.CANDIDATES, "perfect", lambda e, c: PERFECT)
+    chosen = ["--candidate", "silent", "--candidate", "perfect"]
+
+    code = cli.main(["router", *chosen, "--folds", "3", "--out", str(tmp_path)])
+
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert "perfect - silent: macro_f1 perfect" in printed
+    (kept,) = tmp_path.iterdir()
+    report = json.loads((kept / "report.json").read_text(encoding="utf-8"))
+    assert report["folds"]["k"] == 3
+    held_out = ["router", *chosen, "--side", "held_out", "--folds", "3"]
+    assert cli.main(held_out) == 1
