@@ -2,8 +2,7 @@
 The judge's agreement with blind hand grades (ADR-0005, Grading: validated before use; EVL-10). It reads a filled
 sheet with its key, and a judge run over the same items, and gives per question: agreement on the verdict an answer
 implies, with a Wilson interval; Cohen's kappa with a percentile bootstrap interval over the graded replies, on the
-verdict for a yes or no, on the categories for a choice, and weighted on the scale for a score, with the rubric's
-weights; how many replies deserve a no by hand, natural and seeded apart; and the share of those the judge caught. A
+verdict for a yes or no, on the categories for a choice, and with linear weights on the scale for a score; how many replies deserve a no by hand, natural and seeded apart; and the share of those the judge caught. A
 seeded reply counts only for the question it was seeded for. A question is graded by the judge only if its agreement
 and kappa reach the bar and enough replies deserve a no; otherwise by hand, or, for the one question the rubric lets
 go, by hand or dropped. The report holds counts and figures only, never a reply.
@@ -54,20 +53,17 @@ def cohen(pairs: Sequence[tuple[Hashable, Hashable]]) -> float | None:
     return (observed - chance) / (1 - chance)
 
 
-def weighted(
-    pairs: Sequence[tuple[int, int]], scale: tuple[int, int], weights: str
-) -> float | None:
+def weighted(pairs: Sequence[tuple[int, int]], scale: tuple[int, int]) -> float | None:
     """
-    Weighted kappa on an ordinal scale, from disagreement weights: |i - j| over the scale's span, squared for
-    quadratic weights.
+    Kappa on an ordinal scale with linear disagreement weights, |i - j| over the scale's span. The weights are part of
+    the bar, fixed before any grade (ADR-0005, Grading): chosen after seeing the grades, they would move it.
     """
     n, span = len(pairs), scale[1] - scale[0]
     if n == 0 or span == 0:
         return None
 
     def weight(i: int, j: int) -> float:
-        share = abs(i - j) / span
-        return share * share if weights == "quadratic" else share
+        return abs(i - j) / span
 
     observed = sum(weight(a, b) for a, b in pairs) / n
     first, second = Counter(a for a, _ in pairs), Counter(b for _, b in pairs)
@@ -79,9 +75,9 @@ def weighted(
     return 1 - observed / expected
 
 
-def kappa(q: Question, pairs: Sequence[Pair], weights: str) -> float | None:
+def kappa(q: Question, pairs: Sequence[Pair]) -> float | None:
     if q.type == "score":
-        return weighted([(p.hand, p.judged) for p in pairs], q.scale, weights)
+        return weighted([(p.hand, p.judged) for p in pairs], q.scale)
     if q.type == "choice":
         return cohen([(p.hand, p.judged) for p in pairs])
     return cohen([(p.hand_passes, p.judge_passes) for p in pairs])
@@ -148,13 +144,11 @@ def caught(pairs: Sequence[Pair]) -> dict[str, int]:
 def score(
     q: Question, pairs: Sequence[Pair], unanswered: int, rubric: Rubric
 ) -> dict[str, Any]:
-    bar, weights = rubric.bar, rubric.bar["kappa_weights"]
+    bar = rubric.bar
     agreed = sum(p.hand_passes == p.judge_passes for p in pairs)
     share = agreed / len(pairs) if pairs else None
     bounds = intervals.wilson(agreed, len(pairs))
-    estimates = intervals.bootstrap(
-        pairs, lambda drawn: {"kappa": kappa(q, drawn, weights)}
-    )
+    estimates = intervals.bootstrap(pairs, lambda drawn: {"kappa": kappa(q, drawn)})
     deserve = {
         "natural": sum(not p.hand_passes for p in pairs if not p.seeded),
         "seeded": sum(not p.hand_passes for p in pairs if p.seeded),
@@ -188,7 +182,7 @@ def score(
         else None,
         "kappa": {
             **estimates["kappa"].to_json(),
-            "kind": f"weighted_{weights}" if q.type == "score" else "cohen",
+            "kind": "weighted_linear" if q.type == "score" else "cohen",
         },
         "caught": {
             "natural": caught([p for p in pairs if not p.seeded]),

@@ -208,8 +208,6 @@ def problems(rubric: Rubric | None = None) -> list[str]:
         found.append("the bar's agreement and kappa aren't shares")
     if not isinstance(bar.get("deserve_no"), int) or bar["deserve_no"] < 1:
         found.append("the bar names no count of replies that deserve a no")
-    if bar.get("kappa_weights") not in ("linear", "quadratic"):
-        found.append("the bar names no weights for the score's kappa")
     if sum(q.droppable for q in rubric.questions) > 1:
         found.append("more than one question may be dropped")
     return found

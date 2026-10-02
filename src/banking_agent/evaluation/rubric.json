@@ -2,7 +2,7 @@
   "version": 1,
   "confidence": ["high", "medium", "low"],
   "by_hand": ["low"],
-  "bar": {"agreement": 0.9, "kappa": 0.6, "deserve_no": 10, "kappa_weights": "linear"},
+  "bar": {"agreement": 0.9, "kappa": 0.6, "deserve_no": 10},
   "questions": [
     {
       "id": "language",

@@ -1,5 +1,5 @@
 """
-The judge's agreement with blind hand grades: kappa and its weighted form against values worked by hand, a Wilson
+The judge's agreement with blind hand grades: kappa and its linear-weighted form against values worked by hand, a Wilson
 interval for agreement, a percentile bootstrap that resamples within strata and pairs every statistic on one resample,
 and a report that counts natural and seeded replies apart and applies the bar fixed in the rubric (ADR-0005, Grading;
 EVL-10).
@@ -35,14 +35,9 @@ def test_cohen_s_kappa_matches_a_table_worked_by_hand() -> None:
 def test_weighted_kappa_matches_values_worked_by_hand() -> None:
     pairs = [(1, 1), (2, 3), (3, 3), (5, 4)]
 
-    assert agreement.weighted(pairs, (1, 5), "linear") == pytest.approx(
-        1 - 0.125 / 0.375
-    )
-    assert agreement.weighted(pairs, (1, 5), "quadratic") == pytest.approx(
-        1 - 0.03125 / 0.2109375
-    )
-    assert agreement.weighted([(2, 2), (4, 4)], (1, 5), "linear") == pytest.approx(1.0)
-    assert agreement.weighted([(3, 3)] * 3, (1, 5), "linear") is None
+    assert agreement.weighted(pairs, (1, 5)) == pytest.approx(1 - 0.125 / 0.375)
+    assert agreement.weighted([(2, 2), (4, 4)], (1, 5)) == pytest.approx(1.0)
+    assert agreement.weighted([(3, 3)] * 3, (1, 5)) is None
 
 
 def test_wilson_matches_the_published_interval() -> None:

@@ -126,5 +126,4 @@ def test_problems_finds_a_broken_bar() -> None:
 
     assert any("aren't shares" in p for p in found)
     assert any("replies that deserve a no" in p for p in found)
-    assert any("weights" in p for p in found)
     assert any("highest confidence level" in p for p in found)
