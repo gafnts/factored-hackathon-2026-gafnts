@@ -137,6 +137,7 @@
       "family_id": "block_card-07",
       "kind": "terse",
       "labels": ["block_card"],
+      "unclear": {"es": [2], "pt": [2]},
       "es": [
         "bloquear tarjeta",
         "bloqueo",

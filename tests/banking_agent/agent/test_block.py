@@ -6,6 +6,7 @@ POL-09, POL-13 to POL-17, POL-31, POL-34 to POL-39; CTL-02, CTL-04, AI-02, AI-05
 """
 
 import json
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -28,8 +29,6 @@ THREAD = "thread-block-0001"
 # What the chat must never receive: the graph's private state, the router's and the extraction's outputs, and the
 # tools' identifiers and flags.
 PRIVATE = (
-    "PRD-",
-    "CLI-",
     '"case"',
     '"pending"',
     '"asking"',
@@ -42,6 +41,8 @@ PRIVATE = (
     "block_card",
     "await_control",
 )
+# A case reference's four-letter groups can spell a prefix, so the identifiers are matched by their shape.
+IDENTIFIER = re.compile(r"(PRD|CLI)-[A-Z0-9]{12}")
 
 
 def kinds(entries: list[dict[str, Any]]) -> list[str]:
@@ -69,16 +70,22 @@ class Chat:
         sent = json.dumps(events, ensure_ascii=False)
         for private in PRIVATE:
             assert private not in sent, private
+        assert not IDENTIFIER.search(sent)
         for entry in self.harness.records.of(self.who.origin_jti):
             validator("execution-record").validate(entry)
         return events
 
     def say(
-        self, text: str, requests: list[str] | None = None, **extracted: Any
+        self,
+        text: str,
+        requests: list[str] | None = None,
+        language: str = "unclear",
+        **extracted: Any,
     ) -> list[dict[str, Any]]:
         script = self.harness.script
         script.requests = ["block_card"] if requests is None else requests
         script.has_request = bool(script.requests)
+        script.language = language
         script.extracted = extracted
         body = run_body(text, thread=THREAD)
         return self.check(self.harness.post(body, self.who.token(), self.session))
@@ -370,6 +377,74 @@ def test_another_reason_typed_while_the_control_shows_keeps_the_card(
     )
 
 
+def test_a_request_with_no_reason_is_asked_why_and_any_other_reason_reaches_the_control(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+
+    asked = chat.say("Bloquee mi tarjeta de crédito.", card_type="credit")
+
+    assert asked[-1]["outcome"] == {"type": "success"}
+    assert reply(asked) == FIXED["ask_reason"]["es"].format(
+        card="tarjeta de crédito terminada en 4821"
+    )
+    assert (chat.decision()["outcome_class"], chat.decision()["awaiting"]) == (
+        "clarify",
+        "reason",
+    )
+
+    shown = chat.say("Prefiero no decirlo.", requests=[], block_reason="other_reason")
+
+    control = interrupt(shown)["metadata"]["controls"][0]
+    assert control["reason"] == "customer_request"
+    assert reply(shown).endswith(
+        FIXED["confirm_prompt"]["es"].format(
+            card="tarjeta de crédito terminada en 4821", reason="su solicitud"
+        )
+    )
+    # The record keeps what the model said; the confirmation keeps POL-35's code.
+    extracted = [
+        e
+        for e in chat.entries()
+        if e["kind"] == "model_call" and e["purpose"] == "extract"
+    ]
+    assert extracted[-1]["output"]["extracted"]["block_reason"] == "other_reason"
+    record = harness.confirmations.records[control["confirmation_id"]]
+    assert record["reason"] == "customer_request"
+
+
+def test_the_same_reason_under_the_models_name_typed_while_the_control_shows_points_to_it(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    shown = control_shown(chat, block_reason="other_reason")
+
+    pointed = chat.say(
+        "Son motivos personales.", requests=[], block_reason="other_reason"
+    )
+
+    assert reply(pointed) == FIXED["control_pointer"]["es"]
+    assert (
+        interrupt(pointed)["metadata"]["controls"][0]["confirmation_id"]
+        == interrupt(shown)["metadata"]["controls"][0]["confirmation_id"]
+    )
+
+
+def test_another_reason_under_the_models_name_typed_while_the_control_shows_moves_the_block(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    control_shown(chat)
+
+    moved = chat.say("Mejor no digo por qué.", requests=[], block_reason="other_reason")
+
+    second = interrupt(moved)["metadata"]["controls"][0]
+    assert (second["card"]["last_four"], second["reason"]) == (
+        "4821",
+        "customer_request",
+    )
+
+
 def test_a_confirm_after_the_time_limit_is_refused_and_nothing_is_blocked(
     harness: Harness,
 ) -> None:
@@ -399,7 +474,7 @@ def test_a_message_after_the_time_limit_ends_the_confirmation_and_is_served(
     harness: Harness,
 ) -> None:
     chat = Chat(harness)
-    control_shown(chat, block_reason="customer_request")
+    control_shown(chat, block_reason="other_reason")
     harness.moved = timedelta(minutes=6)
 
     late = chat.say("Sí.", requests=[])
@@ -472,7 +547,7 @@ def test_a_resume_that_doesnt_answer_the_pending_control_changes_nothing(
 
 def test_a_control_answered_once_is_stale_afterwards(harness: Harness) -> None:
     chat = Chat(harness)
-    shown = control_shown(chat, block_reason="customer_request")
+    shown = control_shown(chat, block_reason="other_reason")
     chat.press("confirm", shown)
     calls = len(harness.script.tool_calls)
 
@@ -536,7 +611,7 @@ def test_a_block_that_fails_or_is_denied_is_never_reported_as_done(
     assert "consumed" not in [e.get("to") for e in chat.entries()]
 
 
-def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
+def test_an_unrecognized_charge_is_blocked_and_the_turn_is_handed_off(
     harness: Harness,
 ) -> None:
     chat = Chat(harness)
@@ -550,8 +625,91 @@ def test_an_unrecognized_charge_is_blocked_and_left_for_a_person(
         reference=filed["reference"]
     )
     assert (filed["queue"], filed["priority"]) == ("dispute_intake", "normal")
-    assert chat.decision()["outcome_class"] == "block"
+    assert chat.decision()["outcome_class"] == "hand_off"
     assert chat.decision()["rules"] == ["POL-36", "POL-37", "POL-39", "POL-45"]
+
+
+@pytest.mark.parametrize(
+    ("ending", "cause", "rules"),
+    [
+        ("time_limit", "time_limit", ["POL-36", "POL-39", "POL-45"]),
+        ("other_sign_in", "session_end", ["POL-09", "POL-36", "POL-39", "POL-45"]),
+    ],
+)
+def test_an_unrecognized_charge_block_that_lapses_is_left_for_a_person(
+    harness: Harness, ending: str, cause: str, rules: list[str]
+) -> None:
+    chat = Chat(harness)
+    shown = control_shown(chat, block_reason="unrecognized_charge")
+    if ending == "time_limit":
+        harness.moved = timedelta(minutes=5, seconds=1)
+    else:
+        chat.who = Customer(
+            chat.who.sub, "0b4a9c3e-5d2f-4e8a-9c71-2f6d8e1a7b50", chat.who.customer_id
+        )
+
+    late = chat.press("confirm", shown)
+
+    assert "block___block_card" not in called(harness)
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+    assert reply(late).split("\n\n") == [
+        FIXED["confirmation_lapsed"]["es"].format(
+            card="tarjeta de crédito terminada en 4821"
+        ),
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"]),
+    ]
+    confirmation = [e for e in chat.entries() if e["kind"] == "confirmation"]
+    assert [(e["to"], e["cause"]) for e in confirmation] == [("lapsed", cause)]
+    assert (filed["reason_code"], filed["queue"], filed["priority"]) == (
+        "unrecognized_charge",
+        "dispute_intake",
+        "urgent",
+    )
+    assert chat.decision() == {
+        "request_label": "block_card",
+        "outcome_class": "hand_off",
+        "awaiting": "none",
+        "rules": rules,
+    }
+
+
+@pytest.mark.parametrize("failure", ["read_back", "error"])
+def test_an_unrecognized_charge_block_that_isnt_verified_is_left_for_a_person(
+    harness: Harness, failure: str
+) -> None:
+    from .conftest import tool_error
+
+    chat = Chat(harness)
+    shown = control_shown(chat, block_reason="unrecognized_charge")
+    if failure == "read_back":
+        harness.bank.verified = False
+    else:
+        bank = harness.bank.answer
+
+        def fails_the_block(request: Any) -> Any:
+            name = json.loads(request.content)["params"]["name"]
+            return tool_error() if name == "block___block_card" else bank(request)
+
+        harness.script.gateway = fails_the_block
+
+    done = chat.press("confirm", shown)
+
+    assert "quedó bloqueada" not in reply(done)
+    (filed,) = [e for e in chat.entries() if e["kind"] == "handoff"]
+    assert reply(done).endswith(
+        FIXED["handoff_filed"]["es"].format(reference=filed["reference"])
+    )
+    assert (filed["reason_code"], filed["queue"], filed["priority"]) == (
+        "unrecognized_charge",
+        "dispute_intake",
+        "urgent",
+    )
+    assert chat.decision() == {
+        "request_label": "block_card",
+        "outcome_class": "hand_off",
+        "awaiting": "none",
+        "rules": ["POL-37", "POL-39", "POL-45"],
+    }
 
 
 @pytest.mark.parametrize(
@@ -653,6 +811,7 @@ def test_the_control_speaks_the_conversations_language(harness: Harness) -> None
 
     shown = chat.say(
         "Perdi meu cartão de crédito, quero bloqueá-lo.",
+        language="pt",
         card_type="credit",
         block_reason="lost",
     )

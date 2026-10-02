@@ -80,7 +80,7 @@ def test_the_rest_wait_through_the_confirm_control_and_follow_the_block(
         "Bloqueen la 1177 y díganme cómo queda",
         requests=["card_status", "block_card"],
         last_four="1177",
-        block_reason="customer_request",
+        block_reason="other_reason",
     )
 
     assert reply(shown).endswith(render("queued", "es", {"requests": ["card_status"]}))

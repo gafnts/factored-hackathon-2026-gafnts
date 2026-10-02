@@ -80,6 +80,27 @@ def test_a_card_line_names_the_card_its_status_and_its_expiration() -> None:
     )
 
 
+def test_a_question_lists_the_cards_without_their_statuses_and_the_answer_with_them() -> (
+    None
+):
+    offered = values("es", {"cards": [CARD, {**CARD, "last_four": "1177"}]})
+
+    assert offered["card_list"] == (
+        "- Tarjeta de crédito terminada en 4821\n- Tarjeta de crédito terminada en 1177"
+    )
+    assert "cards" not in offered
+    assert fill(FIXED["which_card"]["pt"], values("pt", {"cards": [CARD]})) == (
+        "Qual destes cartões você quer bloquear?\n\n- Cartão de crédito final 4821"
+    )
+
+    answered = values("pt", {"statuses": [CARD]})
+
+    assert answered["cards"] == (
+        "- Cartão de crédito final 4821: ativo; validade: 03/2027"
+    )
+    assert "card_list" not in answered
+
+
 def test_a_transaction_shows_its_country_only_abroad_and_its_merchant_only_for_a_purchase() -> (
     None
 ):
@@ -117,6 +138,7 @@ SAMPLE: dict[str, Any] = {
     "country": "México",
     "card": CARD,
     "cards": [CARD],
+    "statuses": [CARD],
     "reason": "lost",
     "last_four": "4821",
     "reference": "7KQ2-M9TX",

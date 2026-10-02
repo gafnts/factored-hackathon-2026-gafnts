@@ -7,7 +7,19 @@ It says what the agent answers, what it does, when it asks, abstains, or decline
 
 ## Status
 
-Accepted (2026-09-29). Version 2 (2026-10-01). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
+Accepted (2026-09-29). Version 5 (2026-10-02). Every execution record and handoff is stamped with the version it ran under; a changed rule keeps its ID and raises the version, and a retired rule's ID is never reused.
+
+Version 5, after D-003's and D-005's triage:
+
+- **POL-50:** "clearly one of them" is the language a message is mostly in: a message mostly in Portuguese with a Spanish word in it is Portuguese, and words both languages share, digits alone, or a bare "Ok" set nothing, so the conversation keeps its language. Before, the rule left "clearly" to the reader, and the system read it as a count of listed words.
+
+Version 4, after D-001's triage:
+
+- **POL-39:** a block the customer asks for with reason `unrecognized_charge` ends in the dispute handoff however its confirmation ends, as the offer for a reported charge does. Before, the rule named the charge request only, so a block cancelled for that reason read as ending with no handoff.
+
+Version 3, after the first conversations on the prototype:
+
+- **POL-13:** a request that says nothing about which card is about the card the conversation last settled on. Before, every such request asked which card, so a customer who had just read one card's transactions and then reported a charge on it was asked again.
 
 Version 2, as the reads were built:
 
@@ -69,7 +81,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 
 ## Which card
 
-- **POL-13** A request about one card is answered for the card the customer means: the one among their cards that matches what they said (type, last four digits). When several match, the ones the request applies to (active cards for a block, credit cards for available credit) are meant, if there are any. A card that matches but that the request doesn't apply to is still the card meant, and the request's own rule answers for it (POL-22, POL-34). The reply names the card by type and last four digits. (AI-02)
+- **POL-13** A request about one card is answered for the card the customer means: the one among their cards that matches what they said (type, last four digits), or, when they say nothing about which card, the card the conversation last settled on; naming another card, or asking about all of them, moves it. When several match, the ones the request applies to (active cards for a block, credit cards for available credit) are meant, if there are any. A card that matches but that the request doesn't apply to is still the card meant, and the request's own rule answers for it (POL-22, POL-34). The reply names the card by type and last four digits, so a card the conversation meant is corrected in the customer's next message. (AI-02)
 - **POL-14** When POL-13 leaves several cards, the agent asks which, listing each by type and last four digits. A request about the status or available credit of all the customer's cards ("my cards") is answered for each; transactions and a decline are read one card at a time (POL-25, POL-27), so for those the agent asks which. Of 65,796 customers with an active card, 13,420 hold two or more active credit cards and 2,681 two or more active debit cards. (AI-02)
 - **POL-15** When the last four digits the customer gives match two cards of different types, the agent asks for the type. When they match two cards of the same type, it hands off (`ambiguous_card`): fewer than 10 customers hold such a pair, so no second identifier is worth asking for. (AI-02, CTL-02, CTL-03)
 - **POL-16** Last four digits that match none of the customer's cards are answered by listing the cards the customer holds, by type and last four digits. (AI-02)
@@ -107,7 +119,7 @@ The agent serves eight requests (CTL-01). They are the router's labels.
 
 ## Charges the customer doesn't recognize
 
-- **POL-39** For a charge the customer doesn't recognize, the agent looks for the transaction as in POL-27, in any status. If the card is `Active`, the agent offers to block it by showing the confirm control (POL-34 to POL-37, reason `unrecognized_charge`). Once the offer ends, or at once when there is none, it hands off to dispute intake (`unrecognized_charge`): whether the customer confirmed the block, cancelled it, or let it lapse, and whether or not the transaction was found or the bank marked it `is_fraud`. It is the request's only handoff: a card or a detail that can't be settled (POL-15, POL-17), a block that isn't verified (POL-37), or a read that fails (POL-48) is recorded in it, not handed off or offered on its own. It doesn't open a dispute, promise a refund, or say whether the charge is fraud. (CTL-03, CTL-05)
+- **POL-39** For a charge the customer doesn't recognize, the agent looks for the transaction as in POL-27, in any status. If the card is `Active`, the agent offers to block it by showing the confirm control (POL-34 to POL-37, reason `unrecognized_charge`). Once the offer ends, or at once when there is none, it hands off to dispute intake (`unrecognized_charge`): whether the customer confirmed the block, cancelled it, or let it lapse, and whether or not the transaction was found or the bank marked it `is_fraud`. It is the request's only handoff: a card or a detail that can't be settled (POL-15, POL-17), a block that isn't verified (POL-37), or a read that fails (POL-48) is recorded in it, not handed off or offered on its own. A block the customer asks for with reason `unrecognized_charge` (POL-35) ends the same way: however its confirmation ends, confirmed and verified, not verified, cancelled with the control, lapsed, or ended by a new message, the agent hands off to dispute intake (`unrecognized_charge`), and that is the request's only handoff. The charge isn't looked for on this path; the handoff records it as the customer's statement (POL-46). It doesn't open a dispute, promise a refund, or say whether the charge is fraud. (CTL-03, CTL-05)
 - **POL-40** `is_fraud` is the bank's own flag. It decides no outcome and isn't shown to the customer; a handoff about a transaction records it as a verified fact. `fraud_score` is never read. `is_fraud` is independent of every field recorded with the transaction, and `fraud_score` is drawn from it (ADR-0003). (AI-03)
 
 ## Unsupported requests and people
@@ -201,7 +213,7 @@ A Portuguese-speaking customer doesn't recognize a purchase and confirms a block
 
 Every customer in the snapshot is in Mexico, Colombia, or Argentina, so Spanish is the bank's language and Portuguese is the customer's choice in the session.
 
-- **POL-50** The agent replies in Spanish or Brazilian Portuguese: the language of the customer's latest message that is clearly one of them, and Spanish until the customer writes one. Spanish replies use "usted"; Portuguese ones use "você". (SCP-06, EVL-07)
+- **POL-50** The agent replies in Spanish or Brazilian Portuguese: the language of the customer's latest message that is clearly one of them (the language the message is mostly in; words both languages share, digits alone, or a bare "Ok" set nothing), and Spanish until the customer writes one. Spanish replies use "usted"; Portuguese ones use "você". (SCP-06, EVL-07)
 - **POL-51** A message in another language gets a reply in Spanish, with one sentence in Portuguese, saying which languages the chat serves. (SCP-06, EVL-07)
 
 ## Left to other documents

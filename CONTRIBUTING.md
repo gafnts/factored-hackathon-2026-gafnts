@@ -406,7 +406,10 @@ make eval-run SET=selection      # Play a set end to end against ENV's deployed 
 make eval-cleanup                # Delete the test users a stopped run left behind
 make disagreements               # Regenerate docs/evaluation/disagreements.md from docs/evaluation/disagreements.json
 make eval-index                  # Regenerate docs/evaluation/runs.md from the manifests under docs/evaluation/runs/
+make language-check              # Read every development paraphrase with the real prompts; report to docs/evaluation/language.md
 ```
+
+`make language-check` reads `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file) and calls the model once per development message and answer, and once more per block request to read its reason, about a thousand calls at about a dollar; it never reads the held-out side. Its report and page are committed, like a run's manifest.
 
 `make eval-run` needs `AWS_PROFILE`, the stack's outputs (`STACK_OUTPUTS`, default `build/<env>.outputs.json`), and the model key stored. It creates one test user per case in the pool's evaluation group and deletes it when the case ends, and keeps each case's evidence under `data/evaluation/runs/` and in the stack's evaluation bucket. `SITUATIONS=`, `LANGUAGES=`, and `LIMIT=` narrow a run, and `PARALLEL=` sets how many cases play at once (default 2). To report a run, commit its manifest and summary under `docs/evaluation/runs/` and run `make eval-index`. Where the system and the oracle disagree, add an entry to `docs/evaluation/disagreements.json` and run `make disagreements`: CI's regression job fails on any finding without an open entry. Only the development sets play today; the held-out run is still to come.
 

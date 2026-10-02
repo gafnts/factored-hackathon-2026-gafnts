@@ -85,7 +85,9 @@ def test_one_card_named_gets_its_status_and_expiration(
     harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
     text = {"es": "¿Cómo está mi débito 1177?", "pt": "Como está meu débito 1177?"}
 
-    events = chat.say(text[language], requests=["card_status"], last_four="1177")
+    events = chat.say(
+        text[language], requests=["card_status"], language=language, last_four="1177"
+    )
 
     card = detail(harness.bank.cards()[2])
     shown = render("card_status", language, {"card": card}).split(" ", 1)[1]
@@ -112,6 +114,13 @@ def test_several_cards_and_none_named_are_asked_about_then_answered(
     asked = chat.say("¿En qué estado está mi tarjeta?", requests=["card_status"])
 
     assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+    assert reply(asked).split("\n\n", 1)[1] == "\n".join(
+        [
+            "- Tarjeta de crédito terminada en 4821",
+            "- Tarjeta de crédito terminada en 9034",
+            "- Tarjeta de débito terminada en 1177",
+        ]
+    )
     assert decisions(chat)[0]["awaiting"] == "card"
     assert decisions(chat)[0]["outcome_class"] == "clarify"
 
@@ -125,6 +134,87 @@ def test_several_cards_and_none_named_are_asked_about_then_answered(
     # The model answers the question that made the request, not the answer to which card.
     request = harness.script.model_inputs["reply"][-1][1]
     assert request.content == "¿En qué estado está mi tarjeta?"
+
+
+def test_a_request_that_names_no_card_is_about_the_card_last_settled_on(
+    harness: Harness,
+) -> None:
+    # POL-13, version 3: the debit card was just read, so "its transactions" are its, with no question asked.
+    chat = Chat(harness)
+    harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
+    chat.say("¿Cómo está mi débito 1177?", requests=["card_status"], last_four="1177")
+
+    events = chat.say("¿Y sus movimientos recientes?", requests=["recent_transactions"])
+
+    card = harness.bank.cards()[2]
+    assert reply(events).startswith(
+        render(
+            "transactions_none",
+            "es",
+            {"card": card, "window": harness.bank.window["window"]},
+        )
+    )
+    assert decisions(chat)[0]["outcome_class"] == "answer"
+
+
+def test_asking_about_all_the_cards_drops_the_card_last_settled_on(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
+    chat.say("¿Cómo está mi débito 1177?", requests=["card_status"], last_four="1177")
+    harness.script.replies = ["Estas son sus tarjetas:\n\n{cards}"]
+    chat.say("¿Cuáles son mis tarjetas?", requests=["card_status"], cards="all")
+
+    asked = chat.say("¿Y sus movimientos recientes?", requests=["recent_transactions"])
+
+    assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+    assert decisions(chat)[0]["awaiting"] == "card"
+
+
+def test_a_bare_four_digit_number_names_the_card_without_the_model(
+    harness: Harness,
+) -> None:
+    # The extractor returns nothing; code reads "en 4821" as the card that ends in it (POL-13).
+    chat = Chat(harness)
+    harness.script.replies = ["{card}, {window.from} - {window.to}:\n\n{transactions}"]
+
+    events = chat.say(
+        "¿Cuáles son mis movimientos recientes en 4821?",
+        requests=["recent_transactions"],
+    )
+
+    assert reply(events).startswith(f"{CARD}, ")
+    assert tools(harness) == ["list_cards", "find_transactions"]
+    assert decisions(chat)[0]["outcome_class"] == "answer"
+
+
+def test_an_amounts_digits_dont_name_a_card(harness: Harness) -> None:
+    # 1177 ends the debit card, but here it is an amount's whole part.
+    chat = Chat(harness)
+    harness.script.replies = ["Su {card} está {card.status} ({card.expiration})."]
+
+    asked = chat.say(
+        "Pagué 1177.00 con mi tarjeta, ¿en qué estado está?", requests=["card_status"]
+    )
+
+    assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+
+
+def test_a_bare_number_that_ends_none_of_the_cards_still_asks_which(
+    harness: Harness,
+) -> None:
+    chat = Chat(harness)
+    harness.script.replies = ["Su {card} está {card.status} ({card.expiration})."]
+
+    asked = chat.say("¿En qué estado está mi tarjeta 2054?", requests=["card_status"])
+
+    assert reply(asked).startswith(FIXED["which_card_read"]["es"].split("\n")[0])
+
+    answered = chat.say("La 1177.", requests=["card_status"])
+
+    assert reply(answered).startswith("Su tarjeta de débito terminada en 1177 ")
+    assert decisions(chat)[0]["outcome_class"] == "answer"
 
 
 def test_a_reply_call_that_fails_keeps_what_was_said_before_it(
@@ -368,7 +458,10 @@ def test_a_page_lists_the_window_newest_first_with_its_dates(
     text = {"es": "Mis movimientos de la 4821", "pt": "Minhas transações do 4821"}
 
     events = chat.say(
-        text[language], requests=["recent_transactions"], last_four="4821"
+        text[language],
+        requests=["recent_transactions"],
+        language=language,
+        last_four="4821",
     )
 
     lines = reply(events).split("\n\n")[1].split("\n")
@@ -475,7 +568,9 @@ def test_a_decline_found_is_explained_by_its_codes_meaning(
         "pt": "Por que meu pagamento foi recusado?",
     }
 
-    events = chat.say(text[language], requests=["decline_reason"], last_four="4821")
+    events = chat.say(
+        text[language], requests=["decline_reason"], language=language, last_four="4821"
+    )
 
     meaning = {
         "es": "fondos insuficientes (código 51)",
@@ -650,42 +745,3 @@ def test_a_request_outside_cards_is_declined_without_a_person(harness: Harness) 
 
 
 # A third language (POL-51)
-
-
-def test_a_third_language_gets_spanish_with_one_portuguese_sentence(
-    harness: Harness,
-) -> None:
-    chat = Chat(harness)
-
-    events = chat.say("Why was my card declined?", requests=["decline_reason"])
-
-    assert reply(events) == FIXED["third_language"]["es"]
-    assert harness.script.model_inputs["route"] == []
-    (decided,) = decisions(chat)
-    assert decided == {
-        "request_label": None,
-        "outcome_class": "decline",
-        "awaiting": "none",
-        "rules": ["POL-51"],
-        "pending_labels": [],
-    }
-
-
-def test_a_third_language_while_the_control_shows_leaves_it_pending(
-    harness: Harness,
-) -> None:
-    chat = Chat(harness)
-    shown = chat.say(
-        "Bloquear la 1177 por pérdida", last_four="1177", block_reason="lost"
-    )
-
-    events = chat.say("Please block my card now", requests=[])
-
-    assert reply(events).startswith(FIXED["third_language"]["es"])
-    assert (
-        interrupt(events)["metadata"]["controls"]
-        == interrupt(shown)["metadata"]["controls"]
-    )
-    (decided,) = decisions(chat)
-    assert decided["awaiting"] == "confirm_control"
-    assert "POL-51" in decided["rules"]

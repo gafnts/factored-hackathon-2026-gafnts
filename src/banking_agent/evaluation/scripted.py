@@ -17,6 +17,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from banking_agent.agent.models import (
+    REASON_CODES,
     HandoffText,
     RequestDetails,
     RouterOutput,
@@ -40,6 +41,8 @@ REASONS = {
     "reason_unrecognized_charge": "unrecognized_charge",
     "reason_customer_request": "customer_request",
 }
+# The families and the answers hold POL-35's codes; the model says its own name for any other reason.
+MODEL_REASONS = {code: value for value, code in REASON_CODES.items()}
 PLACEHOLDER = re.compile(r"^- (\{[a-z_.]+\}):", re.MULTILINE)
 LISTED = re.compile(r"^(\d+)\. ")
 HANDOFF_TEXT = {
@@ -51,6 +54,17 @@ HANDOFF_TEXT = {
 
 class UnplacedError(LookupError):
     pass
+
+
+def spoken(family: Family, message_id: str) -> str:
+    """
+    The language a model would say a family's message is in: other for a third language, unclear for a message the
+    family marks so, else the language it is filed under.
+    """
+    if family.kind == "third_language":
+        return "other"
+    message = next(m for m in family.messages if m.id == message_id)
+    return message.language if message.clear else "unclear"
 
 
 def raw() -> AIMessage:
@@ -112,14 +126,15 @@ class ScriptedModels:
             if "transaction_id" in means
             else None
         )
-        self.said: dict[str, Family | str] = {}
+        # What each text is, and the language a model reading it would say (POL-50, POL-51).
+        self.said: dict[str, tuple[Family | str, str]] = {}
         for message in script["messages"]:
-            self.said[mask(message["text"])] = families[message["id"].split("/")[0]]
+            family = families[message["id"].split("/")[0]]
+            self.said[mask(message["text"])] = (family, spoken(family, message["id"]))
         for answer in script["answers"].values():
             if isinstance(answer, dict):
-                self.said[mask(answer["text"])] = answers[
-                    answer["id"].split("/")[0]
-                ].kind
+                answer_id, language = answer["id"].split("/")
+                self.said[mask(answer["text"])] = (answers[answer_id].kind, language)
         self.unplaced: list[str] = []
 
     def __call__(self, purpose: str) -> Runnable[Any, Any]:
@@ -131,7 +146,7 @@ class ScriptedModels:
         }.get(purpose, self.reply)
         return RunnableLambda(chosen)
 
-    def placed(self, messages: list[BaseMessage]) -> Family | str:
+    def placed(self, messages: list[BaseMessage]) -> tuple[Family | str, str]:
         text = messages[-1].text
         found = self.said.get(text)
         if found is None:
@@ -140,10 +155,17 @@ class ScriptedModels:
         return found
 
     async def route(self, messages: list[BaseMessage]) -> dict[str, Any]:
-        said = self.placed(messages)
+        said, language = self.placed(messages)
         if isinstance(said, str):
             return structured(
-                RouterOutput(requests=[], has_request=False, complaint=False)
+                RouterOutput.model_validate(
+                    {
+                        "requests": [],
+                        "has_request": False,
+                        "complaint": False,
+                        "language": language,
+                    }
+                )
             )
         return structured(
             RouterOutput.model_validate(
@@ -151,13 +173,14 @@ class ScriptedModels:
                     "requests": list(said.labels),
                     "has_request": bool(said.labels),
                     "complaint": said.complaint,
+                    "language": language,
                 }
             )
         )
 
     async def extract(self, messages: list[BaseMessage]) -> dict[str, Any]:
-        said = self.placed(messages)
-        details = dict(EMPTY)
+        said, language = self.placed(messages)
+        details: dict[str, Any] = {**EMPTY, "language": language}
         if isinstance(said, Family):
             details |= said.extract
             if "last_four" in said.slots:
@@ -170,13 +193,17 @@ class ScriptedModels:
                 details["card_type"] = "credit" if credit else "debit"
             if said != "card_type":
                 details["last_four"] = self.card["last_four"]
+        reason = details["block_reason"]
+        details["block_reason"] = MODEL_REASONS.get(reason, reason)
         return structured(RequestDetails.model_validate(details))
 
     async def choose(self, messages: list[BaseMessage]) -> dict[str, Any]:
-        said = self.placed(messages)
+        said, language = self.placed(messages)
         shown = listed(messages[0].text)
         if said == "transaction_newest":
-            return structured(TransactionChoice(fitting=[1]))
+            return structured(
+                TransactionChoice.model_validate({"fitting": [1], "language": language})
+            )
         merchant, amount, on = self.hints(said)
         fitting = [
             n
@@ -187,7 +214,11 @@ class ScriptedModels:
         ]
         if isinstance(said, str) and not fitting:
             fitting = [n for n, *_ in shown]
-        return structured(TransactionChoice(fitting=fitting[:10]))
+        return structured(
+            TransactionChoice.model_validate(
+                {"fitting": fitting[:10], "language": language}
+            )
+        )
 
     def hints(
         self, said: Family | str

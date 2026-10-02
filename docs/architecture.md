@@ -79,12 +79,12 @@ The execution record is the trace, the audit log, and the evaluation's source in
 
 ## The graph
 
-A workflow with model steps, not an agent loop (DSN-03, DSN-05). Code chooses every node and tool. The model does five things, each through structured output or a short prompt: it labels a message among eight requests and says whether it holds one at all; it extracts what a card request names, among allowed values; it says which listed transactions fit what the customer said; it writes the words of a read's answer around placeholders; and it writes a handoff's three free-text fields. The policy's rules are the router's labels and the nodes' branches ([the policy](policy/card-support.md), CTL-01).
+A workflow with model steps, not an agent loop (DSN-03, DSN-05). Code chooses every node and tool. The model does five things, each through structured output or a short prompt: it labels a message among eight requests and says whether it holds one at all; it extracts what a card request names, among allowed values; it says which listed transactions fit what the customer said; it writes the words of a read's answer around placeholders; and it writes a handoff's three free-text fields. The three calls that read a message also say which language it is mostly in, and code applies POL-50 and POL-51 to that reading. The policy's rules are the router's labels and the nodes' branches ([the policy](policy/card-support.md), CTL-01).
 
 ```mermaid
 flowchart TD
   IN(["message or resume"])
-  BEGIN["begin: language, a pending control, a third language"]
+  BEGIN["begin: a pending control"]
   ROUTE["route: the labels, in POL-05's order"]
   LIST["list_cards: is the customer served in full"]
   UNSUP["unsupported: decline, or hand off an unblock"]
@@ -104,10 +104,9 @@ flowchart TD
   IN --> BEGIN
   BEGIN -->|"new message"| ROUTE
   BEGIN -->|"answer to a question"| CARD
-  BEGIN -->|"no request, third language"| CONCLUDE
   ROUTE -->|"a card request"| CARD
   ROUTE -->|"unsupported, talk_to_human"| LIST
-  ROUTE -->|"no request"| CONCLUDE
+  ROUTE -->|"no request, third language"| CONCLUDE
   LIST -->|"not active, talk_to_human"| HANDOFF
   LIST -->|"served in full"| UNSUP
   UNSUP --> HANDOFF

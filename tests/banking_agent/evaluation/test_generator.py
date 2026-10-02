@@ -96,6 +96,20 @@ def test_each_situation_takes_its_path(regression: generator.Drawn) -> None:
         assert path[: len(situation.path)] == situation.path
 
 
+def test_a_block_among_several_active_cards_asks_which_then_why(
+    regression: generator.Drawn,
+) -> None:
+    drawn = [c for c in regression.cases if c["situation"] == "block.which_card"]
+
+    assert {c["language"] for c in drawn} == {"es", "pt"}
+    for case in drawn:
+        first, second = case["expected"]["turns"][:2]
+        assert (first["awaiting"], second["awaiting"]) == ("card", "reason")
+        assert first["facts"]["{card_list}"].count("\n") >= 1
+        assert "{cards}" not in first["facts"]
+        assert case["expected"]["blocked"] == [case["script"]["means"]["product_id"]]
+
+
 def test_a_manifest_names_no_customer_or_record(regression: generator.Drawn) -> None:
     written = generator.manifest("regression", 7, regression, {"snapshot": "bank"})
     text = json.dumps(written)

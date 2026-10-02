@@ -43,7 +43,7 @@ def handoffs(chat: Chat) -> list[dict[str, Any]]:
         ("lost", "block_lapsed"),
         ("stolen", "block_lapsed"),
         ("unrecognized_charge", "unrecognized_charge"),
-        ("customer_request", None),
+        ("other_reason", None),
     ],
 )
 def test_the_confirm_control_saves_a_draft_when_its_end_may_need_a_person(

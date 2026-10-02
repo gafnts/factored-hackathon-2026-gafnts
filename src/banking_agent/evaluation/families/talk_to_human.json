@@ -47,6 +47,7 @@
       "family_id": "talk_to_human-03",
       "kind": "terse",
       "labels": ["talk_to_human"],
+      "unclear": {"es": [1, 2, 4], "pt": [1, 2, 4]},
       "es": [
         "asesor",
         "humano",

@@ -1,0 +1,207 @@
+{
+  "check": "live",
+  "date": "2026-10-02T16:32:52Z",
+  "side": "development",
+  "model": "claude-haiku-4-5-20251001",
+  "prompts": {
+    "route": "ea87a737013fea24",
+    "resolve_card": "e5a7b712a2445616",
+    "find_transaction": "0ddb0aba8c8f86c7"
+  },
+  "items": 910,
+  "by_language": {
+    "es": {
+      "items": 448,
+      "read": 443
+    },
+    "other": {
+      "items": 6,
+      "read": 6
+    },
+    "pt": {
+      "items": 446,
+      "read": 429
+    },
+    "unclear": {
+      "items": 10,
+      "read": 0
+    }
+  },
+  "by_call": {
+    "choose": {
+      "items": 16,
+      "read": 15
+    },
+    "extract": {
+      "items": 32,
+      "read": 32
+    },
+    "route": {
+      "items": 862,
+      "read": 831
+    }
+  },
+  "misses": [
+    {
+      "id": "block_card-07/es/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "block_card-07/pt/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "block_card-11/es/0",
+      "expected": "es",
+      "said": "pt"
+    },
+    {
+      "id": "block_card-11/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "block_card-11/pt/2",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "unrecognized_charge-12/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "unrecognized_charge-12/pt/3",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/es/1",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/es/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/es/4",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/1",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/2",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/4",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-03/pt/5",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "talk_to_human-05/pt/4",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-03/pt/0",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-03/pt/2",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-03/pt/4",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "decline_reason-08/es/3",
+      "expected": "es",
+      "said": "pt"
+    },
+    {
+      "id": "decline_reason-08/pt/3",
+      "expected": "unclear",
+      "said": "es"
+    },
+    {
+      "id": "card_status-07/pt/3",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "available_credit-07/pt/4",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "available_credit-12/pt/1",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "recent_transactions-07/pt/2",
+      "expected": "unclear",
+      "said": "pt"
+    },
+    {
+      "id": "unsupported-12/pt/2",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "unsupported-12/pt/3",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "none-03/pt/5",
+      "expected": "pt",
+      "said": "es"
+    },
+    {
+      "id": "none-09/es/0",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/1",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/es/5",
+      "expected": "es",
+      "said": "unclear"
+    },
+    {
+      "id": "none-09/pt/2",
+      "expected": "pt",
+      "said": "unclear"
+    },
+    {
+      "id": "transaction_merchant-01/pt",
+      "expected": "pt",
+      "said": "es"
+    }
+  ],
+  "cost_usd": 1.055194
+}

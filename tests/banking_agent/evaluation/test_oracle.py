@@ -100,7 +100,10 @@ def test_a_status_asks_which_card_then_answers_it(
     ]
     first, last = expected["turns"]
     assert first["tools_required"] == ["list_cards"]
-    assert first["facts"]["{cards}"].count("\n") == 4
+    # The question lists the cards without their statuses (POL-14); the all-cards answer carries them.
+    assert first["facts"]["{card_list}"].count("\n") == 4
+    assert "{cards}" not in first["facts"]
+    assert ":" not in first["facts"]["{card_list}"]
     assert last["facts"] == {
         "{card}": "tarjeta de crédito terminada en 6610",
         "{card.status}": "activa",
@@ -199,6 +202,58 @@ def test_a_page_then_the_next(con: duckdb.DuckDBPyConnection) -> None:
         == "- 16/06/2026 12:00 · Compra · Panadería Ejemplo · 1.500,00 ARS · Aprobada"
     )
     assert expected["turns"][0]["facts"]["{window.from}"] == "20/03/2026 06:00"
+
+
+def test_facts_follow_the_conversations_language_turn_by_turn(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    played = case(
+        EXAMPLE_CUSTOMER,
+        "recent_transactions-07",
+        answers={"card": "card_last_four-01"},
+        means={"product_id": "PRD-EXAMPLE00008"},
+        language="pt",
+    )
+    # The opener is a word both languages share, which the family marks, so Spanish holds until the answer (POL-50).
+    played["script"]["messages"][0]["id"] = "recent_transactions-07/pt/2"
+
+    first, last = play(con, played)["turns"]
+
+    assert "Tarjeta de" in first["facts"]["{card_list}"]
+    assert "Cartão" not in first["facts"]["{card_list}"]
+    assert last["facts"]["{card}"].startswith("cartão de crédito final ")
+
+    clear = case(
+        EXAMPLE_CUSTOMER,
+        "recent_transactions-07",
+        answers={"card": "card_last_four-01"},
+        means={"product_id": "PRD-EXAMPLE00008"},
+        language="pt",
+    )
+
+    first, _ = play(con, clear)["turns"]
+
+    assert "Cartão de" in first["facts"]["{card_list}"]
+
+
+def test_the_reasons_answer_sets_the_language_of_the_confirm_prompt(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    played = case(
+        "CLI-EVAL00000007",
+        "block_card-07",
+        answers={"reason": "reason_lost-01", "confirm_control": "confirm"},
+        language="pt",
+    )
+    played["script"]["messages"][0]["id"] = "block_card-07/pt/2"
+
+    turns = play(con, played)["turns"]
+
+    asked = next(t for t in turns if t["awaiting"] == "reason")
+    shown = turns[turns.index(asked) + 1]
+    assert asked["facts"]["{card}"].startswith("tarjeta de ")
+    assert shown["awaiting"] == "confirm_control"
+    assert shown["facts"]["{card}"].startswith("cartão de ")
 
 
 def test_a_card_with_no_transactions_in_the_window(
@@ -322,6 +377,41 @@ def test_a_lost_card_is_blocked_with_the_control_and_a_replacement_offered(
     assert expected["blocked"] == ["PRD-EVAL00000301"]
 
 
+def test_a_block_among_several_active_cards_asks_which_then_why(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    expected = play(
+        con,
+        case(
+            "CLI-EVAL00000005",
+            "block_card-01",
+            answers={
+                "card": "card_last_four-01",
+                "reason": "reason_customer_request-01",
+                "confirm_control": "confirm",
+            },
+            means={"product_id": "PRD-EVAL00000502"},
+        ),
+    )
+
+    assert path(expected) == [
+        ("message", [("block_card", "clarify")], "card"),
+        ("card", [("block_card", "clarify")], "reason"),
+        ("reason", [("block_card", "block")], "confirm_control"),
+        ("confirm", [("block_card", "block")], "none"),
+    ]
+    first, second = expected["turns"][:2]
+    assert first["facts"]["{card_list}"] == "\n".join(
+        [
+            "- Tarjeta de crédito terminada en 4417",
+            "- Tarjeta de crédito terminada en 7302",
+            "- Tarjeta de débito terminada en 6650",
+        ]
+    )
+    assert second["facts"]["{card}"] == "tarjeta de crédito terminada en 4417"
+    assert expected["blocked"] == ["PRD-EVAL00000502"]
+
+
 def test_a_cancelled_block_leaves_the_card(con: duckdb.DuckDBPyConnection) -> None:
     expected = play(
         con,
@@ -373,6 +463,53 @@ def test_today_is_the_business_date_not_the_as_of_instants_day(
 
     assert turn["facts"]["{transaction}"].startswith("17/06/2026 11:15")
     assert turn["facts"]["{transaction.status}"] == "aprobada"
+
+
+@pytest.mark.parametrize(
+    ("ending", "outcome", "priority", "blocked"),
+    [
+        ("cancel", "declined", "urgent", []),
+        ("confirm", "verified", "normal", ["PRD-EVAL00000301"]),
+        ("confirm", "failed", "urgent", []),
+    ],
+)
+def test_a_block_for_an_unrecognized_charge_ends_in_dispute_intake_however_it_ends(
+    con: duckdb.DuckDBPyConnection,
+    ending: str,
+    outcome: str,
+    priority: str,
+    blocked: list[str],
+) -> None:
+    played = case(
+        "CLI-EVAL00000003",
+        "block_card-01",
+        answers={
+            "reason": "reason_unrecognized_charge-01",
+            "confirm_control": ending,
+        },
+    )
+    if outcome == "failed":
+        played = faulted(played, "block_card", 3)
+
+    expected = play(con, played)
+
+    assert path(expected) == [
+        ("message", [("block_card", "clarify")], "reason"),
+        ("reason", [("block_card", "block")], "confirm_control"),
+        (ending, [("block_card", "hand_off")], "none"),
+    ]
+    last = expected["turns"][-1]
+    assert last["handoff"] == {
+        "reason_code": "unrecognized_charge",
+        "trigger": "required",
+        "queue": "dispute_intake",
+        "priority": priority,
+    }
+    assert last["tools_required"] == (
+        ["file_handoff"] if ending == "cancel" else ["block_card", "file_handoff"]
+    )
+    assert "POL-39" in last["decisions"][0]["rules"]
+    assert expected["blocked"] == blocked
 
 
 def test_a_cancelled_charge_block_is_handed_off_urgently(

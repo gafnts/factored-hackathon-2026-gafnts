@@ -10,17 +10,29 @@ from banking_agent.evaluation import families
 from banking_agent.evaluation.families import Answer, Family, Message
 
 
-def family(texts: dict[str, list[str]], **fields: object) -> Family:
+def family(
+    texts: dict[str, list[str]],
+    unclear: dict[str, tuple[int, ...]] | None = None,
+    **fields: object,
+) -> Family:
+    marked = unclear or {}
     base: dict[str, object] = {
         "family_id": "card_status-01",
         "group": "card_status",
         "kind": "plain",
         "labels": ("card_status",),
         "messages": tuple(
-            Message(f"card_status-01/{lang}/{n}", lang, "team", text)
+            Message(
+                f"card_status-01/{lang}/{n}",
+                lang,
+                "team",
+                text,
+                clear=n not in marked.get(lang, ()),
+            )
             for lang, listed in texts.items()
             for n, text in enumerate(listed)
         ),
+        "unclear": marked,
     }
     return Family(**{**base, **fields})  # type: ignore[arg-type]
 
@@ -76,6 +88,39 @@ def test_a_message_that_breaks_a_rule_is_named(text: str, found: str) -> None:
     broken = family({"es": [text, *SPANISH[1:]], "pt": PORTUGUESE})
 
     assert any(found in p for p in families._family_problems(broken))
+
+
+def test_a_marked_message_is_unclear_and_exempt_from_the_language_check() -> None:
+    texts = {"es": SPANISH, "pt": [PORTUGUESE[0], "mi tarjeta", *PORTUGUESE[2:]]}
+    unmarked = family(texts)
+    marked = family(texts, unclear={"pt": (1,)})
+
+    assert any("reads as es" in p for p in families._family_problems(unmarked))
+    assert not any("reads as es" in p for p in families._family_problems(marked))
+    assert [m.clear for m in marked.in_language("pt")] == [True, False, True, True]
+
+
+def test_a_mark_on_a_message_the_family_lacks_or_a_third_language_is_named() -> None:
+    missing = family({"es": SPANISH, "pt": PORTUGUESE}, unclear={"pt": (9,)})
+    third = family(
+        {"en": ["Hello, do you speak English?"]},
+        unclear={"en": (0,)},
+        family_id="none-10",
+        group="none",
+        kind="third_language",
+        labels=(),
+    )
+
+    assert any("doesn't have" in p for p in families._family_problems(missing))
+    assert any("third language" in p for p in families._family_problems(third))
+
+
+def test_the_words_both_languages_share_are_marked_unclear() -> None:
+    loaded = {f.family_id: f for f in families.load()}
+    marked = [m.id for f in loaded.values() for m in f.messages if not m.clear]
+
+    assert "block_card-07/pt/2" in marked
+    assert all(loaded[i.split("/")[0]].kind == "terse" for i in marked)
 
 
 def test_a_family_short_of_messages_or_out_of_order_is_named() -> None:
