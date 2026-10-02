@@ -55,12 +55,13 @@ class UnplacedError(LookupError):
 
 def spoken(family: Family, message_id: str) -> str:
     """
-    The language a model would say a family's message is in: other for a third language, else the language it is
-    filed under.
+    The language a model would say a family's message is in: other for a third language, unclear for a message the
+    family marks so, else the language it is filed under.
     """
     if family.kind == "third_language":
         return "other"
-    return next(m.language for m in family.messages if m.id == message_id)
+    message = next(m for m in family.messages if m.id == message_id)
+    return message.language if message.clear else "unclear"
 
 
 def raw() -> AIMessage:

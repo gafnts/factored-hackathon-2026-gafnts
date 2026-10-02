@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 import pytest
+from langchain_core.messages import HumanMessage
 
 from banking_agent.evaluation import bronze, families, generator, player
 from banking_agent.evaluation.facts import contract_words
@@ -159,6 +160,27 @@ def test_a_text_the_case_doesnt_hold_is_the_players_error(
 
     assert evidence["error"] is not None
     assert evidence["error"].startswith("script:")
+
+
+def test_the_scripted_models_say_the_language_a_reader_would(
+    bank: Bank, drawn: list[dict[str, Any]]
+) -> None:
+    third = situation(drawn, "none.third_language")
+    models = ScriptedModels(third, BY_FAMILY, BY_ANSWER, items(bank, third))
+    text = third["script"]["messages"][0]["text"]
+
+    said = asyncio.run(models.route([HumanMessage(text)]))
+
+    assert said["parsed"].language == "other"
+
+    case = copy.deepcopy(situation(drawn, "status.one_card"))
+    marked = BY_FAMILY["block_card-07"].in_language("pt")[2]
+    case["script"]["messages"][0] = {"id": marked.id, "text": marked.text}
+    models = ScriptedModels(case, BY_FAMILY, BY_ANSWER, items(bank, case))
+
+    said = asyncio.run(models.route([HumanMessage(marked.text)]))
+
+    assert (marked.clear, said["parsed"].language) == (False, "unclear")
 
 
 def test_the_choice_reads_the_listing_whatever_the_merchants_name_holds() -> None:

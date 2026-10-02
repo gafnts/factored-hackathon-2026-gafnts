@@ -135,6 +135,7 @@
       "family_id": "recent_transactions-07",
       "kind": "terse",
       "labels": ["recent_transactions"],
+      "unclear": {"pt": [2]},
       "es": [
         "movimientos",
         "últimos movimientos",

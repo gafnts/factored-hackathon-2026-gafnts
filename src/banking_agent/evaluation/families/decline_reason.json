@@ -158,6 +158,7 @@
       "family_id": "decline_reason-08",
       "kind": "terse",
       "labels": ["decline_reason"],
+      "unclear": {"pt": [3]},
       "es": [
         "tarjeta rechazada",
         "pago rechazado",
