@@ -13,6 +13,7 @@ from typing import Any
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
+from banking_agent.agent.graph import ASKS
 from banking_agent.agent.models import (
     Models,
     RequestDetails,
@@ -32,9 +33,12 @@ USAGE = {
 }
 
 
-def saying(language_of: Any) -> tuple[Models, list[float]]:
+def saying(
+    language_of: Any, reason_of: Any = lambda text: None
+) -> tuple[Models, list[float]]:
     """
-    Models whose three readers say the language language_of(text) gives, recording each call's cost.
+    Models whose three readers say the language language_of(text) gives, and whose extraction reads the block reason
+    reason_of(text) gives, recording each call's cost.
     """
     costs: list[float] = []
 
@@ -47,7 +51,13 @@ def saying(language_of: Any) -> tuple[Models, list[float]]:
                 )
             elif purpose == "extract":
                 empty = dict.fromkeys(RequestDetails.model_fields)
-                parsed = RequestDetails.model_validate({**empty, "language": said})
+                parsed = RequestDetails.model_validate(
+                    {
+                        **empty,
+                        "language": said,
+                        "block_reason": reason_of(messages[-1].text),
+                    }
+                )
             else:
                 parsed = TransactionChoice(fitting=[1], language=said)
             raw = AIMessage(content="{}", usage_metadata=USAGE)
@@ -64,7 +74,7 @@ def saying(language_of: Any) -> tuple[Models, list[float]]:
 def test_the_items_are_the_development_side_filled_and_labeled() -> None:
     items = language.development_items(LOADED, ANSWERS, HELD)
 
-    by_id = {i.id: i for i in items}
+    by_id = {i.id: i for i in items if i.expected is not None}
     assert items
     assert not any(i.id.split("/")[0] in HELD for i in items)
     assert not any("{" in i.text for i in items)
@@ -93,6 +103,44 @@ def test_the_items_are_the_development_side_filled_and_labeled() -> None:
     assert {i.id.split("/")[0] for i in some} == {third.family_id}
 
 
+def test_block_requests_and_reason_answers_also_read_the_reason() -> None:
+    items = language.development_items(LOADED, ANSWERS, HELD)
+    blocks = [f for f in LOADED if "block_card" in f.labels and f.family_id not in HELD]
+    bare = next(f for f in blocks if "block_reason" not in f.extract)
+    given = next(f for f in blocks if "block_reason" in f.extract)
+
+    opener = bare.messages[0]
+    reads = [i for i in items if i.id == opener.id]
+    assert [(i.call, i.expected, i.reason) for i in reads] == [
+        ("route", opener.language, None),
+        ("extract", None, "none"),
+    ]
+    assert reads[1].context == ASKS["block_card"]
+    assert reads[1].text == opener.text
+    told = next(
+        i for i in items if i.id == given.messages[0].id and i.call == "extract"
+    )
+    assert told.reason == given.extract["block_reason"]
+    lost = next(
+        a for a in ANSWERS if a.kind == "reason_lost" and a.answer_id not in HELD
+    )
+    card = next(a for a in ANSWERS if a.kind == "card_type" and a.answer_id not in HELD)
+    by_id = {i.id: i for i in items if i.expected is not None}
+    assert (
+        by_id[f"{lost.answer_id}/es"].reason,
+        by_id[f"{card.answer_id}/es"].reason,
+    ) == (
+        "lost",
+        None,
+    )
+    assert all(i.call == "extract" for i in items if i.expected is None)
+    assert not any(
+        i.expected is None
+        for i in items
+        if i.id.split("/")[0] not in {f.family_id for f in blocks}
+    )
+
+
 def test_the_check_counts_what_the_model_said_against_the_label(tmp_path: Path) -> None:
     items = [
         language.Item("card_status-01/es/0", "es", "¿Mi tarjeta?", "route"),
@@ -109,26 +157,55 @@ def test_the_check_counts_what_the_model_said_against_the_label(tmp_path: Path) 
             "choose",
             language.LISTING,
         ),
+        language.Item(
+            "block_card-01/es/0",
+            None,
+            "Quiero bloquear mi tarjeta.",
+            "extract",
+            ASKS["block_card"],
+            "none",
+        ),
+        language.Item(
+            "reason_lost-01/es", "es", "La perdí.", "extract", language.REASON, "lost"
+        ),
     ]
-    said = {"Meu cartão?": "es", "bloquear": "pt"}
+    said = {"Meu cartão?": "es", "bloquear": "pt", "Quiero bloquear mi tarjeta.": "es"}
+    reasons = {"Quiero bloquear mi tarjeta.": "customer_request", "La perdí.": "lost"}
     models, costs = saying(
-        lambda text: said.get(text) or next(i.expected for i in items if i.text == text)
+        lambda text: (
+            said.get(text) or next(i.expected for i in items if i.text == text)
+        ),
+        reasons.get,
     )
 
     results = asyncio.run(language.check(models, items, parallel=2))
     found = language.report(results, sum(costs), datetime(2026, 10, 2, 12, tzinfo=UTC))
 
+    # The item that only reads a reason enters no language count.
+    assert found["items"] == 7
     assert found["by_language"] == {
-        "es": {"items": 2, "read": 2},
+        "es": {"items": 3, "read": 3},
         "other": {"items": 1, "read": 1},
         "pt": {"items": 2, "read": 1},
         "unclear": {"items": 1, "read": 0},
     }
     assert found["by_call"]["route"] == {"items": 4, "read": 2}
+    assert found["by_call"]["extract"] == {"items": 2, "read": 2}
     assert found["misses"] == [
         {"id": "card_status-01/pt/0", "expected": "pt", "said": "es"},
         {"id": "block_card-07/pt/2", "expected": "unclear", "said": "pt"},
     ]
+    assert found["block_reasons"] == {
+        "items": 2,
+        "read": 1,
+        "by_reason": {
+            "lost": {"items": 1, "read": 1},
+            "none": {"items": 1, "read": 0},
+        },
+        "misses": [
+            {"id": "block_card-01/es/0", "expected": "none", "said": "customer_request"}
+        ],
+    }
     assert found["cost_usd"] > 0
     assert "text" not in json.dumps(found)
 
@@ -150,7 +227,21 @@ def test_the_check_counts_what_the_model_said_against_the_label(tmp_path: Path) 
 
     assert written.name == "2026-10-02-live.json"
     rendered = (tmp_path / "language.md").read_text(encoding="utf-8")
-    assert "| es | 1 of 2 (50.0%) | 2 of 2 (100.0%) |" in rendered
+    assert "| es | 1 of 2 (50.0%) | 3 of 3 (100.0%) |" in rendered
     assert "| unclear |  | 0 of 1 (0.0%) |" in rendered
     assert "| block_card-07/pt/2 | unclear | pt |" in rendered
+    assert "## Block reasons, latest live check" in rendered
+    assert "| none | 0 of 1 (0.0%) |" in rendered
+    assert "| block_card-01/es/0 | none | customer_request |" in rendered
     assert "bloquear" not in rendered
+
+    # A second run on the same day keeps the first file; the page reads the latest by date.
+    later = {**found, "date": "2026-10-02T18:05:00Z", "cost_usd": 0.5}
+    del later["block_reasons"]
+    again = language.write(later, reports, tmp_path / "language.md")
+
+    assert again.name == "2026-10-02T18-05-live.json"
+    assert written.exists()
+    rendered = (tmp_path / "language.md").read_text(encoding="utf-8")
+    assert "Latest live check: 2026-10-02T18:05:00Z" in rendered
+    assert "## Block reasons" not in rendered

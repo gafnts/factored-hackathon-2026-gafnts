@@ -151,6 +151,10 @@ def check_language(
         print(f"{name}: {counts['read']} of {counts['items']} read as expected")
     for miss in found["misses"]:
         print(f"  {miss['id']}: expected {miss['expected']}, said {miss['said']}")
+    reasons = found["block_reasons"]
+    print(f"block reasons: {reasons['read']} of {reasons['items']} read as expected")
+    for miss in reasons["misses"]:
+        print(f"  {miss['id']}: expected {miss['expected']}, said {miss['said']}")
     if only:
         print(
             f"{len(found['misses'])} misses over {found['items']} items; {found['cost_usd']:.4f} USD; not kept"

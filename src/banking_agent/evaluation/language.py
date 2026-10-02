@@ -5,6 +5,12 @@ in, which is compared with the label we expect (POL-50, POL-51): the family's la
 family marks so, other for a third language. The scripted models answer the language from the families, so this is
 where the model's own reading is measured. The result keeps counts and message IDs, never a text, and the page under
 docs/evaluation/ sets it beside the word-list detector's baseline.
+
+The check also sends each development block request through the extraction, with the context the agent sends, and
+compares the block reason read with the family's (none when the family names none), and each reason answer's with its
+kind (POL-35). The scripted models answer the reason from the families, so this is the only place a reason the model
+reads into a bare request shows before a deployed run (D-006). Those counts stay in a block of their own, so the
+language counts compare with earlier reports.
 """
 
 import asyncio
@@ -16,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from banking_agent.agent.graph import ASKS
 from banking_agent.agent.models import (
     MODEL,
     ModelFailedError,
@@ -68,17 +75,28 @@ CALLS = {
 
 @dataclass(frozen=True)
 class Item:
+    """
+    expected is the language the item should read as, or None for an item that only reads a block reason; reason is
+    POL-35's code the extraction should give, none for a request that gives no reason, or None when not compared.
+    """
+
     id: str
-    expected: str
+    expected: str | None
     text: str
     call: str
     context: str | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
 class Result:
     item: Item
     said: str
+    reason: str | None = None
+
+
+def expected_reason(kind: str) -> str | None:
+    return kind.removeprefix("reason_") if kind.startswith("reason_") else None
 
 
 def filled(text: str) -> str:
@@ -117,6 +135,17 @@ def development_items(
                     "route",
                 )
             )
+            if "block_card" in family.labels:
+                items.append(
+                    Item(
+                        message.id,
+                        None,
+                        filled(message.text),
+                        "extract",
+                        ASKS["block_card"],
+                        family.extract.get("block_reason") or "none",
+                    )
+                )
     for answer in answers:
         if answer.answer_id in held or wanted:
             continue
@@ -129,6 +158,7 @@ def development_items(
                     filled(text),
                     call,
                     context,
+                    expected_reason(answer.kind),
                 )
             )
     return items
@@ -136,18 +166,21 @@ def development_items(
 
 async def ask(models: Models, item: Item) -> Result:
     said: str
+    reason: str | None = None
     try:
         if item.call == "route":
             said = (await models.route(item.text)).language
         elif item.call == "extract":
             assert item.context is not None
-            said = (await models.extract(item.text, item.context)).language
+            found = await models.extract(item.text, item.context)
+            said = found.language
+            reason = found.model_dump()["block_reason"] or "none"
         else:
             assert item.context is not None
             said = (await models.choose(item.text, item.context)).language
     except ModelFailedError:
-        said = "failed"
-    return Result(item, said)
+        said = reason = "failed"
+    return Result(item, said, reason if item.reason is not None else None)
 
 
 async def check(
@@ -169,10 +202,38 @@ def counted(results: Sequence[Result], key: str) -> dict[str, dict[str, int]]:
     totals: Counter[str] = Counter()
     read: Counter[str] = Counter()
     for result in results:
+        if result.item.expected is None:
+            continue
         group = result.item.expected if key == "language" else result.item.call
         totals[group] += 1
         read[group] += result.said == result.item.expected
     return {g: {"items": totals[g], "read": read[g]} for g in sorted(totals)}
+
+
+def reasons(results: Sequence[Result]) -> dict[str, Any]:
+    """
+    The block reasons read against the family's or the answer kind's, by the reason expected.
+    """
+    totals: Counter[str] = Counter()
+    read: Counter[str] = Counter()
+    misses = []
+    for result in results:
+        expected = result.item.reason
+        if expected is None:
+            continue
+        totals[expected] += 1
+        if result.reason == expected:
+            read[expected] += 1
+        else:
+            misses.append(
+                {"id": result.item.id, "expected": expected, "said": result.reason}
+            )
+    return {
+        "items": sum(totals.values()),
+        "read": sum(read.values()),
+        "by_reason": {g: {"items": totals[g], "read": read[g]} for g in sorted(totals)},
+        "misses": misses,
+    }
 
 
 def report(
@@ -182,20 +243,22 @@ def report(
     What the committed file holds: counts and message IDs, never a text.
     """
     stamp = (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    languages = [r for r in results if r.item.expected is not None]
     return {
         "check": "live",
         "date": stamp,
         "side": "development",
         "model": MODEL,
         "prompts": {name: prompt_version(name) for name in PROMPTS},
-        "items": len(results),
+        "items": len(languages),
         "by_language": counted(results, "language"),
         "by_call": counted(results, "call"),
         "misses": [
             {"id": r.item.id, "expected": r.item.expected, "said": r.said}
-            for r in results
+            for r in languages
             if r.said != r.item.expected
         ],
+        "block_reasons": reasons(results),
         "cost_usd": round(cost_usd, 6),
     }
 
@@ -216,7 +279,7 @@ def page(reports: Path = REPORTS) -> str:
         for p in sorted(reports.glob("*.json"))
     ]
     baseline = next((r for r in found if r["check"] == "baseline"), None)
-    live = [r for r in found if r["check"] == "live"]
+    live = sorted((r for r in found if r["check"] == "live"), key=lambda r: r["date"])
     latest = live[-1] if live else None
     lines = [
         "# Language check",
@@ -228,7 +291,9 @@ def page(reports: Path = REPORTS) -> str:
         "The development regression set). The baseline is the word-list detector the agent used until 2026-10-02, read",
         "from the other language's conversation, so a message had to set its own language to count. Claude Opus 5.5, an",
         "Anthropic model, wrote the paraphrases, and an Anthropic model reads them here, so the result may flatter it",
-        "([ADR-0005](../adr/0005-offline-scenario-evaluation.md), The split).",
+        "([ADR-0005](../adr/0005-offline-scenario-evaluation.md), The split). The check also sends each development",
+        "block request through the extraction and compares the block reason read with the family's, in the last",
+        "section; those items stay out of the language tables, so the tables compare across reports (POL-35, D-006).",
         "",
     ]
     if latest is not None:
@@ -264,7 +329,35 @@ def page(reports: Path = REPORTS) -> str:
             ]
         else:
             lines.append("None.")
+        if "block_reasons" in latest:
+            lines += reason_lines(latest["block_reasons"])
     return "\n".join(lines) + "\n"
+
+
+def reason_lines(found: Mapping[str, Any]) -> list[str]:
+    lines = [
+        "",
+        "## Block reasons, latest live check",
+        "",
+        f"{share(found)} of the block requests and reason answers read with the reason we expect: the family's, `none`",
+        "when the request gives no reason, so POL-35's question should follow, or the reason answer's kind.",
+        "",
+        "| Expected | Live read |",
+        "|---|---|",
+    ]
+    lines += [
+        f"| {reason} | {share(counts)} |"
+        for reason, counts in found["by_reason"].items()
+    ]
+    lines += ["", "### Misses", ""]
+    if found["misses"]:
+        lines += ["| Message | Expected | Said |", "|---|---|---|"]
+        lines += [
+            f"| {m['id']} | {m['expected']} | {m['said']} |" for m in found["misses"]
+        ]
+    else:
+        lines.append("None.")
+    return lines
 
 
 def write(
@@ -272,6 +365,9 @@ def write(
 ) -> Path:
     reports.mkdir(parents=True, exist_ok=True)
     out = reports / f"{found['date'][:10]}-live.json"
+    if out.exists():
+        # A second run on one day keeps the first; the page reads the latest by its date.
+        out = reports / f"{found['date'][:16].replace(':', '-')}-live.json"
     out.write_text(
         json.dumps(found, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
