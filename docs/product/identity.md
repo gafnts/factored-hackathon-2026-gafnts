@@ -60,7 +60,7 @@ Faro speaks for a bank to someone whose card has just let them down. It has four
 
 And what Faro is not:
 
-- **Not a person.** An automated assistant, which the chat names *Faro* and nothing more: once the customer is signed in, the bar carries the wordmark alone, and the empty chat opens on the question (settled on 2026-09-30). On a sign-in, the bar carries the bank's name instead: one signs in to the bank, and meets Faro after.
+- **Not a person.** An automated assistant, which the chat names *Faro* and nothing more: once the customer is signed in, the bar carries the wordmark alone, and the empty chat opens on the question. On a sign-in, the bar carries the bank's name instead: one signs in to the bank, and meets Faro after.
 - **Not chatty.** No jokes, emoji, or exclamation marks, and no stock empathy (*entiendo perfectamente su frustración*). For Faro, empathy means doing the right thing quickly, not saying so at length.
 - **Not an advisor.** It gives a decline code's meaning and stops: no causes, patterns, or tips (POL-29). It never says whether a charge is fraud (POL-39).
 
@@ -79,7 +79,7 @@ Every card, merchant, value, and reference below is made up.
 | The opening line, which the chat shows | ES: *¿En qué le puedo ayudar?*<br>PT: *Como posso ajudar?* | *¡Hola! 👋 Soy Faro, tu amigo en LATAM Bank.* Faro says *usted* (POL-50), and it's an automated assistant, not a friend |
 | A decline explained (POL-02, POL-19, POL-29) | ES: *Según los registros al 17 de junio, su compra del 16 de junio en Comercio Ejemplo por 120 USD, con la tarjeta de crédito terminada en 4821, fue rechazada con el código 51: fondos insuficientes.*<br>PT: *Segundo os registros de 17 de junho, sua compra de 16 de junho em Comercio Ejemplo, de 120 USD, no cartão de crédito final 4821, foi recusada com o código 51: saldo insuficiente.* | *Parece que no le alcanzó el saldo; le recomiendo revisar sus gastos.* It infers a cause and gives advice |
 | Which card (POL-14) | ES: *Tiene dos tarjetas de crédito activas, terminadas en 4821 y en 7730. ¿Cuál desea bloquear?*<br>PT: *Você tem dois cartões de crédito ativos, com final 4821 e 7730. Qual deles você quer bloquear?* | *Bloqueé su tarjeta principal.* It guesses the card, and acts without the confirm control |
-| Before a block (POL-36) | ES: *Puedo bloquear su tarjeta de crédito terminada en 4821 por robo. Solo una persona puede deshacer un bloqueo. Si desea continuar, use el botón Confirmar bloqueo.*<br>PT: *Posso bloquear seu cartão de crédito final 4821 por roubo. Só uma pessoa pode desfazer um bloqueio. Se quiser continuar, use o botão Confirmar bloqueio.* | *¿Lo bloqueo? Responda "sí" para continuar.* Typed text never confirms a block |
+| Before a block (POL-36) | ES: *Puedo bloquear su tarjeta de crédito terminada en 4821 por robo. Solo una persona puede deshacer un bloqueo. Si desea continuar, use el botón Confirmar el bloqueo.*<br>PT: *Posso bloquear seu cartão de crédito final 4821 por roubo. Só uma pessoa pode desfazer um bloqueio. Se quiser continuar, use o botão Confirmar o bloqueio.* | *¿Lo bloqueo? Responda "sí" para continuar.* Typed text never confirms a block |
 | After a block (POL-37) | ES: *Su tarjeta de crédito terminada en 4821 está bloqueada; lo comprobé después de bloquearla.*<br>PT: *Seu cartão de crédito final 4821 está bloqueado; conferi depois do bloqueio.* | *Su tarjeta quedará bloqueada en unos minutos.* It claims an outcome it hasn't verified, and promises a time |
 | A missing record (POL-24) | ES: *El banco no tiene registrado el límite de su tarjeta de crédito terminada en 7730, así que no puedo calcular su crédito disponible. Si lo desea, una persona puede revisarlo.*<br>PT: *O banco não tem registrado o limite do seu cartão de crédito final 7730, então não consigo calcular seu crédito disponível. Se quiser, uma pessoa pode verificar.* | *Su tarjeta no tiene límite.* A missing limit is never read as unlimited or as zero |
 | A handoff (POL-45) | ES: *Una persona del equipo de disputas revisará su caso y le dará seguimiento. Su referencia es 7K2M-9QXA.*<br>PT: *Uma pessoa da equipe de contestações vai analisar seu caso e entrar em contato. Sua referência é 7K2M-9QXA.* | *No se preocupe: le devolverán su dinero en 48 horas.* It promises an outcome and a time |
@@ -98,8 +98,8 @@ One word per idea, in each language, across the prompts, the chat, and the contr
 | Who takes over | una persona del banco | uma pessoa do banco |
 | The dispute team | el equipo de disputas | a equipe de contestações |
 | A handoff's reference | referencia | referência |
-| The confirm control | Confirmar bloqueo · Cancelar | Confirmar bloqueio · Cancelar |
-| The handoff control | Pasar a una persona · Ahora no | Falar com uma pessoa · Agora não |
+| The confirm control | Confirmar el bloqueo · Cancelar | Confirmar o bloqueio · Cancelar |
+| The handoff control | Pasar a una persona · Ahora no | Encaminhar para uma pessoa · Agora não |
 | What Faro is | asistente automático | assistente automático |
 
 ---
@@ -115,7 +115,7 @@ Light at dusk: a warm lamp against a cold sea. The palette runs from the lamp's 
 | **Night** | Black, with the banner's grid | The site's pages (the customer's sign-in and chat, the human agent's sign-in and console), the slides' covers, the video's titles |
 | **Paper** | A warm light gray | Work read at length off the site: the evaluation report and the slides' content |
 
-A customer reporting a stolen card needs a calm page that is easy to read, not a dramatic one. On Paper, the light ground gives that calm; on Night, restraint does: one accent, no motion but a calm arrival, the sweep, and the sign-ins' beacon, and the grid only where nothing is being read. The console is Night too, so the site reads as one product, but it is a tool the bank's own staff read for long stretches, so it takes less of the banner: past its sign-in, no grid or glow, and solid panels rather than glass. The report stays Paper.
+A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, no motion but the arrival, the sweep, and the sign-ins' beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
 
 ### Palette
 
@@ -141,7 +141,7 @@ Every text color meets WCAG AA (4.5:1) on its mode's ground and on its raised su
 | `dusk` | `#F4E7D4` | Both | The gradient only | |
 | `rule-night`, `rule-paper` | `#34342F`, `#C5C8BE` | Night, Paper | Hairlines | |
 
-Text on glass meets the same ratios over the brightest thing that can sit behind it. On glass over the glow's brightest point, `bone` is 12.5:1 and `bone-muted` 5.6:1; over a lit cell, `bone-muted` would fall to 4.0:1, so no lit cell sits behind text or glass. `night` on `sea`, the send button's arrow, is 10.5:1. Measured on the built chat, with its text hidden to read the ground behind each line, the lowest is the composer's placeholder over the glow, 5.9:1, on a phone and on a laptop. The rail and the bar are thinner glass, since only the grid's lines and the conversation pass under them: over a phone's conversation scrolling under the bar, read every 6 px, the wordmark keeps 13.4:1 and the rail's icons 5.3:1 at the least. On the console's solid panels, `bone-muted` and `lamp` are 6.0:1 and `sea` 8.4:1; the open case's row is lit white at 8%, on which `bone-muted` and `lamp` keep 4.7:1.
+Text on glass meets the same ratios over the brightest thing that can sit behind it; a lit cell would drop `bone-muted` to 4.0:1, so none sits behind text or glass. Measured on the built pages, the lowest ratios are the composer's placeholder over the glow, 5.9:1, the rail's icons over a scrolling conversation, 5.3:1, and `bone-muted` and `lamp` on the console's lit open row, 4.7:1.
 
 The horizon, for the slides' covers and the video's titles, never behind text:
 
@@ -154,7 +154,7 @@ Color never carries a status alone: *verified* and *urgent* are always written o
 
 ### Type
 
-- **Outfit** for the wordmark alone, at 600 and tightly set (−0.07 em over the sign-in form, −0.03 em in the bar). Of 20 open sans compared with the banner's wordmark at its proportions, it matched most closely. Set apart from everything else, it reads as the logotype it is.
+- **Outfit** for the wordmark alone, at 600 and tightly set (−0.07 em over the sign-in form, −0.03 em in the bar): the closest match to the banner's wordmark among the open sans we compared. Set apart from everything else, it reads as the logotype it is.
 - **Geist** for everything else, display included, so the page is one family and hierarchy comes from size and weight (Layout). Headlines are semibold on Night and bold on Paper, set tighter as they grow (−0.025 em for a card's heading, −0.035 em for the empty chat's question; −0.02 em on Paper); chat text is at least 16 px. A form's field names are text, in Geist Medium.
 - **Geist Mono**, Geist's own mono, for what is read character by character, or is a label: references (`7K2M-9QXA`), last four digits, rule IDs, reason codes, and tool calls in the console. Labels are set in capitals, tracked +0.08 em.
 
@@ -162,7 +162,7 @@ All three are under the SIL Open Font License, and cover the accents and punctua
 
 ### Layout
 
-In the International Typographic Style. The page sits on a column grid whose module is the grid motif's cell. Text is set flush left and ragged right, a headline on the left edge of what follows it rather than centered. A few lines are centered, on the axis the grid is drawn from, with their lines balanced: a sign-in's wordmark over the form, the empty chat's question over the composer, the notice under the signed-in pages, and the missing page's three lines, on a card alone at its center. On a sign-in, the notice is set flush right instead, in the corner across from the bank's name in the bar. Hierarchy comes from size and weight alone. Hairlines separate, not shadows; the glow is the one light. Every shape is square, as the grid's cells are: panels, fields, buttons, and messages alike. Where the grid shows, what sits in its cleared block spans whole cells either side of the axis, so its edges fall on the lines: the sign-in form eight cells wide (ten on a phone), and the empty chat's composer and suggestions twelve, four to a suggestion. The conversation keeps the same twelve-cell column, so the composer stays put when the first message lands. Lists the reader picks from carry the numbered labels.
+In the International Typographic Style. The page sits on a column grid whose module is the grid motif's cell. Text is flush left and ragged right, a headline on the left edge of what follows it. A few lines are centered on the grid's axis, with their lines balanced: a sign-in's wordmark over the form, the empty chat's question over the composer, the notice under the signed-in pages, and the missing page's card; on a sign-in the notice sits flush right instead, across from the bank's name. Hierarchy comes from size and weight alone; hairlines separate, not shadows; the glow is the one light; every shape is square, as the cells are. What sits in the grid's cleared block spans whole cells either side of the axis, so its edges fall on the lines: the sign-in form eight cells wide (ten on a phone), the composer and suggestions twelve, four to a suggestion. The conversation keeps that column, so the composer stays put when the first message lands. Lists the reader picks from carry the numbered labels.
 
 ### The mark
 
@@ -174,17 +174,17 @@ A lighthouse drawn as horizontal stripes that narrow toward the top, with a ligh
 - The wordmark is Faro in Outfit SemiBold, as the banner sets it, beside the mark at the tower's height.
 - Clear space around the mark is the light's height on every side.
 
-The mark isn't drawn yet; until it is, the wordmark stands alone, as in the banner. Night came before it, for the customer's pages and then the console, on 2026-09-30.
+The mark isn't drawn yet; until it is, the wordmark stands alone, as in the banner.
 
 ### Motifs
 
-- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the brief's three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), the suggested prompts on the persona cards, and the suggestions under the empty chat's composer (`01` to `03`).
-- **The grid.** The banner's: hairlines, a block cleared at the center for the wordmark, the empty chat's question and composer, or the sign-in form, and a few cells lit in `sea` with a `glow` bloom in the outer columns. It sits behind the two sign-ins and the empty chat, still but for the sign-ins' beacon, and leaves once a conversation starts or the console opens; its hairlines run on under the rail and the bar, centered on the content all the same, and its lit cells keep clear of them. On a phone's sign-in the lit cells keep to the top rows; a phone's empty chat fills its screen, so it has none. No lit cell sits behind text or glass.
+- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the organizers' three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), the suggested prompts on the persona cards, and the suggestions under the empty chat's composer (`01` to `03`).
+- **The grid.** The banner's: hairlines, a block cleared at the center for the wordmark, the empty chat's question and composer, or the sign-in form, and a few cells lit in `sea` with a `glow` bloom in the outer columns. It sits behind the two sign-ins and the empty chat, still but for the beacon, and leaves once a conversation starts or the console opens. Its hairlines run on under the rail and the bar; its lit cells keep clear of them, of text, and of glass, and a phone's empty chat has none.
 - **The glow.** The lit cells' two colors as one soft light behind the empty chat's composer, and nowhere else; the question above it keeps AA at its edge (Palette), and it goes with the grid.
-- **Glass.** Smoked glass for what floats over the grid or the glow and carries something: the composer, the suggestions, the controls, the sign-in forms, and the missing page's card, which matches them. `night-raised` at 80%, a 24 px backdrop blur, and a hairline of white at 10%. The rail and the bar, flush with the page's edges, are thinner: `night-raised` at 55%, the same blur, a little saturation, and a hairline on their inner edge. Replies sit on the ground, never on glass; the console's queues and case float over nothing, so they sit on solid `night-raised` with the same hairline. Under `prefers-reduced-transparency` the glass turns solid.
-- **The arrival.** A page arrives whole, on Night from its first frame, once its faces have loaded (a second at most): the bar, the rail, and the notice fade in, the content rises 12 px as it fades in, and the lit cells and the glow come on last, in under two seconds. A sign-in and a new conversation arrive the same way, in place; a message, an opened case, and a case new to a queue rise in as they land. Nothing moves once it has arrived but the beacon and the sweep, and under `prefers-reduced-motion` nothing rises: it only fades in.
+- **Glass.** Smoked glass for what floats over the grid or the glow and carries something: the composer, the suggestions, the controls, the sign-in forms, and the missing page's card. `night-raised` at 80%, a 24 px backdrop blur, and a hairline of white at 10%; the rail and the bar are thinner, at 55%, with a hairline on their inner edge. Replies sit on the ground, never on glass, and the console's panels float over nothing, so they are solid `night-raised`. Under `prefers-reduced-transparency` the glass turns solid.
+- **The arrival.** A page arrives whole, on Night from its first frame, once its faces have loaded: the bar, the rail, and the notice fade in, the content rises 12 px as it fades in, and the lit cells and the glow come on last, in under two seconds. A sign-in, a new conversation, a message, an opened case, and a case new to a queue arrive the same way, in place. Nothing moves once it has arrived but the beacon and the sweep, and under `prefers-reduced-motion` nothing rises: it only fades in.
 - **The sweep.** The only motion in a conversation: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
-- **The beacon.** On the two sign-ins, the lighthouse at work: every ten seconds a beam passes over the lit cells, left to right, each brightening toward white for a moment as it goes, and the cells are still in between. A sign-in is a wait before the work, where a slow sign of life is welcome; the empty chat, where a customer arrives with a problem, keeps still. Under `prefers-reduced-motion` the cells only come on.
+- **The beacon.** On the two sign-ins, the lighthouse at work: every ten seconds a beam passes over the lit cells, left to right, each brightening toward white for a moment. A sign-in is a wait before the work, where a slow sign of life is welcome; the empty chat, where a customer arrives with a problem, keeps still. Under `prefers-reduced-motion` the cells only come on.
 
 ### Surfaces
 

@@ -45,7 +45,7 @@ And what it can't show: **how many contacts are about cards.** The snapshot's co
 
 ## Who it's for
 
-Three kinds of people use Faro. Only the cardholder talks to Faro, and the AI team reads the evaluation report in the repository rather than on the site ([ADR-0007](../adr/0007-role-gated-web-app.md#status)).
+Three kinds of people use Faro. Only the cardholder talks to it; the AI team reads the evaluation report in the repository, not on the site ([ADR-0007](../adr/0007-role-gated-web-app.md#status)).
 
 | Who | Their moment | What they get | Where |
 |---|---|---|---|
@@ -61,7 +61,7 @@ Three kinds of people use Faro. Only the cardholder talks to Faro, and the AI te
 
 ## What Faro does
 
-The brief asks for a system that understands, decides, acts, verifies, and escalates (`SL 11`). Faro recognizes [eight kinds of request](../policy/card-support.md#requests), all about cards, and takes one action: a block, written to a sandbox over the frozen bank. Every request ends on one of the brief's three paths:
+The organizers ask for a system that understands, decides, acts, verifies, and escalates (`SL 11`). Faro recognizes [eight kinds of request](../policy/card-support.md#requests), all about cards, and takes one action: a block, written to a sandbox over the frozen bank. Every request ends on one of their three paths:
 
 | Path | The customer says | Faro |
 |---|---|---|
@@ -88,7 +88,7 @@ Knowing when not to act is half the product (CTL-03):
 ## What sets it apart
 
 1. **A lighthouse doesn't steer the ship.** Faro shows the customer what the records say and proposes the one thing it can do. The customer's button decides; the model never confirms anything on the customer's behalf.
-2. **Judgment in code, not in the prompt.** The model classifies, extracts, and writes. Code decides each step, and the tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)). The evaluation states this as a hypothesis before it runs: unauthorized disclosures and actions stay at zero in every model configuration, and one counterexample refutes it ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#reporting)).
+2. **Judgment in code, not in the prompt.** The model classifies, extracts, and writes. Code decides each step, and the tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)). The evaluation states this as a hypothesis before it runs, and one counterexample refutes it ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#reporting)).
 3. **Done means verified.** After a block, the tool reads the card back. Faro says the card is blocked only when that read shows it, and hands the case to a person when it doesn't (POL-37, AI-05).
 4. **A handoff is a case file.** Each fact sits next to the tool call that read it, and the customer's words are kept apart from verified facts. The case is urgent when the customer reported a card lost or stolen, or a charge they don't recognize, and that card isn't verified blocked (POL-46, POL-47). Whoever picks it up doesn't start over.
 5. **Graded by an oracle that shares no code with it.** Expected outcomes come from the policy applied to the frozen bank, in SQL written apart from the tools, so a bug in Faro's data shows up as a disagreement instead of agreeing with itself ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#the-oracle)).
