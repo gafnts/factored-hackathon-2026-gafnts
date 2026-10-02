@@ -140,6 +140,20 @@ def test_candidates_are_paired_over_the_same_families() -> None:
     assert found["silent.gate_accuracy"].low is not None
 
 
+def test_a_language_with_one_family_per_group_decides_nothing() -> None:
+    other = [m for m in DEVELOPMENT if m.language == "other"]
+    eager = candidate("eager", lambda text: ["card_status"])
+
+    found = router.by_language(
+        {"perfect": read(PERFECT, other), "eager": read(eager, other)}, resamples=50
+    )
+
+    assert found["other"]["families"] == 1
+    gate = found["other"]["differences"]["eager - perfect"]["gate_accuracy"]
+    assert gate["low"] == gate["high"] < 0
+    assert gate["beats"] == "too_few_families"
+
+
 def test_routed_turns_a_router_in_code_into_a_free_candidate() -> None:
     def route(text: str) -> RouterOutput:
         return RouterOutput(

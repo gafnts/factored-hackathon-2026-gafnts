@@ -8,7 +8,8 @@ call, a confusion matrix, and every reading that missed, for reading by hand.
 Every figure comes with a 95% percentile bootstrap interval over families, since a family's paraphrases move
 together: 1,000 resamples from a fixed, reported seed, within each group, as the split draws a third of each, and the
 same resample for every candidate, so the interval of a difference is paired. A candidate beats another only when that
-interval excludes zero.
+interval excludes zero, and never in a language whose groups hold one family each, since every resample of it is the
+same draw.
 
 A candidate is a plug-in: a name, a callable from a message to a Reading, and the settings a manifest records. A
 router that answers in code, as the keyword baseline does, becomes one through routed(). The development side tunes:
@@ -348,9 +349,11 @@ def by_language(
         }
         estimates = paired(sliced, resamples)
         any_results = sliced[names[0]]
+        groups = {r.message.family_id: r.message.group for r in any_results}
+        varies = max(Counter(groups.values()).values(), default=0) > 1
         found[code] = {
             "messages": len(any_results),
-            "families": len({r.message.family_id for r in any_results}),
+            "families": len(groups),
             "candidates": {
                 n: {
                     k.removeprefix(f"{n}."): e.to_json()
@@ -365,7 +368,9 @@ def by_language(
                         **estimates[f"{later} - {earlier}.{k}"].to_json(),
                         "beats": verdict(
                             estimates[f"{later} - {earlier}.{k}"], later, earlier
-                        ),
+                        )
+                        if varies
+                        else "too_few_families",
                     }
                     for k in COMPARED
                 }
