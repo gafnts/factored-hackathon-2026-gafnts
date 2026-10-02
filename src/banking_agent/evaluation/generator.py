@@ -646,7 +646,8 @@ SITUATIONS = [
         "status in ('Closed', 'Suspended') and cards >= 1",
         nobody,
         HANDED,
-        family=_plain_read,
+        # Nobody fills a slot, so a message naming a card's last four digits would keep its placeholder.
+        family=lambda f: _plain_read(f) and not f.slots,
     ),
     Situation(
         "unsupported.offered",
