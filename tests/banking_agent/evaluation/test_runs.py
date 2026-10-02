@@ -67,6 +67,10 @@ def test_a_set_is_played_kept_and_summarized_without_a_value(
     written = (out / "summary.json").read_text(encoding="utf-8")
     assert json.loads(written)["passed"] == summary["passed"]
     assert not any(c["customer_id"] in written for c in chosen)
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    assert {(m["model"], m["provider"]) for m in manifest["models"]} == {
+        ("scripted", None)
+    }
 
 
 def test_the_baseline_plays_in_process_and_its_manifest_names_no_provider(

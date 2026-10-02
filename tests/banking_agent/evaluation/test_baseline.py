@@ -129,7 +129,7 @@ def test_the_next_page_is_a_request_only_after_a_reply_that_offered_it() -> None
     ]
 
 
-def test_the_router_answers_through_the_agents_model_call_at_no_cost() -> None:
+def test_the_router_answers_through_the_agents_model_call_named_at_no_cost() -> None:
     called, recorded = models()
 
     routed = asyncio.run(called.route("Bloqueio do meu cartão, por favor.", MORE))
@@ -137,11 +137,12 @@ def test_the_router_answers_through_the_agents_model_call_at_no_cost() -> None:
     assert routed.requests == ["block_card"]
     assert routed.language == "pt"
     [entry] = recorded
-    assert (entry["outcome"], entry["model_returned"], entry["cost_usd"]) == (
-        "ok",
+    assert (entry["provider"], entry["model_requested"], entry["model_returned"]) == (
+        None,
         "baseline",
-        0.0,
+        "baseline",
     )
+    assert (entry["outcome"], entry["cost_usd"]) == ("ok", 0.0)
     assert entry["output"]["requests"] == ["block_card"]
 
 

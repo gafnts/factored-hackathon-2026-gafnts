@@ -41,6 +41,7 @@ from langchain_core.runnables import Runnable, RunnableLambda
 
 from banking_agent.agent.models import (
     ORDER,
+    Declared,
     HandoffText,
     Label,
     Language,
@@ -545,7 +546,7 @@ STRUCTURED = {
 }
 
 
-def factory(purpose: str) -> Runnable[Any, Any]:
+def runnable(purpose: str) -> Runnable[Any, Any]:
     """
     The baseline's runnable for a model call's purpose, in place of the provider's (models.Factory): a reply for any
     purpose without a structured output, as the provider's factory gives plain text.
@@ -553,3 +554,6 @@ def factory(purpose: str) -> Runnable[Any, Any]:
     if purpose in STRUCTURED:
         return RunnableLambda(STRUCTURED[purpose])
     return RunnableLambda(written)
+
+
+factory = Declared(runnable, None, MODEL)

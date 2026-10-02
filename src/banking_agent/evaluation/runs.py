@@ -126,13 +126,12 @@ def digest(value: Any) -> str:
     ).hexdigest()
 
 
-def answered(played: Played, models: str) -> list[dict[str, Any]]:
+def answered(played: Played) -> list[dict[str, Any]]:
     """
-    Per node and purpose, the calls the models answered. The record names the provider's model on every call
-    (models.py), so the manifest names the models that answered, with no provider.
+    Per node and purpose, the calls each model answered, as the record names the model and its provider.
     """
-    calls: Counter[tuple[str, str]] = Counter(
-        (e["node"], e["purpose"])
+    calls: Counter[tuple[str, str, str, str | None]] = Counter(
+        (e["node"], e["purpose"], e["model_requested"], e["provider"])
         for _, evidence, _ in played
         for e in evidence["record"]
         if e["kind"] == "model_call"
@@ -141,11 +140,11 @@ def answered(played: Played, models: str) -> list[dict[str, Any]]:
         {
             "node": node,
             "purpose": purpose,
-            "model": models,
-            "provider": None,
+            "model": model,
+            "provider": provider,
             "calls": n,
         }
-        for (node, purpose), n in sorted(calls.items())
+        for (node, purpose, model, provider), n in sorted(calls.items())
     ]
 
 
@@ -199,7 +198,7 @@ def manifest(
         "grader": grader.VERSION,
         "system": models,
         "judge": None,
-        "models": answered(played, models),
+        "models": answered(played),
         "fixtures": digest([c["fixtures"] for c, _, _ in played]),
         "faults": digest([c["faults"] for c, _, _ in played]),
         "parallelism": 1,

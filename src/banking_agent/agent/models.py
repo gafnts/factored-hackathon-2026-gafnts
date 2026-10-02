@@ -9,6 +9,7 @@ decision 18 says (retries.py), and the client's own retries are off, since each 
 
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from hashlib import sha256
 from importlib.resources import files
 from typing import Any, Literal
@@ -66,6 +67,21 @@ Language = Literal["es", "pt", "other", "unclear"]
 
 Factory = Callable[[str], Runnable[Any, Any]]
 Record = Callable[..., Any]
+
+
+@dataclass(frozen=True)
+class Declared:
+    """
+    A factory with the provider and the model it runs, which the record names on every call: no provider for
+    ADR-0005's deterministic baseline and scripted models (ADR-0004's amendment of 2026-10-02).
+    """
+
+    make: Factory
+    provider: str | None
+    model: str
+
+    def __call__(self, purpose: str) -> Runnable[Any, Any]:
+        return self.make(purpose)
 
 
 class RouterOutput(BaseModel):
@@ -184,7 +200,7 @@ def prompt_version(name: str) -> str:
     return sha256(prompt(name).encode("utf-8")).hexdigest()[:16]
 
 
-def anthropic_factory(key: str) -> Factory:
+def anthropic_factory(key: str) -> Declared:
     def make(purpose: str) -> Runnable[Any, Any]:
         chat = init_chat_model(
             f"{PROVIDER}:{MODEL}",
@@ -204,7 +220,7 @@ def anthropic_factory(key: str) -> Factory:
         )
         return runnable.with_config(metadata=EMIT_OFF)
 
-    return make
+    return Declared(make, PROVIDER, MODEL)
 
 
 def failure(error: Exception) -> str:
@@ -277,6 +293,9 @@ class Models:
         elapsed is how long the turn has run, in seconds, which the retries' deadline reads.
         """
         self.factory = factory
+        # A factory that declares nothing stands in for the provider's, as the agent's tests' fakes do.
+        self.provider: str | None = getattr(factory, "provider", PROVIDER)
+        self.requested: str = getattr(factory, "model", MODEL)
         self.record = record
         self.retries = retries
         self.elapsed = elapsed
@@ -346,8 +365,8 @@ class Models:
         entry: dict[str, Any] = {
             "node": node,
             "purpose": purpose,
-            "provider": PROVIDER,
-            "model_requested": MODEL,
+            "provider": self.provider,
+            "model_requested": self.requested,
             "model_returned": (
                 raw.response_metadata.get("model_name") if raw else None
             ),
