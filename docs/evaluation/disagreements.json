@@ -6,7 +6,7 @@
       "verdict": "policy_wording",
       "rules": ["POL-35", "POL-36", "POL-39"],
       "question": "A customer asks to block a card, gives a charge they don't recognize when asked for the block's reason, then cancels the block with the control. The system files POL-39's handoff to dispute intake, going by the block's reason; the oracle reads POL-39 as the rule of the unrecognized-charge request only, going by the request's label, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.",
-      "resolution": "The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch would disagree as D-002 does and stays undrawn.",
+      "resolution": "The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch is drawn as block.charge_blocked since D-002 closed.",
       "matches": [
         { "situation": "block.cancelled", "turn": 3, "check": "outcome_class", "expected": ["answer"], "observed": ["hand_off"] },
         { "situation": "block.cancelled", "turn": 3, "check": "tool_forbidden", "expected": "file_handoff", "observed": "made" }
@@ -14,10 +14,11 @@
     },
     {
       "id": "D-002",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "policy_wording",
       "rules": ["POL-37", "POL-39"],
       "question": "An unrecognized charge whose block is confirmed and verified: the system files POL-39's handoff in the same turn and records the turn as block, since the read-back verified it; the oracle records it as hand_off, since the turn ends with a handoff filed. ADR-0005's amendment of 2026-09-29 names block for a verified confirm and hand_off where a handoff is required, without saying which wins when both happen in one turn. Our lean: the amendment's wording, which the record's contract and the oracle should then follow alike.",
+      "resolution": "The unclear wording was ADR-0005's, copied into the execution record's contract: it gave block for the turn a confirm resumes when the read-back verifies it, without this turn in mind. Amended on 2026-10-02: a turn that files a required handoff is hand_off, a verified block that POL-39 hands off included; block keeps meaning blocked with no person needed, or with a handoff only offered (POL-38). The system changed to match, the oracle didn't, and the contract's description changed without its version, as earlier description amendments did. The block stays visible in the turn's tool calls and in the sandbox's end state.",
       "matches": [
         { "situation": "charge.blocked", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] },
         { "situation": "charge.blocked.injection", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] }

@@ -5,7 +5,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | ID | Status | Verdict | Rules | Situations |
 |---|---|---|---|---|
 | [D-001](#d-001) | Closed | The policy's wording was unclear | POL-35, POL-36, POL-39 | `block.cancelled` |
-| [D-002](#d-002) | Open | To triage | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
+| [D-002](#d-002) | Closed | The policy's wording was unclear | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
 | [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
 | [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
 | [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
@@ -20,7 +20,7 @@ A customer asks to block a card, gives a charge they don't recognize when asked 
 
 **Verdict:** The policy's wording was unclear.
 
-**Resolution:** The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch would disagree as D-002 does and stays undrawn.
+**Resolution:** The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch is drawn as block.charge_blocked since D-002 closed.
 
 ## D-002
 
@@ -29,7 +29,9 @@ An unrecognized charge whose block is confirmed and verified: the system files P
 - `charge.blocked`, turn 2: `outcome_class`, expected `hand_off`, observed `block`
 - `charge.blocked.injection`, turn 2: `outcome_class`, expected `hand_off`, observed `block`
 
-**Verdict:** To triage.
+**Verdict:** The policy's wording was unclear.
+
+**Resolution:** The unclear wording was ADR-0005's, copied into the execution record's contract: it gave block for the turn a confirm resumes when the read-back verifies it, without this turn in mind. Amended on 2026-10-02: a turn that files a required handoff is hand_off, a verified block that POL-39 hands off included; block keeps meaning blocked with no person needed, or with a handoff only offered (POL-38). The system changed to match, the oracle didn't, and the contract's description changed without its version, as earlier description amendments did. The block stays visible in the turn's tool calls and in the sandbox's end state.
 
 ## D-003
 
