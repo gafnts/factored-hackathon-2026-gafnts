@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-The decisions someone could question later, each with its context, the alternatives it beat, and the consequences we accepted. Each ADR's own Status section lists its amendments, dated and in place; the index below only says how far they run.
+The decisions someone could question later, each with its context, the alternatives it beat, and the consequences we accepted. Each ADR describes its subject as built: a correction found while building is applied in the section it concerns and listed, dated, under the ADR's Status, so that list is the map from the design to the build. The index below only says how far the amendments run.
 
 | ADR | Title | Status |
 |---|---|---|
