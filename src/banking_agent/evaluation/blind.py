@@ -4,7 +4,8 @@ evidence it draws 30 Spanish and 30 Portuguese replies, stratified by the outcom
 among them, and seeds failing replies: for each question, replies outside the natural draw that the question applies
 to, each edited by one of the edits in seeds.json to break exactly that point and labeled seeded. The selection set
 hasn't been graded, so how many natural replies deserve a no isn't known when the sample is drawn; each question gets
-the bar's count of seeded replies, and the agreement report counts natural and seeded apart.
+the bar's count of seeded replies, or more if asked, never fewer, and the agreement report counts natural and seeded
+apart.
 
 The sheet a person fills shows the natural and seeded replies shuffled together, under row numbers, with what the
 judge reads and nothing of the key: which rows are seeded, and from which reply, stays in key.json. Only a sample drawn
@@ -324,6 +325,12 @@ def sample(
     """
     Draws, seeds, and writes the sheet, its guide, the key, the items the judge reads, and a manifest; returns it.
     """
+    floor = rubric.bar["deserve_no"]
+    count = floor if per_question is None else per_question
+    if count < floor:
+        raise SampleError(
+            f"each question takes at least the bar's {floor} seeded replies, not {count}"
+        )
     info = run_info(run)
     found = judge.run_items(run)
     if not found:
@@ -331,7 +338,6 @@ def sample(
     rng = random.Random(seed)
     natural = draw(found, rng, per_language)
     taken = {i.item_id for i in natural}
-    count = rubric.bar["deserve_no"] if per_question is None else per_question
     seeds = load_seeds()
     made, short = seeded(
         [i for i in found if i.item_id not in taken], rubric, seeds, rng, count

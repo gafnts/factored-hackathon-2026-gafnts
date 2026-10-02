@@ -77,7 +77,7 @@ def add(commands: Any) -> None:
         "--seeded",
         type=int,
         default=None,
-        help="Seeded replies per question (the bar's count)",
+        help="Seeded replies per question: the bar's count, or more, never fewer",
     )
     agreeing = commands.add_parser(
         "judge-agreement",

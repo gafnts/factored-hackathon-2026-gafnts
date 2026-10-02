@@ -83,7 +83,7 @@ def item(n: int, language: str, outcome: str) -> Item:
     )
 
 
-def pool(per: int = 12) -> list[Item]:
+def pool(per: int = 30) -> list[Item]:
     found = []
     n = 0
     for language in ("es", "pt"):
@@ -268,11 +268,12 @@ def test_the_sample_writes_a_blind_sheet_its_guide_and_a_key_kept_apart(
     run = played(tmp_path, found)
     out = tmp_path / "sample"
 
-    manifest = blind.sample(run, out, RUBRIC, seed=5, per_language=10, per_question=2)
+    manifest = blind.sample(run, out, RUBRIC, seed=5, per_language=10)
 
     assert manifest["validates"] is False
     assert manifest["natural"] == {"es": 10, "pt": 10}
-    assert manifest["rows"] == 20 + 2 * len(RUBRIC.questions)
+    assert manifest["seeded_short"] == {}
+    assert manifest["rows"] == 20 + 10 * len(RUBRIC.questions)
     rows = blind.read_sheet(out / "sheet.csv")
     assert [r["row"] for r in rows] == [str(n) for n in range(1, manifest["rows"] + 1)]
     sheet = (out / "sheet.csv").read_text(encoding="utf-8")
@@ -282,7 +283,7 @@ def test_the_sample_writes_a_blind_sheet_its_guide_and_a_key_kept_apart(
         and "0000000000000001" not in sheet
     )
     key = json.loads((out / "key.json").read_text(encoding="utf-8"))
-    assert sum(k["seeded_for"] is not None for k in key) == 2 * len(RUBRIC.questions)
+    assert sum(k["seeded_for"] is not None for k in key) == 10 * len(RUBRIC.questions)
     by_row = {str(k["row"]): k for k in key}
     clarify = next(
         r
@@ -315,3 +316,17 @@ def test_a_run_without_replies_is_refused(
 
     with pytest.raises(blind.SampleError):
         blind.sample(played(tmp_path, []), tmp_path / "out", RUBRIC)
+
+
+def test_no_question_is_seeded_below_the_bar_s_floor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = pool()
+    monkeypatch.setattr(judge, "run_items", lambda run: found)
+    run = played(tmp_path, found)
+
+    with pytest.raises(blind.SampleError, match="at least the bar's 10"):
+        blind.sample(run, tmp_path / "low", RUBRIC, per_question=9)
+    more = blind.sample(run, tmp_path / "high", RUBRIC, per_question=11)
+
+    assert set(more["seeded"].values()) == {11}

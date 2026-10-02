@@ -206,7 +206,7 @@ judge: ## Judge a run's replies (RUN=data/evaluation/runs/<run>) or a sample's (
 	uv run python -m banking_agent.evaluation judge $(if $(ITEMS),--items $(ITEMS),--run $(RUN)) --env-file $(or $(ENV_FILE),.env) \
 		$(if $(LIMIT),--limit $(LIMIT)) $(if $(filter 1,$(ESTIMATE)),--estimate)
 
-judge-sample: ## Draw the judge's blind sample and sheet from a run's replies, seeding failing ones (RUN=, SEEDED= per question)
+judge-sample: ## Draw the judge's blind sample and sheet from a run's replies, seeding failing ones (RUN=, SEEDED= per question, never below the bar's 10)
 	uv run python -m banking_agent.evaluation judge-sample --run $(RUN) $(if $(SEEDED),--seeded $(SEEDED))
 
 judge-agreement: ## Score the judge against a filled blind sheet: agreement and kappa with intervals (SAMPLE=, JUDGED=)

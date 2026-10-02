@@ -105,7 +105,7 @@ def graded(
         json.dumps({"set": "regression", "mode": "in_process"}), encoding="utf-8"
     )
     sample = tmp_path / "sample"
-    blind.sample(run, sample, RUBRIC, seed=11, per_language=10, per_question=2)
+    blind.sample(run, sample, RUBRIC, seed=11, per_language=10)
     items = judge.read_items(sample / "items.jsonl")
     judged = Judged()
     for item in items:
@@ -158,8 +158,11 @@ def test_the_report_scores_each_question_and_applies_the_bar(
     sample, judged_run, _ = graded(tmp_path, monkeypatch)
     rng = random.Random(0)
 
+    # Four of the language seeds read as passing to the grader, which leaves that question short of the bar's count.
+    missed = {f"seeded-language-{n:02d}" for n in range(7, 11)}
+
     def hand(q: rubric.Question, item: judge.Item, key: dict[str, Any]) -> Any:
-        if key["seeded_for"] == q.id:
+        if key["seeded_for"] == q.id and item.item_id not in missed:
             return {"choice": "mixed", "yes_no": "no", "score": 1}[q.type]
         if q.id == "decision" and rng.random() < 0.5:
             return "no"
@@ -177,12 +180,12 @@ def test_the_report_scores_each_question_and_applies_the_bar(
     }
     by = {q["question"]: q for q in found["questions"]}
     language = by["language"]
-    assert language["seeded"] == 2 and language["deserve_no"] == {
+    assert language["seeded"] == 10 and language["deserve_no"] == {
         "natural": 0,
-        "seeded": 2,
+        "seeded": 6,
     }
-    assert language["caught"]["seeded"] == {"failing": 2, "caught": 0}
-    assert language["natural"] == 20 and language["pairs"] == 22
+    assert language["caught"]["seeded"] == {"failing": 6, "caught": 0}
+    assert language["natural"] == 20 and language["pairs"] == 30
     assert language["verdict"] == "hand"
     assert "too few replies deserve a no" in language["why"]
     decision = by["decision"]
@@ -258,9 +261,7 @@ def test_the_commands_draw_a_sample_and_score_a_judge_run(
     run = tmp_path / "run"
     out = tmp_path / "samples"
 
-    drawn = cli.main(
-        ["judge-sample", "--run", str(run), "--out", str(out), "--seeded", "1"]
-    )
+    drawn = cli.main(["judge-sample", "--run", str(run), "--out", str(out)])
     scored = cli.main(
         ["judge-agreement", "--sample", str(sample), "--judged", str(judged_run)]
     )
@@ -271,5 +272,8 @@ def test_the_commands_draw_a_sample_and_score_a_judge_run(
     assert "this sample checks the tooling" in printed
     assert all(f"{q.id}: " in printed for q in RUBRIC.questions)
     assert (sample / f"agreement-{judged_run.name}.json").is_file()
+    below = ["judge-sample", "--run", str(run), "--out", str(out), "--seeded", "9"]
+    assert cli.main(below) == 1
+    assert "at least the bar's 10" in capsys.readouterr().err
     monkeypatch.setattr(judge, "run_items", lambda run: [])
     assert cli.main(["judge-sample", "--run", str(run), "--out", str(out)]) == 1
