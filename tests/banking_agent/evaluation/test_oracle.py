@@ -375,6 +375,53 @@ def test_today_is_the_business_date_not_the_as_of_instants_day(
     assert turn["facts"]["{transaction.status}"] == "aprobada"
 
 
+@pytest.mark.parametrize(
+    ("ending", "outcome", "priority", "blocked"),
+    [
+        ("cancel", "declined", "urgent", []),
+        ("confirm", "verified", "normal", ["PRD-EVAL00000301"]),
+        ("confirm", "failed", "urgent", []),
+    ],
+)
+def test_a_block_for_an_unrecognized_charge_ends_in_dispute_intake_however_it_ends(
+    con: duckdb.DuckDBPyConnection,
+    ending: str,
+    outcome: str,
+    priority: str,
+    blocked: list[str],
+) -> None:
+    played = case(
+        "CLI-EVAL00000003",
+        "block_card-01",
+        answers={
+            "reason": "reason_unrecognized_charge-01",
+            "confirm_control": ending,
+        },
+    )
+    if outcome == "failed":
+        played = faulted(played, "block_card", 3)
+
+    expected = play(con, played)
+
+    assert path(expected) == [
+        ("message", [("block_card", "clarify")], "reason"),
+        ("reason", [("block_card", "block")], "confirm_control"),
+        (ending, [("block_card", "hand_off")], "none"),
+    ]
+    last = expected["turns"][-1]
+    assert last["handoff"] == {
+        "reason_code": "unrecognized_charge",
+        "trigger": "required",
+        "queue": "dispute_intake",
+        "priority": priority,
+    }
+    assert last["tools_required"] == (
+        ["file_handoff"] if ending == "cancel" else ["block_card", "file_handoff"]
+    )
+    assert "POL-39" in last["decisions"][0]["rules"]
+    assert expected["blocked"] == blocked
+
+
 def test_a_cancelled_charge_block_is_handed_off_urgently(
     con: duckdb.DuckDBPyConnection,
 ) -> None:

@@ -44,7 +44,7 @@ def test_a_set_is_played_kept_and_summarized_without_a_value(
     bank: Bank, drawn: list[dict[str, Any]], tmp_path: Path
 ) -> None:
     chosen = [
-        c for c in drawn if c["situation"] in ("status.one_card", "block.cancelled")
+        c for c in drawn if c["situation"] in ("status.one_card", "charge.blocked")
     ]
     set_path = tmp_path / "sets" / "regression.jsonl"
     cases.write(set_path, chosen)
@@ -57,7 +57,7 @@ def test_a_set_is_played_kept_and_summarized_without_a_value(
         0,
         0,
     )
-    assert summary["covered"] == {"D-001": 4}
+    assert summary["covered"] == {"D-002": 2}
     assert summary["uncovered"] == {}
     for kept in ("evidence.jsonl", "grades.jsonl"):
         assert len((out / kept).read_text(encoding="utf-8").splitlines()) == len(chosen)

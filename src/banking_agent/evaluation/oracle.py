@@ -650,12 +650,18 @@ class Conversation:
         )
         while shown.sends == "typed_yes":
             shown = yield Step("block", ["POL-36"], "confirm_control")
+        charge = reason == "unrecognized_charge"
         if shown.sends == "cancel":
+            if charge:
+                return self.disputed(["POL-36", "POL-39"], ("file_handoff",), "urgent")
             return Step("answer", ["POL-36"])
         if self.fails("block_card"):
-            if reason not in ("lost", "stolen", "customer_request"):
-                raise NotCoveredError("a failed block for a charge")
-            # POL-37: not verified, so handed off without another confirmation; POL-47 for a card reported missing.
+            # POL-37: not verified, so handed off without another confirmation; POL-47 for a card reported missing or a
+            # charge, whose handoff goes to dispute intake (POL-39).
+            if charge:
+                return self.disputed(
+                    ["POL-37", "POL-39"], ("block_card", "file_handoff"), "urgent"
+                )
             return Step(
                 "hand_off",
                 ["POL-37"],
@@ -668,6 +674,12 @@ class Conversation:
             )
         # The block's read-back.
         self.unplanned("get_card")
+        if charge:
+            return self.disputed(
+                ["POL-37", "POL-39", "POL-45"],
+                ("block_card", "file_handoff"),
+                blocked=card.product_id,
+            )
         blocked = Step(
             "block",
             ["POL-03", "POL-37"],
@@ -708,18 +720,30 @@ class Conversation:
         while shown.sends == "typed_yes":
             shown = yield Step("block", ["POL-36"], "confirm_control")
         if shown.sends == "cancel":
-            return Step(
-                "hand_off",
-                ["POL-36", "POL-39"],
-                tools=("file_handoff",),
-                handoff=handoff("unrecognized_charge", "required", "urgent"),
-            )
+            return self.disputed(["POL-36", "POL-39"], ("file_handoff",), "urgent")
+        return self.disputed(
+            ["POL-37", "POL-39", "POL-45"],
+            ("block_card", "file_handoff"),
+            blocked=card.product_id,
+        )
+
+    def disputed(
+        self,
+        rules: list[str],
+        tools: tuple[str, ...],
+        priority: str = "normal",
+        blocked: str | None = None,
+    ) -> Step:
+        """
+        POL-39's handoff to dispute intake once the block's confirmation ends, whether the charge was reported or given
+        as a block's reason.
+        """
         return Step(
             "hand_off",
-            ["POL-37", "POL-39", "POL-45"],
-            tools=("block_card", "file_handoff"),
-            handoff=handoff("unrecognized_charge", "required"),
-            blocked=card.product_id,
+            rules,
+            tools=tools,
+            handoff=handoff("unrecognized_charge", "required", priority),
+            blocked=blocked,
         )
 
     def talk_to_human(self, family: Family) -> Request:

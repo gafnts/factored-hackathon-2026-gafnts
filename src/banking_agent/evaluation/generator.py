@@ -570,7 +570,7 @@ SITUATIONS = [
         ("block_card",),
         "active = 1",
         only_card(_active),
-        [("clarify", "reason"), ("block", "confirm_control"), ("answer", "none")],
+        [("clarify", "reason"), ("block", "confirm_control"), ("hand_off", "none")],
         {"reason": "reason_unrecognized_charge", "confirm_control": "cancel"},
         family=lambda f: "block_reason" not in f.extract,
     ),
