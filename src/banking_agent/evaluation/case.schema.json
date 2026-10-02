@@ -209,7 +209,7 @@
           "additionalProperties": { "type": "string", "minLength": 1 }
         },
         "withheld": {
-          "description": "Values the reply must not state, such as a closed card's status (POL-29).",
+          "description": "Words no event may show the customer, compared without case: those naming a customer status the policy withholds (POL-12), unless one of the customer's cards is in it.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },

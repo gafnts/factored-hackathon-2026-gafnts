@@ -5,6 +5,7 @@ the tools, the facts, and the handoff the policy gives it, and agrees with get_a
 
 import json
 from collections.abc import Iterator
+from dataclasses import replace
 from importlib.resources import files
 from typing import Any
 
@@ -553,6 +554,26 @@ def test_requests_that_end_in_one_turn(
 
     assert [d["outcome_class"] for d in turn["decisions"]] == [outcome]
     assert turn.get("handoff", {}).get("reason_code") == reason_code
+
+
+def test_a_status_the_policy_withholds_is_withheld_unless_a_card_shares_it(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    [suspended] = play(con, case("CLI-EVAL00000008", "card_status-01"))["turns"]
+    [served] = play(con, case("CLI-EVAL00000003", "card_status-01"))["turns"]
+    customer = state.read(con, "CLI-EVAL00000008")
+    assert customer is not None
+    card = replace(customer.cards[0], status="Suspended")
+    [sharing] = oracle.expect(
+        replace(customer, cards=(card,)),
+        case("CLI-EVAL00000008", "card_status-01"),
+        FAMILIES,
+        contract_words(),
+    )["turns"]
+
+    assert suspended["withheld"] == list(oracle.WITHHELD["Suspended"])
+    assert served["withheld"] == []
+    assert sharing["withheld"] == []
 
 
 def test_a_message_with_no_request_or_another_language_has_no_label(

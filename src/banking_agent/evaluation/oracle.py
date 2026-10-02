@@ -2,7 +2,8 @@
 The oracle (ADR-0005, The oracle): a second reading of the policy's outcomes, from the policy's text and the customer's
 state in bronze, never from the tools or the graph. For one case it plays the script against the policy and says, turn
 by turn, what each request served should record (its outcome class, what the turn waits for, the tools it must and must
-not call, the facts the reply must state, and the handoff it files) and which cards end blocked. It writes no reply.
+not call, the facts the reply must state, the words naming a status it must not, and the handoff it files) and which
+cards end blocked. It writes no reply.
 The facts are formatted in the conversation's language turn by turn: Spanish until a message clearly in one of the two
 languages sets it, which a paraphrase the family marks as unclear doesn't (POL-50; ADR-0005's amendment of 2026-10-02).
 
@@ -62,6 +63,11 @@ REASONS = {
     "reason_stolen": "stolen",
     "reason_unrecognized_charge": "unrecognized_charge",
     "reason_customer_request": "customer_request",
+}
+# POL-12: the words that would name a status the policy withholds from the customer, in either language.
+WITHHELD = {
+    "Closed": ("closed", "cerrado", "cerrada", "encerrado", "encerrada"),
+    "Suspended": ("suspended", "suspendido", "suspendida", "suspenso", "suspensa"),
 }
 MAX_TURNS = 12
 # A call's attempts: the first and POL-48's two retries (ADR-0004's decision 18).
@@ -190,6 +196,12 @@ class Conversation:
                 raise NotCoveredError("a fault plan past a tool's first call")
             self.left[fault["tool"]] = fault["failures"]
         self.customer = customer
+        # A card in the same status may be named by its own (POL-21, POL-34), and its words can't be told apart.
+        self.withheld = (
+            []
+            if customer.status in {c.status for c in customer.cards}
+            else list(WITHHELD.get(customer.status or "", ()))
+        )
         self.case = case
         self.script = case["script"]
         self.families = families
@@ -345,7 +357,7 @@ class Conversation:
             "tools_required": [],
             "tools_forbidden": [],
             "facts": {},
-            "withheld": [],
+            "withheld": list(self.withheld),
         }
         self.turns.append(turn)
         return turn
