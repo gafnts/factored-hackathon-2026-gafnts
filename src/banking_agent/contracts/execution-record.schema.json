@@ -325,7 +325,10 @@
         "kind": { "const": "model_call" },
         "node": { "enum": ["route", "resolve_card", "find_transaction", "reply", "handoff"] },
         "purpose": { "enum": ["route", "extract", "reply", "handoff_text"] },
-        "provider": { "enum": ["anthropic", "openai", "google"] },
+        "provider": {
+          "description": "Null when no provider ran: the deterministic baseline or the scripted models (ADR-0005).",
+          "enum": ["anthropic", "openai", "google", null]
+        },
         "model_requested": { "type": "string", "minLength": 1, "maxLength": 128 },
         "model_returned": {
           "description": "The model_name the provider returned; null when the call failed.",
