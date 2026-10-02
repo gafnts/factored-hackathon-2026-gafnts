@@ -153,7 +153,7 @@ def score(
     share = agreed / len(pairs) if pairs else None
     bounds = intervals.wilson(agreed, len(pairs))
     estimates = intervals.bootstrap(
-        pairs, {"kappa": lambda drawn: kappa(q, drawn, weights)}
+        pairs, lambda drawn: {"kappa": kappa(q, drawn, weights)}
     )
     deserve = {
         "natural": sum(not p.hand_passes for p in pairs if not p.seeded),

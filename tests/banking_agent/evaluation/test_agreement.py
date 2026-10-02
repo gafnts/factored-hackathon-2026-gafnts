@@ -63,26 +63,17 @@ def test_the_bootstrap_is_seeded_stratified_and_paired() -> None:
     units = [("a", 1.0), ("a", 3.0), ("b", 10.0), ("b", 20.0), ("b", 30.0)]
     seen: list[list[tuple[str, float]]] = []
 
-    def mean(drawn: Sequence[tuple[str, float]]) -> float:
+    def measure(drawn: Sequence[tuple[str, float]]) -> dict[str, float | None]:
         seen.append(list(drawn))
-        return sum(v for _, v in drawn) / len(drawn)
-
-    def same(drawn: Sequence[tuple[str, float]]) -> float:
-        return mean(drawn) - mean(drawn)
+        mean = sum(v for _, v in drawn) / len(drawn)
+        doubled = 2 * mean
+        return {"mean": mean, "zero": doubled - 2 * mean}
 
     first = intervals.bootstrap(
-        units,
-        {"mean": mean, "zero": same},
-        resamples=200,
-        seed=7,
-        strata=lambda u: u[0],
+        units, measure, resamples=200, seed=7, strata=lambda u: u[0]
     )
     again = intervals.bootstrap(
-        units,
-        {"mean": mean, "zero": same},
-        resamples=200,
-        seed=7,
-        strata=lambda u: u[0],
+        units, measure, resamples=200, seed=7, strata=lambda u: u[0]
     )
 
     assert first == again
@@ -96,11 +87,11 @@ def test_the_bootstrap_is_seeded_stratified_and_paired() -> None:
 
 def test_an_undefined_statistic_is_counted_out_of_its_resamples() -> None:
     found = intervals.bootstrap(
-        [1, 2], {"odd": lambda d: None if sum(d) % 2 else 1.0}, resamples=100
+        [1, 2], lambda d: {"odd": None if sum(d) % 2 else 1.0}, resamples=100
     )
 
     assert 0 < found["odd"].defined < 100
-    empty = intervals.bootstrap([], {"x": lambda d: None})
+    empty = intervals.bootstrap([], lambda d: {"x": None})
     assert empty["x"] == intervals.Estimate(None, None, None, 0)
 
 

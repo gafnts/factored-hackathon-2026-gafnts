@@ -1,10 +1,10 @@
 """
 Intervals for the evaluation's measures (ADR-0005: Grading, validated before use; Baselines, the router), computed in
 code without a statistics library. A percentile bootstrap resamples units with replacement, within strata when they
-are given, 1,000 times from a fixed, reported seed, and computes every statistic on the same resample, so a difference
-between two statistics is paired by construction. A statistic undefined on a resample (None, as a kappa is when both
-graders gave one answer throughout) is left out of that resample, and the estimate says how many resamples defined
-it. A share gets a Wilson interval.
+are given, 1,000 times from a fixed, reported seed, and computes every figure on the same resample, so a difference
+between two candidates' figures is paired by construction. A figure undefined on a resample (None, as a kappa is when
+both graders gave one answer throughout) is left out of that resample, and the estimate says how many resamples
+defined it. A share gets a Wilson interval.
 """
 
 import math
@@ -18,7 +18,7 @@ LEVEL = 0.95
 # The normal quantile for LEVEL's two-sided interval.
 Z = 1.959963984540054
 
-type Statistic[T] = Callable[[Sequence[T]], float | None]
+type Measure[T] = Callable[[Sequence[T]], Mapping[str, float | None]]
 
 
 @dataclass(frozen=True)
@@ -59,30 +59,33 @@ def percentile(ordered: Sequence[float], share: float) -> float:
 
 def bootstrap[T](
     units: Sequence[T],
-    statistics: Mapping[str, Statistic[T]],
+    measure: Measure[T],
     resamples: int = RESAMPLES,
     seed: int = SEED,
     strata: Callable[[T], Hashable] | None = None,
     level: float = LEVEL,
 ) -> dict[str, Estimate]:
+    """
+    measure gives every figure of a set of units by name, so all of them come from one resample.
+    """
     rng = random.Random(seed)
     groups: dict[Hashable, list[T]] = {}
     for unit in units:
         groups.setdefault(strata(unit) if strata else None, []).append(unit)
     ordered = [groups[k] for k in sorted(groups, key=repr)]
-    found: dict[str, list[float]] = {name: [] for name in statistics}
+    point = measure(units)
+    found: dict[str, list[float]] = {name: [] for name in point}
     for _ in range(resamples):
         drawn = [g[rng.randrange(len(g))] for g in ordered for _ in g]
-        for name, statistic in statistics.items():
-            value = statistic(drawn)
-            if value is not None:
+        for name, value in measure(drawn).items():
+            if value is not None and name in found:
                 found[name].append(value)
     tail = (1 - level) / 2
     estimates = {}
-    for name, statistic in statistics.items():
+    for name, value in point.items():
         values = sorted(found[name])
         estimates[name] = Estimate(
-            value=statistic(units),
+            value=value,
             low=percentile(values, tail) if values else None,
             high=percentile(values, 1 - tail) if values else None,
             defined=len(values),

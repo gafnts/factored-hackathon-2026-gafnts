@@ -2,27 +2,63 @@
 The commands that call models outside the system under test, and the judge's validation, which __main__ adds to its
 own. judge has Claude Opus 5.5 grade a run's replies, or a sample's, through the batch API, keeping its items,
 attempts, judgments, and manifest under data/evaluation/judge/. judge-sample draws the blind sample and its sheet from
-a run's replies, and judge-agreement scores a judge run against the filled sheet; neither calls a model. With
---estimate a command prices its calls and makes none; otherwise it reads the
+a run's replies, and judge-agreement scores a judge run against the filled sheet; neither calls a model. router
+compares the registered router candidates on one side of the family split, keeping its readings, errors, calls, and
+report under data/evaluation/router/. With --estimate a command prices its calls and makes none; otherwise it reads the
 Anthropic key from the env file, as the live language check does, and sends it to the client only. Each prints
 counts, never a reply, a value, or the key (SEC-03).
 """
 
 import argparse
+import asyncio
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import anthropic
 
-from banking_agent.evaluation import agreement, blind, judge, rubric, runs
+from banking_agent.evaluation import (
+    agreement,
+    blind,
+    families,
+    judge,
+    router,
+    rubric,
+    runs,
+)
 from banking_agent.model_key import ModelKeyError, read_key
 
-COMMANDS = ("judge", "judge-sample", "judge-agreement")
+COMMANDS = ("judge", "judge-sample", "judge-agreement", "router")
+
+# Each maker takes the env file and the list the candidate records its calls into, and reads no key until it calls.
+# The keyword baseline's entry is "keyword": lambda env_file, calls: router.routed("keyword", baseline.route).
+Make = Callable[[Path, list[dict[str, Any]]], router.Candidate]
+CANDIDATES: dict[str, Make] = {}
 
 
 def add(commands: Any) -> None:
+    comparing = commands.add_parser(
+        "router",
+        help="Compare router candidates per language on one side of the family split, paired over families",
+    )
+    comparing.add_argument(
+        "--candidate", action="append", required=True, choices=sorted(CANDIDATES)
+    )
+    comparing.add_argument("--side", choices=router.SIDES, default="development")
+    comparing.add_argument(
+        "--folds",
+        type=int,
+        default=None,
+        help="Cross-validate over this many family folds",
+    )
+    comparing.add_argument("--parallel", type=int, default=router.PARALLEL)
+    comparing.add_argument("--env-file", type=Path, default=Path(".env"))
+    comparing.add_argument("--out", type=Path, default=router.OUT)
+    comparing.add_argument(
+        "--estimate", action="store_true", help="Price it without calling a model"
+    )
     sampling = commands.add_parser(
         "judge-sample",
         help="Draw the judge's blind sample from a run's replies, with seeded failing ones, and its sheet",
@@ -144,6 +180,40 @@ def run_agreement(args: argparse.Namespace) -> None:
     print(f"kept in {agreement.write(found, args.sample)}")
 
 
+def run_router(args: argparse.Namespace, code: dict[str, Any]) -> None:
+    calls: list[dict[str, Any]] = []
+    chosen = [CANDIDATES[name](args.env_file, calls) for name in args.candidate]
+    if args.estimate:
+        loaded, answers = families.load(), families.load_answers()
+        found = router.messages(
+            loaded, families.held_out_ids(loaded, answers), args.side
+        )
+        for name, priced in router.estimate(chosen, found).items():
+            print(
+                f"{name}: {priced['calls']} calls, about {priced['cost_usd']:.2f} USD"
+            )
+        return
+    out = args.out / runs.run_id()
+    report = asyncio.run(
+        router.compare(chosen, args.side, out, code, calls, args.folds, args.parallel)
+    )
+    for code_name, part in report["by_language"].items():
+        print(
+            f"{code_name}: {part['messages']} messages from {part['families']} families"
+        )
+        for name, figures in part["candidates"].items():
+            f1, gate = figures["macro_f1"], figures["gate_accuracy"]
+            print(
+                f"  {name}: macro F1 {f1['value']} [{f1['low']}, {f1['high']}], "
+                f"gate {gate['value']} [{gate['low']}, {gate['high']}]"
+            )
+        for pair, compared in part["differences"].items():
+            print(
+                f"  {pair}: {', '.join(f'{k} {v["beats"]}' for k, v in compared.items())}"
+            )
+    print(f"{report['totals']}; kept in {out}")
+
+
 def main(args: argparse.Namespace, code: dict[str, Any]) -> int:
     try:
         if args.command == "judge":
@@ -152,7 +222,14 @@ def main(args: argparse.Namespace, code: dict[str, Any]) -> int:
             run_sample(args)
         elif args.command == "judge-agreement":
             run_agreement(args)
-    except (ModelKeyError, blind.SampleError, agreement.AgreementError) as error:
+        elif args.command == "router":
+            run_router(args, code)
+    except (
+        ModelKeyError,
+        blind.SampleError,
+        agreement.AgreementError,
+        router.RouterError,
+    ) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     return 0
