@@ -9,9 +9,54 @@ from the other language's conversation, so a message had to set its own language
 Anthropic model, wrote the paraphrases, and an Anthropic model reads them here, so the result may flatter it
 ([ADR-0005](../adr/0005-offline-scenario-evaluation.md), The split).
 
+Latest live check: 2026-10-02T16:32:52Z, claude-haiku-4-5-20251001, 910 items, 1.0552 USD at list price. Prompts: `route` ea87a737013fea24, `resolve_card` e5a7b712a2445616, `find_transaction` 0ddb0aba8c8f86c7.
+
 | Expected | Baseline read | Live read |
 |---|---|---|
-| es | 383 of 448 (85.5%) |  |
-| other | 2 of 6 (33.3%) |  |
-| pt | 384 of 446 (86.1%) |  |
-| unclear | 10 of 10 (100.0%) |  |
+| es | 383 of 448 (85.5%) | 443 of 448 (98.9%) |
+| other | 2 of 6 (33.3%) | 6 of 6 (100.0%) |
+| pt | 384 of 446 (86.1%) | 429 of 446 (96.2%) |
+| unclear | 10 of 10 (100.0%) | 0 of 10 (0.0%) |
+
+| Call | Live read |
+|---|---|
+| choose | 15 of 16 (93.8%) |
+| extract | 32 of 32 (100.0%) |
+| route | 831 of 862 (96.4%) |
+
+## Misses, latest live check
+
+| Message | Expected | Said |
+|---|---|---|
+| block_card-07/es/2 | unclear | es |
+| block_card-07/pt/2 | unclear | es |
+| block_card-11/es/0 | es | pt |
+| block_card-11/pt/1 | pt | es |
+| block_card-11/pt/2 | pt | es |
+| unrecognized_charge-12/pt/1 | pt | es |
+| unrecognized_charge-12/pt/3 | pt | es |
+| talk_to_human-03/es/1 | unclear | es |
+| talk_to_human-03/es/2 | unclear | es |
+| talk_to_human-03/es/4 | unclear | es |
+| talk_to_human-03/pt/1 | unclear | es |
+| talk_to_human-03/pt/2 | unclear | es |
+| talk_to_human-03/pt/4 | unclear | es |
+| talk_to_human-03/pt/5 | pt | es |
+| talk_to_human-05/pt/4 | pt | es |
+| decline_reason-03/pt/0 | pt | es |
+| decline_reason-03/pt/2 | pt | es |
+| decline_reason-03/pt/4 | pt | es |
+| decline_reason-08/es/3 | es | pt |
+| decline_reason-08/pt/3 | unclear | es |
+| card_status-07/pt/3 | pt | es |
+| available_credit-07/pt/4 | pt | unclear |
+| available_credit-12/pt/1 | pt | es |
+| recent_transactions-07/pt/2 | unclear | pt |
+| unsupported-12/pt/2 | pt | es |
+| unsupported-12/pt/3 | pt | es |
+| none-03/pt/5 | pt | es |
+| none-09/es/0 | es | unclear |
+| none-09/es/1 | es | unclear |
+| none-09/es/5 | es | unclear |
+| none-09/pt/2 | pt | unclear |
+| transaction_merchant-01/pt | pt | es |
