@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { browserLanguage } from "./language";
 import { NotFound } from "./pages/not-found";
 
-export type Route = "home" | "chat" | "agent" | "unknown";
+export type Route = "home" | "chat" | "cases" | "unknown";
 
 // Each route's code is its own chunk, so the console never downloads the chat, nor the chat the console.
 const Customer = lazy(() =>
@@ -20,8 +20,8 @@ export function routeOf(path: string): Route {
       return "home";
     case "/chat":
       return "chat";
-    case "/agent":
-      return "agent";
+    case "/cases":
+      return "cases";
     default:
       return "unknown";
   }
@@ -44,7 +44,7 @@ export function App({ path }: { path: string }) {
         </Suspense>
       );
     }
-    case "agent":
+    case "cases":
       return (
         <Suspense fallback={<div className="h-dvh" />}>
           <Agent />

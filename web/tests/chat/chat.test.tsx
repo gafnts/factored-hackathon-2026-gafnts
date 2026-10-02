@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { Chat } from "../../src/chat/chat";
-import cards from "../../src/personas.json";
 import { TEXTS } from "../../src/texts";
 import { errors, type Event, example, sse } from "../contract";
 
@@ -93,17 +92,12 @@ function runtime(
   return calls;
 }
 
-function chat(
-  language: "es" | "pt" = "pt",
-  onSignInEnded = vi.fn(),
-  persona: "persona-es" | "persona-pt" | null = null,
-) {
+function chat(language: "es" | "pt" = "pt", onSignInEnded = vi.fn()) {
   render(
     <Chat
       url={URL}
       session={SESSION}
       language={language}
-      persona={persona}
       onSignInEnded={onSignInEnded}
     />,
   );
@@ -304,19 +298,17 @@ test("tells the page while a turn runs, so a new conversation waits for it", asy
   });
 });
 
-test("a persona's sign-in opens on the label's card, its prompts over the suggestions", () => {
+test("every sign-in opens on the same template: the suggestions in one ruled row, and no card", () => {
   runtime(() => sse([]));
-  chat("pt", vi.fn(), "persona-pt");
+  chat("pt");
 
-  expect(
-    screen.getByText(cards["persona-pt"].description.pt),
-  ).toBeInTheDocument();
-  for (const prompt of cards["persona-pt"].prompts.pt) {
-    expect(screen.getByRole("button", { name: prompt })).toBeInTheDocument();
-  }
-  expect(
-    screen.queryByRole("button", { name: TEXTS.pt.chat.suggestions[0] }),
-  ).not.toBeInTheDocument();
+  expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  expect(screen.getByRole("list")).toHaveClass(
+    "divide-y",
+    "sm:grid-cols-3",
+    "sm:divide-x",
+    "sm:divide-y-0",
+  );
 });
 
 test("opens on Faro's question, with three numbered prompts that send themselves", async () => {

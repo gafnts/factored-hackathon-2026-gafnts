@@ -115,7 +115,7 @@ Light at dusk: a warm lamp against a cold sea. The palette runs from the lamp's 
 | **Night** | Black, with the banner's grid | The site's pages (the customer's sign-in and chat, the human agent's sign-in and console), the slides' covers, the video's titles |
 | **Paper** | A warm light gray | Work read at length off the site: the evaluation report and the slides' content |
 
-A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, no motion but the arrival, the sweep, and the sign-ins' beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
+A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, no motion but the arrival, the sweep, and the beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
 
 ### Palette
 
@@ -178,24 +178,24 @@ The mark isn't drawn yet; until it is, the wordmark stands alone, as in the bann
 
 ### Motifs
 
-- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the organizers' three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), the suggested prompts on the persona cards, and the suggestions under the empty chat's composer (`01` to `03`).
+- **Numbered labels.** Mono capitals, numbered: `No. 1 RESOLVE`, `No. 2 ASK OR DECLINE`, `No. 3 HAND OFF`, the organizers' three paths (SCP-03 to SCP-05). They order the slides, the [product brief](brief.md#what-faro-does), and the suggestions under the empty chat's composer (`01` to `03`).
 - **The grid.** The banner's: hairlines, a block cleared at the center for the wordmark, the empty chat's question and composer, or the sign-in form, and a few cells lit in `sea` with a `glow` bloom in the outer columns. It sits behind the two sign-ins and the empty chat, still but for the beacon, and leaves once a conversation starts or the console opens. Its hairlines run on under the rail and the bar; its lit cells keep clear of them, of text, and of glass, and a phone's empty chat has none.
 - **The glow.** The lit cells' two colors as one soft light behind the empty chat's composer, and nowhere else; the question above it keeps AA at its edge (Palette), and it goes with the grid.
 - **Glass.** Smoked glass for what floats over the grid or the glow and carries something: the composer, the suggestions, the controls, the sign-in forms, and the missing page's card. `night-raised` at 80%, a 24 px backdrop blur, and a hairline of white at 10%; the rail and the bar are thinner, at 55%, with a hairline on their inner edge. Replies sit on the ground, never on glass, and the console's panels float over nothing, so they are solid `night-raised`. Under `prefers-reduced-transparency` the glass turns solid.
 - **The arrival.** A page arrives whole, on Night from its first frame, once its faces have loaded: the bar, the rail, and the notice fade in, the content rises 12 px as it fades in, and the lit cells and the glow come on last, in under two seconds. A sign-in, a new conversation, a message, an opened case, and a case new to a queue arrive the same way, in place. Nothing moves once it has arrived but the beacon and the sweep, and under `prefers-reduced-motion` nothing rises: it only fades in.
 - **The sweep.** The only motion in a conversation: a slow beam of light while a turn runs. Replies arrive whole, after the reply check ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)), so the wait needs a sign of life. It stops under `prefers-reduced-motion`.
-- **The beacon.** On the two sign-ins, the lighthouse at work: every ten seconds a beam passes over the lit cells, left to right, each brightening toward white for a moment. A sign-in is a wait before the work, where a slow sign of life is welcome; the empty chat, where a customer arrives with a problem, keeps still. Under `prefers-reduced-motion` the cells only come on.
+- **The beacon.** Wherever the grid's cells are lit, the lighthouse at work: the first beam passes as the cells come on, then one every ten seconds, each cell brightening toward white for a moment in its turn. The two sign-ins and the empty chat are a wait before the work, where a slow sign of life is welcome. Under `prefers-reduced-motion` the cells only come on.
 
 ### Surfaces
 
 | Surface | Mode | What it carries |
 |---|---|---|
-| The customer's sign-in | Night | The bar with the bank's name, the banner's grid with the wordmark in its cleared block, and the sign-in form on glass |
-| `/chat` | Night | The bar with the wordmark, the persona's card, the rail with a new conversation, the empty chat's question over the composer, and the confirm and handoff controls on glass |
+| The customer's sign-in | Night | The bar with the bank's name and the language switch, the banner's grid with the wordmark in its cleared block, and the sign-in form on glass |
+| `/chat` | Night | The bar with the wordmark and the language switch, the rail with a new conversation, the empty chat's question over the composer, and the confirm and handoff controls on glass; once one is answered, the button pressed keeps its color as an outline, chosen rather than pressable, and the others fade |
 | The human agent's sign-in | Night | The customer's, with the console's bar |
-| `/agent` | Night | The console's bar, as on its sign-in; the rail with the sign-out; the queues and the case on solid panels; Geist Mono for references, reason codes, rule IDs, tool calls, and labels; urgent cases in `lamp` and verified actions in `sea`, each with its word |
+| `/cases` | Night | The console's bar, as on its sign-in; the rail with the sign-out; the queues and the case on solid panels; Geist Mono for references, reason codes, rule IDs, tool calls, and labels; urgent cases in `lamp` and verified actions in `sea`, each with its word |
 | A missing page | Night | The bar with the wordmark, and one card on glass, as the sign-in form's, holding only *Error 404* as a label in `sea`, *Página no encontrada*, and *Volver al inicio*, which leads to the chat |
 | The evaluation report | Paper | `docs/evaluation/`, labeled as an offline measurement in its header (EVL-13) |
 | Slides and video | Night covers and titles, Paper content | The banner, the three numbered paths, and the demo in the chat's own colors |
 
-LATAM Bank's name is set in Geist Medium, in `ink` or `bone`, with no mark: the bank is the organizers' fiction, and we don't invent a brand for it. The console is the bank's tool, so its bar reads *LATAM Bank | Consola de agentes* before the sign-in and after: the console's name in Geist, in `bone-muted`, after a hairline. Every tab, the customer's and the console's, is titled *LATAM Bank • Faro*: the bank's name first, as on its sign-in. Every page says it is a prototype over synthetic data (SEC-02, [ADR-0007](../adr/0007-role-gated-web-app.md#routes)).
+LATAM Bank's name is set in Geist Medium, in `ink` or `bone`, with no mark: the bank is the organizers' fiction, and we don't invent a brand for it. The console is the bank's tool, so its bar reads *LATAM Bank | Consola de casos* before the sign-in and after: the console's name in Geist, in `bone-muted`, after a hairline. Every tab, the customer's and the console's, is titled *LATAM Bank • Faro*: the bank's name first, as on its sign-in. Every page says it is a prototype over synthetic data (SEC-02, [ADR-0007](../adr/0007-role-gated-web-app.md#routes)).

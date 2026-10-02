@@ -18,11 +18,13 @@ test.each([
   ["/index.html", "home"],
   ["/chat", "chat"],
   ["/chat/", "chat"],
-  ["/agent", "agent"],
-  ["/agent/", "agent"],
+  ["/cases", "cases"],
+  ["/cases/", "cases"],
   // The AI team's page isn't built (ADR-0007's amendment of 2026-09-30).
   ["/ops", "unknown"],
-  ["/agent/cases", "unknown"],
+  // The console's old route (ADR-0007's amendment of 2026-10-02).
+  ["/agent", "unknown"],
+  ["/cases/7k2m-9qxa", "unknown"],
   ["/nope", "unknown"],
 ])("%s is the %s route", (path, route) => {
   expect(routeOf(path)).toBe(route);
@@ -36,8 +38,8 @@ test("the root opens the chat, at /chat", async () => {
   expect(window.location.pathname).toBe("/chat");
 });
 
-test("/agent opens the human agents' console, not the chat", async () => {
-  render(<App path="/agent" />);
+test("/cases opens the human agents' console, not the chat", async () => {
+  render(<App path="/cases" />);
 
   expect(
     await screen.findByText("the human agents' console"),

@@ -73,7 +73,8 @@ function Form({
           />
         </label>
         {message && (
-          <p role="alert" className="text-lamp">
+          // Small enough that the session's-end sentence holds one line in both languages.
+          <p role="alert" className="text-xs text-lamp">
             {message}
           </p>
         )}

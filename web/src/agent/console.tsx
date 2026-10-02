@@ -42,7 +42,7 @@ function referenceInUrl(): string | null {
 
 function showInUrl(reference: string | null): void {
   const query = reference === null ? "" : `?${OPENED}=${reference}`;
-  window.history.replaceState(null, "", `/agent${query}`);
+  window.history.replaceState(null, "", `/cases${query}`);
 }
 
 function rowsOf(listed: Listed): CaseRow[] {

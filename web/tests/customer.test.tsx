@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -66,7 +66,7 @@ const CONFIG = {
 const texts = TEXTS.es;
 
 function signedIn(endsIn = 30 * 60 * 1000) {
-  return { sub: "sub", endsAt: Date.now() + endsIn, persona: null };
+  return { sub: "sub", endsAt: Date.now() + endsIn };
 }
 
 async function signInThroughTheForm() {
@@ -102,14 +102,36 @@ test("signs in through the form and opens the chat in a runtime session of its o
     .mockResolvedValue(signedIn());
   render(<Customer language="es" />);
 
-  expect(await screen.findByRole("banner")).toHaveTextContent(/^LATAM Bank$/);
+  expect(await screen.findByRole("banner")).toHaveTextContent(/^LATAM Bank/);
   await signInThroughTheForm();
 
   expect(await screen.findByText(/^chat in [0-9a-f]{64}$/)).toBeInTheDocument();
-  expect(screen.getByRole("banner")).toHaveTextContent(/^Faro$/);
+  expect(screen.getByRole("banner")).toHaveTextContent(/^Faro/);
   expect(signInWith).toHaveBeenCalledWith("persona", "secret");
   expect(screen.getByText(/Su sesión terminará a las/)).toBeInTheDocument();
-  expect(screen.getByText(texts.notice)).toBeInTheDocument();
+  // Signed in, the footer keeps to two sentences: the brief label and the session's end.
+  expect(screen.getByText(texts.noticeBrief)).toBeInTheDocument();
+  expect(screen.queryByText(texts.notice)).not.toBeInTheDocument();
+});
+
+test("the bar's switch sets the page's language, starting from the browser's", async () => {
+  render(<Customer language="es" />);
+
+  expect(
+    await screen.findByLabelText(texts.signIn.username),
+  ).toBeInTheDocument();
+  const options = screen.getByRole("group", { name: texts.language.label });
+  expect(
+    within(options).getByRole("button", { name: texts.language.es }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await userEvent
+    .setup()
+    .click(within(options).getByRole("button", { name: texts.language.pt }));
+
+  expect(screen.getByLabelText(TEXTS.pt.signIn.username)).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: texts.language.pt }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
 test.each([

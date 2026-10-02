@@ -42,7 +42,7 @@ from banking_agent.agent.texts import FIXED, render
 from banking_agent.contracts import validator
 from banking_agent.tools.cases import draw_reference, queue_order, reference_item
 
-from .conftest import ROOT, SignIn, User, cases, claims, handoffs
+from .conftest import SignIn, User, cases, claims, handoffs
 from .test_agent import checkpoint_messages, records
 from .test_handoff import disputed, named, window
 from .test_stack import arguments, call, tool_output
@@ -61,10 +61,11 @@ TEXTS = {
         "new_chat": "Nueva conversación",
         "refused": "No pudimos iniciar su sesión.",
         "session_refused": "No pudimos continuar esta conversación.",
+        "other_language": "Português",
     },
     "pt": {
         "control": "Confirmar o bloqueio",
-        "block": "Bloquear",
+        "block": "Confirmar o bloqueio",
         "cancel": "Cancelar",
         "offer": "Encaminhar seu caso para uma pessoa",
         "locale": "pt-BR",
@@ -77,22 +78,36 @@ TEXTS = {
         "new_chat": "Nova conversa",
         "refused": "Não foi possível entrar.",
         "session_refused": "Não foi possível continuar esta conversa.",
+        "other_language": "Español",
     },
+}
+# The opening's suggested prompts, one template for every sign-in (ADR-0007, Judges' access).
+SUGGESTIONS = {
+    "es": [
+        "Muéstreme el estado de mis tarjetas",
+        "Quiero bloquear una tarjeta",
+        "No reconozco una compra en mi tarjeta",
+    ],
+    "pt": [
+        "Mostre o status dos meus cartões",
+        "Quero bloquear um cartão",
+        "Não reconheço uma compra no meu cartão",
+    ],
 }
 RUNTIME_SESSION = "faro.runtime-session"
 # The console's own text, in Spanish whatever the browser's language (ADR-0007, Routes).
 CONSOLE = {
     "disputes": "Disputas",
     "service": "Servicio al cliente",
-    "normal": "Normal",
     "urgent": "Urgente",
     "verified": "Verificado",
     "facts": "Hechos verificados",
     "actions": "Acciones",
+    "record": "Registro de ejecución",
     "flagged": "Caso marcado",
     "reference": "Referencia",
     "search": "Buscar",
-    "no_access": "Su usuario no tiene acceso a la consola de agentes",
+    "no_access": "Su usuario no tiene acceso a la consola de casos",
 }
 # Within a poll: 3 seconds, the queue index's lag, and a request's time.
 ARRIVES_MS = 10_000
@@ -342,20 +357,23 @@ def charged(
 
 def at_the_console(site: str, agent: Tab, user: User) -> None:
     """
-    A human agent, signed in at /agent through the staff client, with the queues polling.
+    A human agent, signed in at /cases through the staff client, with the queues polling.
     """
-    agent.sign_in(site, user, "/agent")
+    agent.sign_in(site, user, "/cases")
     expect(agent.page.get_by_role("region", name=CONSOLE["disputes"])).to_be_visible()
 
 
 def arrives(agent: Tab, reference: str, priority: str) -> Locator:
     """
-    The case's row in dispute intake, there within a poll of its filing, with the rows above it.
+    The case's row in dispute intake, there within a poll of its filing; only an urgent row carries a word.
     """
     queue = agent.page.get_by_role("region", name=CONSOLE["disputes"])
     row = queue.get_by_role("button", name=re.compile(re.escape(reference)))
     expect(row).to_be_visible(timeout=ARRIVES_MS)
-    expect(row).to_contain_text(CONSOLE[priority])
+    if priority == "urgent":
+        expect(row).to_contain_text(CONSOLE["urgent"])
+    else:
+        expect(row).not_to_contain_text(CONSOLE["urgent"])
     return row
 
 
@@ -367,12 +385,14 @@ def reads_the_case(agent: Tab, reference: str, row: Locator, outcome: str) -> No
     expect(agent.page.get_by_role("heading", level=2, name=reference)).to_be_visible()
     actions = agent.page.get_by_role("region", name=CONSOLE["actions"])
     expect(actions).to_contain_text(outcome)
-    # A block cancelled with the control made no call to cite.
-    if outcome == CONSOLE["verified"]:
-        expect(actions).to_contain_text("block_card")
     facts = agent.page.get_by_role("region", name=CONSOLE["facts"])
     expect(facts).to_contain_text("find_transactions")
     expect(facts).to_contain_text("file_handoff")
+    # The registry opens on its fold; a block cancelled with the control made no call to cite.
+    registry = agent.page.locator("details")
+    registry.get_by_text(CONSOLE["record"]).click()
+    if outcome == CONSOLE["verified"]:
+        expect(registry).to_contain_text("block_card")
     expect(agent.page.get_by_text(CONSOLE["flagged"])).to_have_count(0)
     shown = agent.page.evaluate("new URLSearchParams(location.search).get('caso')")
     assert shown == reference, "the address doesn't keep the open case"
@@ -498,24 +518,24 @@ def test_the_readmes_journey_cancelled_files_the_charge_as_urgent(
     assert (agent.violations, agent.errors) == ([], 0)
 
 
-def test_a_personas_sign_in_opens_on_its_card(
+def test_every_sign_in_opens_on_one_template_and_the_bar_switches_the_language(
     site: str,
     users: dict[str, User],
     tab: Callable[[str], Tab],
 ) -> None:
     """
-    The label's card over the opening's suggestions, in the browser's language, with no value from the records
-    (ADR-0007, Judges' access; SEC-03).
+    One opening for every sign-in: the suggestions in the browser's language, no card with the persona's records,
+    and the bar's switch resetting the page's own text (ADR-0007, Judges' access, Routes; SEC-03).
     """
-    card = json.loads(
-        (ROOT / "web" / "src" / "personas.json").read_text(encoding="utf-8")
-    )["persona-pt"]
     customer = tab("pt")
 
     customer.sign_in(site, users["other_customer"])
 
-    expect(customer.page.get_by_text(card["description"]["pt"])).to_be_visible()
-    for prompt in card["prompts"]["pt"]:
+    for prompt in SUGGESTIONS["pt"]:
+        expect(customer.page.get_by_role("button", name=prompt)).to_be_visible()
+    customer.page.get_by_role("button", name=customer.texts["other_language"]).click()
+    expect(customer.page.get_by_label(TEXTS["es"]["message"])).to_be_visible()
+    for prompt in SUGGESTIONS["es"]:
         expect(customer.page.get_by_role("button", name=prompt)).to_be_visible()
     assert (customer.violations, customer.errors) == ([], 0)
 
@@ -655,7 +675,7 @@ def test_a_customer_gets_no_sign_in_through_the_console(
 ) -> None:
     customer = tab("es")
 
-    customer.sign_in(site, users["customer"], "/agent")
+    customer.sign_in(site, users["customer"], "/cases")
 
     # The pre-token trigger refuses a customer a staff token, and the form says only that the sign-in failed.
     expect(customer.page.get_by_role("alert")).to_contain_text(
@@ -673,7 +693,7 @@ def test_the_ai_team_signs_in_but_reads_no_case(
 ) -> None:
     member = tab("es")
 
-    member.sign_in(site, users["ai_team"], "/agent")
+    member.sign_in(site, users["ai_team"], "/cases")
 
     expect(member.page.get_by_role("alert")).to_contain_text(CONSOLE["no_access"])
     expect(member.page.get_by_role("region", name=CONSOLE["disputes"])).to_have_count(0)

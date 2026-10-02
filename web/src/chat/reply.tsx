@@ -34,14 +34,23 @@ function LinkText({ children }: { children?: ReactNode }) {
   return <span>{children}</span>;
 }
 
+// A wide table scrolls on its own, so a phone's page never does.
+function ScrollingTable({ children }: { children?: ReactNode }) {
+  return (
+    <div className="overflow-x-auto">
+      <table>{children}</table>
+    </div>
+  );
+}
+
 export function Reply({ text }: { text: string }) {
   return (
-    <div className="reply space-y-3 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+    <div className="reply space-y-3">
       <Markdown
         remarkPlugins={[remarkGfm]}
         allowedElements={ALLOWED}
         unwrapDisallowed
-        components={{ a: LinkText }}
+        components={{ a: LinkText, table: ScrollingTable }}
       >
         {text}
       </Markdown>

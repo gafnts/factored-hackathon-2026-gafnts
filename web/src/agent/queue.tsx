@@ -54,22 +54,15 @@ export function QueuePanel({
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className="font-mono">{row.reference}</span>
-                  <span
-                    className={
-                      row.priority === "urgent"
-                        ? "text-sm font-medium text-lamp"
-                        : "text-sm text-bone-muted"
-                    }
-                  >
-                    {AGENT.priorities[row.priority]}
-                  </span>
+                  {row.priority === "urgent" && (
+                    <span className="text-sm font-medium text-lamp">
+                      {AGENT.priorities.urgent}
+                    </span>
+                  )}
                 </span>
                 <span className="text-sm">{AGENT.reason(row.reason_code)}</span>
                 <span className="flex flex-wrap gap-x-3 text-xs text-bone-muted">
                   <span>{wallTime(row.filed_at)}</span>
-                  <span>
-                    {AGENT.case.answerIn(AGENT.languages[row.language])}
-                  </span>
                   {row.flagged && (
                     <span className="font-medium text-lamp">
                       {AGENT.queue.flagged}
