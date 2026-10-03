@@ -50,6 +50,27 @@ def test_a_held_out_case_must_be_held_out_throughout() -> None:
     assert "card_status-01 isn't on the held_out side" in found
 
 
+def test_a_held_out_case_may_borrow_development_messages_but_not_answers() -> None:
+    case: dict[str, Any] = example()
+    case["side"], case["phrasing"] = "held_out", "development"
+
+    found = guards.case_problems(case, HELD)
+
+    assert "its customer isn't on the held_out side" in found
+    assert "card_status-01 isn't on the held_out side" not in found
+    assert "card_last_four-01 isn't on the held_out side" in found
+
+
+def test_a_development_case_borrows_nothing() -> None:
+    case: dict[str, Any] = example()
+    case["phrasing"] = "held_out"
+
+    found = guards.case_problems(case, HELD)
+
+    assert found[0] == "a development case borrows no phrasing"
+    assert "card_status-01 isn't on the held_out side" in found
+
+
 def test_a_held_out_message_in_an_artifact_is_caught() -> None:
     held = [
         ("card_status-03/es/0", "Quiero saber si mi tarjeta de crédito sigue activa.")

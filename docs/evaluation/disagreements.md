@@ -10,6 +10,9 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-004](#d-004) | Closed | The oracle was wrong | POL-14 | `status.which_card` |
 | [D-005](#d-005) | Closed | The system was wrong | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
 | [D-006](#d-006) | Closed | The system was wrong | POL-35, POL-36 | `block.cancelled` |
+| [D-007](#d-007) | Closed | The oracle was wrong | POL-27 | `decline.several` |
+| [D-008](#d-008) | Closed | The system was wrong | POL-50 | `decline.several` |
+| [D-009](#d-009) | Open | To triage | POL-37, POL-39 | `charge.blocked` |
 
 ## D-001
 
@@ -88,3 +91,34 @@ A terse block request that gives no reason, played live: the system shows the co
 **Verdict:** The system was wrong.
 
 **Resolution:** The system. The extraction prompt named the reason for any other motive customer_request, and the model read a bare request as that: the customer requested the block. The live language check, extended to send each development block request through the extraction, reproduced it: half of the bare requests in two families read as customer_request in both languages. Since 2026-10-02 the model names any other reason other_reason, the prompt says that asking for the block is not a reason, and code maps other_reason to POL-35's customer_request after the call is recorded, so the control, the handoff, and the contracts keep POL-35's codes and the execution record keeps what the model said (ADR-0004, as amended on 2026-10-02). After the fix every bare request reads as giving no reason, so POL-35's question follows; over all development block requests and reason answers one in a hundred and twelve misses, a Portuguese paraphrase that declines to give the reason read as giving none, which is a known limitation; the figures are on the language check's page. The scripted models answer the reason from the families, so the offline gate can't see this; a confirming live play of the situation waits for this change to be deployed.
+
+## D-007
+
+Several declined transactions, the system asks which, and the scripted customer answers with the second newest-transaction paraphrase, "La última que aparece" or "A última que aparece". The oracle reads every answer of that kind as the newest transaction, the first shown, since the list is newest first (POL-27); the model read it as the last one listed and explained the older decline, so the reply states a figure the oracle didn't expect and misses the expected one. Found live on 2026-10-03 in three of the situation's four cases; the fourth, answered with "La más reciente", passed, and in process the scripted models pass all four. Our lean: the authored answer, which says the last one shown and so means the older one when the list is newest first; reword it to mean the newest unambiguously, or read it as the last one listed. The held-out side's paraphrase of that kind is not read.
+
+- `decline.several`, turn 2: `fact`, expected `{transaction}`, observed `missing`
+- `decline.several`, turn 2: `fact`, expected `{transaction.meaning}`, observed `missing`
+- `decline.several`, turn 2: `extra_figure`, expected `none`, observed `stated`
+
+**Verdict:** The oracle was wrong.
+
+**Resolution:** The authored answer, on the oracle's side: the second paraphrase of the newest-transaction answer said the last one shown, which is the oldest when the list is newest first, and the model read it as written. Reworded on 2026-10-03 to say the newest one, and the development sets redrawn with it; the oracle's reading of the kind stands. The held-out side's paraphrase of that kind was neither read nor changed.
+
+## D-008
+
+A first message in Portuguese, "por que recusou", answered in Spanish. The router's call read it as Portuguese and so did the card extraction's; the transaction extraction's call read the same message as Spanish, and the last reading set the conversation's language (POL-50), so the clarifying question and its facts came out in Spanish. Found live on 2026-10-03 in one case; D-005's known limitation covers a message the model misreads, not a message read right and then moved by a later call. Our lean: the system: a message is read once, by the router's call, and a later call on the same text doesn't move the language.
+
+- `decline.several` (pt), turn 1: `language`, expected `pt`, observed `es`
+- `decline.several` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. Each model call that read a message set the conversation's language, so the last reading won, and the extraction calls read the same message after the router. Since 2026-10-03 only the first reading of a message sets it (the router's on a new request, the extraction's on an answer), and a later call that reads the same message differently moves nothing; the extraction's other content is used as before. A regression case plays the router reading Portuguese and the extraction reading Spanish on one message.
+
+## D-009
+
+An unrecognized charge whose block is confirmed and verified: the turn blocks the card and files POL-39's handoff, and its reply should name the transaction (POL-37). In one of six such cases played live on 2026-10-03 the reply didn't; the turn's reply comes from the handoff's text and isn't put through the reply check, so a missing fact there isn't caught or retried. Our lean: the system: run the reply check on that turn's reply, as on an answer's.
+
+- `charge.blocked` (pt), turn 1: `fact`, expected `{transaction}`, observed `missing`
+
+**Verdict:** To triage.

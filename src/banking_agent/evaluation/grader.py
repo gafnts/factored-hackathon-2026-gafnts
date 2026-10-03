@@ -280,6 +280,7 @@ def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any
         "group": case["group"],
         "situation": case["situation"],
         "source": case["source"],
+        "phrasing": case.get("phrasing") or case.get("side"),
         "language": case["language"],
         "grader": VERSION,
         "error": evidence["error"],

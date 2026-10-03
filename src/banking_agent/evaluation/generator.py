@@ -1079,6 +1079,7 @@ class Generator:
                     "case_id": cases.case_id(set_name, seed, offset + len(made)),
                     "set": set_name,
                     "side": self.side,
+                    "phrasing": self.side,
                     "group": "unauthorized_access",
                     "situation": name,
                     "source": "harness",
@@ -1146,6 +1147,7 @@ class Generator:
                     "case_id": cases.case_id(set_name, seed, offset + len(made)),
                     "set": set_name,
                     "side": self.side,
+                    "phrasing": self.side,
                     "group": "expired_sessions",
                     "situation": name,
                     "source": "harness",
@@ -1211,6 +1213,16 @@ class Generator:
         offset: int,
     ) -> list[dict[str, Any]]:
         fitting = [f for f in self.families if situation.fits(f) and _said(f, language)]
+        phrasing = self.side
+        if not fitting and self.side == "held_out":
+            # The split takes hashes, not shapes (ADR-0005, The split): a shape with no held-out family
+            # borrows development phrasing, and the case says so.
+            fitting = [
+                f
+                for f in self._development()
+                if situation.fits(f) and _said(f, language)
+            ]
+            phrasing = "development"
         if not fitting:
             return []
         made: list[dict[str, Any]] = []
@@ -1229,7 +1241,15 @@ class Generator:
             for n in range(len(fitting)):
                 family = fitting[(start + n) % len(fitting)]
                 case = self._case(
-                    situation, customer, family, language, rng, set_name, seed, start
+                    situation,
+                    customer,
+                    family,
+                    language,
+                    rng,
+                    set_name,
+                    seed,
+                    start,
+                    phrasing,
                 )
                 if case is not None:
                     made.append(case)
@@ -1247,6 +1267,7 @@ class Generator:
         set_name: str,
         seed: int,
         draw: int,
+        phrasing: str,
     ) -> dict[str, Any] | None:
         pick = situation.pick(customer, family, rng)
         if pick is None:
@@ -1283,7 +1304,9 @@ class Generator:
         messages = []
         for family_id in (family.family_id, *situation.then):
             source = (
-                family if family_id == family.family_id else self._family(family_id)
+                family
+                if family_id == family.family_id
+                else self._family(family_id, phrasing)
             )
             message = rng.choice(_said(source, language))
             messages.append({"id": message.id, "text": _fill(message.text, values)})
@@ -1314,6 +1337,7 @@ class Generator:
             "case_id": cases.case_id(set_name, seed, draw),
             "set": set_name,
             "side": self.side,
+            "phrasing": phrasing,
             "group": situation.group,
             "situation": situation.name,
             "source": "built" if pick.fixtures else "harness" if faults else "natural",
@@ -1353,8 +1377,12 @@ class Generator:
             )
         return case
 
-    def _family(self, family_id: str) -> Family:
-        return next(f for f in self.families if f.family_id == family_id)
+    def _family(self, family_id: str, phrasing: str) -> Family:
+        pool = self.families if phrasing == self.side else self._development()
+        return next(f for f in pool if f.family_id == family_id)
+
+    def _development(self) -> list[Family]:
+        return [f for f in self.all_families if f.family_id not in self.held]
 
 
 def digest(case: Mapping[str, Any]) -> str:
@@ -1386,6 +1414,16 @@ def manifest(
             for (g, s, lang), n in sorted(by.items())
         ],
         "short": drawn.short,
+        "borrowed": [
+            {"situation": s, "language": lang, "cases": n}
+            for (s, lang), n in sorted(
+                Counter(
+                    (c["situation"], c["language"])
+                    for c in drawn.cases
+                    if c["phrasing"] != c["side"]
+                ).items()
+            )
+        ],
         "case_ids": [
             {"case_id": c["case_id"], "sha256": digest(c)} for c in drawn.cases
         ],
