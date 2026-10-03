@@ -100,6 +100,10 @@ def test_lists_are_laid_out_as_the_table_gives_them(words: dict[str, Any]) -> No
     assert es.choices([charge(), charge()]) == "\n".join(
         ["- 14/06/2026 21:07, Comercio Ejemplo, 1.240,50 COP"] * 2
     )
+    # POL-27, version 6: a transaction that isn't a purchase is named by its type, as the agent names it.
+    assert pt.transaction(charge(type="Withdrawal", merchant=None)) == (
+        "14/06/2026 21:07, saque, 1.240,50 COP"
+    )
 
 
 def test_a_page_names_the_merchant_of_a_purchase_and_a_country_abroad(

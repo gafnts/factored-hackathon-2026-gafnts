@@ -78,10 +78,17 @@ def merchant(transaction: dict[str, Any], language: str) -> str:
 
 def transaction_name(transaction: dict[str, Any], language: str, country: str) -> str:
     """
-    A transaction the customer means: its time, its merchant, and its amount (POL-27, POL-39).
+    A transaction the customer means: its time, its merchant for a purchase or its type otherwise, as a page names it,
+    and its amount (POL-27, POL-39).
     """
+    kind = transaction["transaction_type"]
+    named = (
+        merchant(transaction, language)
+        if kind == "Purchase"
+        else TRANSACTION_TYPES[language][kind]
+    )
     return (
-        f"{moment(transaction['transaction_date'])}, {merchant(transaction, language)}, "
+        f"{moment(transaction['transaction_date'])}, {named}, "
         f"{amount(transaction['amount'], transaction['currency'], country)}"
     )
 

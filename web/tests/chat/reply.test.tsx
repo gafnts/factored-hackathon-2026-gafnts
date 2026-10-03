@@ -172,6 +172,7 @@ const CHARGES = [
   "",
   "- 18/06/2026 03:38, comercio no registrado, 1.757,25 USD",
   "- 03/06/2026 21:15, Tienda, Centro, 299,81 USD",
+  "- 02/06/2026 10:04, retiro, 120,00 USD",
 ].join("\n");
 
 function rows(container: HTMLElement): (string | null)[][] {
@@ -215,6 +216,7 @@ test.each([
     expected: [
       ["Comercio no registrado", "18/06/2026 03:38", "1.757,25 USD"],
       ["Tienda, Centro", "03/06/2026 21:15", "299,81 USD"],
+      ["Retiro", "02/06/2026 10:04", "120,00 USD"],
     ],
   },
 ])("draws $shown as a statement, after its sentence", ({ text, expected }) => {

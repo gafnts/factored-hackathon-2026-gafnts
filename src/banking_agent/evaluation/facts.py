@@ -113,10 +113,15 @@ class Facts:
 
     def transaction(self, transaction: Transaction) -> str:
         assert transaction.amount is not None
+        named = (
+            self.merchant(transaction)
+            if transaction.type == "Purchase"
+            else self._word("transaction_type", transaction.type)
+        )
         return ", ".join(
             [
                 moment(transaction.at),
-                self.merchant(transaction),
+                named,
                 self.amount(transaction.amount, transaction.currency),
             ]
         )

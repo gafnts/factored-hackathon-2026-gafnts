@@ -133,6 +133,21 @@ def test_a_missing_merchant_is_not_recorded_and_a_digit_run_in_one_is_masked() -
     assert "4123" not in injected and "****4821" in injected
 
 
+def test_a_transaction_meant_is_named_by_its_merchant_if_a_purchase_and_by_its_type_if_not() -> (
+    None
+):
+    # POL-27, version 6: a payment has no merchant, and "merchant not recorded" read as an unknown shop.
+    purchase = transaction_name(PURCHASE, "es", "Colombia")
+    payment = transaction_name(
+        {**PURCHASE, "transaction_type": "Payment", "merchant_name": None},
+        "pt",
+        "Colombia",
+    )
+
+    assert purchase == "14/06/2026 21:07, Comercio Ejemplo, 1.240,50 COP"
+    assert payment == "14/06/2026 21:07, pagamento, 1.240,50 COP"
+
+
 # Every placeholder a fixed reply names, with a fact that fills it.
 SAMPLE: dict[str, Any] = {
     "country": "México",

@@ -127,7 +127,7 @@ DESCRIPTIONS = {
     "window.from": "when the period of transactions shown starts",
     "window.to": "when the period of transactions shown ends",
     "transactions": "the transactions, one per line, newest first; put it on a line of its own",
-    "transaction": "the transaction: its date, merchant, and amount",
+    "transaction": "the transaction: its date, its merchant or its type, and its amount",
     "transaction.status": "the transaction's status",
     "transaction.meaning": "what the decline's code means",
 }
@@ -1005,7 +1005,13 @@ def listing(transactions: list[dict[str, Any]]) -> str:
 def shown(transaction: dict[str, Any]) -> dict[str, Any]:
     return {
         k: transaction[k]
-        for k in ("transaction_date", "merchant_name", "amount", "currency")
+        for k in (
+            "transaction_date",
+            "transaction_type",
+            "merchant_name",
+            "amount",
+            "currency",
+        )
     }
 
 

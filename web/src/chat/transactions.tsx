@@ -25,7 +25,13 @@ export interface Transaction {
 const MOMENT = "[0-9]{2}/[0-9]{2}/[0-9]{4} [0-9]{2}:[0-9]{2}";
 const AMOUNT = "-?[0-9][0-9.,]* [A-Z]{3}";
 const SEPARATOR = " · ";
-const UNRECORDED = new Set<string>(Object.values(WORDS.merchant_unrecorded));
+// The words the agent's code writes in place of a merchant's name, which take a capital as a title.
+const WORDED = new Set<string>([
+  ...Object.values(WORDS.merchant_unrecorded),
+  ...LANGUAGES.flatMap((language) =>
+    Object.values(WORDS.transaction_type[language]),
+  ),
+]);
 const TONES = tones(WORDS.transaction_status, {
   Approved: "good",
   Declined: "bad",
@@ -44,11 +50,12 @@ function pageLine(language: Language): RegExp {
   );
 }
 
-// A transaction the customer picks from (formats.transaction_name): its time, its merchant, and its amount.
+// A transaction the customer picks from (formats.transaction_name): its time, its merchant for a purchase or its type
+// otherwise, and its amount.
 const NAME_LINE = new RegExp(`^(${MOMENT}), (.+), (${AMOUNT})$`);
 
 function merchant(name: string): string {
-  return UNRECORDED.has(name) ? capitalized(name) : name;
+  return WORDED.has(name) ? capitalized(name) : name;
 }
 
 function fromPage([
