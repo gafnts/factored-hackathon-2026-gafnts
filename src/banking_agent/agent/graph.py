@@ -127,7 +127,7 @@ DESCRIPTIONS = {
     "window.from": "when the period of transactions shown starts",
     "window.to": "when the period of transactions shown ends",
     "transactions": "the transactions, one per line, newest first; put it on a line of its own",
-    "transaction": "the transaction: its date, its merchant or its type, and its amount",
+    "transaction": "the transaction found: its date, its merchant or its type, and its amount; put it on a line of its own",
     "transaction.status": "the transaction's status",
     "transaction.meaning": "what the decline's code means",
 }
@@ -150,12 +150,12 @@ SHAPES = {
         " its own, and nothing after it."
     ),
     "decline_explained": (
-        "One sentence that says this transaction, named after the word for transaction, was found on the card and"
-        " declined; then the reason on record, introduced as the recorded reason: the code's meaning."
+        "One sentence that says this declined transaction was found on the card, then the transaction on a line of its"
+        " own, then one sentence that gives the reason on record, introduced as the recorded reason: the code's meaning."
     ),
     "decline_status": (
-        "One sentence that says this transaction, named after the word for transaction, was found on the card and"
-        " stands as its status, not as declined."
+        "One sentence that says this transaction was found on the card, then the transaction on a line of its own,"
+        " then one sentence that says it stands as its status, not as declined."
     ),
 }
 MORE = "The chat's last reply listed a page of a card's recent transactions and said the customer can ask for the next 10."

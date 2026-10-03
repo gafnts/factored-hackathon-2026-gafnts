@@ -541,7 +541,7 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": ["unknown_placeholder", "missing_fact", "bare_number", "digit_run", "internal_flag", "withheld_status"]
+            "enum": ["unknown_placeholder", "missing_fact", "bare_number", "digit_run", "internal_flag", "withheld_status", "inline_list"]
           }
         },
         "fell_back": {

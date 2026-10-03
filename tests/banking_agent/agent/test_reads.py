@@ -670,7 +670,9 @@ def test_a_pending_one_is_reported_by_its_status_without_its_code(
     # POL-28.
     chat = Chat(harness)
     harness.script.fitting = [3]
-    harness.script.replies = ["{card}, {transaction} figura como {transaction.status}."]
+    harness.script.replies = [
+        "{card}:\n{transaction}\nfigura como {transaction.status}."
+    ]
 
     events = chat.say(
         "Me rechazaron un pago", requests=["decline_reason"], last_four="4821"
@@ -691,7 +693,7 @@ def test_a_decline_with_no_listed_code_is_abstained_on_with_a_person_offered(
 
     events = chat.say("¿Por qué?", requests=["decline_reason"], last_four="4821")
 
-    assert FIXED["decline_no_code"]["es"].split(". ")[-1] in reply(events)
+    assert FIXED["decline_no_code"]["es"].split("\n\n")[-1] in reply(events)
     assert offered(events) == "missing_data"
     assert harness.script.model_inputs["reply"] == []
     (decided,) = decisions(chat)

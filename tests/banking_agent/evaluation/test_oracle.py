@@ -326,7 +326,7 @@ def test_a_decline_with_a_listed_code_is_explained(
     ]
     assert (
         turn["facts"]["{transaction}"]
-        == "12/06/2026 10:05, Electro Ejemplo, 920.000,00 COP"
+        == "- 12/06/2026 10:05, Electro Ejemplo, 920.000,00 COP"
     )
     assert turn["facts"]["{transaction.meaning}"] == "fondos insuficientes (código 51)"
 
@@ -472,7 +472,7 @@ def test_an_unrecognized_charge_from_yesterday_is_found_blocked_and_handed_off(
     )
 
     first, last = expected["turns"]
-    assert first["facts"]["{transaction}"].startswith("16/06/2026 19:20")
+    assert first["facts"]["{transaction}"].startswith("- 16/06/2026 19:20")
     assert last["handoff"] == {
         "reason_code": "unrecognized_charge",
         "trigger": "required",
@@ -487,7 +487,7 @@ def test_today_is_the_business_date_not_the_as_of_instants_day(
 ) -> None:
     [turn] = play(con, case("CLI-EVAL00000003", "decline_reason-07"))["turns"]
 
-    assert turn["facts"]["{transaction}"].startswith("17/06/2026 11:15")
+    assert turn["facts"]["{transaction}"].startswith("- 17/06/2026 11:15")
     assert turn["facts"]["{transaction.status}"] == "aprobada"
 
 

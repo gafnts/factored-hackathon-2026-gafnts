@@ -1,7 +1,7 @@
 """
 The reply check refuses a model's answer that names a fact it doesn't have, leaves out one its fixed reply states,
-writes a figure of its own, or names an internal flag or a status the policy withholds, and names each failure by its
-rule only (ADR-0004, decision 8, and its amendment of 2026-10-01; POL-11, POL-12, POL-18, POL-40).
+writes a figure of its own, names an internal flag or a status the policy withholds, or writes a list inside a line,
+and names each failure by its rule only (ADR-0004, decision 8, and its amendment of 2026-10-01; POL-11, POL-12, POL-18, POL-40).
 """
 
 import pytest
@@ -35,6 +35,34 @@ def test_each_failure_is_named_by_its_rule(text: str, failed: list[str]) -> None
     assert failures(text, FACTS) == failed
 
 
+FOUND = {
+    "card": "tarjeta de crédito terminada en 4821",
+    "transaction": "- 14/06/2026 21:07, Tienda, 10 USD",
+}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Encontré este cargo en su {card}: {transaction}.",
+        "Encontré este cargo en su {card}:\n- {transaction}",
+        "Encontré este cargo en su {card}:\n{transaction} Lo revisamos.",
+    ],
+)  # fmt: skip
+def test_a_list_that_shares_its_line_is_refused(text: str) -> None:
+    assert failures(text, FOUND) == ["inline_list"]
+
+
+def test_a_list_on_a_line_of_its_own_passes() -> None:
+    assert (
+        failures(
+            "Encontré este cargo en su {card}:\n\n  {transaction}\n\nLo revisamos.",
+            FOUND,
+        )
+        == []
+    )
+
+
 def test_a_digit_run_is_found_once_the_text_is_filled() -> None:
     # A fact's value is formatted by code, but the run it makes beside another counts all the same (POL-11).
     facts = {"card": "1234 5678", "credit.available": "9012 3456"}
@@ -47,4 +75,4 @@ def test_the_failures_are_the_execution_records() -> None:
         "failures"
     ]["items"]["enum"]
 
-    assert {"unknown_placeholder", "missing_fact"} <= set(allowed)
+    assert {"unknown_placeholder", "missing_fact", "inline_list"} <= set(allowed)

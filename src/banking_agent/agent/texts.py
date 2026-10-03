@@ -141,17 +141,17 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-02 and POL-27 to POL-29: the code's meaning and nothing else.
     "decline_explained": {
-        "es": "Encontré esta transacción rechazada en su {card}: {transaction}. El motivo registrado es: {transaction.meaning}.",
-        "pt": "Encontrei esta transação recusada no seu {card}: {transaction}. O motivo registrado é: {transaction.meaning}.",
+        "es": "Encontré esta transacción rechazada en su {card}:\n\n{transaction}\n\nEl motivo registrado es: {transaction.meaning}.",
+        "pt": "Encontrei esta transação recusada no seu {card}:\n\n{transaction}\n\nO motivo registrado é: {transaction.meaning}.",
     },
     "decline_status": {
-        "es": "Encontré esta transacción en su {card}: {transaction}. Figura como {transaction.status}, no como rechazada.",
-        "pt": "Encontrei esta transação no seu {card}: {transaction}. Ela consta como {transaction.status}, não como recusada.",
+        "es": "Encontré esta transacción en su {card}:\n\n{transaction}\n\nFigura como {transaction.status}, no como rechazada.",
+        "pt": "Encontrei esta transação no seu {card}:\n\n{transaction}\n\nEla consta como {transaction.status}, não como recusada.",
     },
     # POL-32, followed by handoff_offer.
     "decline_no_code": {
-        "es": "Encontré esta transacción rechazada en su {card}: {transaction}. No hay un motivo registrado para este rechazo.",
-        "pt": "Encontrei esta transação recusada no seu {card}: {transaction}. Não há um motivo registrado para esta recusa.",
+        "es": "Encontré esta transacción rechazada en su {card}:\n\n{transaction}\n\nNo hay un motivo registrado para este rechazo.",
+        "pt": "Encontrei esta transação recusada no seu {card}:\n\n{transaction}\n\nNão há um motivo registrado para esta recusa.",
     },
     "decline_not_found": {
         "es": "No encontré en los últimos 90 días de su {card} una transacción que coincida con lo que me indica.",
@@ -221,8 +221,8 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-39, as in POL-27: the charge is looked for in any status, and whether it is fraud is never said.
     "charge_found": {
-        "es": "Encontré este cargo en su {card}: {transaction}.",
-        "pt": "Encontrei esta cobrança no seu {card}: {transaction}.",
+        "es": "Encontré este cargo en su {card}:\n\n{transaction}",
+        "pt": "Encontrei esta cobrança no seu {card}:\n\n{transaction}",
     },
     "which_charge": {
         "es": "Encontré más de un cargo en su {card} que podría ser el que me indica. ¿Cuál es?\n\n{transactions}",
@@ -430,7 +430,7 @@ def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
         filled["reference"] = facts["reference"]
     if "transaction" in facts:
         transaction = facts["transaction"]
-        filled["transaction"] = transaction_name(transaction, language, country)
+        filled["transaction"] = f"- {transaction_name(transaction, language, country)}"
         if "transaction_status" in transaction:
             filled["transaction.status"] = TRANSACTION_STATUSES[language][
                 transaction["transaction_status"]

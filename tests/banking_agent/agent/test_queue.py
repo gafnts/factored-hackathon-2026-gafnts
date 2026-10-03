@@ -43,7 +43,7 @@ def test_the_rest_wait_through_a_question_and_are_served_after_it(
 ) -> None:
     chat = Chat(harness)
     harness.script.replies = [
-        "{card}, {transaction}: {transaction.meaning}.",
+        "{card}:\n{transaction}\n{transaction.meaning}.",
         "{card}: {card.status}, {card.expiration}.",
     ]
 

@@ -63,12 +63,16 @@ def test_a_charge_is_found_and_the_block_offered_with_the_confirm_control(
 
     charge = window(harness)[0]
     # The example card is Active and past its recorded expiration: both facts are stated (POL-31).
-    assert reply(shown).split("\n\n") == [
-        render("charge_found", "pt", {"card": CARD, "transaction": charge}),
-        render("past_expiration", "pt", {"card": CARD}),
-        FIXED["charge_reviewed"]["pt"],
-        render("confirm_prompt", "pt", {"card": CARD, "reason": "unrecognized_charge"}),
-    ]
+    assert reply(shown) == "\n\n".join(
+        [
+            render("charge_found", "pt", {"card": CARD, "transaction": charge}),
+            render("past_expiration", "pt", {"card": CARD}),
+            FIXED["charge_reviewed"]["pt"],
+            render(
+                "confirm_prompt", "pt", {"card": CARD, "reason": "unrecognized_charge"}
+            ),
+        ]
+    )
     control = interrupt(shown)["metadata"]["controls"][0]
     assert (control["reason"], control["card"]["last_four"]) == (
         "unrecognized_charge",
@@ -107,8 +111,8 @@ def test_a_charge_reported_after_a_cards_read_is_about_that_card(
     shown = reported(chat, "Não reconheço essa compra.", card_type=None, last_four=None)
 
     charge = window(harness)[0]
-    assert reply(shown).split("\n\n")[0] == render(
-        "charge_found", "pt", {"card": CARD, "transaction": charge}
+    assert reply(shown).startswith(
+        render("charge_found", "pt", {"card": CARD, "transaction": charge})
     )
     control = interrupt(shown)["metadata"]["controls"][0]
     assert control["card"]["last_four"] == "4821"
@@ -126,8 +130,8 @@ def test_the_charge_is_matched_against_the_message_that_reported_it(
     (messages,) = harness.script.model_inputs["choose"]
     assert messages[-1].content == "Não reconheço uma cobrança."
     charge = window(harness)[0]
-    assert reply(shown).split("\n\n")[0] == render(
-        "charge_found", "pt", {"card": CARD, "transaction": charge}
+    assert reply(shown).startswith(
+        render("charge_found", "pt", {"card": CARD, "transaction": charge})
     )
 
 
@@ -226,8 +230,8 @@ def test_several_charges_that_fit_are_listed_for_the_customer_to_choose(
     harness.script.fitting = [2]
     shown = chat.say("A segunda.", requests=[])
 
-    assert reply(shown).split("\n\n")[0] == render(
-        "charge_found", "pt", {"card": CARD, "transaction": listed[1]}
+    assert reply(shown).startswith(
+        render("charge_found", "pt", {"card": CARD, "transaction": listed[1]})
     )
     assert interrupt(shown)["metadata"]["controls"][0]["kind"] == "block_confirmation"
     (answering,) = harness.script.model_inputs["choose"][1:]
@@ -357,13 +361,17 @@ def test_a_charge_on_a_card_already_blocked_goes_to_dispute_intake_at_once(
 
     case = filed(harness)
     blocked = {**CARD, "product_status": "Blocked"}
-    assert reply(answered).split("\n\n") == [
-        render(
-            "charge_found", "pt", {"card": blocked, "transaction": window(harness)[0]}
-        ),
-        render("already_blocked", "pt", {"card": blocked}),
-        FIXED["handoff_filed"]["pt"].format(reference=case["reference"]),
-    ]
+    assert reply(answered) == "\n\n".join(
+        [
+            render(
+                "charge_found",
+                "pt",
+                {"card": blocked, "transaction": window(harness)[0]},
+            ),
+            render("already_blocked", "pt", {"card": blocked}),
+            FIXED["handoff_filed"]["pt"].format(reference=case["reference"]),
+        ]
+    )
     assert answered[-1]["outcome"] == {"type": "success"}
     assert (case["priority"], case["payload"]["actions"]) == ("normal", [])
     assert chat.decision()["outcome_class"] == "hand_off"

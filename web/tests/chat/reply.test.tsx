@@ -175,6 +175,14 @@ const CHARGES = [
   "- 02/06/2026 10:04, retiro, 120,00 USD",
 ].join("\n");
 
+const FOUND = [
+  "Encontré este cargo en su tarjeta de crédito terminada en 6223:",
+  "",
+  "- 18/06/2026 03:38, pago, 1.757,25 USD",
+  "",
+  "El banco revisará el cargo que no reconoce, bloquee o no la tarjeta.",
+].join("\n");
+
 function rows(container: HTMLElement): (string | null)[][] {
   return [...container.querySelectorAll("[data-transactions] > li")].map(
     (row) => [...row.querySelectorAll("p")].map((line) => line.textContent),
@@ -218,6 +226,11 @@ test.each([
       ["Tienda, Centro", "03/06/2026 21:15", "299,81 USD"],
       ["Retiro", "02/06/2026 10:04", "120,00 USD"],
     ],
+  },
+  {
+    shown: "the charge a reply found",
+    text: FOUND,
+    expected: [["Pago", "18/06/2026 03:38", "1.757,25 USD"]],
   },
 ])("draws $shown as a statement, after its sentence", ({ text, expected }) => {
   const { container } = render(<Reply text={text} />);

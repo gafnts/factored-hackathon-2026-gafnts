@@ -126,8 +126,11 @@ class Facts:
             ]
         )
 
+    def found(self, transaction: Transaction) -> str:
+        return f"- {self.transaction(transaction)}"
+
     def choices(self, transactions: Sequence[Transaction]) -> str:
-        return "\n".join(f"- {self.transaction(t)}" for t in transactions)
+        return "\n".join(self.found(t) for t in transactions)
 
     def page_line(self, transaction: Transaction) -> str:
         assert transaction.amount is not None

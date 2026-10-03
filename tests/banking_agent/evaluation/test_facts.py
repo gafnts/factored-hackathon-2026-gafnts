@@ -97,6 +97,8 @@ def test_lists_are_laid_out_as_the_table_gives_them(words: dict[str, Any]) -> No
     assert (
         es.transaction(charge()) == "14/06/2026 21:07, Comercio Ejemplo, 1.240,50 COP"
     )
+    # The one a reply found stands as a list of one.
+    assert es.found(charge()) == "- 14/06/2026 21:07, Comercio Ejemplo, 1.240,50 COP"
     assert es.choices([charge(), charge()]) == "\n".join(
         ["- 14/06/2026 21:07, Comercio Ejemplo, 1.240,50 COP"] * 2
     )

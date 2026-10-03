@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from banking_agent.agent.check import failures
 from banking_agent.agent.formats import (
     amount,
     card_line,
@@ -174,12 +175,23 @@ def test_every_fixed_reply_fills_in_both_languages(name: str, language: str) -> 
 
     assert PLACEHOLDER.search(filled) is None
     assert "{" not in filled and "}" not in filled
+    assert "inline_list" not in failures(
+        FIXED[name][language], values(language, SAMPLE)
+    )
 
 
 def test_a_page_fills_the_transactions_placeholder_with_full_lines() -> None:
     page = values("es", {"page": [PURCHASE], "country": "Colombia"})["transactions"]
 
     assert page == transaction_line(PURCHASE, "es", "Colombia")
+
+
+def test_the_transaction_found_stands_as_a_list_of_one() -> None:
+    found = values("es", {"transaction": PURCHASE, "country": "Colombia"})[
+        "transaction"
+    ]
+
+    assert found == f"- {transaction_name(PURCHASE, 'es', 'Colombia')}"
 
 
 def test_the_queue_names_what_is_left_in_words() -> None:

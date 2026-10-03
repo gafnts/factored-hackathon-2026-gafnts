@@ -50,8 +50,8 @@ function pageLine(language: Language): RegExp {
   );
 }
 
-// A transaction the customer picks from (formats.transaction_name): its time, its merchant for a purchase or its type
-// otherwise, and its amount.
+// A transaction the customer picks from, or the one a reply found (formats.transaction_name): its time, its merchant for
+// a purchase or its type otherwise, and its amount.
 const NAME_LINE = new RegExp(`^(${MOMENT}), (.+), (${AMOUNT})$`);
 
 function merchant(name: string): string {

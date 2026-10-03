@@ -677,7 +677,7 @@ class Conversation:
         facts = {"{card}": self.facts.card(card)}
         if found is None:
             return Step("answer", ["POL-27"], tools=tools, facts=facts)
-        facts["{transaction}"] = self.facts.transaction(found)
+        facts["{transaction}"] = self.facts.found(found)
         rules = ["POL-02", "POL-27"]
         if found.status != "Declined":
             facts["{transaction.status}"] = self.facts.transaction_status(found)
@@ -779,7 +779,7 @@ class Conversation:
         found, tools = searched
         facts = {"{card}": self.facts.card(card)}
         if found is not None:
-            facts["{transaction}"] = self.facts.transaction(found)
+            facts["{transaction}"] = self.facts.found(found)
         if not card.active:
             priority = "normal" if card.status == "Blocked" else "urgent"
             return Step(

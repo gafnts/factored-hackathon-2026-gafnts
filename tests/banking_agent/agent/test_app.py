@@ -296,7 +296,7 @@ def test_a_reply_the_check_refuses_falls_back_and_is_counted(harness: Harness) -
     ]
     assert checked["passed"] is False
     assert checked["fell_back"] is True
-    assert checked["failures"] == ["unknown_placeholder", "bare_number"]
+    assert checked["failures"] == ["unknown_placeholder", "bare_number", "inline_list"]
     replied = [e for e in harness.records.of(who.origin_jti) if e["kind"] == "reply"]
     assert replied[0]["fixed_texts"] == ["cards_status", "past_expiration"]
 
