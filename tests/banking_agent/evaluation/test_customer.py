@@ -122,6 +122,31 @@ def test_a_typed_yes_comes_first_and_the_control_after_it() -> None:
     assert pressed is not None and pressed.sends == "cancel"
 
 
+def test_a_message_that_doesnt_answer_comes_once_before_the_answer() -> None:
+    customer = Customer(
+        case(
+            {
+                "aside": {
+                    "id": "aside-01/es",
+                    "text": "¿Y en qué más me puede ayudar?",
+                },
+                "card": {
+                    "id": "card_last_four-01/es",
+                    "text": "La que termina en 4821.",
+                },
+            },
+            turns=3,
+        )
+    )
+    customer.first()
+
+    aside = customer.next("card", None)
+    answer = customer.next("card", None)
+
+    assert aside is not None and aside.sends == "aside"
+    assert answer is not None and answer.sends == "card"
+
+
 def test_an_ignored_control_lapses_by_the_next_message_or_ends_the_conversation() -> (
     None
 ):

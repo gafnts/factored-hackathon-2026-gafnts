@@ -36,6 +36,9 @@
     {"answer_id": "dont_know-01", "kind": "dont_know", "es": "No lo sé.", "pt": "Não sei."},
     {"answer_id": "dont_know-02", "kind": "dont_know", "es": "No me acuerdo.", "pt": "Não lembro."},
     {"answer_id": "dont_know-03", "kind": "dont_know", "es": "Ni idea, la verdad.", "pt": "Não faço ideia."},
+    {"answer_id": "aside-01", "kind": "aside", "es": "¿Y en qué más me puede ayudar?", "pt": "E em que mais você pode me ajudar?"},
+    {"answer_id": "aside-02", "kind": "aside", "es": "Gracias por la paciencia.", "pt": "Obrigado pela paciência."},
+    {"answer_id": "aside-03", "kind": "aside", "es": "Hola, ¿sigue ahí?", "pt": "Oi, ainda está aí?"},
     {"answer_id": "typed_yes-01", "kind": "typed_yes", "es": "Sí, bloquéela.", "pt": "Sim, pode bloquear."},
     {"answer_id": "typed_yes-02", "kind": "typed_yes", "es": "Sí.", "pt": "Sim."},
     {"answer_id": "typed_yes-03", "kind": "typed_yes", "es": "Confirmo, adelante.", "pt": "Confirmo, pode seguir."}

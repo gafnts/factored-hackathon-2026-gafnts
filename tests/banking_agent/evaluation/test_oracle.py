@@ -113,6 +113,30 @@ def test_a_status_asks_which_card_then_answers_it(
     assert last["tools_forbidden"] == ["block_card", "file_handoff"]
 
 
+def test_a_message_that_doesnt_answer_which_card_gets_the_question_again(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    # POL-06, version 6: it counts toward no limit (POL-17), so the answer after it is still the first.
+    expected = play(
+        con,
+        case(
+            EXAMPLE_CUSTOMER,
+            "card_status-01",
+            answers={"aside": "aside-01", "card": "card_last_four-01"},
+            means={"product_id": "PRD-EXAMPLE00008"},
+        ),
+    )
+
+    assert path(expected) == [
+        ("message", [("card_status", "clarify")], "card"),
+        ("aside", [("card_status", "clarify")], "card"),
+        ("card", [("card_status", "answer")], "none"),
+    ]
+    first, again, _ = expected["turns"]
+    assert again["facts"] == first["facts"]
+    assert "POL-06" in again["decisions"][0]["rules"]
+
+
 @pytest.mark.parametrize(
     ("card_id", "outcome", "fact"),
     [

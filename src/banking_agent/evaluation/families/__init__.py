@@ -88,6 +88,7 @@ ANSWER_KINDS = {
     "transaction_date": {"date"},
     "transaction_newest": set(),
     "dont_know": set(),
+    "aside": set(),
     "typed_yes": set(),
 }
 PER_ANSWER_KIND = 3

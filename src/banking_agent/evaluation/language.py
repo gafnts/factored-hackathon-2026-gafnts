@@ -69,6 +69,7 @@ CALLS = {
     "transaction_date": ("choose", LISTING),
     "transaction_newest": ("choose", LISTING),
     "dont_know": ("extract", CARDS),
+    "aside": ("extract", CARDS),
     "typed_yes": ("route", None),
 }
 
