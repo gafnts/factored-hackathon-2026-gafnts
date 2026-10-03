@@ -175,8 +175,8 @@ def test_every_fixed_reply_fills_in_both_languages(name: str, language: str) -> 
 
     assert PLACEHOLDER.search(filled) is None
     assert "{" not in filled and "}" not in filled
-    assert "inline_list" not in failures(
-        FIXED[name][language], values(language, SAMPLE)
+    assert {"inline_list", "reason_apart", "lone_fact"}.isdisjoint(
+        failures(FIXED[name][language], values(language, SAMPLE))
     )
 
 

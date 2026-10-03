@@ -3,8 +3,8 @@ The reply check (ADR-0004, decision 8, and its amendment of 2026-10-01): a read'
 placeholders reaches the customer only if every placeholder names one of its facts, every fact its fixed reply states is
 there, no digit stands outside a placeholder, nothing names the bank's internal flags, no word names a closed,
 suspended, or inactive status outside a placeholder, and a list's placeholder stands alone on its line, a decline's
-reason right under its transaction. The filled text must hold no run of 13 or more digits. A failure is named by its
-rule, never by the text that broke it (POL-11, POL-12, POL-18, POL-40).
+reason right under its transaction, while no other placeholder does. The filled text must hold no run of 13 or more
+digits. A failure is named by its rule, never by the text that broke it (POL-11, POL-12, POL-18, POL-40).
 """
 
 import re
@@ -19,7 +19,8 @@ WITHHELD = re.compile(
 )
 DIGIT = re.compile(r"[0-9]")
 BRACE = re.compile(r"[{}]")
-# Their values are lines that start with a dash, which shared with other text read as figures in a sentence.
+# Their values are lines that start with a dash, which shared with other text read as figures in a sentence. Any
+# other fact alone on a line, out of its sentence, doesn't say what it is.
 LISTS = ("cards", "card_list", "transactions", "transaction", "transaction.meaning")
 ALONE = re.compile(r"\s*\{[a-z_]+(?:\.[a-z_]+)?\}\s*")
 # With no blank line between them, the reason and its transaction are one list, which the chat draws as one frame.
@@ -45,9 +46,13 @@ def failures(text: str, facts: dict[str, str]) -> list[str]:
         found.append("internal_flag")
     if WITHHELD.search(words):
         found.append("withheld_status")
-    shared = [line for line in text.splitlines() if not ALONE.fullmatch(line)]
+    lines = text.splitlines()
+    shared = [line for line in lines if not ALONE.fullmatch(line)]
     if any(name in LISTS for line in shared for name in PLACEHOLDER.findall(line)):
         found.append("inline_list")
+    alone = [line for line in lines if ALONE.fullmatch(line)]
+    if any(name not in LISTS for line in alone for name in PLACEHOLDER.findall(line)):
+        found.append("lone_fact")
     if "transaction.meaning" in named and not UNDER.search(text):
         found.append("reason_apart")
     return found

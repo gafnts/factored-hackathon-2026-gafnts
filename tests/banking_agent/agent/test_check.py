@@ -1,7 +1,8 @@
 """
 The reply check refuses a model's answer that names a fact it doesn't have, leaves out one its fixed reply states,
 writes a figure of its own, names an internal flag or a status the policy withholds, writes a list inside a line, or
-puts a decline's reason apart from its transaction, and names each failure by its rule only (ADR-0004, decision 8, and its amendment of 2026-10-01; POL-11, POL-12, POL-18, POL-40).
+puts a decline's reason apart from its transaction, or leaves any other fact alone on a line, and names each
+failure by its rule only (ADR-0004, decision 8, and its amendment of 2026-10-01; POL-11, POL-12, POL-18, POL-40).
 """
 
 import pytest
@@ -29,6 +30,8 @@ def test_an_answer_that_names_every_fact_and_nothing_else_passes() -> None:
         ("Su {card} tiene {credit.available}; is_fraud no aplica.", ["internal_flag"]),
         ("Su {card} tiene {credit.available}, aunque su cuenta está suspendida.", ["withheld_status"]),
         ("Seu {card} tem {credit.available}, mas o cliente está inativo.", ["withheld_status"]),
+        ("Su {card} tiene crédito disponible:\n\n{credit.available}", ["lone_fact"]),
+        ("{card}\n\nTiene {credit.available} de crédito disponible.", ["lone_fact"]),
     ],
 )  # fmt: skip
 def test_each_failure_is_named_by_its_rule(text: str, failed: list[str]) -> None:
@@ -106,4 +109,5 @@ def test_the_failures_are_the_execution_records() -> None:
         "missing_fact",
         "inline_list",
         "reason_apart",
+        "lone_fact",
     } <= set(allowed)

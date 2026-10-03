@@ -2,7 +2,8 @@
 Models scripted from a case (ADR-0005, The development regression set: scripted model outputs, no provider). Each call
 gets the output a model that read the message correctly would give: the router the family's labels, the extraction
 the family's fields with the case's slots, or an answer's fields from the record the customer means, the choice the
-listed transactions that fit what the customer said, and a reply that writes each placeholder once. So a case played
+listed transactions that fit what the customer said, and a reply that writes each placeholder once, as the prompt lays
+them out. So a case played
 with them tests the graph's control logic, not a model. A text that isn't the case's is kept in `unplaced` and fails
 the call, and the player reports the case as its own error, never the agent's.
 """
@@ -16,6 +17,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
+from banking_agent.agent.check import LISTS
 from banking_agent.agent.models import (
     REASON_CODES,
     HandoffText,
@@ -76,6 +78,16 @@ def raw() -> AIMessage:
     return AIMessage(
         content="{}", usage_metadata=USAGE, response_metadata={"model_name": MODEL}
     )
+
+
+def laid_out(written: list[str]) -> str:
+    """
+    The facts in one sentence, then each list on a line of its own, a decline's reason right under its transaction.
+    """
+    told = [name for name in written if name.strip("{}") not in LISTS]
+    paragraphs = [f"{', '.join(told)}."] if told else []
+    paragraphs += [name for name in written if name.strip("{}") in LISTS]
+    return "\n\n".join(paragraphs).replace(*UNDER)
 
 
 def structured(parsed: Any) -> dict[str, Any]:
@@ -266,9 +278,8 @@ class ScriptedModels:
         return structured(HandoffText.model_validate(HANDOFF_TEXT))
 
     async def reply(self, messages: list[BaseMessage]) -> AIMessage:
-        written = "\n\n".join(PLACEHOLDER.findall(messages[0].text))
         return AIMessage(
-            content=written.replace(*UNDER) or "Listo.",
+            content=laid_out(PLACEHOLDER.findall(messages[0].text)) or "Listo.",
             usage_metadata=USAGE,
             response_metadata={"model_name": MODEL},
         )
