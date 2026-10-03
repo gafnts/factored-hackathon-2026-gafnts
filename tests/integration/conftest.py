@@ -153,9 +153,9 @@ def users(
         "ai_team": (["ai_team"], None),
         "both_staff": (["human_agent", "ai_team"], None),
         # A customer the evaluation's harness would sign in, whose cases never reach a human agent (EVL-13).
-        "evaluation": (["customer", "evaluation"], persona_ids["es"]),
+        "evaluation": (["customer", "evaluation"], persona_ids["declines"]),
         # Its day's turns are filled to the cap, so no other test signs it in (decision 21).
-        "capped": (["customer", "evaluation"], persona_ids["es"]),
+        "capped": (["customer", "evaluation"], persona_ids["declines"]),
         "no_group": ([], "CLI-ITEST0000003"),
         "no_claim": (["customer"], None),
     }
