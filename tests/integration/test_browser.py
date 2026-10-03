@@ -296,7 +296,7 @@ def test_a_persona_blocks_a_card_with_the_control_not_with_a_typed_yes(
 
     expect(controls).to_have_count(1)
     shown = controls.first.inner_text()
-    labelled = card["last_four"] in shown and "Motivo: perda" in shown
+    labelled = card["last_four"] in shown and "Motivo: Perda" in shown
     assert labelled, "the control doesn't name the card and the reason"
 
     customer.ask(outputs, "Sim, pode bloquear.")
@@ -441,7 +441,7 @@ def test_the_readmes_journey_blocks_the_card_and_files_the_charge_to_dispute_int
     shown = render("charge_found", "pt", facts) in found
     assert shown, "the reply doesn't name the charge the customer chose"
     expect(controls).to_have_count(1)
-    reason = "Motivo: cobrança não reconhecida" in controls.first.inner_text()
+    reason = "Motivo: Cobrança não reconhecida" in controls.first.inner_text()
     assert reason, "the control doesn't name the reason"
 
     done = customer.turn(
