@@ -373,6 +373,7 @@ class Script:
     requests: list[str] = field(default_factory=lambda: ["card_status"])
     has_request: bool = True
     complaint: bool = False
+    kind: str = "other"
     # What the model says the message's language is; unclear keeps the conversation's (POL-50).
     language: str = "unclear"
     route_error: Exception | None = None
@@ -485,6 +486,7 @@ class Harness:
                     "has_request": script.has_request,
                     "complaint": script.complaint,
                     "language": script.language,
+                    "kind": script.kind,
                 }
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}

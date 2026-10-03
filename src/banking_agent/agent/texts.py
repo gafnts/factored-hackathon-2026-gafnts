@@ -26,10 +26,27 @@ from banking_agent.agent.formats import (
 )
 
 FIXED: dict[str, dict[str, str]] = {
-    # POL-06: a message with no card request.
+    # POL-06: a message with no card request, by what it is. The introduction answers the first greeting and any
+    # question about the chat itself; a later greeting, thanks, and a goodbye get a line each, and the rest the list.
     "no_request": {
-        "es": "Hola. Puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, decirle el motivo registrado de un pago rechazado, bloquear una tarjeta y ayudarle con un cargo que no reconoce: pregúnteme.",
-        "pt": "Olá. Posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, dizer o motivo registrado de um pagamento recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece: é só perguntar.",
+        "es": "Hola, soy Faro, el asistente automático de tarjetas de LATAM Bank. Puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, decirle el motivo registrado de un pago rechazado, bloquear una tarjeta y ayudarle con un cargo que no reconoce. ¿En qué le puedo ayudar?",
+        "pt": "Olá, eu sou o Faro, o assistente automático de cartões do LATAM Bank. Posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, dizer o motivo registrado de um pagamento recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece. Como posso ajudar?",
+    },
+    "greeting": {
+        "es": "Hola. ¿En qué le puedo ayudar?",
+        "pt": "Olá. Como posso ajudar?",
+    },
+    "capabilities": {
+        "es": "En este chat puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, decirle el motivo registrado de un pago rechazado, bloquear una tarjeta y ayudarle con un cargo que no reconoce. ¿En qué le puedo ayudar?",
+        "pt": "Neste chat posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, dizer o motivo registrado de um pagamento recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece. Como posso ajudar?",
+    },
+    "thanks": {
+        "es": "Con gusto. Quedo a su disposición para cualquier otra consulta sobre sus tarjetas.",
+        "pt": "Por nada. Fico à disposição para qualquer outra dúvida sobre seus cartões.",
+    },
+    "closing": {
+        "es": "Quedo a su disposición para cualquier otra consulta sobre sus tarjetas.",
+        "pt": "Fico à disposição para qualquer outra dúvida sobre seus cartões.",
     },
     # POL-51: a third language gets Spanish, with one sentence in Portuguese.
     "third_language": {

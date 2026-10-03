@@ -13,6 +13,8 @@ Return every request the message holds, each under one of these labels, and noth
 
 Set has_request to false, with no labels, when the message holds no request at all: a greeting, thanks, or a question about what the chat can do. What follows these instructions, if anything, says what the chat's last reply offered; a message that takes up that offer holds the request it continues.
 
+When has_request is false, set kind to what the message is: "greeting" for a greeting; "about" for a question about the chat itself, such as what it is, who it is, whether it is a person, or what it can do; "thanks" for thanks or praise; "closing" for a goodbye, or an acknowledgement such as "ok" or "entendido" that asks nothing; and "other" for small talk or anything else. When has_request is true, set kind to "other".
+
 Set complaint to true when the message complains about the bank, its service, or this chat, and to false otherwise. Asking for a person is not a complaint on its own.
 
 Set language to the language most of the message's words are in, names such as a merchant's aside: "es" for Spanish, "pt" for Portuguese, and "other" for any other language, English or French for instance, even when the message asks about a card. A message that mixes Spanish and Portuguese is in the language most of its words are in, and a short reply in one of them, such as "listo" or "tudo bem", is in that language. Set "unclear" only when the message gives no way to tell Spanish from Portuguese: a word or phrase both languages spell the same, such as "cancelar" or "banco", digits, a name, or a bare "ok".

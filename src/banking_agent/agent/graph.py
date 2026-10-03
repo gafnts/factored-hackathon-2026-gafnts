@@ -196,6 +196,7 @@ class State(ChatState, total=False):
     recent: str | None
     parts: list[str]
     names: list[str]
+    no_request: str | None
 
 
 def latest_text(state: State) -> str:
@@ -218,7 +219,12 @@ def routing(routed: RouterOutput, text: str) -> dict[str, Any]:
     request, like any new one, leaves nothing queued (POL-05, POL-06).
     """
     if not routed.has_request:
-        return {"label": None, "case": "no_request", "queue": None}
+        return {
+            "label": None,
+            "case": "no_request",
+            "queue": None,
+            "no_request": routed.kind,
+        }
     first, *rest = [label for label in ORDER if label in routed.requests] or [
         "unsupported"
     ]
@@ -227,6 +233,7 @@ def routing(routed: RouterOutput, text: str) -> dict[str, Any]:
         "case": CASES[first],
         "complaint": routed.complaint,
         "text": text,
+        "no_request": None,
         "queue": (
             {"labels": rest, "text": text, "complaint": routed.complaint}
             if rest
@@ -2410,6 +2417,21 @@ FIXED["other_person"] = FIXED["refused"]
 ASKED = {"card": "card", "reason": "reason", "transaction": "transaction"}
 
 
+def small_talk(state: State) -> str:
+    """
+    The fixed text a message with no request gets, from what the router read it as (POL-06): the introduction the
+    first time the chat speaks and whenever the customer asks about the chat itself, and after that a line for a
+    greeting, for thanks, or for a goodbye, and the capabilities for anything else.
+    """
+    kind = state.get("no_request") or "other"
+    if kind in ("thanks", "closing"):
+        return kind
+    introduced = any(isinstance(m, AIMessage) for m in state["messages"])
+    if kind == "about" or not introduced:
+        return "no_request"
+    return "greeting" if kind == "greeting" else "capabilities"
+
+
 def decision(state: State, case: str) -> dict[str, Any]:
     outcome_class, rules = OUTCOMES_BY_CASE[case]
     label = None if case in ("no_request", "third_language") else state.get("label")
@@ -2497,8 +2519,9 @@ async def conclude(state: State) -> dict[str, Any]:
         names += used
         parts.append(text)
     if case in FIXED:
-        names.append(case)
-        parts.append(FIXED[case][language])
+        name = small_talk(state) if case == "no_request" else case
+        names.append(name)
+        parts.append(FIXED[name][language])
     explicit = state.get("decision")
     outcome = decision(state, case) if explicit is None or case in FIXED else explicit
     offer = state.get("offer") if case != "unavailable" else None

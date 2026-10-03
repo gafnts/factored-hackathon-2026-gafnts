@@ -134,6 +134,7 @@ def test_a_route_call_records_its_output_usage_and_cost() -> None:
         "has_request": True,
         "complaint": False,
         "language": "es",
+        "kind": "other",
     }
     assert entry["usage"] == {
         "input_tokens": 1_000,

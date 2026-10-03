@@ -64,6 +64,8 @@ ORDER: tuple[Label, ...] = (
 
 # Which language a message is mostly in (POL-50); other gets POL-51's reply (ADR-0004's amendment of 2026-10-02).
 Language = Literal["es", "pt", "other", "unclear"]
+# What a message with no request is (POL-06): the reply to it depends on this and on nothing else.
+NoRequest = Literal["greeting", "about", "thanks", "closing", "other"]
 
 Record = Callable[..., Any]
 
@@ -101,7 +103,8 @@ class Declared:
 class RouterOutput(BaseModel):
     """
     Every supported request the message holds, whether it holds one at all (S5), whether it is a complaint, which
-    POL-44 hands off under its own reason code (ADR-0004's amendment of 2026-09-30), and which language it is mostly in.
+    POL-44 hands off under its own reason code (ADR-0004's amendment of 2026-09-30), which language it is mostly in,
+    and, when it holds no request, what it is instead (the amendment of 2026-10-03).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -111,6 +114,9 @@ class RouterOutput(BaseModel):
     requests: list[Label] = Field(max_length=8)
     has_request: bool
     complaint: bool
+    # Optional, so the evaluation's scripted routers need not say; a message they leave unnamed gets the
+    # introduction, or the capabilities once the chat has spoken.
+    kind: NoRequest = "other"
 
 
 # The model never sees the name customer_request, which it read as "the customer asked for the block" (D-006).
