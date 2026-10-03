@@ -184,6 +184,47 @@ def test_a_situation_short_of_natural_customers_is_topped_up_with_built_ones(
         assert listed(case) > oracle.PAGE
 
 
+def test_a_situation_whose_customers_run_out_shares_them_across_languages(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    situation = generator.BY_NAME["status.one_card"]
+    one = (
+        f"{situation.where} and customer_id = "
+        f"(select min(customer_id) from eval_summary where {situation.where})"
+    )
+    monkeypatch.setitem(
+        generator.BY_NAME, situation.name, replace(situation, where=one)
+    )
+    monkeypatch.setitem(generator.COMPOSITIONS, "spent", {situation.name: 1})
+    drawing = generator.Generator(
+        con, "development", LOADED, ANSWERS, HELD, contract_words()
+    )
+    drawn = drawing.draw("spent", 7)
+
+    assert drawn.short == []
+    assert [c["language"] for c in drawn.cases] == ["es", "pt"]
+    assert len({c["customer_id"] for c in drawn.cases}) == 1
+    assert generator.manifest("spent", 7, drawn, {})["shared"] == [
+        {"situation": situation.name, "language": "es", "cases": 1},
+        {"situation": situation.name, "language": "pt", "cases": 1},
+    ]
+
+
+def test_a_situation_with_customers_to_spare_shares_none(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    situation = generator.BY_NAME["status.one_card"]
+    monkeypatch.setitem(generator.COMPOSITIONS, "spare", {situation.name: 1})
+    drawing = generator.Generator(
+        con, "development", LOADED, ANSWERS, HELD, contract_words()
+    )
+    drawn = drawing.draw("spare", 7)
+
+    assert drawn.short == []
+    assert len({c["customer_id"] for c in drawn.cases}) == 2
+    assert generator.manifest("spare", 7, drawn, {})["shared"] == []
+
+
 def test_a_held_out_situation_no_held_out_family_fits_borrows_development_phrasing(
     bank: Bank, monkeypatch: pytest.MonkeyPatch
 ) -> None:
