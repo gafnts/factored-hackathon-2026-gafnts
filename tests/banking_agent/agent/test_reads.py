@@ -110,6 +110,40 @@ def test_one_card_named_gets_its_status_and_expiration(
     assert f"Shape: {SHAPES['card_status']}" in json.dumps(system.content)
 
 
+@pytest.mark.parametrize(
+    ("language", "text", "expected"),
+    [
+        (
+            "es",
+            "¿Qué tarjetas tengo?",
+            "Esta es su tarjeta y su estado:\n\n"
+            "- Tarjeta de débito terminada en 1177: activa; fecha de vencimiento: no registrada",
+        ),
+        (
+            "pt",
+            "Quais cartões eu tenho?",
+            "Este é o seu cartão e o status dele:\n\n"
+            "- Cartão de débito final 1177: ativo; validade: não registrada",
+        ),
+    ],
+)
+def test_an_only_card_asked_about_as_the_customers_cards_is_listed(
+    harness: Harness, language: str, text: str, expected: str
+) -> None:
+    # Listed as each of several is (POL-14), so the chat draws it in a frame (ADR-0007). The model's lead holds a
+    # digit here, so the fixed one shows.
+    harness.bank.listed["cards"] = [harness.bank.listed["cards"][2]]
+    chat = Chat(harness)
+    harness.script.replies = ["Tiene 1 tarjeta:\n\n{cards}"]
+
+    events = chat.say(text, requests=["card_status"], language=language, cards="all")
+
+    assert reply(events) == expected
+    assert decisions(chat)[0]["rules"] == ["POL-01", "POL-21", "POL-14"]
+    system = harness.script.model_inputs["reply"][-1][0]
+    assert f"Shape: {SHAPES['only_card_status']}" in json.dumps(system.content)
+
+
 def test_several_cards_and_none_named_are_asked_about_then_answered(
     harness: Harness,
 ) -> None:

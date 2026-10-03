@@ -78,7 +78,8 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{card_list}\n\n¿Sobre cuál me pregunta?",
         "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{card_list}\n\nSobre qual você está perguntando?",
     },
-    # POL-01 and POL-21: a status answer's fixed reply, for one card and for each.
+    # POL-01 and POL-21: a status answer's fixed reply, for one card and for each. POL-14's "my cards" lists an only card
+    # too, so the chat draws it as it draws several.
     "card_status": {
         "es": "Su {card} está {card.status}; fecha de vencimiento: {card.expiration}.",
         "pt": "Seu {card} está {card.status}; validade: {card.expiration}.",
@@ -86,6 +87,10 @@ FIXED: dict[str, dict[str, str]] = {
     "cards_status": {
         "es": "Estas son sus tarjetas y el estado de cada una:\n\n{cards}",
         "pt": "Estes são os seus cartões e o status de cada um:\n\n{cards}",
+    },
+    "only_card_status": {
+        "es": "Esta es su tarjeta y su estado:\n\n{cards}",
+        "pt": "Este é o seu cartão e o status dele:\n\n{cards}",
     },
     # POL-01, POL-19, POL-22 to POL-24.
     "credit_available": {

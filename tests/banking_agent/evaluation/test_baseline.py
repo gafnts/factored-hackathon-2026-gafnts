@@ -300,6 +300,7 @@ def test_the_extraction_and_the_choice_answer_through_the_agents_model_calls() -
 WRITTEN = {
     "card_status": "card_status",
     "cards_status": "card_status",
+    "only_card_status": "card_status",
     "credit_available": "available_credit",
     "credit_over_limit": "available_credit",
     "transactions_page": "recent_transactions",

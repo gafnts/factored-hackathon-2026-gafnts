@@ -135,6 +135,7 @@ DESCRIPTIONS = {
 SHAPES = {
     "card_status": "One sentence that names the card and its status, then its expiration.",
     "cards_status": "One sentence that introduces the customer's cards, then their list on a line of its own.",
+    "only_card_status": "One sentence that introduces the customer's only card, then it on a line of its own.",
     "credit_available": "One sentence: as of the date, the card has that credit available.",
     "credit_over_limit": (
         "One sentence: as of the date, the card has no credit available, since its balance exceeds its limit by"
@@ -1364,12 +1365,13 @@ async def read_status(state: State) -> dict[str, Any]:
             return {"case": "unavailable"}
         shown.append(call.result["card"])
     rules = ["POL-01", "POL-21"]
-    if len(shown) == 1:
+    every = (state.get("details") or {}).get("cards") == "all"
+    if len(shown) == 1 and not every:
         say = writable("card_status", {"card": shown[0]}, seen(shown[0]))
     else:
         rules.append("POL-14")
         say = writable(
-            "cards_status",
+            "cards_status" if len(shown) > 1 else "only_card_status",
             {"statuses": shown},
             " ".join(seen(card) for card in shown),
         )
