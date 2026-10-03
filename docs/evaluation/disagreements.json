@@ -99,10 +99,11 @@
     },
     {
       "id": "D-008",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "system",
       "rules": ["POL-50"],
       "question": "A first message in Portuguese, \"por que recusou\", answered in Spanish. The router's call read it as Portuguese and so did the card extraction's; the transaction extraction's call read the same message as Spanish, and the last reading set the conversation's language (POL-50), so the clarifying question and its facts came out in Spanish. Found live on 2026-10-03 in one case; D-005's known limitation covers a message the model misreads, not a message read right and then moved by a later call. Our lean: the system: a message is read once, by the router's call, and a later call on the same text doesn't move the language.",
+      "resolution": "The system. Each model call that read a message set the conversation's language, so the last reading won, and the extraction calls read the same message after the router. Since 2026-10-03 only the first reading of a message sets it (the router's on a new request, the extraction's on an answer), and a later call that reads the same message differently moves nothing; the extraction's other content is used as before. A regression case plays the router reading Portuguese and the extraction reading Spanish on one message.",
       "matches": [
         { "situation": "decline.several", "language": "pt", "turn": 1, "check": "language", "expected": "pt", "observed": ["es"] },
         { "situation": "decline.several", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }

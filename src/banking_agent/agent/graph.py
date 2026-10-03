@@ -143,6 +143,7 @@ def kept(held: list[dict[str, Any]], new: list[dict[str, Any]]) -> list[dict[str
 
 class State(ChatState, total=False):
     language: str
+    read: int
     label: str | None
     case: str
     cards: list[dict[str, Any]]
@@ -210,11 +211,15 @@ def routing(routed: RouterOutput, text: str) -> dict[str, Any]:
 def heard(state: State, text: str, found: str) -> dict[str, Any]:
     """
     The conversation's language after a model call read text as found (POL-50). Only the latest message sets it, so a
-    queued request served later can't move it back.
+    queued request served later can't move it back, and only its first reading does, so a later call that reads the
+    same message differently can't move it either (D-008); read counts the customer's messages read so far.
     """
     if text != latest_text(state):
         return {}
-    return {"language": settled(state.get("language", DEFAULT), found)}
+    count = sum(isinstance(m, HumanMessage) for m in state["messages"])
+    if state.get("read") == count:
+        return {}
+    return {"language": settled(state.get("language", DEFAULT), found), "read": count}
 
 
 def queued(state: State) -> list[str]:

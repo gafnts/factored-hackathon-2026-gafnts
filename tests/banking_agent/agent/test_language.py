@@ -10,8 +10,8 @@ import pytest
 from banking_agent.agent.language import DEFAULT, settled
 from banking_agent.agent.texts import FIXED
 
-from .conftest import Harness
-from .test_block import Chat, interrupt, reply
+from .conftest import Harness, run_body
+from .test_block import THREAD, Chat, interrupt, reply
 from .test_charge import reported
 from .test_reads import decisions, tools
 
@@ -166,3 +166,28 @@ def test_a_charge_whose_extraction_fails_keeps_the_language(
     assert interrupt(shown)["metadata"]["language"] == "pt"
     assert "cartão" in reply(shown)
     assert "tarjeta" not in reply(shown)
+
+
+def test_a_later_call_reading_the_same_message_keeps_the_first_reading(
+    harness: Harness,
+) -> None:
+    # D-008: the router read a Portuguese message as Portuguese and the card extraction read it as Spanish.
+    chat = Chat(harness)
+    script = harness.script
+    script.requests, script.has_request = ["card_status"], True
+    script.language = "pt"
+    script.extracted = {"language": "es", "last_four": "1177"}
+
+    events = chat.check(
+        harness.post(
+            run_body("Como está meu débito 1177?", thread=THREAD),
+            chat.who.token(),
+            chat.session,
+        )
+    )
+
+    decision = [e for e in chat.entries() if e["kind"] == "decision"][0]
+    assert decision["language"] == "pt"
+    assert tools(harness) == ["list_cards", "get_card"]
+    assert "cartão" in reply(events)
+    assert "tarjeta" not in reply(events)

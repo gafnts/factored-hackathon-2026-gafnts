@@ -11,7 +11,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-005](#d-005) | Closed | The system was wrong | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
 | [D-006](#d-006) | Closed | The system was wrong | POL-35, POL-36 | `block.cancelled` |
 | [D-007](#d-007) | Closed | The oracle was wrong | POL-27 | `decline.several` |
-| [D-008](#d-008) | Open | To triage | POL-50 | `decline.several` |
+| [D-008](#d-008) | Closed | The system was wrong | POL-50 | `decline.several` |
 | [D-009](#d-009) | Open | To triage | POL-37, POL-39 | `charge.blocked` |
 
 ## D-001
@@ -111,7 +111,9 @@ A first message in Portuguese, "por que recusou", answered in Spanish. The route
 - `decline.several` (pt), turn 1: `language`, expected `pt`, observed `es`
 - `decline.several` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. Each model call that read a message set the conversation's language, so the last reading won, and the extraction calls read the same message after the router. Since 2026-10-03 only the first reading of a message sets it (the router's on a new request, the extraction's on an answer), and a later call that reads the same message differently moves nothing; the extraction's other content is used as before. A regression case plays the router reading Portuguese and the extraction reading Spanish on one message.
 
 ## D-009
 
