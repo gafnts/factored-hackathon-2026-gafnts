@@ -1,30 +1,20 @@
-import type { ExtraProps } from "react-markdown";
-
 import type { Language } from "../contracts/chat";
 import { WORDS } from "../contracts/words";
-
-type Node = NonNullable<ExtraProps["node"]>;
+import {
+  anyOf,
+  capitalized,
+  escaped,
+  type Found,
+  itemTexts,
+  LANGUAGES,
+  type Node,
+  readAll,
+} from "./lines";
 
 export interface Card {
   name: string;
   status: string;
   expiration: string;
-}
-
-const LANGUAGES: readonly Language[] = ["es", "pt"];
-
-function escaped(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function capitalized(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function anyOf(words: Record<string, string>, shown = (word: string) => word) {
-  return Object.values(words)
-    .map((word) => escaped(shown(word)))
-    .join("|");
 }
 
 // A card in a status answer, as the agent's code writes it (formats.card_line), in the reply words. The reply check
@@ -42,33 +32,22 @@ function cardLine(language: Language): RegExp {
 
 const LINES = LANGUAGES.map(cardLine);
 
-// A list item's text, when it holds text alone.
-function itemText(item: Node["children"][number]): string | null {
-  if (item.type !== "element" || item.tagName !== "li") return null;
-  const [only, ...rest] = item.children;
-  return only?.type === "text" && rest.length === 0 ? only.value : null;
+function card([, name, status, label, expiration]: Found): Card | null {
+  if (!name || !status || !label || !expiration) return null;
+  return {
+    name,
+    status: capitalized(status),
+    expiration: `${capitalized(label)}: ${expiration}`,
+  };
 }
 
 // The cards a list states, when every item is a card line of one language; otherwise null, and the list stays one.
 export function cardsIn(list: Node | undefined): Card[] | null {
-  const items = (list?.children ?? []).filter(
-    (child) => child.type !== "text" || child.value.trim() !== "",
-  );
-  const texts = items.map(itemText);
-  if (texts.length === 0) return null;
+  const texts = itemTexts(list);
+  if (!texts) return null;
   for (const line of LINES) {
-    const cards: Card[] = [];
-    for (const text of texts) {
-      const found = text === null ? null : line.exec(text);
-      const [, name, status, label, expiration] = found ?? [];
-      if (!name || !status || !label || !expiration) break;
-      cards.push({
-        name,
-        status: capitalized(status),
-        expiration: `${capitalized(label)}: ${expiration}`,
-      });
-    }
-    if (cards.length === texts.length) return cards;
+    const cards = readAll(texts, line, card);
+    if (cards) return cards;
   }
   return null;
 }
