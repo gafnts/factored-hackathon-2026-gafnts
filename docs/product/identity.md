@@ -117,7 +117,7 @@ Light at dusk: a warm lamp against a cold sea. The palette runs from the lamp's 
 | **Night** | Black, with the banner's grid | The site's pages (the customer's sign-in and chat, the human agent's sign-in and console), the slides' covers, the video's titles |
 | **Paper** | A warm light gray | Work read at length off the site: the evaluation report and the slides' content |
 
-A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, no motion but the arrival, the sweep, and the beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
+A customer reporting a stolen card needs a calm page, not a dramatic one. On Paper the light ground gives that calm; on Night restraint does: one accent, the navigation lights' green and red only on a status beside its word, no motion but the arrival, the sweep, and the beacon, and the grid only where nothing is being read. The console is Night so the site reads as one product, but staff read it for long stretches, so past its sign-in it takes less of the banner: no grid or glow, and solid panels rather than glass.
 
 ### Palette
 
@@ -133,6 +133,8 @@ Every text color meets WCAG AA (4.5:1) on its mode's ground and on its raised su
 | `sea` | `#66C0FC` | Night | The accent, the banner's lit cells: the send button, focus, lit cells, the sweep's beam, verified | 10.5:1 |
 | `glow` | `#0557FF` | Night | The lit cells' bloom and the glow only, never text | |
 | `lamp` | `#EE7A3F` | Night | Alerts, urgent, the mark's light | 7.5:1 |
+| `starboard` | `#6ACB8E` | Night | A status that is well, beside its word: a card active, a transaction approved | 10.5:1 |
+| `port` | `#F0716B` | Night | A status that stops, beside its word: a card blocked or suspended, a transaction declined; a closed card, a pending or reversed transaction stay `bone-muted` | 7.3:1 |
 | `paper` | `#E3E5DC` | Paper | Ground | |
 | `paper-raised` | `#F1F2EC` | Paper | Messages, panels | |
 | `ink` | `#161816` | Paper | Text | 14.0:1 |
