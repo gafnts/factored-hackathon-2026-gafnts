@@ -62,7 +62,7 @@ def saying(
                     }
                 )
             else:
-                parsed = TransactionChoice(fitting=[1], language=said)
+                parsed = TransactionChoice(fitting=[1], language=said, question=None)
             raw = AIMessage(content="{}", usage_metadata=USAGE)
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 

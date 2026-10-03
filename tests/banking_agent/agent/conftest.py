@@ -73,6 +73,7 @@ EXTRACTED = {
     "owner": None,
     "conflict": None,
     "service": None,
+    "question": None,
 }
 USAGE = {
     "input_tokens": 120,
@@ -515,7 +516,11 @@ class Harness:
                 response_metadata={"model_name": MODEL},
             )
             parsed = TransactionChoice.model_validate(
-                {"fitting": script.fitting, "language": script.language}
+                {
+                    "fitting": script.fitting,
+                    "language": script.language,
+                    "question": script.extracted.get("question"),
+                }
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 

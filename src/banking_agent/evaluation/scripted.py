@@ -189,6 +189,8 @@ class ScriptedModels:
             details |= said.extract
             if "last_four" in said.slots:
                 details["last_four"] = self.slots["last_four"]
+        elif said == "aside":
+            details["question"] = "unanswered"
         elif said in REASONS:
             details["block_reason"] = REASONS[said]
         elif said.startswith("card_") and self.card is not None:
@@ -206,7 +208,15 @@ class ScriptedModels:
         shown = listed(messages[0].text)
         if said == "transaction_newest":
             return structured(
-                TransactionChoice.model_validate({"fitting": [1], "language": language})
+                TransactionChoice.model_validate(
+                    {"fitting": [1], "language": language, "question": None}
+                )
+            )
+        if said == "aside":
+            return structured(
+                TransactionChoice.model_validate(
+                    {"fitting": [], "language": language, "question": "unanswered"}
+                )
             )
         merchant, amount, on = self.hints(said)
         fitting = [
@@ -220,7 +230,7 @@ class ScriptedModels:
             fitting = [n for n, *_ in shown]
         return structured(
             TransactionChoice.model_validate(
-                {"fitting": fitting[:10], "language": language}
+                {"fitting": fitting[:10], "language": language, "question": None}
             )
         )
 

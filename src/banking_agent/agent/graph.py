@@ -695,13 +695,22 @@ def question(
             "offer": offering(request, "abstain"),
             "decision": decided("abstain", stopped, OFFERED, label),
         }
+    listed, cards = offer
+    decision = decided(
+        "clarify", rules, "card" if detail == "card" else "reason", label
+    )
     return {
         "case": "fixed",
-        "asking": {"detail": detail, "questions": before + 1, **kept},
+        "asking": {
+            "detail": detail,
+            "questions": before + 1,
+            "asked": [name, facts],
+            "decision": decision,
+            "cited": {"calls": [listed] if listed else [], "cards": cards},
+            **kept,
+        },
         "say": [*state.get("say", []), *said((name, facts))],
-        "decision": decided(
-            "clarify", rules, "card" if detail == "card" else "reason", label
-        ),
+        "decision": decision,
     }
 
 
@@ -714,6 +723,7 @@ EMPTY = {
     "owner": None,
     "conflict": None,
     "service": None,
+    "question": None,
 }
 
 
@@ -784,6 +794,8 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 return {**turn, "case": "third_language"}
             turn |= heard(state, text, extracted.language)
             details = extracted.details()
+            if asked and details["question"] == "unanswered":
+                return {**turn, "case": "aside"}
     # A charge someone else made on the customer's card is still theirs to report (POL-39).
     if details.get("owner") == "someone_else" and not charge:
         return {**turn, "case": "other_person", "asking": None}
@@ -1088,6 +1100,8 @@ async def find_transaction(state: State) -> dict[str, Any]:
                 # POL-51: a question asked stays pending.
                 return {**turn, "case": "third_language", "asking": state.get("asking")}
             turn |= heard(state, text, chosen.language)
+            if answering and chosen.question == "unanswered":
+                return {**turn, "case": "aside", "asking": asked}
             fitting = [
                 candidates[n - 1]
                 for n in dict.fromkeys(chosen.fitting)
@@ -1104,6 +1118,15 @@ async def find_transaction(state: State) -> dict[str, Any]:
         return {**turn, "case": "unavailable"}
     if len(fitting) > 1 and before < QUESTIONS:
         listed = fitting[:SHOWN]
+        which = [
+            "which_decline" if declined else "which_charge",
+            {
+                "card": card,
+                "transactions": [shown(t) for t in listed],
+                "country": country,
+            },
+        ]
+        decision = decided("clarify", rules, "transaction", label)
         return {
             **turn,
             "asking": {
@@ -1114,21 +1137,15 @@ async def find_transaction(state: State) -> dict[str, Any]:
                 "candidates": listed,
                 "calls": calls,
                 "text": asked.get("text") or request_text(state),
+                "asked": which,
+                "decision": decision,
+                "cited": {
+                    "calls": [target["listed"], *calls],
+                    "cards": [target["card_id"]],
+                },
             },
-            "say": [
-                *say,
-                *said(
-                    (
-                        "which_decline" if declined else "which_charge",
-                        {
-                            "card": card,
-                            "transactions": [shown(t) for t in listed],
-                            "country": country,
-                        },
-                    )
-                ),
-            ],
-            "decision": decided("clarify", rules, "transaction", label),
+            "say": [*say, which],
+            "decision": decision,
         }
     if declined:
         return await explained(state, turn, target, fitting, [target["listed"], *calls])
@@ -1173,6 +1190,70 @@ async def find_transaction(state: State) -> dict[str, Any]:
             cards=[target["card_id"]],
             transactions=charge["transactions"],
         ),
+    }
+
+
+async def aside(state: State) -> dict[str, Any]:
+    """
+    A message the step that asked read as no answer to its question, read as a new one (POL-06): one with no request
+    gets its short reply and the question again, which counts toward no limit (POL-17), and a new request ends the
+    question and is served, after the dispute handoff a charge's question owes (POL-39).
+    """
+    scope = SCOPE.get()
+    asked = state["asking"]
+    assert asked is not None
+    text = latest_text(state)
+    try:
+        routed = await scope.models.route(text, paged(state))
+    except ModelFailedError:
+        return {"case": "unavailable", "asking": None}
+    if routed.language == OTHER:
+        return {"case": "third_language"}
+    turn = heard(state, text, routed.language)
+    if not routed.has_request:
+        decision = asked["decision"]
+        return {
+            **turn,
+            "case": "fixed",
+            "say": [
+                *said((small_talk({**state, "no_request": routed.kind}), {})),
+                asked["asked"],
+            ],
+            "decision": {**decision, "rules": [*decision["rules"], "POL-06"]},
+        }
+    served = {
+        **turn,
+        **routing(routed, text),
+        "asking": None,
+        "say": [],
+        "decision": None,
+        "rules": [],
+        "details": None,
+        "target": None,
+        "targets": [],
+        "block": None,
+        "listed": None,
+        "handoff": None,
+        "then": None,
+    }
+    if asked.get("label") != "unrecognized_charge":
+        return served
+    cited = asked["cited"]
+    return {
+        **served,
+        "label": "unrecognized_charge",
+        "case": "handoff",
+        "handoff": required(
+            "unrecognized_charge",
+            "unrecognized_charge",
+            ["POL-06", "POL-39"],
+            calls=cited["calls"],
+            cards=cited["cards"],
+        ),
+        "then": {
+            k: served[k]
+            for k in ("label", "case", "complaint", "text", "no_request", "queue")
+        },
     }
 
 
@@ -2630,11 +2711,18 @@ def after_resolve(state: State) -> str:
         "find": "find_transaction",
         "reading": "read",
         "handoff": "handoff",
+        "aside": "aside",
     }.get(state["case"], "conclude")
 
 
 def after_find(state: State) -> str:
-    return {"confirm": "confirm", "handoff": "handoff"}.get(state["case"], "conclude")
+    return {"confirm": "confirm", "handoff": "handoff", "aside": "aside"}.get(
+        state["case"], "conclude"
+    )
+
+
+def after_aside(state: State) -> str:
+    return "handoff" if state["case"] == "handoff" else serve(state)
 
 
 def onward(state: State) -> str:
@@ -2675,8 +2763,8 @@ def build(
     graph = StateGraph(State, input_schema=ChatState, output_schema=ChatState)
     for node in (
         begin, route, next_request, list_cards, unsupported, resolve_card, read,
-        find_transaction, ask_reason, confirm, await_control, hold, block, verify,
-        handoff, conclude, reply,
+        find_transaction, aside, ask_reason, confirm, await_control, hold, block,
+        verify, handoff, conclude, reply,
     ):  # fmt: skip
         graph.add_node(node.__name__, citing(node))
     starts = ["resolve_card", "list_cards", "conclude"]
@@ -2693,12 +2781,21 @@ def build(
     graph.add_conditional_edges(
         "resolve_card",
         after_resolve,
-        ["confirm", "ask_reason", "find_transaction", "read", "handoff", "conclude"],
+        [
+            "confirm",
+            "ask_reason",
+            "find_transaction",
+            "read",
+            "aside",
+            "handoff",
+            "conclude",
+        ],
     )
     graph.add_conditional_edges("read", onward, ["handoff", "conclude"])
     graph.add_conditional_edges(
-        "find_transaction", after_find, ["confirm", "handoff", "conclude"]
+        "find_transaction", after_find, ["confirm", "aside", "handoff", "conclude"]
     )
+    graph.add_conditional_edges("aside", after_aside, ["handoff", *starts])
     graph.add_edge("ask_reason", "conclude")
     graph.add_edge("confirm", "conclude")
     graph.add_conditional_edges("conclude", after_conclude, ["next_request", "reply"])

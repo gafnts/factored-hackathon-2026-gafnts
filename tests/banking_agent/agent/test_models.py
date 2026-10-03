@@ -223,6 +223,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
         owner=None,
         conflict=None,
         service=None,
+        question=None,
         language="es",
     )
     raw = answer(content="{}", usage_metadata=USAGE)
@@ -244,6 +245,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
             "owner": None,
             "conflict": None,
             "service": None,
+            "question": None,
             "language": "es",
         }
     }

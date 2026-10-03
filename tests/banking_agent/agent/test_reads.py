@@ -175,6 +175,33 @@ def test_several_cards_and_none_named_are_asked_about_then_answered(
     assert request.content == "¿En qué estado está mi tarjeta?"
 
 
+def test_a_new_request_while_which_card_is_asked_ends_the_question(
+    harness: Harness,
+) -> None:
+    # POL-06, version 6: the message doesn't answer which card, so it is served as the request it holds.
+    chat = Chat(harness)
+    chat.say("¿En qué estado está mi tarjeta?", requests=["card_status"])
+    harness.script.replies = ["{card}, {window.from} - {window.to}:\n\n{transactions}"]
+
+    events = chat.say(
+        "Mejor, ¿cuáles son los movimientos de la 4821?",
+        requests=["recent_transactions"],
+        question="unanswered",
+        last_four="4821",
+    )
+
+    assert reply(events).startswith(f"{CARD}, ")
+    assert decisions(chat) == [
+        {
+            "request_label": "recent_transactions",
+            "outcome_class": "answer",
+            "awaiting": "none",
+            "rules": ["POL-19", "POL-25"],
+            "pending_labels": [],
+        }
+    ]
+
+
 def test_a_request_that_names_no_card_is_about_the_card_last_settled_on(
     harness: Harness,
 ) -> None:

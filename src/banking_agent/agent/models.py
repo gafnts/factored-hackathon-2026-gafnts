@@ -130,8 +130,9 @@ class RequestDetails(BaseModel):
     message doesn't say: the card (POL-13), a block's reason (POL-35; any other reason is other_reason to the model, and
     details() gives the graph POL-35's customer_request for it), all the customer's cards (POL-14), the next page or
     an earlier period (POL-25), someone else's card (POL-08), a question about conflicting facts (POL-31), and what an
-    unsupported request asks for (POL-41 to POL-43), and which language the message is mostly in. Every value is a
-    string, as the execution record keeps them.
+    unsupported request asks for (POL-41 to POL-43), whether a message sent while the chat waits on its question
+    answers it (POL-06), and which language the message is mostly in. Every value is a string, as the execution record
+    keeps them.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -157,6 +158,7 @@ class RequestDetails(BaseModel):
         ]
         | None
     )
+    question: Literal["unanswered"] | None
 
     def details(self) -> dict[str, Any]:
         """
@@ -173,14 +175,15 @@ class RequestDetails(BaseModel):
 class TransactionChoice(BaseModel):
     """
     The transactions listed that fit what the customer says about a charge they don't recognize, by their number in
-    the list the model reads, never by ID (POL-27, POL-39), and which language the message is mostly in. Code keeps
-    only numbers in the list.
+    the list the model reads, never by ID (POL-27, POL-39), whether a message sent while the chat asks which answers
+    it (POL-06), and which language the message is mostly in. Code keeps only numbers in the list.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     language: Language
     fitting: list[int] = Field(max_length=10)
+    question: Literal["unanswered"] | None
 
 
 class HandoffText(BaseModel):
@@ -409,7 +412,11 @@ class Models:
         if outcome == "ok" and isinstance(parsed, TransactionChoice):
             fitting = ",".join(str(n) for n in parsed.fitting)
             entry["output"] = {
-                "extracted": {"fitting": fitting or None, "language": parsed.language}
+                "extracted": {
+                    "fitting": fitting or None,
+                    "language": parsed.language,
+                    "question": parsed.question,
+                }
             }
         await self.record("model_call", **entry)
         return raw, parsed, outcome, provider

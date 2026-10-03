@@ -345,6 +345,7 @@ def extract(text: str) -> RequestDetails:
             "owner": None,
             "conflict": "asks_which" if has(plain, CONFLICTS) else None,
             "service": first(plain, SERVICES),
+            "question": None,
         }
     )
 
@@ -410,7 +411,9 @@ def choose(text: str, listing: str) -> TransactionChoice:
             and (not on or day in on)
             and (not named or n in named)
         ]
-    return TransactionChoice(language=language(text), fitting=fitting[:10])
+    return TransactionChoice(
+        language=language(text), fitting=fitting[:10], question=None
+    )
 
 
 REPLIES: dict[str, tuple[dict[str, str], ...]] = {

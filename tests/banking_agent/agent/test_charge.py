@@ -85,7 +85,7 @@ def test_a_charge_is_found_and_the_block_offered_with_the_confirm_control(
     (choice,) = [e for e in chat.entries() if e.get("node") == "find_transaction"]
     assert (choice["purpose"], choice["output"]) == (
         "extract",
-        {"extracted": {"fitting": "1", "language": "pt"}},
+        {"extracted": {"fitting": "1", "language": "pt", "question": None}},
     )
 
 
@@ -231,6 +231,65 @@ def test_several_charges_that_fit_are_listed_for_the_customer_to_choose(
     assert interrupt(shown)["metadata"]["controls"][0]["kind"] == "block_confirmation"
     (answering,) = harness.script.model_inputs["choose"][1:]
     assert "which of these transactions" in json.dumps([m.content for m in answering])
+
+
+# A message that doesn't answer the question (POL-06, version 6)
+
+
+def test_a_message_that_doesnt_answer_which_charge_gets_its_reply_and_the_question_again(
+    harness: Harness,
+) -> None:
+    harness.script.fitting = [1, 2, 3]
+    chat = Chat(harness)
+    asked = reported(chat)
+
+    aside = chat.say(
+        "Em que mais você pode me ajudar?", requests=[], question="unanswered"
+    )
+
+    assert reply(aside) == "\n\n".join([FIXED["capabilities"]["pt"], reply(asked)])
+    decision = chat.decision()
+    assert (decision["outcome_class"], decision["awaiting"]) == (
+        "clarify",
+        "transaction",
+    )
+    assert "POL-06" in decision["rules"]
+    assert not items(harness, "filed")
+    # It counts toward no limit: the answer after it is still the first.
+    harness.script.fitting = [2]
+    shown = chat.say("A segunda.", requests=[])
+    assert interrupt(shown)["metadata"]["controls"][0]["kind"] == "block_confirmation"
+
+
+def test_a_new_request_while_which_charge_is_asked_files_the_dispute_then_is_served(
+    harness: Harness,
+) -> None:
+    harness.script.fitting = [1, 2, 3]
+    chat = Chat(harness)
+    reported(chat)
+    harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
+
+    served = chat.say(
+        "Como está o meu débito final 1177?",
+        requests=["card_status"],
+        language="pt",
+        question="unanswered",
+        last_four="1177",
+    )
+
+    case = filed(harness)
+    assert case["payload"]["reason_code"] == "unrecognized_charge"
+    assert [
+        (e["request_label"], e["outcome_class"], e["awaiting"])
+        for e in chat.entries()
+        if e["kind"] == "decision"
+    ] == [
+        ("unrecognized_charge", "hand_off", "none"),
+        ("card_status", "answer", "none"),
+    ]
+    first, answered = reply(served).split("\n\n")
+    assert first == FIXED["handoff_filed"]["pt"].format(reference=case["reference"])
+    assert answered.startswith("cartão de débito final 1177: ativo")
 
 
 def test_a_charge_not_settled_after_two_questions_is_recorded_unfound(
