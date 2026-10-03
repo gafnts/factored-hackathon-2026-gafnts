@@ -87,6 +87,8 @@ The held-out run against a deterministic baseline, with M-01 to M-05 per languag
 
 The bank is synthetic, and it shows: contacts can't be tied to a workflow, no supplied label carries signal, about half of all active cards are past their expiration date and still transact, and about 5% of each core field is missing at random. The workflow was chosen for being feasible on this data, not for being in demand ([ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md)). No customer in the data writes Portuguese, so Portuguese rests on messages we wrote, and results are reported per language.
 
+Faro serves what this bank's data supports, and no more. Recent transactions, for one, are a card's last 90 days, ten at a time, with no filter by period, merchant, or amount. That is enough here, where 99% of cards with a transaction in that window have four or fewer, but it isn't a statement ([product brief](docs/product/brief.md#out-of-scope)).
+
 Three pieces are designed and not built, each a stated limitation: a handoff filed after a confirmation's deadline when the customer has left, claim and resolve in the console, and the AI team's page. The tools mock the bank's systems of record over a frozen snapshot; what they stand for, and what replacing them would take, is in [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems) and [ADR-0007](docs/adr/0007-role-gated-web-app.md#in-a-bank-ops-11). The evaluation report gathers the full account, with the remaining deployment work and risks, when it lands.
 
 ---
