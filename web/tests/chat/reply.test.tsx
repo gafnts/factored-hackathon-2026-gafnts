@@ -108,6 +108,26 @@ test.each([
   },
 );
 
+test("draws an only card in a frame", () => {
+  const { container } = render(
+    <Reply
+      text={[
+        "Esta es su tarjeta y su estado:",
+        "",
+        "- Tarjeta de débito terminada en 4337: bloqueada; fecha de vencimiento: no registrada",
+      ].join("\n")}
+    />,
+  );
+
+  expect(frames(container)).toEqual([
+    [
+      "Tarjeta de débito terminada en 4337",
+      "Bloqueada",
+      "Fecha de vencimiento: no registrada",
+    ],
+  ]);
+});
+
 test.each([
   ["a line that isn't a card's", "- Algo más"],
   [
