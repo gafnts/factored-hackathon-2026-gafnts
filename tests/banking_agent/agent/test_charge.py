@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from banking_agent.agent.payload import DONE
 from banking_agent.agent.texts import FIXED, render
 
 from .conftest import Harness, tool_error
@@ -201,6 +202,9 @@ def test_however_the_block_offer_ends_the_charge_goes_to_dispute_intake(
     assert reply(ended).endswith(
         FIXED["handoff_filed"]["pt"].format(reference=case["reference"])
     )
+    # The model writes the notes before the turn's reply exists, so a block after the context says how the block ended.
+    (notes,) = harness.script.model_inputs["handoff_text"]
+    assert DONE[outcome] in json.dumps(notes[0].content, ensure_ascii=False)
 
 
 def test_several_charges_that_fit_are_listed_for_the_customer_to_choose(

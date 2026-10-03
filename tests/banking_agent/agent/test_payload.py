@@ -12,10 +12,14 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from banking_agent.agent.models import HandoffText
 from banking_agent.agent.payload import (
+    DONE,
     FACTS,
     FIELDS,
+    NOTHING_DONE,
     READ,
     built,
+    context,
+    done,
     facts_of,
     required,
     transcript,
@@ -265,6 +269,34 @@ def test_a_digit_run_the_model_writes_never_reaches_the_payload() -> None:
     assert mended["request"]["summary"] == HANDOFFS["customer_request"].summary
     assert mended["customer_statements"] == ["Lo perdió ayer."]
     assert mended["unresolved_questions"] == []
+
+
+@pytest.mark.parametrize(
+    "outcome", ["verified", "not_verified", "declined_by_customer", "lapsed"]
+)
+def test_the_model_reads_what_the_chat_did_about_the_card_after_the_context(
+    outcome: str,
+) -> None:
+    action: dict[str, Any] = {
+        "action": "block_card",
+        "card_id": CARD,
+        "reason": "unrecognized_charge",
+        "confirmation_id": "7c1e2a94-3b5d-4f08-a6e2-9d4b0c8f1e37",
+        "outcome": outcome,
+        "confirmed_at": None,
+        "evidence": [],
+    }
+    acted = required("unrecognized_charge", "unrecognized_charge", [], actions=[action])
+    idle = required("customer_request", "talk_to_human", [])
+
+    # The context keeps its one line, which the deterministic baseline reads as the summary.
+    assert context(acted) == (
+        f"Why the case goes to a person: {HANDOFFS['unrecognized_charge'].summary}"
+    )
+    assert done(acted) == DONE[outcome]
+    assert done(idle) == NOTHING_DONE
+    for line in (*DONE.values(), NOTHING_DONE):
+        assert not any(c.isdigit() for c in line)
 
 
 def test_the_transcript_is_the_latest_messages_labeled_by_speaker() -> None:

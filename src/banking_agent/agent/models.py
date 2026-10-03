@@ -447,14 +447,18 @@ class Models:
         chosen: TransactionChoice = parsed
         return chosen
 
-    async def handoff_text(self, conversation: str, context: str) -> HandoffText:
+    async def handoff_text(
+        self, conversation: str, context: str, done: str | None = None
+    ) -> HandoffText:
         """
-        The conversation reaches the model as one message of data, never as turns it could continue.
+        The conversation reaches the model as one message of data, never as turns it could continue. done, what the
+        chat did about the card, is a block of its own after the context.
         """
         system = SystemMessage(
             [
                 {"type": "text", "text": prompt("handoff")},
                 {"type": "text", "text": context},
+                *([{"type": "text", "text": done}] if done is not None else []),
             ]
         )
         _, parsed = await self.call(

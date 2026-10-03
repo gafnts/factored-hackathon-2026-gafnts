@@ -55,6 +55,7 @@ from banking_agent.agent.models import (
 from banking_agent.agent.payload import (
     built,
     context,
+    done,
     offered,
     required,
     transcript,
@@ -2334,7 +2335,7 @@ async def handoff(state: State) -> dict[str, Any]:
     )
     try:
         text = await scope.models.handoff_text(
-            transcript(state["messages"]), context(request)
+            transcript(state["messages"]), context(request), done(request)
         )
     except ModelFailedError:
         text = None
