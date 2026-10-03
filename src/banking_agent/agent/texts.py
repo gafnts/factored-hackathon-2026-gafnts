@@ -268,6 +268,10 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Para bloquear la tarjeta, use el botón: un mensaje escrito no confirma el bloqueo. Si prefiere no bloquearla, puede cancelar con el botón.",
         "pt": "Para bloquear o cartão, use o botão: uma mensagem escrita não confirma o bloqueio. Se preferir não bloqueá-lo, pode cancelar no botão.",
     },
+    "charge_reviewed": {
+        "es": "El banco revisará el cargo que no reconoce, bloquee o no la tarjeta.",
+        "pt": "O banco vai analisar a cobrança que você não reconhece, bloqueando ou não o cartão.",
+    },
     "confirmation_cancelled": {
         "es": "De acuerdo: no bloqueé su {card}.",
         "pt": "Certo: não bloqueei seu {card}.",

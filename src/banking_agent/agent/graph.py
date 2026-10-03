@@ -1674,6 +1674,9 @@ async def confirm(state: State) -> dict[str, Any]:
         else ["POL-13", "POL-35", "POL-36"]
     )
     say = said(("confirm_prompt", facts))
+    if target["reason"] == "unrecognized_charge":
+        # POL-39: the charge goes to a person however the offer ends, so the offer says so first.
+        say = [*said(("charge_reviewed", {})), *say]
     if target["past_expiration"]:
         say = [*said(("past_expiration", facts)), *say]
         rules.append("POL-31")

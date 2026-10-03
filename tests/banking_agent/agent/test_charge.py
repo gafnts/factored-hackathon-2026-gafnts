@@ -66,6 +66,7 @@ def test_a_charge_is_found_and_the_block_offered_with_the_confirm_control(
     assert reply(shown).split("\n\n") == [
         render("charge_found", "pt", {"card": CARD, "transaction": charge}),
         render("past_expiration", "pt", {"card": CARD}),
+        FIXED["charge_reviewed"]["pt"],
         render("confirm_prompt", "pt", {"card": CARD, "reason": "unrecognized_charge"}),
     ]
     control = interrupt(shown)["metadata"]["controls"][0]
