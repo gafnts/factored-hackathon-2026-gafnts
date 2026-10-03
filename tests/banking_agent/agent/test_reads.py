@@ -8,10 +8,12 @@ SCP-06).
 """
 
 import copy
+import json
 from typing import Any
 
 import pytest
 
+from banking_agent.agent.graph import SHAPES
 from banking_agent.agent.texts import FIXED, render
 
 from .conftest import Harness, detail, tool_result
@@ -103,6 +105,9 @@ def test_one_card_named_gets_its_status_and_expiration(
         }
     ]
     assert checks(chat)[0]["passed"] is True
+    # The model reads the answer's shape beside its placeholders, so it writes sentences around them, not a list.
+    system = harness.script.model_inputs["reply"][-1][0]
+    assert f"Shape: {SHAPES['card_status']}" in json.dumps(system.content)
 
 
 def test_several_cards_and_none_named_are_asked_about_then_answered(

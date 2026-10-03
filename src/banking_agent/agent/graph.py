@@ -122,13 +122,39 @@ DESCRIPTIONS = {
     "cards": "the customer's cards, one per line, each with its status and expiration; put it on a line of its own",
     "credit.available": "the credit available on the card, with its currency",
     "credit.over_by": "the amount by which the card's balance exceeds its limit, with its currency",
-    "as_of": "the date the figures are as of",
+    "as_of": "the date the figures are as of, stated as the records' date (Spanish 'al', Portuguese 'em'), never as a start",
     "window.from": "when the period of transactions shown starts",
     "window.to": "when the period of transactions shown ends",
     "transactions": "the transactions, one per line, newest first; put it on a line of its own",
     "transaction": "the transaction: its date, merchant, and amount",
     "transaction.status": "the transaction's status",
     "transaction.meaning": "what the decline's code means",
+}
+# The shape of each answer the model writes, so its sentences carry the placeholders instead of listing them.
+SHAPES = {
+    "card_status": "One sentence that names the card and its status, then its expiration.",
+    "cards_status": "One sentence that introduces the customer's cards, then their list on a line of its own.",
+    "credit_available": "One sentence: as of the date, the card has that credit available.",
+    "credit_over_limit": (
+        "One sentence: as of the date, the card has no credit available, since its balance exceeds its limit by"
+        " that amount."
+    ),
+    "transactions_page": (
+        "One sentence that names the card and the period, newest first, then the list on a line of its own, and"
+        " nothing after it."
+    ),
+    "transactions_next": (
+        "One sentence that says these are the card's next transactions in the period, then the list on a line of"
+        " its own, and nothing after it."
+    ),
+    "decline_explained": (
+        "One sentence that says this transaction, named after the word for transaction, was found on the card and"
+        " declined; then the reason on record, introduced as the recorded reason: the code's meaning."
+    ),
+    "decline_status": (
+        "One sentence that says this transaction, named after the word for transaction, was found on the card and"
+        " stands as its status, not as declined."
+    ),
 }
 MORE = "The chat's last reply listed a page of a card's recent transactions and said the customer can ask for the next 10."
 
@@ -2404,13 +2430,15 @@ def instructions(
     state: State, label: str, part: dict[str, Any], facts: list[str]
 ) -> str:
     """
-    What the reply's model reads besides the request's message: the request, the records in words, and each placeholder
-    with what it holds, never its value.
+    What the reply's model reads besides the request's message: the request, the records in words, the answer's shape,
+    and each placeholder with what it holds, never its value.
     """
     listed = "\n".join(f"- {{{name}}}: {DESCRIPTIONS[name]}" for name in facts)
+    shape = SHAPES.get(part.get("template", ""))
     return (
         f"Request: {label}.\nWhat the records show: {part['shown']}\n"
-        f"Placeholders, each to be written once:\n{listed}"
+        + (f"Shape: {shape}\n" if shape else "")
+        + f"Placeholders, each to be written once:\n{listed}"
     )
 
 
