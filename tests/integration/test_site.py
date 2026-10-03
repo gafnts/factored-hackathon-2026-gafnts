@@ -123,7 +123,7 @@ def test_no_persona_reaches_the_site(site: str, persona_ids: dict[str, str]) -> 
         for path in ["/chat", "/config.json", *assets(site)]
     )
 
-    leaked = [language for language, id_ in persona_ids.items() if id_ in served]
+    leaked = [scenario for scenario, id_ in persona_ids.items() if id_ in served]
     assert leaked == [], "a persona's customer_id is in the site"
 
 

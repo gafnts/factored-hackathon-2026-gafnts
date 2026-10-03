@@ -75,19 +75,20 @@ def main(argv: list[str] | None = None) -> int:
             with open_snapshot(lock, args.data_dir, as_of) as con:
                 chosen = personas.select(con, snapshot, business_date, as_of)
             personas.write(path, chosen)
-            for language, count in chosen.qualifying.items():
+            for scenario, count in chosen.qualifying.items():
                 print(
-                    f"{language}: chosen among {count} development customers who meet its rule"
+                    f"{scenario}: chosen among {count} development customers who meet its rule"
                 )
             print(f"Wrote {path}")
             return 0
 
-        chosen_ids = personas.read(path, snapshot)
+        records = personas.read(path, snapshot)
         stamp = {"snapshot": snapshot, "pipeline_version": tiny.pipeline_version()}
         with open_snapshot(lock, args.data_dir, as_of) as con:
             built = tiny.build(
                 con,
-                [chosen_ids[language] for language in personas.LANGUAGES],
+                # The journeys' two customers only, so the tiny export stays under the publication rule (ADR-0006).
+                [records[scenario].customer_id for scenario in personas.JOURNEYS],
                 stamp=stamp,
                 business_date=business_date,
                 as_of=as_of,

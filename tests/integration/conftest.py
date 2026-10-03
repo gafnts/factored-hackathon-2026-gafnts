@@ -1,7 +1,7 @@
 """
 Throwaway users in the deployed stack's pool, signed in through IAM and deleted afterwards. The stack comes from the
 Terraform outputs that make integration writes; passwords and tokens stay in memory and are never printed. The two
-customers are the development personas (make personas), so their cards are in the tools' data; their IDs come from
+customers are the journeys' personas (make personas), so their cards are in the tools' data; their IDs come from
 data/personas/ and are never printed either. The probe (make probe) makes its users the same way. The cases a test
 saves or files are deleted afterwards too, each with its reference.
 """
@@ -67,9 +67,10 @@ def cognito() -> CognitoIdentityProviderClient:
 def persona_ids() -> dict[str, str]:
     snapshot = read_lock(ROOT / "dataset.lock").snapshot_id
     try:
-        return personas.read(personas.path_for(ROOT / "data", snapshot), snapshot)
+        chosen = personas.read(personas.path_for(ROOT / "data", snapshot), snapshot)
     except personas.PersonaError as error:
         pytest.fail(str(error))
+    return {scenario: p.customer_id for scenario, p in chosen.items()}
 
 
 @contextlib.contextmanager
@@ -143,9 +144,9 @@ def users(
     persona_ids: dict[str, str],
 ) -> Iterator[dict[str, User]]:
     wanted: dict[str, tuple[list[str], str | None]] = {
-        # Labeled as the judges' users are, so the browser sees each persona's card (ADR-0007, Judges' access).
-        "customer": (["customer", "persona-es"], persona_ids["es"]),
-        "other_customer": (["customer", "persona-pt"], persona_ids["pt"]),
+        # The journeys' two personas, whose records stage the suite's paths (ADR-0007, Judges' access).
+        "customer": (["customer"], persona_ids["declines"]),
+        "other_customer": (["customer"], persona_ids["dispute"]),
         # Not in the tools' data.
         "unknown_customer": (["customer"], "CLI-ITEST0000001"),
         "staff": (["human_agent"], None),
