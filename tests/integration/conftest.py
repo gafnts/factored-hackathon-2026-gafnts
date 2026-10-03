@@ -113,9 +113,20 @@ def throwaway_users(
                 )
         yield created
     finally:
+        left: dict[str, str] = {}
         for user in created.values():
-            with contextlib.suppress(ClientError):
+            try:
                 cognito.admin_delete_user(UserPoolId=pool, Username=user.username)
+            except ClientError as error:
+                code = error.response["Error"]["Code"]
+                if code != "UserNotFoundException":
+                    left[user.username] = code
+        # Every delete is tried before the misses are raised, so one failure strands nothing else.
+        if left:
+            raise RuntimeError(
+                "users left in the pool, delete them by hand: "
+                + ", ".join(f"{name} ({code})" for name, code in sorted(left.items()))
+            )
 
 
 def signed_in(
