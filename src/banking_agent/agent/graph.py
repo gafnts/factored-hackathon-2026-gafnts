@@ -2420,8 +2420,8 @@ ASKED = {"card": "card", "reason": "reason", "transaction": "transaction"}
 def small_talk(state: State) -> str:
     """
     The fixed text a message with no request gets, from what the router read it as (POL-06): the introduction the
-    first time the chat speaks and whenever the customer asks about the chat itself, and after that a line for a
-    greeting, for thanks, or for a goodbye, and the capabilities for anything else.
+    first time the chat speaks and whenever the message is aimed at the chat itself, a bare injection included, and
+    after that a line for a greeting, for thanks, or for a goodbye, and the capabilities for anything else.
     """
     kind = state.get("no_request") or "other"
     if kind in ("thanks", "closing"):
