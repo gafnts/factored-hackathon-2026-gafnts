@@ -102,6 +102,10 @@ class Facts:
     def cards(self, cards: Sequence[Card]) -> str:
         return "\n".join(self.card_line(c) for c in cards)
 
+    def card_list(self, cards: Sequence[Card]) -> str:
+        names = [self.card(c) for c in cards]
+        return "\n".join(f"- {name[0].upper()}{name[1:]}" for name in names)
+
     def merchant(self, transaction: Transaction) -> str:
         if transaction.merchant is None:
             return self._phrase("merchant_unrecorded")

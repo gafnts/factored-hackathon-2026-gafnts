@@ -32,6 +32,7 @@ CHECKS = frozenset(
         "tool_required",
         "tool_forbidden",
         "turns",
+        "language",
         "fact",
         "extra_figure",
         "withheld",

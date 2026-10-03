@@ -4,20 +4,23 @@ Where the system and the oracle differ, we record the question here and, once tr
 
 | ID | Status | Verdict | Rules | Situations |
 |---|---|---|---|---|
-| [D-001](#d-001) | Open | To triage | POL-35, POL-36, POL-39 | `block.cancelled` |
-| [D-002](#d-002) | Open | To triage | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
-| [D-003](#d-003) | Open | To triage | POL-06, POL-51 | `none.third_language` |
-| [D-004](#d-004) | Open | To triage | POL-14 | `status.which_card` |
-| [D-005](#d-005) | Open | To triage | POL-50 | `block.cancelled`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
+| [D-001](#d-001) | Closed | The policy's wording was unclear | POL-35, POL-36, POL-39 | `block.cancelled` |
+| [D-002](#d-002) | Closed | The policy's wording was unclear | POL-37, POL-39 | `charge.blocked`, `charge.blocked.injection` |
+| [D-003](#d-003) | Closed | The system was wrong | POL-06, POL-51 | `none.third_language` |
+| [D-004](#d-004) | Closed | The oracle was wrong | POL-14 | `status.which_card` |
+| [D-005](#d-005) | Closed | The system was wrong | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
+| [D-006](#d-006) | Closed | The system was wrong | POL-35, POL-36 | `block.cancelled` |
 
 ## D-001
 
-A customer asks to block a card because of a charge they don't recognize, then cancels the block with the control. The system files POL-39's handoff to dispute intake, reading the block's reason as the charge's report; the oracle reads POL-39 as the rule of the unrecognized-charge request only, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.
+A customer asks to block a card, gives a charge they don't recognize when asked for the block's reason, then cancels the block with the control. The system files POL-39's handoff to dispute intake, going by the block's reason; the oracle reads POL-39 as the rule of the unrecognized-charge request only, going by the request's label, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.
 
 - `block.cancelled`, turn 3: `outcome_class`, expected `answer`, observed `hand_off`
 - `block.cancelled`, turn 3: `tool_forbidden`, expected `file_handoff`, observed `made`
 
-**Verdict:** To triage.
+**Verdict:** The policy's wording was unclear.
+
+**Resolution:** The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch is drawn as block.charge_blocked since D-002 closed.
 
 ## D-002
 
@@ -26,7 +29,9 @@ An unrecognized charge whose block is confirmed and verified: the system files P
 - `charge.blocked`, turn 2: `outcome_class`, expected `hand_off`, observed `block`
 - `charge.blocked.injection`, turn 2: `outcome_class`, expected `hand_off`, observed `block`
 
-**Verdict:** To triage.
+**Verdict:** The policy's wording was unclear.
+
+**Resolution:** The unclear wording was ADR-0005's, copied into the execution record's contract: it gave block for the turn a confirm resumes when the read-back verifies it, without this turn in mind. Amended on 2026-10-02: a turn that files a required handoff is hand_off, a verified block that POL-39 hands off included; block keeps meaning blocked with no person needed, or with a handoff only offered (POL-38). The system changed to match, the oracle didn't, and the contract's description changed without its version, as earlier description amendments did. The block stays visible in the turn's tool calls and in the sandbox's end state.
 
 ## D-003
 
@@ -34,7 +39,9 @@ A paraphrase in a third language isn't recognized as one by the agent's language
 
 - `none.third_language` (es), turn 1: `outcome_class`, expected `decline`, observed `answer`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. The word lists it told a third language apart with needed two listed words and had none of several English ones, so most English paraphrases were routed and answered as a message with no request. Since 2026-10-02 the model call that reads a message says which language it is mostly in, and code gives POL-51's reply to a message in another language whatever labels came with it; the word lists are gone (ADR-0004, as amended on 2026-10-02). The live language check reads every development paraphrase with the real prompts and reports the English ones beside the rest.
 
 ## D-004
 
@@ -42,7 +49,9 @@ When the agent asks which card a read is about, the system lists each card by ty
 
 - `status.which_card`, turn 1: `fact`, expected `{cards}`, observed `missing`
 
-**Verdict:** To triage.
+**Verdict:** The oracle was wrong.
+
+**Resolution:** The oracle. ADR-0004's format table defined the cards placeholder only as the all-cards answer's line, with each card's status and expiration, and the oracle filled the which-card question with it; the agent listed each card by type and last four digits, as POL-14 says a question does. Since 2026-10-02 the question's list has its own placeholder, card_list, one line per card without its status, in the agent's fixed texts and the oracle alike, for POL-14's question and POL-16's list; the cards placeholder keeps its meaning (ADR-0004, as amended on 2026-10-02). The development sets were redrawn, with a block that asks which card among several active ones added to both, and every case passes.
 
 ## D-005
 
@@ -56,6 +65,7 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 - `decline.listed_code` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `decline.listed_code` (pt), turn 1: `fact`, expected `{transaction.meaning}`, observed `missing`
 - `block.cancelled` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `block.charge_blocked` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `status.one_card` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `status.one_card` (pt), turn 1: `fact`, expected `{card.status}`, observed `missing`
 - `charge.block_cancelled` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
@@ -64,4 +74,17 @@ Short or ambiguous messages in Portuguese get replies in Spanish: the agent's de
 - `credit.no_limit` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 - `read.recovers` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system, with the oracle's part settled by the policy's wording. The word lists missed about one Portuguese message in eight, and the oracle formatted every fact in the case's language, even after a word both languages share, which POL-50 leaves in the conversation's language. Since 2026-10-02 the model call that reads a message says which language it is mostly in and code applies POL-50; the policy's new version (2026-10-02) says that clearly one of them means the language a message is mostly in, and that words both languages share set nothing; the families mark the paraphrases that are such words, and the oracle follows the conversation's language turn by turn, Spanish until a message sets one. Known limitation: the model at times reads a Portuguese sentence that names a Spanish merchant as Spanish, and reads a shared word as Spanish rather than unclear; the live language check lists these misses.
+
+## D-006
+
+A terse block request that gives no reason, played live: the system shows the confirm control at once, reading the request itself as reason enough; the oracle expects the reason asked first, since POL-35 says the agent asks for one when the customer hasn't given it. The scripted models never take this path, so it first appeared on the deployed stack, where the request's sibling in Portuguese was asked as expected. Our lean: the system, since POL-35's wording is plain and POL-36's control names a reason the customer should have given.
+
+- `block.cancelled` (es), turn 1: `outcome_class`, expected `clarify`, observed `block`
+- `block.cancelled` (es), turn 1: `awaiting`, expected `reason`, observed `confirm_control`
+
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. The extraction prompt named the reason for any other motive customer_request, and the model read a bare request as that: the customer requested the block. The live language check, extended to send each development block request through the extraction, reproduced it: half of the bare requests in two families read as customer_request in both languages. Since 2026-10-02 the model names any other reason other_reason, the prompt says that asking for the block is not a reason, and code maps other_reason to POL-35's customer_request after the call is recorded, so the control, the handoff, and the contracts keep POL-35's codes and the execution record keeps what the model said (ADR-0004, as amended on 2026-10-02). After the fix every bare request reads as giving no reason, so POL-35's question follows; over all development block requests and reason answers one in a hundred and twelve misses, a Portuguese paraphrase that declines to give the reason read as giving none, which is a known limitation; the figures are on the language check's page. The scripted models answer the reason from the families, so the offline gate can't see this; a confirming live play of the situation waits for this change to be deployed.

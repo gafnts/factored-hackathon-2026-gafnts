@@ -174,7 +174,7 @@
     "turn": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sends", "decisions", "awaiting", "tools_required", "tools_forbidden", "facts", "withheld"],
+      "required": ["sends", "decisions", "language", "awaiting", "tools_required", "tools_forbidden", "facts", "withheld"],
       "properties": {
         "sends": {
           "description": "What the customer sends this turn: the script's next message, an answer, or a control press.",
@@ -186,6 +186,10 @@
           "minItems": 1,
           "maxItems": 8,
           "items": { "$ref": "#/$defs/decision" }
+        },
+        "language": {
+          "description": "The conversation's language each decision records (POL-50; ADR-0005's amendment of 2026-10-02).",
+          "$ref": "urn:banking-agent:card-support:execution-record:1#/$defs/language"
         },
         "awaiting": { "enum": ["none", "card", "reason", "transaction", "confirm_control", "handoff_control"] },
         "tools_required": {
@@ -205,7 +209,7 @@
           "additionalProperties": { "type": "string", "minLength": 1 }
         },
         "withheld": {
-          "description": "Values the reply must not state, such as a closed card's status (POL-29).",
+          "description": "Words no event may show the customer, compared without case: those naming a customer status the policy withholds (POL-12), unless one of the customer's cards is in it.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },

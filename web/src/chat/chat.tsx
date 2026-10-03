@@ -18,7 +18,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Language } from "../contracts/chat";
 import { Grid } from "../grid";
 import { ArrowUp } from "../icons";
-import { personaCard, type PersonaLabel } from "../personas";
 import {
   createAgent,
   type Fetch,
@@ -129,33 +128,16 @@ function Composer({
 
 // The empty chat, after assistant-ui's Gemini example (MIT): the question over the composer, the glow beneath it, and
 // the numbered suggestions, in the banner's cleared block. Twelve cells wide, so the composer's edges and the
-// suggestions' dividers fall on the grid's lines; the conversation keeps the same column. A sign-in with a persona
-// label gets the label's card over the suggestions (ADR-0007, Judges' access).
-function Opening({
-  language,
-  persona,
-  divert,
-}: {
-  language: Language;
-  persona: PersonaLabel | null;
-  divert: Divert;
-}) {
+// suggestions' dividers fall on the grid's lines; the conversation keeps the same column. One template for every
+// sign-in (ADR-0007, Judges' access): the bar's switch sets the page's language.
+function Opening({ language, divert }: { language: Language; divert: Divert }) {
   const texts = TEXTS[language].chat;
-  const card = persona ? personaCard(persona, language) : null;
-  const prompts = card ? card.prompts : texts.suggestions;
   return (
     <Grid layout="chat">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:mx-0 sm:ml-[max(1.5rem,calc(50%-6*var(--cell)))] sm:w-[calc(12*var(--cell)+1px)] sm:max-w-[calc(100%-3rem)] sm:px-0">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-center text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {texts.question}
-          </h1>
-          {card && (
-            <p className="text-center text-base text-balance text-bone-muted">
-              {card.description}
-            </p>
-          )}
-        </div>
+        <h1 className="text-center text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
+          {texts.question}
+        </h1>
         <div className="relative">
           <div
             aria-hidden="true"
@@ -163,12 +145,8 @@ function Opening({
           />
           <Composer language={language} divert={divert} />
         </div>
-        <ol
-          className={`grid divide-y divide-white/10 border border-white/10 glass sm:divide-x sm:divide-y-0 ${
-            prompts.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
-          }`}
-        >
-          {prompts.map((prompt, index) => (
+        <ol className="grid divide-y divide-white/10 border border-white/10 glass sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {texts.suggestions.map((prompt, index) => (
             <li key={prompt} className="flex">
               <ThreadPrimitive.Suggestion
                 prompt={prompt}
@@ -193,11 +171,9 @@ function Opening({
 
 function Thread({
   language,
-  persona,
   problem,
 }: {
   language: Language;
-  persona: PersonaLabel | null;
   problem: Problem | null;
 }) {
   const texts = TEXTS[language].chat;
@@ -220,7 +196,7 @@ function Thread({
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <AuiIf condition={(state) => state.thread.isEmpty}>
-        <Opening language={language} persona={persona} divert={divert} />
+        <Opening language={language} divert={divert} />
       </AuiIf>
       <AuiIf condition={(state) => !state.thread.isEmpty}>
         {/* Up under the shell's bar, so the conversation scrolls beneath its glass. */}
@@ -273,7 +249,6 @@ export function Chat({
   url,
   session,
   language,
-  persona = null,
   onSignInEnded,
   onRunning,
   fetcher: given,
@@ -281,7 +256,6 @@ export function Chat({
   url: string;
   session: string;
   language: Language;
-  persona?: PersonaLabel | null;
   onSignInEnded: () => void;
   onRunning?: (running: boolean) => void;
   fetcher?: Fetch;
@@ -336,7 +310,7 @@ export function Chat({
     <AssistantRuntimeProvider runtime={runtime}>
       {onRunning && <Running onChange={onRunning} />}
       <ShownControls value={shown}>
-        <Thread language={language} persona={persona} problem={problem} />
+        <Thread language={language} problem={problem} />
       </ShownControls>
     </AssistantRuntimeProvider>
   );

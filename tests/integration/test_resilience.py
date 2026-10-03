@@ -324,7 +324,11 @@ def test_a_sign_in_past_its_rate_is_refused_and_recorded(
     assert [e["code"] for e in entries if e["kind"] == "request_refused"] == [
         "rate_limited"
     ]
-    assert not [e for e in entries if e["kind"] == "model_call"]
+    # The refusal comes before the model: its turn holds the one entry and nothing else.
+    refusal = next(e for e in entries if e["kind"] == "request_refused")
+    assert [e["kind"] for e in entries if e["turn_id"] == refusal["turn_id"]] == [
+        "request_refused"
+    ]
 
 
 def test_a_user_past_the_days_cap_is_refused_and_recorded(

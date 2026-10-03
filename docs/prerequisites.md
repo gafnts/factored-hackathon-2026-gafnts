@@ -1,8 +1,6 @@
 # Hackathon requirements
 
-This is the single source of truth for what the organizers will evaluate. It distills the problem statement (`PS`) and the kickoff slides (`SL`), both stored locally in `docs/hackathon/` but gitignored. Every requirement carries a stable ID; the compliance checker, tests, and evaluation reports should reference these IDs rather than paraphrasing the source.
-
-References use `PS p.N` for problem statement pages and `SL N` for slide numbers.
+What the organizers evaluate, distilled from the problem statement (`PS p.N`, by page) and the kickoff slides (`SL N`, by slide), both under `docs/hackathon/` and gitignored. Every requirement carries a stable ID, and the docs, the tests, and the evaluation reports cite the ID instead of paraphrasing the source.
 
 ## Contents
 
@@ -25,13 +23,11 @@ References use `PS p.N` for problem statement pages and `SL N` for slide numbers
 | 2026-10-15 | Finalists announced |
 | 2026-10-16 | Award ceremony |
 
-Prizes: US$ 6,000 (1st), US$ 3,000 (2nd), US$ 1,000 (3rd), plus interviews with the Factored engineering and talent team (`SL 23`).
-
 ---
 
 ## Submission deliverables
 
-All of these are required for the submission to count (`SL 18`). Send them to `hackathon.admin@factored.ai`. "Submit your tool no matter what."
+All four are required for the submission to count (`SL 18`), sent to `hackathon.admin@factored.ai`: "submit your tool no matter what".
 
 | ID | Deliverable |
 |---|---|
@@ -39,9 +35,6 @@ All of these are required for the submission to count (`SL 18`). Send them to `h
 | SUB-02 | Link to where the tool is deployed |
 | SUB-03 | A 4 to 6 slide presentation with details on the tool |
 | SUB-04 | A short, **mandatory** video pitch that demonstrates the working solution and explains the core architectural decisions |
-
-> [!IMPORTANT]
-> Since this repository is public, it must never contain private customer records, credentials, or restricted data (see SEC-03).
 
 ---
 
@@ -57,25 +50,23 @@ All of these are required for the submission to count (`SL 18`). Send them to `h
 | Data Engineering | How we handle extraction and transformation of the data | DML-01 to DML-06 |
 | Machine Learning | Model selection, optimization, implementation, and tracking | DML-07 to DML-12, EVL |
 
-Scoring principles:
-
-- Depth, demonstrated behavior, and engineering judgment determine the score; implementing more workflows earns no automatic bonus (`PS p.3`).
-- Every team is assessed on data engineering and AI/ML rigor, regardless of architecture (`PS p.4`).
-- No single discipline is mandatory, but each has suggested tasks (`SL 14`): AI (production backend, structured JSON handoffs); ML (LLM/RAG orchestration, prompt injection defense); Data Engineering (ETL/ELT pipeline, customer record isolation); Data Analysis (demand patterns, cost-per-resolution ROI).
-- Final takeaway (`SL 15`): build something that works, prove that it works, know when it should not act, and show what it would take to make it real.
+- Depth, demonstrated behavior, and engineering judgment determine the score; more workflows earn no bonus (`PS p.3`).
+- Every team is assessed on data engineering and AI/ML rigor, whatever its architecture (`PS p.4`).
+- No discipline is mandatory, but each has suggested tasks (`SL 14`): AI (production backend, structured JSON handoffs); ML (LLM/RAG orchestration, prompt injection defense); Data Engineering (ETL/ELT pipeline, customer record isolation); Data Analysis (demand patterns, cost-per-resolution ROI).
+- The takeaway (`SL 15`): build something that works, prove that it works, know when it should not act, and show what it would take to make it real.
 
 ---
 
 ## Requirement catalogue
 
-The `Check` column says how the compliance checker can verify each item:
+The `Check` column says where each item is verified:
 
-| Tag | Meaning |
+| Tag | Where |
 |---|---|
-| `test` | Verifiable by an automated test against the code or the running service |
-| `eval` | Verifiable in the output of the evaluation harness |
-| `doc` | Verifiable by the presence and content of documentation |
-| `demo` | Verifiable in the deployed tool or the video |
+| `test` | An automated test against the code or the running service |
+| `eval` | The output of the evaluation harness |
+| `doc` | The documentation |
+| `demo` | The deployed tool or the video |
 
 ### Scope (SCP)
 
@@ -139,7 +130,9 @@ Key idea: "AI should not be autonomous just because it can be" (`SL 11`).
 | SEC-06 | Sandbox services and mock banking tools are allowed only with documented contracts and limitations | `doc` | PS p.5 |
 | SEC-07 | No live lending decisions and no movement of money | `test` | PS p.5 |
 
-### Credit workflows (CRD), only if we choose a credit workflow
+### Credit workflows (CRD), only for a credit workflow
+
+Not ours: [ADR-0003](adr/0003-choose-workflow-from-evidence.md) chose card support and set credit aside, with these in view.
 
 | ID | Requirement | Check | Source |
 |---|---|---|---|
@@ -215,7 +208,7 @@ Key idea: "AI should not be autonomous just because it can be" (`SL 11`).
 
 ## Metric definitions
 
-These definitions are quoted closely from `PS p.6` and must be computed exactly as stated. The slides single out M-01, M-04, and cost efficiency (M-05) as the key metrics (`SL 12`).
+Quoted closely from `PS p.6` and computed as stated. The slides single out M-01, M-04, and cost efficiency (M-05) as the key metrics (`SL 12`).
 
 | ID | Metric | Definition | Reporting rules |
 |---|---|---|---|
@@ -231,7 +224,7 @@ All metrics are reported per language and per authorized customer segment as wel
 
 ## Explicitly not required
 
-The organizers state these earn no points by themselves (`PS p.3`, `PS p.4`):
+These earn no points by themselves (`PS p.3`, `PS p.4`):
 
 - Training a new model (a training pipeline is one way, not the only way, to show ML rigor)
 - Multiple agents, or reaching a tool-count target
@@ -247,10 +240,10 @@ Any language and tooling is allowed; Azure, Snowflake, AWS, and Databricks are s
 
 ## Reading between the lines
 
-This section is our interpretation as if we were the organizers, not organizer text.
+Our interpretation, not organizer text.
 
-- **Honesty is graded.** The documents repeatedly ask for limitations, failures, "not defined", denominators, and a separation between offline and production claims. Overclaiming is likely penalized more than a modest, well-measured result.
-- **Judges will attack the deployed tool.** We expect them to try prompt injection, impersonation with only a customer number, access to another customer's records, and reuse of an expired session. SEC-04, SEC-05, and CTL-04 must hold at the tool layer even when the model is fully compromised.
-- **The handoff payload is a first-class artifact.** It appears in both documents and in the suggested AI tasks; it should have a schema, tests, and a place in the demo.
-- **A frontend is scored.** A dashboard is optional, but "AI Engineering: Backend, Frontend and Deployment" means the deployed tool needs a usable interface.
-- **The video carries the demo.** It should show the three paths (SCP-03 to SCP-05) in both languages (SCP-06) and the core architectural decisions (SUB-04).
+- **Honesty is graded.** The documents keep asking for limitations, failures, "not defined", denominators, and offline claims kept apart from production ones. Overclaiming likely costs more than a modest, well-measured result.
+- **Judges will attack the deployed tool.** Expect prompt injection, impersonation with only a customer number, reads of another customer's records, and reuse of an expired session. SEC-04, SEC-05, and CTL-04 must hold at the tool layer with the model fully compromised.
+- **The handoff payload is a first-class artifact.** It appears in both documents and in the suggested AI tasks, so it gets a schema, tests, and a place in the demo.
+- **A frontend is scored.** A dashboard is optional, but "Backend, Frontend and Deployment" means the deployed tool needs a usable interface.
+- **The video carries the demo.** It shows the three paths (SCP-03 to SCP-05) in both languages (SCP-06) and the core architectural decisions (SUB-04).

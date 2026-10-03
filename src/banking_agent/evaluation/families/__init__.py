@@ -3,7 +3,10 @@ The request families and the scripted customer's answers (ADR-0005, decision 2, 
 team-generated (SEC-02). A family is one request in Spanish and Portuguese: in each language's list the first message is
 the seed we wrote, and the rest are paraphrases Claude Opus 5.5 wrote from it. Values are slots that the generator fills
 from a case's customer, so no message holds an identifier or a value from the records. A family's `extract` is what
-the agent's extraction should read from it (the graph's fields), and `when` the relative date it names.
+the agent's extraction should read from it (the graph's fields), and `when` the relative date it names. `unclear`
+marks, by position in each language's list, the paraphrases that aren't clearly in one language (a bare word both
+languages share): the scripted models say so, and the oracle keeps the conversation's language for the turn they open
+(POL-50; ADR-0005's amendment of 2026-10-02).
 
 Each label's families and each kind of answer are split by `split.held_out_families`: a third held out, the rest
 development. `problems()` lists every way the files break these rules; the tests require it to find none.
@@ -184,6 +187,7 @@ class Message:
     language: str
     author: str
     text: str
+    clear: bool = True
 
 
 @dataclass(frozen=True)
@@ -197,6 +201,7 @@ class Family:
     slots: frozenset[str] = frozenset()
     when: str | None = None
     complaint: bool = False
+    unclear: Mapping[str, tuple[int, ...]] = field(default_factory=dict)
 
     def in_language(self, language: str) -> tuple[Message, ...]:
         return tuple(m for m in self.messages if m.language == language)
@@ -210,10 +215,17 @@ class Answer:
 
 
 def _messages(family_id: str, body: Mapping[str, Any]) -> Iterator[Message]:
+    unclear = body.get("unclear", {})
     for language in (*LANGUAGES, *OTHER_LANGUAGES):
         for n, text in enumerate(body.get(language, ())):
             author = SEED_AUTHOR if n == 0 else PARAPHRASE_AUTHOR
-            yield Message(f"{family_id}/{language}/{n}", language, author, text)
+            yield Message(
+                f"{family_id}/{language}/{n}",
+                language,
+                author,
+                text,
+                clear=n not in unclear.get(language, ()),
+            )
 
 
 def _family(group: str, body: Mapping[str, Any]) -> Family:
@@ -227,6 +239,7 @@ def _family(group: str, body: Mapping[str, Any]) -> Family:
         slots=frozenset(body.get("slots", ())),
         when=body.get("when"),
         complaint=bool(body.get("complaint", False)),
+        unclear={k: tuple(v) for k, v in body.get("unclear", {}).items()},
     )
 
 
@@ -311,7 +324,10 @@ def _message_problems(family: Family, message: Message) -> Iterator[str]:
         yield f"{message.id} has something shaped like an identifier"
     if not 1 <= len(message.text) <= MAX_LENGTH:
         yield f"{message.id} is {len(message.text)} characters long"
-    if family.kind not in ("mixed_language", "terse", "third_language"):
+    if (
+        family.kind not in ("mixed_language", "terse", "third_language")
+        and message.clear
+    ):
         problem = _language_problem(message)
         if problem:
             yield problem
@@ -343,6 +359,12 @@ def _family_problems(family: Family) -> Iterator[str]:
         yield f"{fid}'s relative date isn't one the oracle resolves"
     if family.complaint and "talk_to_human" not in family.labels:
         yield f"{fid} is a complaint without talk_to_human"
+    for language, positions in family.unclear.items():
+        held = family.in_language(language) if language in LANGUAGES else ()
+        if any(p not in range(len(held)) for p in positions):
+            yield f"{fid} marks a message it doesn't have as unclear"
+    if family.kind == "third_language" and family.unclear:
+        yield f"{fid} is in a third language, which no mark makes unclear"
     languages = OTHER_LANGUAGES if family.kind == "third_language" else LANGUAGES
     for language in languages:
         held = family.in_language(language)

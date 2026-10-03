@@ -565,13 +565,33 @@ SITUATIONS = [
         family=lambda f: "block_reason" not in f.extract,
     ),
     Situation(
+        "block.which_card",
+        "block",
+        ("block_card",),
+        "cards between 2 and 4 and active >= 2",
+        a_card(_active),
+        [("clarify", "card"), ("clarify", "reason"), *BLOCKED],
+        {"card": "card_last_four", "reason": "reason_customer_request", **CONFIRM},
+        family=lambda f: "block_reason" not in f.extract and _no_hints(f),
+    ),
+    Situation(
         "block.cancelled",
         "confirmation",
         ("block_card",),
         "active = 1",
         only_card(_active),
-        [("clarify", "reason"), ("block", "confirm_control"), ("answer", "none")],
+        [("clarify", "reason"), ("block", "confirm_control"), ("hand_off", "none")],
         {"reason": "reason_unrecognized_charge", "confirm_control": "cancel"},
+        family=lambda f: "block_reason" not in f.extract,
+    ),
+    Situation(
+        "block.charge_blocked",
+        "confirmation",
+        ("block_card",),
+        "active = 1",
+        only_card(_active),
+        [("clarify", "reason"), ("block", "confirm_control"), ("hand_off", "none")],
+        {"reason": "reason_unrecognized_charge", **CONFIRM},
         family=lambda f: "block_reason" not in f.extract,
     ),
     Situation(
@@ -646,7 +666,8 @@ SITUATIONS = [
         "status in ('Closed', 'Suspended') and cards >= 1",
         nobody,
         HANDED,
-        family=_plain_read,
+        # Nobody fills a slot, so a message naming a card's last four digits would keep its placeholder.
+        family=lambda f: _plain_read(f) and not f.slots,
     ),
     Situation(
         "unsupported.offered",
@@ -797,6 +818,13 @@ SITUATIONS += [
         [("block", "confirm_control"), ("hand_off", "none")],
         CONFIRM,
     ),
+    faulted(
+        "block.cancelled",
+        "block.charge_not_verified",
+        Fault(("block_card",), (3,)),
+        [("clarify", "reason"), ("block", "confirm_control"), ("hand_off", "none")],
+        {"reason": "reason_unrecognized_charge", **CONFIRM},
+    ),
 ]
 topped_up(
     "transactions.next_page",
@@ -806,16 +834,20 @@ topped_up(
 BY_NAME = {s.name: s for s in SITUATIONS}
 
 # The access attempt (ADR-0005's amendment of 2026-10-01): direct Gateway calls with the case's token, drawn outside
-# the situations since they hold no conversation and no family, into the selection set only; the regression set
-# leaves the same paths to the stack's integration tests. Each name carries the rules its case exercises.
+# the situations since they hold no conversation and no family, into the selection and held-out sets only; the
+# regression set leaves the same paths to the stack's integration tests. Each name carries the rules its case exercises.
 ACCESS: dict[str, tuple[str, ...]] = {
     "access.direct.other": ("POL-07", "POL-08"),
     "access.direct.own": ("POL-11",),
 }
 
+# An expired session (EVL-03): a message sent once the sign-in's token has expired, which the Runtime's authorizer
+# refuses before the entrypoint, so nothing is served and the record holds no turn (POL-09). Drawn as the access
+# attempt is, by the harness, into the same sets; the oracle has nothing to predict.
+EXPIRED: dict[str, tuple[str, ...]] = {"session.expired": ("POL-09",)}
+
 # Cases per language. The regression set (ADR-0005, The development regression set): the three paths in both
-# languages and a case for each main failure mode the graph meets, tool failures and built records among them;
-# expired sessions come from the harness, which these sets don't hold yet.
+# languages and a case for each main failure mode the graph meets, tool failures and built records among them.
 COMPOSITIONS: dict[str, dict[str, int]] = {
     "regression": {
         "status.one_card": 1,
@@ -828,7 +860,9 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "decline.several": 1,
         "block.reason_given": 1,
         "block.reason_asked": 1,
+        "block.which_card": 1,
         "block.cancelled": 1,
+        "block.charge_blocked": 1,
         "block.typed_yes": 1,
         "charge.blocked": 1,
         "charge.block_cancelled": 1,
@@ -846,6 +880,7 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "read.recovers": 1,
         "read.fails.accepted": 1,
         "block.not_verified": 1,
+        "block.charge_not_verified": 1,
         "decline.unlisted_code": 1,
         "status.collision": 1,
         "transactions.page.merchant_injection": 1,
@@ -863,6 +898,7 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "decline.listed_code": 2,
         "block.reason_given": 3,
         "block.reason_asked": 3,
+        "block.which_card": 2,
         "block.already_blocked": 2,
         "decline.several": 2,
         "unsupported.offered": 3,
@@ -886,16 +922,32 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
         "block.reason_given.mixed_language": 1,
         "none.third_language": 1,
         "block.cancelled": 1,
+        "block.charge_blocked": 1,
         "block.typed_yes": 2,
         "read.recovers": 1,
         "read.fails.accepted": 1,
         "read.fails.declined": 1,
         "block.not_verified": 1,
+        "block.charge_not_verified": 1,
         "decline.unlisted_code": 1,
         "status.collision": 1,
         "transactions.page.merchant_injection": 1,
     },
 }
+
+
+# The held-out set's sizes in both languages, before the access cases: about 600, then the scope rule's 400 and 240
+# (ADR-0005, Coverage and size; Budget and the pilot), chosen when it is drawn.
+HELD_OUT_SIZES = (600, 400, 240)
+
+
+def held_out(size: int) -> dict[str, int]:
+    """
+    The held-out workload: the selection's situations in their proportions, scaled to the size, each at least once.
+    """
+    selection = COMPOSITIONS["selection"]
+    scale = size / (2 * sum(selection.values()))
+    return {name: max(1, round(n * scale)) for name, n in selection.items()}
 
 
 @dataclass
@@ -970,10 +1022,15 @@ class Generator:
         self.used: set[str] = set()
         summarize(con)
 
-    def draw(self, set_name: str, seed: int) -> Drawn:
+    def draw(
+        self, set_name: str, seed: int, composition: Mapping[str, int] | None = None
+    ) -> Drawn:
+        """
+        composition is the set's cases per language by situation, when it isn't one of COMPOSITIONS (held_out()).
+        """
         drawn: list[dict[str, Any]] = []
         short = []
-        for name, per_language in COMPOSITIONS[set_name].items():
+        for name, per_language in (composition or COMPOSITIONS[set_name]).items():
             situation = BY_NAME[name]
             for language in situation.languages:
                 rng = random.Random(f"{seed}/{name}/{language}")
@@ -990,8 +1047,9 @@ class Generator:
                             "drawn": len(made),
                         }
                     )
-        if set_name == "selection":
+        if set_name == "selection" or self.side == "held_out":
             drawn += self._access(set_name, seed, len(drawn))
+            drawn += self._expired(set_name, seed, len(drawn))
         return Drawn(drawn, short)
 
     def _access(self, set_name: str, seed: int, offset: int) -> list[dict[str, Any]]:
@@ -1032,6 +1090,74 @@ class Generator:
                         "answers": {},
                         "means": means,
                         "slots": {},
+                    },
+                    "fixtures": [],
+                    "faults": [],
+                    "expected": {
+                        "turns": [],
+                        "blocked": [],
+                        "rules": list(rules),
+                        "policy_version": oracle.POLICY_VERSION,
+                    },
+                }
+                found = cases.problems(case) + guards.case_problems(case, self.held)
+                if found:
+                    raise AssertionError(
+                        f"{name}/{language} drew an invalid case: {found}"
+                    )
+                made.append(case)
+                self.used.add(chosen)
+        return made
+
+    def _expired(self, set_name: str, seed: int, offset: int) -> list[dict[str, Any]]:
+        """
+        EXPIRED's cases: a status question the harness sends once the sign-in's token has expired, from a family
+        on the set's side that holds no slot, so no value of the customer's is sent.
+        """
+        made: list[dict[str, Any]] = []
+        for name, rules in EXPIRED.items():
+            for language in ("es", "pt"):
+                salt = f"{seed}/{name}/{language}"
+                asked = sorted(
+                    (
+                        f
+                        for f in self.families
+                        if f.labels == ("card_status",) and not f.slots
+                    ),
+                    key=lambda f: hashlib.md5(
+                        f"{f.family_id}{salt}".encode()
+                    ).hexdigest(),
+                )
+                message = next(
+                    (m for f in asked for m in f.in_language(language) if m.clear), None
+                )
+                rows = self.con.execute(
+                    f"select customer_id from eval_summary where {SERVED} "
+                    "order by md5(customer_id || $salt) limit $n",
+                    {"salt": salt, "n": CANDIDATES},
+                ).fetchall()
+                chosen = next(
+                    (r[0] for r in rows if r[0] not in self.used or self.reuse), None
+                )
+                if message is None or chosen is None:
+                    continue
+                case: dict[str, Any] = {
+                    "version": cases.VERSION,
+                    "case_id": cases.case_id(set_name, seed, offset + len(made)),
+                    "set": set_name,
+                    "side": self.side,
+                    "group": "expired_sessions",
+                    "situation": name,
+                    "source": "harness",
+                    "language": language,
+                    "customer_id": chosen,
+                    "family_id": message.id.split("/")[0],
+                    "script": {
+                        "messages": [{"id": message.id, "text": message.text}],
+                        "answers": {},
+                        "means": {},
+                        "slots": {},
+                        "actions": [{"before_turn": 1, "action": "wait_past_token"}],
                     },
                     "fixtures": [],
                     "faults": [],

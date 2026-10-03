@@ -151,6 +151,29 @@ class Client:
             resent += 1
             session.pace.refused()
 
+    def expired(self, token: str, session: Session, text: str) -> int:
+        """
+        A message sent with a token past its end (EVL-03): the status the Runtime's authorizer answers, kept whatever
+        it is, since a 200 is what the case catches.
+        """
+        body = {
+            "threadId": session.thread_id,
+            "runId": f"run-{uuid.uuid4().hex[:12]}",
+            "messages": [{"id": uuid.uuid4().hex, "role": "user", "content": text}],
+        }
+        headers = {
+            "Accept": "text/event-stream",
+            "Authorization": f"Bearer {token}",
+            SESSION_HEADER: session.session_id,
+        }
+        try:
+            response = self.http.post(
+                self.invoke_url, json=body, headers=headers, timeout=TIMEOUT
+            )
+        except httpx.HTTPError as error:
+            raise HarnessError(f"the request failed: {type(error).__name__}") from error
+        return response.status_code
+
     def stop(self, token: str, session: Session) -> str:
         """
         Ends the case's runtime session: `stopped`, or `not_found` when it had already ended.

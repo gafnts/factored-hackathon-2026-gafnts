@@ -82,11 +82,15 @@ def test_dates_cards_and_statuses(words: dict[str, Any]) -> None:
 
 
 def test_lists_are_laid_out_as_the_table_gives_them(words: dict[str, Any]) -> None:
-    es = facts.Facts("es", "Colombia", words)
+    es, pt = facts.Facts("es", "Colombia", words), facts.Facts("pt", "Colombia", words)
 
     assert es.cards([card()]) == (
         "- Tarjeta de crédito terminada en 4821: activa; fecha de vencimiento: 03/2027"
     )
+    assert es.card_list([card(), card(last_four="1177")]) == (
+        "- Tarjeta de crédito terminada en 4821\n- Tarjeta de crédito terminada en 1177"
+    )
+    assert pt.card_list([card()]) == "- Cartão de crédito final 4821"
     assert es.page([charge()]) == (
         "- 14/06/2026 21:07 · Compra · Comercio Ejemplo · 1.240,50 COP · Rechazada"
     )

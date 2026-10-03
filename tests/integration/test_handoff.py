@@ -337,7 +337,8 @@ def test_a_charge_the_customer_doesnt_recognize_is_blocked_and_filed_to_dispute_
     ]
     assert said, "the reply isn't the verified block's with the case's reference"
     assert status(outputs, chat.access, card["card_id"]) == "Blocked"
-    assert chat.decision()["outcome_class"] == "block"
+    # A required handoff's turn records hand_off, verified block or not (ADR-0005 as amended 2026-10-02).
+    assert chat.decision()["outcome_class"] == "hand_off"
     # The case filed is the draft the control's turn saved.
     drafted = next(
         e["result"]["handoff_id"]

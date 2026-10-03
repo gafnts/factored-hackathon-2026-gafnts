@@ -15,7 +15,7 @@ warmup's events, each turn's resends, and how the session ended.
 import json
 import time
 import uuid
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -217,6 +217,56 @@ def play(
             ],
         }
         evidence["cases"] = [c for c in map(reach.case, handoffs) if c is not None]
+    finally:
+        users.delete(user)
+    return evidence
+
+
+# Past a token's end before the expired message is sent, for the clocks of the harness and of AWS to agree.
+SKEW_S = 30
+
+
+def play_expired(
+    case: Mapping[str, Any],
+    name: str,
+    users: Users,
+    client: Client,
+    reach: Reach,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict[str, Any]:
+    """
+    Plays an expired session (EVL-03, POL-09): the case's message, sent with its sign-in's first access token once
+    that token has expired, never refreshed. The Runtime's authorizer decides before the entrypoint, so the evidence
+    is its status and the record, which must hold no turn.
+    """
+    evidence: dict[str, Any] = {
+        "case_id": case["case_id"],
+        "customer_id": case["customer_id"],
+        "mode": "end_to_end",
+        "user": name,
+        "sign_ins": [],
+        "warmup": [],
+        "turns": [],
+        "record": [],
+        "sandbox": {"overlay": [], "confirmations": []},
+        "cases": [],
+        "session": None,
+        "error": None,
+        "expired": None,
+    }
+    user = users.create(name, case["customer_id"])
+    try:
+        signed = users.sign_in(user)
+        evidence["sign_ins"] = [signed.origin_jti]
+        waited = max(0.0, signed.expires - users.now() + SKEW_S)
+        sleep(waited)
+        text = case["script"]["messages"][0]["text"]
+        try:
+            status = client.expired(signed.access, Session(), text)
+            evidence["expired"] = {"status": status, "waited_s": round(waited)}
+        except HarnessError as failed:
+            evidence["error"] = f"harness: {failed}"
+        evidence["record"] = reach.records(signed.origin_jti)
     finally:
         users.delete(user)
     return evidence

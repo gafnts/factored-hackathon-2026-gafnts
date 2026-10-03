@@ -31,6 +31,9 @@ from banking_agent.agent.gateway import Gateway
 from banking_agent.agent.graph import build
 from banking_agent.agent.models import (
     MODEL,
+    PROVIDER,
+    Declared,
+    Factory,
     HandoffText,
     RequestDetails,
     RouterOutput,
@@ -370,6 +373,8 @@ class Script:
     requests: list[str] = field(default_factory=lambda: ["card_status"])
     has_request: bool = True
     complaint: bool = False
+    # What the model says the message's language is; unclear keeps the conversation's (POL-50).
+    language: str = "unclear"
     route_error: Exception | None = None
     # The default request asks about all the customer's cards (POL-14).
     extracted: dict[str, Any] = field(default_factory=lambda: {"cards": "all"})
@@ -461,7 +466,7 @@ class Harness:
             return self.script.gateway(request)
         return self.bank.answer(request)
 
-    def factory(self, key: str) -> Callable[[str], Runnable[Any, Any]]:
+    def factory(self, key: str) -> Factory:
         assert key == "model-key"
         script = self.script
 
@@ -479,6 +484,7 @@ class Harness:
                     "requests": script.requests,
                     "has_request": script.has_request,
                     "complaint": script.complaint,
+                    "language": script.language,
                 }
             )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
@@ -492,7 +498,9 @@ class Harness:
                 usage_metadata=USAGE,
                 response_metadata={"model_name": MODEL},
             )
-            parsed = RequestDetails.model_validate(EXTRACTED | script.extracted)
+            parsed = RequestDetails.model_validate(
+                EXTRACTED | {"language": script.language} | script.extracted
+            )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         async def choose(messages: list[BaseMessage]) -> dict[str, Any]:
@@ -504,7 +512,9 @@ class Harness:
                 usage_metadata=USAGE,
                 response_metadata={"model_name": MODEL},
             )
-            parsed = TransactionChoice(fitting=script.fitting)
+            parsed = TransactionChoice.model_validate(
+                {"fitting": script.fitting, "language": script.language}
+            )
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         async def handoff_text(messages: list[BaseMessage]) -> dict[str, Any]:
@@ -541,7 +551,7 @@ class Harness:
             }.get(purpose, reply)
             return RunnableLambda(chosen)
 
-        return make
+        return Declared(make, PROVIDER, MODEL)
 
     def post(
         self,

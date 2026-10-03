@@ -11,6 +11,8 @@ export type Problem = RunErrorCode | "unreachable";
 
 export interface Texts {
   notice: string;
+  // Signed in, the footer keeps to two sentences: this label (SEC-02) and the session's end.
+  noticeBrief: string;
   notFound: {
     code: string;
     title: string;
@@ -34,11 +36,17 @@ export interface Texts {
     open: string;
     close: string;
     newChat: string;
-    unsaved: string;
+  };
+  // The bar's language switch (ADR-0007, Routes): each option named in its own language.
+  language: {
+    label: string;
+    es: string;
+    pt: string;
   };
   chat: {
     question: string;
-    // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize.
+    // Each one a path that works today: the cards, a block, a charge the customer doesn't recognize. Judges send
+    // these words as messages, so the split's guards scan this file for a held-out family's words (ADR-0005).
     suggestions: readonly [string, string, string];
     placeholder: string;
     send: string;
@@ -116,6 +124,7 @@ export const TEXTS: Record<Language, Texts> = {
   es: {
     notice:
       "Prototipo sobre datos sintéticos. LATAM Bank y sus clientes son ficticios.",
+    noticeBrief: "Prototipo sobre datos sintéticos.",
     notFound: {
       code: "Error 404",
       title: "Página no encontrada",
@@ -140,14 +149,18 @@ export const TEXTS: Record<Language, Texts> = {
       open: "Abrir el menú",
       close: "Cerrar el menú",
       newChat: "Nueva conversación",
-      unsaved: "Las conversaciones no se guardan: una nueva empieza vacía.",
+    },
+    language: {
+      label: "Idioma",
+      es: "Español",
+      pt: "Português",
     },
     chat: {
       question: "¿En qué le puedo ayudar?",
       suggestions: [
-        "¿Qué tarjetas tengo y en qué estado están?",
+        "Muéstreme el estado de mis tarjetas",
         "Quiero bloquear una tarjeta",
-        "No reconozco un cargo en mi tarjeta",
+        "No reconozco una compra en mi tarjeta",
       ],
       placeholder: "Escriba su mensaje",
       send: "Enviar",
@@ -174,7 +187,7 @@ export const TEXTS: Record<Language, Texts> = {
         `Bloquear ${CARD_TYPES.es[type]} terminada en ${lastFour}`,
       reason: (reason) => `Motivo: ${REASONS.es[reason]}`,
       undo: "Solo una persona del banco puede deshacer un bloqueo.",
-      confirm: "Bloquear",
+      confirm: "Confirmar el bloqueo",
       cancel: "Cancelar",
       expired: "El tiempo para confirmar terminó.",
     },
@@ -188,6 +201,7 @@ export const TEXTS: Record<Language, Texts> = {
   pt: {
     notice:
       "Protótipo com dados sintéticos. O LATAM Bank e seus clientes são fictícios.",
+    noticeBrief: "Protótipo com dados sintéticos.",
     notFound: {
       code: "Erro 404",
       title: "Página não encontrada",
@@ -212,12 +226,16 @@ export const TEXTS: Record<Language, Texts> = {
       open: "Abrir o menu",
       close: "Fechar o menu",
       newChat: "Nova conversa",
-      unsaved: "As conversas não ficam salvas: uma nova começa vazia.",
+    },
+    language: {
+      label: "Idioma",
+      es: "Español",
+      pt: "Português",
     },
     chat: {
       question: "Como posso ajudar?",
       suggestions: [
-        "Quais cartões eu tenho e qual é o status de cada um?",
+        "Mostre o status dos meus cartões",
         "Quero bloquear um cartão",
         "Não reconheço uma compra no meu cartão",
       ],
@@ -245,7 +263,7 @@ export const TEXTS: Record<Language, Texts> = {
         `Bloquear ${CARD_TYPES.pt[type]} final ${lastFour}`,
       reason: (reason) => `Motivo: ${REASONS.pt[reason]}`,
       undo: "Só uma pessoa do banco pode desfazer um bloqueio.",
-      confirm: "Bloquear",
+      confirm: "Confirmar o bloqueio",
       cancel: "Cancelar",
       expired: "O tempo para confirmar terminou.",
     },

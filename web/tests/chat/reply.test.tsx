@@ -45,4 +45,7 @@ test("renders the Markdown a reply uses: emphasis, lists, and tables", () => {
   expect(container.querySelector("strong")).toHaveTextContent("tarjetas");
   expect(container.querySelectorAll("li")).toHaveLength(2);
   expect(container.querySelector("table")).toHaveTextContent("Activa");
+  expect(container.querySelector("table")?.parentElement).toHaveClass(
+    "overflow-x-auto",
+  );
 });

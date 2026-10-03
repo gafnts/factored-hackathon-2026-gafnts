@@ -1,6 +1,6 @@
-# Hello, Factored! 👋
+# Contributing
 
-This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package, the web app, and the Terraform infrastructure for the banking agent, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
+This guide takes you from a fresh clone to a working setup for whichever part of the project you're touching. The repo holds the Python package, the web app, and the Terraform infrastructure for Faro, which runs on AWS in two environments: `local`, for iterating from a laptop, and `prototype`, the hosted environment behind the hackathon submission.
 
 Setup commands are idempotent, so re-running one after a failure is always safe, and `make doctor` tells you at any point which steps are done and which are left.
 
@@ -19,11 +19,15 @@ Setup commands are idempotent, so re-running one after a failure is always safe,
   - [Make a change](#make-a-change)
   - [Run the quality gates](#run-the-quality-gates)
   - [Iterate on infrastructure](#iterate-on-infrastructure)
+  - [Evaluate](#evaluate)
   - [Promote to prototype](#promote-to-prototype)
   - [Record decisions](#record-decisions)
 - [Troubleshooting](#troubleshooting)
 - [Teardown](#teardown)
 - [Reference](#reference)
+  - [Configuration](#configuration)
+  - [What's pinned](#whats-pinned)
+  - [Files](#files)
 
 ---
 
@@ -48,7 +52,7 @@ No path depends on the maintainers' AWS account or credentials. Resource names a
 | Environment | Deployed by | When | Purpose |
 |---|---|---|---|
 | `local` | You, from your laptop | When you run `make apply` | Iterating on infrastructure |
-| `prototype` | GitHub Actions | On every merge to `main` | The hosted prototype linked from the submission |
+| `prototype` | GitHub Actions | On merges to `main` that touch the stack | The hosted prototype linked from the submission |
 
 Both live in the same AWS account. Each has its own Terraform state file, its own deploy role, and its own `Environment=<env>` tag, and a deploy role is denied any resource tagged for the other environment. `prototype` runs on synthetic data and mock banking tools, and is deliberately not called production.
 
@@ -112,7 +116,7 @@ Then install the dependencies and hooks, and run every check once:
 
 ```bash
 make install   # Python and web deps, pre-commit hooks for both stages, tflint plugins
-make check     # Every hook against every file: the same command CI runs
+make check     # Every hook against every file, as CI's pre-commit job runs them
 ```
 
 If `make check` passes, your machine matches CI. Re-run `make install` after pulling changes to `pyproject.toml`, `web/package.json`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
@@ -121,7 +125,7 @@ From now on, hooks run on their own:
 
 | Stage | What runs | When |
 |---|---|---|
-| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `nbstripout`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy`; for the web app, Prettier, ESLint, and `tsc` | On `git commit` |
+| `pre-commit` | Hygiene checks (whitespace, YAML, merge conflicts, large files, private keys), `terraform fmt`, `tflint`, `gitleaks`, `actionlint`, `shellcheck`, `pyproject-fmt`, `ruff check`, `ruff format`, `mypy`; for the web app, Prettier, ESLint, and `tsc` | On `git commit` |
 | `pre-push` | `terraform validate`, `trivy`, `gitleaks-history` (the full history), `pytest` (with an 80% coverage floor); for the web app, Vitest (with the same floor) and a production build | On `git push` |
 
 ### 2. Connect to the dataset
@@ -153,7 +157,7 @@ With the snapshot in place, analyze it:
 make analysis
 ```
 
-It reads exactly the files in the lock, with no AWS access, and writes four reports to [docs/analysis/](docs/analysis/), stamped with the snapshot ID: the data quality profile; the workflow selection that [ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md) rules on; the card support analysis the card support policy cites; and the traffic analysis behind [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md)'s capacity limits, which measures traffic by day and hour and, in a section of its own, projects the agent's load from assumptions kept in code. The card support and traffic analyses read development customers only. The last three read the snapshot as of the instant the profile dates. Each is a Markdown report with the same numbers as JSON; all but the profile add SVG figures. The reports publish aggregates only, with row counts under 10 suppressed. A rerun on the same snapshot writes the same bytes, and takes about five minutes. To write fewer reports, run `uv run python -m banking_agent.analysis` with `profile`, `select`, `cards`, or `traffic` instead of `all`.
+It reads exactly the files in the lock, with no AWS access, and writes four reports to [docs/analysis/](docs/analysis/), stamped with the snapshot ID: the data quality profile, the workflow selection [ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md) rules on, the card support analysis the policy cites, and the traffic analysis behind [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md)'s capacity limits. The last three read the snapshot as of the instant the profile dates and add SVG figures; the card support and traffic analyses read development customers only. Each report carries the same numbers as JSON, publishes aggregates only (row counts under 10 suppressed), and writes the same bytes on a rerun, which takes about five minutes. `uv run python -m banking_agent.analysis <profile|select|cards|traffic>` writes one report.
 
 ### 3. Deploy your own copy
 
@@ -252,7 +256,7 @@ make export        # Write gold's items into data/exports/ and upload them under
 
 On a recent laptop, `make pipeline` takes under a minute and `make export` about a minute and a half before its upload. Both read the snapshot in `data/` and print counts, never a customer's ID or values; what they write under `data/` stays out of git. `make export` prints the export's snapshot and pipeline version, which `tools_data_export` in `infra/envs/<env>.tfvars` must name. The version is a hash of the code that shapes the export, so the same code gives the same version on every machine, and the committed value works in your fork once your bucket holds the export. The first import in an account logs to `/aws-dynamodb/imports`, which [step 3.3](#33-create-the-deploy-roles) created with a retention.
 
-For a faster first deploy, a tiny export holds only the development personas' items: run `make personas` and `make tiny-export`, and set the version it prints instead. The personas' items are the same in both exports.
+For a faster first deploy, a tiny export holds only the two journey personas' items: run `make personas` and `make tiny-export`, and set the version it prints instead. The personas' items are the same in both exports.
 
 #### 3.7 Verify and deploy `local`
 
@@ -321,7 +325,7 @@ CI runs the quality gates; merge when they pass. Nothing deploys from `develop`.
 A few habits keep PRs quick to review:
 
 - Write commit subjects in the imperative mood, as the history does ("Add IAM bootstrap module for deploy roles").
-- Cite the requirement IDs from [docs/hackathon-requirements.md](docs/hackathon-requirements.md) (for example `SEC-05`) in the PR description and in the tests that cover them, so every change traces back to what the organizers score.
+- Cite the requirement IDs from [docs/prerequisites.md](docs/prerequisites.md) (for example `SEC-05`) in the PR description and in the tests that cover them, so every change traces back to what the organizers score.
 - Mirror the package in `tests/`: the tests for `src/banking_agent/<path>/<module>.py` live in `tests/banking_agent/<path>/test_<module>.py`, and fixtures shared by a folder go in its `conftest.py`. The web app's tests mirror `web/src/` in `web/tests/` the same way (`<module>.test.ts`).
 - Add an ADR when the change makes a decision someone could reasonably question later (see [Record decisions](#record-decisions)).
 
@@ -337,10 +341,11 @@ make type         # Run mypy, and tsc on the web app
 make test         # Run pytest and Vitest, each with its coverage floor
 make integration  # Test ENV's deployed stack (needs credentials, the model key, and make personas; deselected by default)
 make browser      # Play the chat and the console in Chromium against ENV's deployed site (same needs; installs Chromium)
+make regression   # Play and grade the regression set in process, as CI's second job does (no credentials)
 make tf-format    # Format all Terraform files
 ```
 
-`make check` is exactly what the CI quality gates run, so a green local run predicts a green PR. In an emergency, skip a single hook with `SKIP=<hook-id> git commit`; CI still runs it.
+CI's quality gates are `make check` and `make regression`, so a green local run of both predicts a green PR. In an emergency, skip a single hook with `SKIP=<hook-id> git commit`; CI still runs it.
 
 Inside `web/`, each tool runs on its own: `pnpm lint`, `pnpm format`, `pnpm typecheck`, `pnpm test`, and `pnpm build`, and `pnpm vitest` watches the tests as you work. The chat's TypeScript types are generated from its contract, `src/banking_agent/contracts/chat.schema.json`: after changing the contract, run `pnpm --dir web contracts` and commit `web/src/contracts/chat.ts`, or a test fails.
 
@@ -356,15 +361,16 @@ make site                # Build the web app, upload it to the site, and invalid
 make integration         # Test the deployed stack with throwaway users (SLOW=1 also waits out a token, 15 minutes)
 make browser             # Play the chat and the console in Chromium against the deployed site
 make probe               # Time the Runtime per persona and check what it stores and traces
+make judges              # Create or manage the judges' users in the pool (credentials and the private note under data/judges/, never printed)
 make web-dev             # Serve the web app on localhost:5173 against the deployed stack, /api included
 make destroy ENV=local   # Tear down your local resources
 ```
 
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
 
-`make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package without its evaluation, which never runs in the stack, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. A zip is the same bytes on every machine, so a plan shows a change only when the code or a locked version changed. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+`make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package without its evaluation, which never runs in the stack, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. On one machine, rebuilding the same tree gives the same zip, so a plan shows a change only when the code or a locked version changed; across uv versions the bytes can differ. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
 
-The four alarms ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#status), the alarms as built) notify an SNS topic that `make outputs` writes under `alarms.topic_arn`. Terraform subscribes no address to it, so none reaches the repository: subscribe once per environment, then confirm from the email AWS sends.
+The four alarms ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#operations), monitoring) notify an SNS topic that `make outputs` writes under `alarms.topic_arn`. Terraform subscribes no address to it, so none reaches the repository: subscribe once per environment, then confirm from the email AWS sends.
 
 ```bash
 aws sns subscribe --protocol email --notification-endpoint you@example.com \
@@ -388,6 +394,26 @@ After adding a module or bumping a provider version, regenerate the lock files s
 ```bash
 make lock
 ```
+
+### Evaluate
+
+The evaluation ([ADR-0005](docs/adr/0005-offline-scenario-evaluation.md)) plays scripted conversations and grades them by code against an oracle; [docs/evaluation/](docs/evaluation/) holds the sets' manifests, the reported runs, and the disagreement log. The targets read the last `make pipeline` build and write under `data/evaluation/`, printing counts and never an ID, a reply, or a token:
+
+```bash
+make eval-sets                   # Draw the regression and selection sets; manifests to docs/evaluation/sets/
+make eval-sets HELD_OUT=600      # Draw the held-out set too, once at the freeze; refused after a run names it
+make eval-play SET=regression    # Play a set in process with scripted models, and grade it (no credentials)
+make eval-play MODELS=baseline   # The same with the deterministic baseline's keywords, patterns, and templates
+make eval-run SET=selection      # Play a set end to end against ENV's deployed stack, and grade it
+make eval-cleanup                # Delete the test users a stopped run left behind
+make disagreements               # Regenerate docs/evaluation/disagreements.md from docs/evaluation/disagreements.json
+make eval-index                  # Regenerate docs/evaluation/runs.md from the manifests under docs/evaluation/runs/
+make language-check              # Read every development paraphrase with the real prompts; report to docs/evaluation/language.md
+```
+
+`make language-check` reads `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file) and calls the model once per development message and answer, and once more per block request to read its reason, about a thousand calls at about a dollar; it never reads the held-out side. Its report and page are committed, like a run's manifest.
+
+`make eval-run` needs `AWS_PROFILE`, the stack's outputs (`STACK_OUTPUTS`, default `build/<env>.outputs.json`), and the model key stored. It creates one test user per case in the pool's evaluation group and deletes it when the case ends, and keeps each case's evidence under `data/evaluation/runs/` and in the stack's evaluation bucket. `SITUATIONS=`, `LANGUAGES=`, and `LIMIT=` narrow a run, and `PARALLEL=` sets how many cases play at once (default 2). To report a run, commit its manifest and summary under `docs/evaluation/runs/` and run `make eval-index`. Where the system and the oracle disagree, add an entry to `docs/evaluation/disagreements.json` and run `make disagreements`: CI's regression job fails on any finding without an open entry. Only the development sets play today; the held-out run is still to come.
 
 ### Promote to prototype
 
@@ -471,6 +497,14 @@ Run `make help` for every target.
 | `DATASET_SOURCE_PROFILE` | `factored-hackathon` | `make doctor`, `make data` |
 | `ANTHROPIC_API_KEY` | Unset; set it in `.env`, not the shell | `make model-key` |
 | `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
+| `DATA_DIR` | `data` | The pipeline and evaluation targets, for a worktree whose `data/` is empty |
+| `STACK_OUTPUTS` | `build/<env>.outputs.json` | `make eval-run`, `make eval-cleanup` |
+| `SET`, `SITUATIONS`, `LANGUAGES`, `LIMIT`, `PARALLEL` | `regression`, all, all, none, `2` | `make eval-play` (`SET` only) and `make eval-run` |
+| `MODELS` | `scripted` | `make eval-play`: `baseline` plays the deterministic baseline, the only models the held-out set plays in process |
+| `HELD_OUT` | Unset: no held-out draw | `make eval-sets`: the held-out set's size, `600`, `400`, or `240` by the scope rule (ADR-0005); its manifest is committed before its first run |
+| `RUN` | Unset: every stopped run | `make eval-cleanup` |
+| `SLOW` | Unset | Set to `1` to add the tests that wait out a token to `make integration` |
+| `WHAT`, `JUDGE` | `create`, every judge | `make judges` |
 
 ### What's pinned
 
@@ -493,7 +527,7 @@ Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR
 
 ### Files
 
-The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, the manifests in `docs/pipeline/` by `make export`, bronze's YAML in `pipeline/models/bronze/` by `make contracts`, and `infra/modules/gateway/tools.json` by `make build`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly.
+The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, the manifests in `docs/pipeline/` by `make export`, bronze's YAML in `pipeline/models/bronze/` by `make contracts`, and `infra/modules/gateway/tools.json` by `make build`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly. [infra/](infra/README.md), [src/banking_agent/](src/banking_agent/README.md), and [pipeline/](pipeline/README.md) each open with a README that maps the directory.
 
 Gitignored files worth knowing about:
 
@@ -504,5 +538,5 @@ Gitignored files worth knowing about:
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
 - `.envrc`: your local `AWS_PROFILE`
 - `.env`, `.env.*`: local secrets, such as the Anthropic API key `make model-key` stores; the tracked `.env.example` lists their variables
-- `data/`: the dataset snapshots `make data` downloads, the personas `make personas` chooses, the pipeline's DuckDB file `make pipeline` builds, and the exports `make export` and `make tiny-export` write, none of which may ever be committed
+- `data/`: the dataset snapshots, the personas, the pipeline's DuckDB file, the exports, the evaluation's sets and run evidence, and the judges' credentials and private note; nothing under it may ever be committed
 - `docs/hackathon/`: the organizers' materials, including the dataset keys

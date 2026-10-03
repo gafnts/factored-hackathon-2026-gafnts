@@ -1,10 +1,9 @@
 name: Quality gates
 
-# Every commit reaches main through a pull request from develop, which checks the same tree
-# a push to develop would; the push to main is the post-merge check and warms the caches PRs restore.
+# PRs from develop check the tree main gets; a push checks each merge into develop, and warms the caches PRs restore.
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
   pull_request:
     branches: [develop, main]
 
@@ -56,14 +55,14 @@ jobs:
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
           restore-keys: pre-commit-${{ runner.os }}-
 
-      # The child modules have no lock file, so without the second variable their init ignores the cache.
+      # Child modules have no lock file; the second variable lets their init use the cache.
       - name: Enable Terraform's provider cache
         run: |
           mkdir -p ~/.terraform.d/plugin-cache
           echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
           echo "TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=1" >> "$GITHUB_ENV"
 
-      # A run never overwrites a cache entry, so each saves under its own key and the next restores the newest.
+      # Cache entries are immutable: each run saves its own key and restores the newest.
       - name: Restore Terraform's providers and mypy's cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -96,8 +95,7 @@ jobs:
       - name: Run all hooks
         run: make check
 
-  # The regression set's composition, drawn on the bank and played in process with scripted models (ADR-0005's
-  # amendment of 2026-10-01); it fails on a safety check, and on a finding no open disagreement entry matches.
+  # Fails on a safety check, or a finding with no open disagreement entry (ADR-0005).
   regression:
     name: Regression set (in process)
     runs-on: ubuntu-latest

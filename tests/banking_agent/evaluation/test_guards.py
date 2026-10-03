@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 import banking_agent.evaluation
-from banking_agent.evaluation import families, guards
+from banking_agent.evaluation import baseline, families, guards
 
 from .bank import HELD_OUT_CUSTOMER
 from .test_cases import example
@@ -82,15 +82,24 @@ def test_the_agents_prompts_hold_no_held_out_message(
     assert guards.leaks(artifacts, held_messages) == []
 
 
-def test_the_persona_cards_hold_no_held_out_message(
+def test_the_baselines_words_hold_no_held_out_message(
     held_messages: list[tuple[str, str]],
 ) -> None:
-    # The cards' prompts are the one development artifact whose words a judge sends as messages (ADR-0007's
-    # amendment of 2026-10-01).
-    cards = Path(__file__).parents[3] / "web" / "src" / "personas.json"
+    # Its keywords, patterns, and templates are authored from development families only (ADR-0005, Baselines).
+    source = Path(baseline.__file__)
 
-    assert cards.is_file()
-    assert guards.leaks({cards.name: cards.read_text("utf-8")}, held_messages) == []
+    assert guards.leaks({source.name: source.read_text("utf-8")}, held_messages) == []
+
+
+def test_the_openings_suggestions_hold_no_held_out_message(
+    held_messages: list[tuple[str, str]],
+) -> None:
+    # The opening's suggested prompts are the one development artifact whose words a judge sends as messages
+    # (ADR-0007's amendment of 2026-10-02); they live in the page's texts.
+    texts = Path(__file__).parents[3] / "web" / "src" / "texts.ts"
+
+    assert texts.is_file()
+    assert guards.leaks({texts.name: texts.read_text("utf-8")}, held_messages) == []
 
 
 def test_only_the_bronze_opener_opens_a_database() -> None:

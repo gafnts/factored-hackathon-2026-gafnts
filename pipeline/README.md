@@ -1,6 +1,6 @@
 # Pipeline
 
-The dbt project that builds the tools' data from the pinned snapshot, as [ADR-0006](../docs/adr/0006-batch-medallion-pipeline.md) decides: a full rebuild per snapshot, in one DuckDB file on the machine that holds the snapshot, with only gold leaving it.
+The dbt project that builds the tools' data from the pinned snapshot ([ADR-0006](../docs/adr/0006-batch-medallion-pipeline.md)): a full rebuild per snapshot, in one DuckDB file on the machine that holds the snapshot, with only gold leaving it.
 
 | Layer | Holds | Read by |
 |---|---|---|
@@ -11,12 +11,12 @@ The dbt project that builds the tools' data from the pinned snapshot, as [ADR-00
 ## Running it
 
 ```bash
-make data        # the pinned snapshot, if it isn't under data/ yet
-make pipeline    # build every layer and run every check
-make export      # write gold's items and manifest, and upload them (needs AWS_PROFILE)
+make data        # The pinned snapshot, if it isn't under data/ yet
+make pipeline    # Build every layer and run every check
+make export      # Write gold's items and manifest, and upload them (needs AWS_PROFILE)
 ```
 
-Every target takes `DATA_DIR` (default `data`). `make pipeline` prints each check that didn't pass with its row count, never a value (SEC-03); dbt's own log can quote a row, so it stays at `data/pipeline/<snapshot>/logs/`. `make contracts` rewrites bronze's YAML from the dictionary and `contracts/corrections.yml`.
+`make pipeline` and `make export` take `DATA_DIR` (default `data`). The build prints each check that didn't pass with its row count, never a value (SEC-03); dbt's own log can quote a row, so it stays under `data/pipeline/<snapshot>/logs/`. `make contracts` rewrites bronze's YAML from the dictionary and `contracts/corrections.yml`.
 
 | Written to | What |
 |---|---|
@@ -24,25 +24,25 @@ Every target takes `DATA_DIR` (default `data`). `make pipeline` prints each chec
 | `data/exports/<snapshot>/<version>/` | Gold's items in parts, with the manifest beside them; the upload sends the manifest last |
 | `docs/pipeline/<snapshot>-<version>.json` | The same manifest, committed: the stamp, the clock, rows per model, a content hash per item kind, the export's objects, and every check's result with its rows and share, counts under 10 suppressed |
 
-The version hashes what shapes an export: this directory (without this README, `target/`, and `logs/`), `src/banking_agent/pipeline/`, the clock's rule, the export's writer, the tools' data contract, and the installed dbt-core, dbt-duckdb, and DuckDB. `make export` refuses gold that other code built.
+The version hashes everything that shapes an export: this directory (without this README and dbt's working directories), `src/banking_agent/pipeline/`, the clock's rule, the export's writer, the tools' data contract, and the installed dbt-core, dbt-duckdb, and DuckDB. `make export` refuses gold that other code built.
 
 ## Checks
 
-Before dbt reads a file, the build checks that the snapshot holds exactly the lock's files and that each file's header is its contract's, and counts each file's records with Python's `csv` module. Then these stop the build, as ADR-0006 lists them: keys; each transaction's product and each product's customer; the accepted values of statuses, product types, and transaction types; each row in its processing day's partition; the files and rows read against the lock and the record counts; a value that doesn't cast to its type; a card transaction whose customer isn't its card's; and gold's window and the tools' data contract. Every other rule of the dictionary is a warning: counted in rows, never fixed, and recorded in the manifest.
+Before dbt reads a file, the build checks that the snapshot holds exactly the lock's files and that each header is its contract's, and counts each file's records with Python's `csv` module. The checks that stop the build are the ones ADR-0006 lists: keys; each transaction's product and each product's customer; the accepted statuses and types; each row in its processing day's partition; the files and rows read against the lock and the counts; a value that doesn't cast to its type; a card transaction whose customer isn't its card's; and gold's window and contract. Every other rule of the dictionary is a warning: counted in rows, never fixed, and recorded in the manifest.
 
-CI builds the [team-generated fixture](../tests/fixtures/team-generated/README.md) instead of the snapshot: dbt's unit tests and the update-correctness tests (DML-06) run on every push.
+The pre-push hook and CI build the [team-generated fixture](../tests/fixtures/team-generated/README.md) instead of the snapshot, with dbt's unit tests and the update-correctness tests (DML-06).
 
 ## Layout
 
 | Path | Holds |
 |---|---|
 | `contracts/corrections.yml` | Where the delivery differs from the dictionary, each difference with its reason, and each column's personal-data tag |
-| `models/bronze/` | One model per table, and the sources and tests that `make contracts` writes (`_sources.yml`, `_bronze.yml`) |
+| `models/bronze/` | One model per table, and the sources and tests that `make contracts` writes |
 | `models/silver/`, `models/gold/` | The models, their enforced contracts, and silver's unit tests |
 | `macros/` | The bronze read, the schema names, and silver's text rules |
 | `tests/` | The checks dbt doesn't ship, and the tests of one rule each |
 
-The CLI behind the targets is `src/banking_agent/pipeline/`; its tests are under `tests/banking_agent/pipeline/`.
+The CLI behind the targets is `src/banking_agent/pipeline/`, tested under `tests/banking_agent/pipeline/`.
 
 ## On the pinned snapshot
 

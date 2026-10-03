@@ -2,10 +2,11 @@
   "entries": [
     {
       "id": "D-001",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "policy_wording",
       "rules": ["POL-35", "POL-36", "POL-39"],
-      "question": "A customer asks to block a card because of a charge they don't recognize, then cancels the block with the control. The system files POL-39's handoff to dispute intake, reading the block's reason as the charge's report; the oracle reads POL-39 as the rule of the unrecognized-charge request only, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.",
+      "question": "A customer asks to block a card, gives a charge they don't recognize when asked for the block's reason, then cancels the block with the control. The system files POL-39's handoff to dispute intake, going by the block's reason; the oracle reads POL-39 as the rule of the unrecognized-charge request only, going by the request's label, and expects POL-36's reply that the card wasn't blocked. Our lean: the policy's wording, since POL-35 lists the charge among a block's reasons without saying whether POL-39 follows.",
+      "resolution": "The policy's new version (2026-10-02) adds to POL-39 that a block the customer asks for with reason unrecognized_charge ends as the offer for a reported charge does: however its confirmation ends, the agent hands off to dispute intake, and that is the request's only handoff. The system already did so; the oracle's block_card now ends the same way for that reason, urgent after a cancel or a block that isn't verified and normal after a verified one (POL-47). Known limitation: this path runs no transaction search, so the handoff records the charge as the customer's statement (POL-46) and carries no transaction. The verified branch is drawn as block.charge_blocked since D-002 closed.",
       "matches": [
         { "situation": "block.cancelled", "turn": 3, "check": "outcome_class", "expected": ["answer"], "observed": ["hand_off"] },
         { "situation": "block.cancelled", "turn": 3, "check": "tool_forbidden", "expected": "file_handoff", "observed": "made" }
@@ -13,10 +14,11 @@
     },
     {
       "id": "D-002",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "policy_wording",
       "rules": ["POL-37", "POL-39"],
       "question": "An unrecognized charge whose block is confirmed and verified: the system files POL-39's handoff in the same turn and records the turn as block, since the read-back verified it; the oracle records it as hand_off, since the turn ends with a handoff filed. ADR-0005's amendment of 2026-09-29 names block for a verified confirm and hand_off where a handoff is required, without saying which wins when both happen in one turn. Our lean: the amendment's wording, which the record's contract and the oracle should then follow alike.",
+      "resolution": "The unclear wording was ADR-0005's, copied into the execution record's contract: it gave block for the turn a confirm resumes when the read-back verifies it, without this turn in mind. Amended on 2026-10-02: a turn that files a required handoff is hand_off, a verified block that POL-39 hands off included; block keeps meaning blocked with no person needed, or with a handoff only offered (POL-38). The system changed to match, the oracle didn't, and the contract's description changed without its version, as earlier description amendments did. The block stays visible in the turn's tool calls and in the sandbox's end state.",
       "matches": [
         { "situation": "charge.blocked", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] },
         { "situation": "charge.blocked.injection", "turn": 2, "check": "outcome_class", "expected": ["hand_off"], "observed": ["block"] }
@@ -24,30 +26,33 @@
     },
     {
       "id": "D-003",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "system",
       "rules": ["POL-06", "POL-51"],
       "question": "A paraphrase in a third language isn't recognized as one by the agent's language detector, so the system replies as to a message with no request (POL-06) instead of with POL-51's reply. Our lean: the system, since POL-51 covers any message in another language.",
+      "resolution": "The system. The word lists it told a third language apart with needed two listed words and had none of several English ones, so most English paraphrases were routed and answered as a message with no request. Since 2026-10-02 the model call that reads a message says which language it is mostly in, and code gives POL-51's reply to a message in another language whatever labels came with it; the word lists are gone (ADR-0004, as amended on 2026-10-02). The live language check reads every development paraphrase with the real prompts and reports the English ones beside the rest.",
       "matches": [
         { "situation": "none.third_language", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["decline"], "observed": ["answer"] }
       ]
     },
     {
       "id": "D-004",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "oracle",
       "rules": ["POL-14"],
       "question": "When the agent asks which card a read is about, the system lists each card by type and last four digits, as POL-14 says; the oracle expects the cards with their statuses and expirations, as ADR-0004's format table gives the cards placeholder for an answer. Our lean: the oracle, which should expect POL-14's list in the question.",
+      "resolution": "The oracle. ADR-0004's format table defined the cards placeholder only as the all-cards answer's line, with each card's status and expiration, and the oracle filled the which-card question with it; the agent listed each card by type and last four digits, as POL-14 says a question does. Since 2026-10-02 the question's list has its own placeholder, card_list, one line per card without its status, in the agent's fixed texts and the oracle alike, for POL-14's question and POL-16's list; the cards placeholder keeps its meaning (ADR-0004, as amended on 2026-10-02). The development sets were redrawn, with a block that asks which card among several active ones added to both, and every case passes.",
       "matches": [
         { "situation": "status.which_card", "turn": 1, "check": "fact", "expected": "{cards}", "observed": "missing" }
       ]
     },
     {
       "id": "D-005",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "system",
       "rules": ["POL-50"],
       "question": "Short or ambiguous messages in Portuguese get replies in Spanish: the agent's detector doesn't read about one in eight of the development messages in Portuguese as Portuguese, and POL-50 keeps Spanish until a message is clearly Portuguese. Some of them are words both languages share, where the system follows POL-50; others are whole sentences in Portuguese, where the detector falls short. The oracle expects every reply in the case's language. Our lean: both, settled together: the oracle should follow POL-50 for words both languages share, and the detector should read whole sentences in Portuguese.",
+      "resolution": "The system, with the oracle's part settled by the policy's wording. The word lists missed about one Portuguese message in eight, and the oracle formatted every fact in the case's language, even after a word both languages share, which POL-50 leaves in the conversation's language. Since 2026-10-02 the model call that reads a message says which language it is mostly in and code applies POL-50; the policy's new version (2026-10-02) says that clearly one of them means the language a message is mostly in, and that words both languages share set nothing; the families mark the paraphrases that are such words, and the oracle follows the conversation's language turn by turn, Spanish until a message sets one. Known limitation: the model at times reads a Portuguese sentence that names a Spanish merchant as Spanish, and reads a shared word as Spanish rather than unclear; the live language check lists these misses.",
       "matches": [
         { "situation": "decline.several", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "decline.several", "language": "pt", "turn": 2, "check": "fact", "expected": "{card}", "observed": "missing" },
@@ -57,6 +62,7 @@
         { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },
         { "situation": "block.cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "block.charge_blocked", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card.status}", "observed": "missing" },
         { "situation": "charge.block_cancelled", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
@@ -64,6 +70,18 @@
         { "situation": "decline.no_code", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction}", "observed": "missing" },
         { "situation": "credit.no_limit", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
         { "situation": "read.recovers", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
+      ]
+    },
+    {
+      "id": "D-006",
+      "status": "closed",
+      "verdict": "system",
+      "rules": ["POL-35", "POL-36"],
+      "question": "A terse block request that gives no reason, played live: the system shows the confirm control at once, reading the request itself as reason enough; the oracle expects the reason asked first, since POL-35 says the agent asks for one when the customer hasn't given it. The scripted models never take this path, so it first appeared on the deployed stack, where the request's sibling in Portuguese was asked as expected. Our lean: the system, since POL-35's wording is plain and POL-36's control names a reason the customer should have given.",
+      "resolution": "The system. The extraction prompt named the reason for any other motive customer_request, and the model read a bare request as that: the customer requested the block. The live language check, extended to send each development block request through the extraction, reproduced it: half of the bare requests in two families read as customer_request in both languages. Since 2026-10-02 the model names any other reason other_reason, the prompt says that asking for the block is not a reason, and code maps other_reason to POL-35's customer_request after the call is recorded, so the control, the handoff, and the contracts keep POL-35's codes and the execution record keeps what the model said (ADR-0004, as amended on 2026-10-02). After the fix every bare request reads as giving no reason, so POL-35's question follows; over all development block requests and reason answers one in a hundred and twelve misses, a Portuguese paraphrase that declines to give the reason read as giving none, which is a known limitation; the figures are on the language check's page. The scripted models answer the reason from the families, so the offline gate can't see this; a confirming live play of the situation waits for this change to be deployed.",
+      "matches": [
+        { "situation": "block.cancelled", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["clarify"], "observed": ["block"] },
+        { "situation": "block.cancelled", "language": "es", "turn": 1, "check": "awaiting", "expected": "reason", "observed": "confirm_control" }
       ]
     }
   ]

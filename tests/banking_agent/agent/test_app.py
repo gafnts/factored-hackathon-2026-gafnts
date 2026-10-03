@@ -8,6 +8,7 @@ SEC-05; CTL-04; AI-01, AI-03, AI-04; OPS-02; EVL-04, EVL-05).
 
 import asyncio
 import json
+import re
 import uuid
 from typing import Any
 
@@ -112,11 +113,11 @@ PRIVATE = (
     "past_expiration",
     "updated_after_as_of",
     "is_fraud",
-    "PRD-",
-    "CLI-",
     "card_status",
 )
 UNCHECKED = "Su tarjeta 4123456789014821 está activa."
+# A case reference's four-letter groups can spell a prefix, so the identifiers are matched by their shape.
+IDENTIFIER = re.compile(r"(PRD|CLI)-[A-Z0-9]{12}")
 
 
 def not_served_in_full(_: Any) -> Any:
@@ -238,6 +239,7 @@ def test_every_path_sends_only_what_the_chats_contract_allows(
     sent = json.dumps(outside, ensure_ascii=False)
     for private in (*PRIVATE, UNCHECKED, "4123456789014821"):
         assert private not in sent, private
+    assert not IDENTIFIER.search(sent)
     entries = harness.records.of(who.origin_jti)
     for entry in entries:
         validator("execution-record").validate(entry)
@@ -326,8 +328,10 @@ def test_the_thread_is_keyed_by_the_user_not_by_the_clients_id(
 def test_the_conversation_carries_over_turns_in_its_language(harness: Harness) -> None:
     who, session = customer(), session_id()
 
+    harness.script.language = "pt"
     harness.post(run_body("Quais são os meus cartões?"), who.token(), session)
     harness.script.requests, harness.script.has_request = [], False
+    harness.script.language = "unclear"
     events = harness.post(run_body("ok"), who.token(), session)
 
     assert events[2]["delta"] == FIXED["no_request"]["pt"]

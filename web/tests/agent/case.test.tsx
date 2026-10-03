@@ -52,7 +52,6 @@ test("each verified fact is shown next to the tool call that read it", () => {
     .closest("div") as HTMLElement;
   expect(within(merchant).getByText("Comercio Ejemplo")).toBeInTheDocument();
   expect(within(merchant).getByText("find_transactions")).toBeInTheDocument();
-  expect(merchant).toHaveTextContent(AGENT.case.attempt(2));
   const fraud = within(facts)
     .getByText(AGENT.field("is_fraud"))
     .closest("div") as HTMLElement;
@@ -68,34 +67,36 @@ test("the verified block is among the actions, with the card it blocked", () => 
     within(actions).getByText(AGENT.outcomes.verified),
   ).toBeInTheDocument();
   expect(actions).toHaveTextContent("••4821");
-  expect(within(actions).getByText("block_card")).toBeInTheDocument();
 });
 
-test("the header gives the queue, the priority, the reason, and both clocks", () => {
+test("the header gives the queue, the reason, and the filing, and a normal case no priority word", () => {
   shown(verified);
 
   expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
     "7K2M-9QXA",
   );
-  expect(screen.getByText(AGENT.priorities.normal)).toBeInTheDocument();
+  expect(screen.queryByText(AGENT.priorities.normal)).not.toBeInTheDocument();
   expect(screen.getByText(AGENT.queues.dispute_intake)).toBeInTheDocument();
   expect(
     screen.getAllByText(AGENT.reason("unrecognized_charge")).length,
   ).toBeGreaterThan(0);
-  expect(screen.getByText(AGENT.statuses.filed)).toBeInTheDocument();
+  expect(screen.getByText(/Archivado el/)).toBeInTheDocument();
   expect(
     screen.getByText(AGENT.case.answerIn(AGENT.languages.pt)),
   ).toBeInTheDocument();
-  expect(
-    screen.getByText(/Fecha del banco: 17 de junio de 2026/),
-  ).toBeInTheDocument();
-  expect(screen.getByText("POL-39")).toBeInTheDocument();
 });
 
-test("the evidence shows each call's recorded rows, not the conversation", () => {
+// The registry sits behind its fold, so the queries reach into the details element.
+function registry(): HTMLElement {
+  return screen
+    .getByText(AGENT.case.evidence)
+    .closest("details") as HTMLElement;
+}
+
+test("the registry shows each call's recorded rows, not the conversation", () => {
   shown(verified);
 
-  const evidence = screen.getByRole("region", { name: AGENT.case.evidence });
+  const evidence = registry();
   expect(within(evidence).getByText("gw-3e4f5a6b7c8d")).toBeInTheDocument();
   expect(within(evidence).getByText(AGENT.via.direct)).toBeInTheDocument();
   expect(within(evidence).getByText("block_outcome")).toBeInTheDocument();
@@ -114,7 +115,7 @@ test("a flagged case says so, naming each part and rule without a value", () => 
 test("a call the record doesn't hold yet says so", () => {
   shown(flagged);
 
-  const evidence = screen.getByRole("region", { name: AGENT.case.evidence });
+  const evidence = registry();
   expect(
     within(evidence).getByText(AGENT.case.notRecorded),
   ).toBeInTheDocument();

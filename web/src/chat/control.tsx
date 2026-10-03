@@ -144,16 +144,19 @@ function Button({
   pressed: Kind | null;
   answer: () => void;
 }) {
+  // The pressed one keeps its color as an outline, so the conversation shows what the customer chose without it
+  // looking pressable still.
+  const chosen = pressed === kind;
   return (
     <button
       type="button"
       disabled={!enabled}
-      aria-pressed={pressed === kind}
+      aria-pressed={chosen}
       onClick={answer}
       className={
         primary
-          ? "h-11 bg-sea px-5 font-medium text-night disabled:opacity-40"
-          : "h-11 border border-white/15 px-5 hover:bg-white/5 disabled:opacity-40"
+          ? `h-11 border border-sea bg-sea px-5 font-medium text-night ${chosen ? "disabled:bg-transparent disabled:text-sea" : "disabled:opacity-40"}`
+          : `h-11 border border-white/15 px-5 enabled:hover:bg-white/5 ${chosen ? "disabled:border-bone-muted" : "disabled:opacity-40"}`
       }
     >
       {label}

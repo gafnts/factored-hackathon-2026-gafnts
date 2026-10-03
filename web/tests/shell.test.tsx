@@ -13,6 +13,29 @@ test("every page says it is a prototype over synthetic data (SEC-02)", () => {
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });
 
+test("the bar's switch names each language in its own, marks the page's, and hands over the other", async () => {
+  const onLanguage = vi.fn();
+  render(
+    <Shell language="es" onLanguage={onLanguage}>
+      {null}
+    </Shell>,
+  );
+  const options = screen.getByRole("group", {
+    name: TEXTS.es.language.label,
+  });
+  const chosen = screen.getByRole("button", { name: TEXTS.es.language.es });
+  const other = screen.getByRole("button", { name: TEXTS.es.language.pt });
+
+  expect(options).toContainElement(chosen);
+  expect(chosen).toHaveAttribute("aria-pressed", "true");
+  expect(chosen).toHaveTextContent("ES");
+  expect(other).toHaveAttribute("aria-pressed", "false");
+  expect(other).toHaveAttribute("lang", "pt");
+  await userEvent.setup().click(other);
+
+  expect(onLanguage).toHaveBeenCalledWith("pt");
+});
+
 test("the sign-in's bar carries the bank's name, and no link", () => {
   render(
     <Shell language="es" signIn>
@@ -27,21 +50,21 @@ test("the sign-in's bar carries the bank's name, and no link", () => {
 
 test("the console's bar reads the bank's name and the console's, signed in or not, with no link", () => {
   const { rerender } = render(
-    <Shell language="es" label="Consola de agentes" signIn>
+    <Shell language="es" label="Consola de casos" signIn>
       {null}
     </Shell>,
   );
 
   expect(screen.getByRole("banner")).toHaveTextContent(
-    /^LATAM BankConsola de agentes$/,
+    /^LATAM BankConsola de casos$/,
   );
   rerender(
-    <Shell language="es" label="Consola de agentes">
+    <Shell language="es" label="Consola de casos">
       {null}
     </Shell>,
   );
   expect(screen.getByRole("banner")).toHaveTextContent(
-    /^LATAM BankConsola de agentes$/,
+    /^LATAM BankConsola de casos$/,
   );
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
 });
@@ -94,6 +117,9 @@ test("the rail opens and closes, and each action is one button by its name", asy
   expect(
     screen.getByText(/Su sesión terminará a las 19:05/),
   ).toBeInTheDocument();
+  // A page with the session's end keeps the footer to two sentences.
+  expect(screen.getByText(TEXTS.es.noticeBrief)).toBeInTheDocument();
+  expect(screen.queryByText(TEXTS.es.notice)).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: rail.open }));
   expect(screen.getByRole("button", { name: rail.close })).toHaveAttribute(
     "aria-expanded",

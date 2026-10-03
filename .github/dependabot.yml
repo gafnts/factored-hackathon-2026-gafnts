@@ -1,11 +1,6 @@
-# Monthly version updates, one grouped PR per ecosystem, into develop (main only
-# accepts merges from develop). The cooldown skips releases younger than a week,
-# so a compromised release is usually yanked before Dependabot proposes it;
-# security updates ignore the cooldown.
-#
-# Not covered here: the Terraform CLI (.terraform-version), Python
-# (.python-version), Node (.nvmrc), and the tool versions in the workflow
-# `env` blocks.
+# Monthly, one PR per ecosystem, into develop. The cooldown skips releases younger
+# than a week; security updates ignore it. Not covered: the Terraform CLI, Python,
+# Node, and the tool versions in the workflows' env blocks.
 
 version: 2
 

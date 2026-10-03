@@ -60,7 +60,11 @@ def test_personas_then_the_tiny_export_upload_and_print_no_customer(
 
     out = capsys.readouterr()
     assert printed_ids(out.out + out.err) == []
-    assert "es: chosen among 1 development customers" in out.out
+    # Counts per scenario, never a username or a name (SEC-03).
+    assert "declines: chosen among 1 development customers" in out.out
+    assert "dispute: chosen among 2 development customers" in out.out
+    assert "ana.maria.team" not in out.out
+    assert "Ana María" not in out.out
     assert f'pipeline_version = "{pipeline_version()}"' in out.out
     root = prefix(lock.snapshot_id, pipeline_version())
     manifest = json.loads(

@@ -21,7 +21,7 @@ Faro is the card support agent we are building for LATAM Bank. This brief says w
 
 ## In one sentence
 
-> **Faro is LATAM Bank's card support agent, in Spanish and Portuguese. It explains a declined card from the bank's own records, blocks a card only when its holder confirms, and hands a disputed charge to a person with the evidence already gathered.**
+> **Faro is LATAM Bank's card support agent, in Spanish and Portuguese. It explains what the records say, blocks a card only when its holder confirms, and hands off to a person with a structured case file.**
 
 The name carries the idea. In Spanish, *faro* is a lighthouse; in Portuguese, *ter faro* is to have a nose for things. Guidance in one language, judgment in the other. The [identity guide](identity.md) says how Faro sounds and looks.
 
@@ -45,12 +45,12 @@ And what it can't show: **how many contacts are about cards.** The snapshot's co
 
 ## Who it's for
 
-Three kinds of people use Faro. Only the cardholder talks to Faro, and the AI team reads the evaluation report in the repository rather than on the site ([ADR-0007](../adr/0007-role-gated-web-app.md#status)).
+Three kinds of people use Faro. Only the cardholder talks to it; the AI team reads the evaluation report in the repository, not on the site ([ADR-0007](../adr/0007-role-gated-web-app.md#status)).
 
 | Who | Their moment | What they get | Where |
 |---|---|---|---|
 | **The cardholder** | Their card was declined, is missing, or shows a charge they didn't make | An answer from their own records, in their language; a block they confirmed and Faro verified; a reference when a person takes over | `/chat` |
-| **The human agent** | A case lands in their queue | A case file: the request, each verified fact next to the tool call that read it, the actions with their verified outcomes, the customer's own words kept apart, and the open questions. No transcript to read back | `/agent` |
+| **The human agent** | A case lands in their queue | A case file: the request, each verified fact next to the tool call that read it, the actions with their verified outcomes, the customer's own words kept apart, and the open questions. No transcript to read back | `/cases` |
 | **The AI team** | Deciding whether Faro is safe to keep running | The evaluation report, failures and denominators included, labeled as an offline measurement | `docs/evaluation/`, linked from the README |
 
 **The cardholder** is a LATAM Bank customer in Mexico, Colombia, or Argentina who holds a credit or debit card and has signed in to the bank's chat. Spanish is the bank's language, and Portuguese is the customer's choice in the session ([policy](../policy/card-support.md#language)). No customer in the data writes Portuguese: every transcript is in Spanish. So our Portuguese rests on messages we wrote, and results are reported per language to show whether it holds up (SCP-07, EVL-12).
@@ -61,7 +61,7 @@ Three kinds of people use Faro. Only the cardholder talks to Faro, and the AI te
 
 ## What Faro does
 
-The brief asks for a system that understands, decides, acts, verifies, and escalates (`SL 11`). Faro recognizes [eight kinds of request](../policy/card-support.md#requests), all about cards, and takes one action: a block, written to a sandbox over the frozen bank. Every request ends on one of the brief's three paths:
+The organizers ask for a system that understands, decides, acts, verifies, and escalates (`SL 11`). Faro recognizes [eight kinds of request](../policy/card-support.md#requests), all about cards, and takes one action: a block, written to a sandbox over the frozen bank. Every request ends on one of their three paths:
 
 | Path | The customer says | Faro |
 |---|---|---|
@@ -88,7 +88,7 @@ Knowing when not to act is half the product (CTL-03):
 ## What sets it apart
 
 1. **A lighthouse doesn't steer the ship.** Faro shows the customer what the records say and proposes the one thing it can do. The customer's button decides; the model never confirms anything on the customer's behalf.
-2. **Judgment in code, not in the prompt.** The model classifies, extracts, and writes. Code decides each step, and the tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)). The evaluation states this as a hypothesis before it runs: unauthorized disclosures and actions stay at zero in every model configuration, and one counterexample refutes it ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#reporting)).
+2. **Judgment in code, not in the prompt.** The model classifies, extracts, and writes. Code decides each step, and the tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed ([ADR-0004](../adr/0004-agent-architecture-on-agentcore.md)). The evaluation states this as a hypothesis before it runs, and one counterexample refutes it ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#reporting)).
 3. **Done means verified.** After a block, the tool reads the card back. Faro says the card is blocked only when that read shows it, and hands the case to a person when it doesn't (POL-37, AI-05).
 4. **A handoff is a case file.** Each fact sits next to the tool call that read it, and the customer's words are kept apart from verified facts. The case is urgent when the customer reported a card lost or stolen, or a charge they don't recognize, and that card isn't verified blocked (POL-46, POL-47). Whoever picks it up doesn't start over.
 5. **Graded by an oracle that shares no code with it.** Expected outcomes come from the policy applied to the frozen bank, in SQL written apart from the tools, so a bug in Faro's data shows up as a disagreement instead of agreeing with itself ([ADR-0005](../adr/0005-offline-scenario-evaluation.md#the-oracle)).
