@@ -31,7 +31,7 @@
     {"answer_id": "transaction_date-02", "kind": "transaction_date", "es": "Fue el {date}.", "pt": "Foi no dia {date}."},
     {"answer_id": "transaction_date-03", "kind": "transaction_date", "es": "La transacción del {date}.", "pt": "A transação do dia {date}."},
     {"answer_id": "transaction_newest-01", "kind": "transaction_newest", "es": "La más reciente.", "pt": "A mais recente."},
-    {"answer_id": "transaction_newest-02", "kind": "transaction_newest", "es": "La última que aparece.", "pt": "A última que aparece."},
+    {"answer_id": "transaction_newest-02", "kind": "transaction_newest", "es": "La más nueva.", "pt": "A mais nova."},
     {"answer_id": "transaction_newest-03", "kind": "transaction_newest", "es": "La primera de la lista.", "pt": "A primeira da lista."},
     {"answer_id": "dont_know-01", "kind": "dont_know", "es": "No lo sé.", "pt": "Não sei."},
     {"answer_id": "dont_know-02", "kind": "dont_know", "es": "No me acuerdo.", "pt": "Não lembro."},

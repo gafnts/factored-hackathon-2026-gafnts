@@ -86,10 +86,11 @@
     },
     {
       "id": "D-007",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "oracle",
       "rules": ["POL-27"],
       "question": "Several declined transactions, the system asks which, and the scripted customer answers with the second newest-transaction paraphrase, \"La última que aparece\" or \"A última que aparece\". The oracle reads every answer of that kind as the newest transaction, the first shown, since the list is newest first (POL-27); the model read it as the last one listed and explained the older decline, so the reply states a figure the oracle didn't expect and misses the expected one. Found live on 2026-10-03 in three of the situation's four cases; the fourth, answered with \"La más reciente\", passed, and in process the scripted models pass all four. Our lean: the authored answer, which says the last one shown and so means the older one when the list is newest first; reword it to mean the newest unambiguously, or read it as the last one listed. The held-out side's paraphrase of that kind is not read.",
+      "resolution": "The authored answer, on the oracle's side: the second paraphrase of the newest-transaction answer said the last one shown, which is the oldest when the list is newest first, and the model read it as written. Reworded on 2026-10-03 to say the newest one, and the development sets redrawn with it; the oracle's reading of the kind stands. The held-out side's paraphrase of that kind was neither read nor changed.",
       "matches": [
         { "situation": "decline.several", "turn": 2, "check": "fact", "expected": "{transaction}", "observed": "missing" },
         { "situation": "decline.several", "turn": 2, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },

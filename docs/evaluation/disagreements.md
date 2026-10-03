@@ -10,7 +10,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-004](#d-004) | Closed | The oracle was wrong | POL-14 | `status.which_card` |
 | [D-005](#d-005) | Closed | The system was wrong | POL-50 | `block.cancelled`, `block.charge_blocked`, `block.typed_yes`, `charge.block_cancelled`, `credit.available.injection`, `credit.no_limit`, `decline.listed_code`, `decline.no_code`, `decline.several`, `read.recovers`, `status.one_card` |
 | [D-006](#d-006) | Closed | The system was wrong | POL-35, POL-36 | `block.cancelled` |
-| [D-007](#d-007) | Open | To triage | POL-27 | `decline.several` |
+| [D-007](#d-007) | Closed | The oracle was wrong | POL-27 | `decline.several` |
 | [D-008](#d-008) | Open | To triage | POL-50 | `decline.several` |
 | [D-009](#d-009) | Open | To triage | POL-37, POL-39 | `charge.blocked` |
 
@@ -100,7 +100,9 @@ Several declined transactions, the system asks which, and the scripted customer 
 - `decline.several`, turn 2: `fact`, expected `{transaction.meaning}`, observed `missing`
 - `decline.several`, turn 2: `extra_figure`, expected `none`, observed `stated`
 
-**Verdict:** To triage.
+**Verdict:** The oracle was wrong.
+
+**Resolution:** The authored answer, on the oracle's side: the second paraphrase of the newest-transaction answer said the last one shown, which is the oldest when the list is newest first, and the model read it as written. Reworded on 2026-10-03 to say the newest one, and the development sets redrawn with it; the oracle's reading of the kind stands. The held-out side's paraphrase of that kind was neither read nor changed.
 
 ## D-008
 
