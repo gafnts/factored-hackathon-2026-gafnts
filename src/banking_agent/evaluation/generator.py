@@ -1020,6 +1020,7 @@ class Generator:
         self.words = words
         self.reuse = reuse
         self.used: set[str] = set()
+        self.served: dict[tuple[str, str], set[str]] = {}
         summarize(con)
 
     def draw(
@@ -1200,6 +1201,19 @@ class Generator:
                 seed,
                 offset + len(made),
             )
+        if len(made) < wanted:
+            # The pool is spent (ADR-0005, Customers): a customer the situation took in its other language
+            # serves it once more, in this one.
+            made += self._drawn(
+                situation,
+                language,
+                wanted - len(made),
+                rng,
+                set_name,
+                seed,
+                offset + len(made),
+                share=True,
+            )
         return made
 
     def _drawn(
@@ -1211,6 +1225,7 @@ class Generator:
         set_name: str,
         seed: int,
         offset: int,
+        share: bool = False,
     ) -> list[dict[str, Any]]:
         fitting = [f for f in self.families if situation.fits(f) and _said(f, language)]
         phrasing = self.side
@@ -1231,7 +1246,11 @@ class Generator:
         ):
             if len(made) == wanted:
                 break
-            if customer_id in self.used and not self.reuse:
+            if (
+                customer_id in self.used
+                and not self.reuse
+                and not (share and self._shared(situation, language, customer_id))
+            ):
                 continue
             customer = state.read(self.con, customer_id)
             if customer is None:
@@ -1254,8 +1273,22 @@ class Generator:
                 if case is not None:
                     made.append(case)
                     self.used.add(customer_id)
+                    self.served.setdefault((situation.name, language), set()).add(
+                        customer_id
+                    )
                     break
         return made
+
+    def _shared(self, situation: Situation, language: str, customer_id: str) -> bool:
+        """
+        Whether the situation took the customer in another language and not yet in this one.
+        """
+        taken = {
+            lang
+            for (name, lang), ids in self.served.items()
+            if name == situation.name and customer_id in ids
+        }
+        return bool(taken) and language not in taken
 
     def _case(
         self,
@@ -1401,6 +1434,16 @@ def manifest(
     What a set's committed copy holds: opaque case IDs, hashes, and counts, never a customer or a record's value.
     """
     by = Counter((c["group"], c["situation"], c["language"]) for c in drawn.cases)
+    languages: dict[tuple[str, str], set[str]] = {}
+    for c in drawn.cases:
+        languages.setdefault((c["situation"], c["customer_id"]), set()).add(
+            c["language"]
+        )
+    shared = Counter(
+        (c["situation"], c["language"])
+        for c in drawn.cases
+        if len(languages[(c["situation"], c["customer_id"])]) > 1
+    )
     return {
         "set": set_name,
         "seed": seed,
@@ -1423,6 +1466,10 @@ def manifest(
                     if c["phrasing"] != c["side"]
                 ).items()
             )
+        ],
+        "shared": [
+            {"situation": s, "language": lang, "cases": n}
+            for (s, lang), n in sorted(shared.items())
         ],
         "case_ids": [
             {"case_id": c["case_id"], "sha256": digest(c)} for c in drawn.cases
