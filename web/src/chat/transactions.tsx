@@ -8,6 +8,9 @@ import {
   LANGUAGES,
   type Node,
   readAll,
+  type Tone,
+  TONE_CLASS,
+  tones,
 } from "./lines";
 
 export interface Transaction {
@@ -16,12 +19,19 @@ export interface Transaction {
   about: string | null;
   amount: string;
   status: string | null;
+  tone: Tone;
 }
 
 const MOMENT = "[0-9]{2}/[0-9]{2}/[0-9]{4} [0-9]{2}:[0-9]{2}";
 const AMOUNT = "-?[0-9][0-9.,]* [A-Z]{3}";
 const SEPARATOR = " · ";
 const UNRECORDED = new Set<string>(Object.values(WORDS.merchant_unrecorded));
+const TONES = tones(WORDS.transaction_status, {
+  Approved: "good",
+  Declined: "bad",
+  Pending: "neutral",
+  Reversed: "neutral",
+});
 
 // As the agent's code writes them, in the reply words; the reply check keeps every digit the model writes inside a
 // placeholder, so no line of the model's own can pass for one. A page's transaction (formats.transaction_line): its
@@ -58,6 +68,7 @@ function fromPage([
     about: about.length > 0 ? about.join(SEPARATOR) : null,
     amount,
     status,
+    tone: TONES(status),
   };
 }
 
@@ -69,6 +80,7 @@ function fromName([, moment, name, amount]: Found): Transaction | null {
     about: null,
     amount,
     status: null,
+    tone: "neutral",
   };
 }
 
@@ -125,7 +137,9 @@ export function Transactions({
               {transaction.amount}
             </p>
             {transaction.status && (
-              <p className="text-sm text-bone-muted">{transaction.status}</p>
+              <p className={`text-sm ${TONE_CLASS[transaction.tone]}`}>
+                {transaction.status}
+              </p>
             )}
           </div>
         </li>

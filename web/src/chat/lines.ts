@@ -9,6 +9,33 @@ export const LANGUAGES: readonly Language[] = ["es", "pt"];
 // A pattern's groups, an unmatched one undefined.
 export type Found = (string | undefined)[];
 
+// A status's color, always beside its word: starboard's green for one that is well, port's red for one that stops
+// (the identity guide's Palette).
+export type Tone = "good" | "bad" | "neutral";
+
+export const TONE_CLASS: Record<Tone, string> = {
+  good: "text-starboard",
+  bad: "text-port",
+  neutral: "text-bone-muted",
+};
+
+// Each status's tone by the word a reply states it in; the two languages share none of these words.
+export function tones<K extends string>(
+  words: Record<Language, Record<K, string>>,
+  of: Record<K, Tone>,
+): (word: string) => Tone {
+  const byWord = new Map<string, Tone>();
+  for (const language of LANGUAGES) {
+    for (const [code, word] of Object.entries(words[language]) as [
+      K,
+      string,
+    ][]) {
+      byWord.set(word, of[code]);
+    }
+  }
+  return (word) => byWord.get(word.toLowerCase()) ?? "neutral";
+}
+
 export function escaped(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

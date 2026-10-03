@@ -9,13 +9,24 @@ import {
   LANGUAGES,
   type Node,
   readAll,
+  type Tone,
+  TONE_CLASS,
+  tones,
 } from "./lines";
 
 export interface Card {
   name: string;
   status: string;
+  tone: Tone;
   expiration: string;
 }
+
+const TONES = tones(WORDS.product_status, {
+  Active: "good",
+  Blocked: "bad",
+  Suspended: "bad",
+  Closed: "neutral",
+});
 
 // A card in a status answer, as the agent's code writes it (formats.card_line), in the reply words. The reply check
 // keeps every digit the model writes inside a placeholder, so no line of the model's own can pass for one.
@@ -37,6 +48,7 @@ function card([, name, status, label, expiration]: Found): Card | null {
   return {
     name,
     status: capitalized(status),
+    tone: TONES(status),
     expiration: `${capitalized(label)}: ${expiration}`,
   };
 }
@@ -63,7 +75,7 @@ export function Cards({ cards }: { cards: Card[] }) {
           className="my-0 flex flex-col gap-1 border border-white/10 p-4"
         >
           <p className="font-medium text-balance">{card.name}</p>
-          <p>{card.status}</p>
+          <p className={TONE_CLASS[card.tone]}>{card.status}</p>
           <p className="text-sm text-bone-muted">{card.expiration}</p>
         </li>
       ))}

@@ -228,3 +228,47 @@ test.each([
   ).toBeNull();
   expect(container.querySelector("ul")).toBeInTheDocument();
 });
+
+// Green for a status that is well, red for one that stops, and the rest muted, always beside the word.
+test.each([
+  {
+    shown: "a card's",
+    text: [
+      "Estas son sus tarjetas y el estado de cada una:",
+      "",
+      "- Tarjeta de crédito terminada en 1111: activa; fecha de vencimiento: 03/2030",
+      "- Tarjeta de crédito terminada en 2222: bloqueada; fecha de vencimiento: 03/2030",
+      "- Tarjeta de débito terminada en 3333: suspendida; fecha de vencimiento: 03/2030",
+      "- Tarjeta de débito terminada en 4444: cerrada; fecha de vencimiento: no registrada",
+    ].join("\n"),
+    expected: [
+      ["Activa", "text-starboard"],
+      ["Bloqueada", "text-port"],
+      ["Suspendida", "text-port"],
+      ["Cerrada", "text-bone-muted"],
+    ],
+  },
+  {
+    shown: "a transaction's",
+    text: [
+      "Estas são as transações do seu cartão de crédito final 7858 entre 20/03/2026 06:00 e 18/06/2026 06:00, da mais recente à mais antiga:",
+      "",
+      "- 20/05/2026 06:50 · Compra · Cable TV · 1.539.989,39 COP · Aprovada",
+      "- 23/04/2026 21:27 · Compra · Loja · 1.990.264,27 COP · Recusada",
+      "- 06/04/2026 19:00 · Saque · 472.908,96 COP · Pendente",
+      "- 01/04/2026 10:00 · Compra · Loja · 12.000,00 COP · Estornada",
+    ].join("\n"),
+    expected: [
+      ["Aprovada", "text-starboard"],
+      ["Recusada", "text-port"],
+      ["Pendente", "text-bone-muted"],
+      ["Estornada", "text-bone-muted"],
+    ],
+  },
+])("colors $shown status by what it means", ({ text, expected }) => {
+  render(<Reply text={text} />);
+
+  for (const [word = "", color = ""] of expected) {
+    expect(screen.getByText(word)).toHaveClass(color);
+  }
+});
