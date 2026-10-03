@@ -3,6 +3,7 @@ import Markdown, { type ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { Cards, cardsIn } from "./cards";
+import { Transactions, transactionsIn } from "./transactions";
 
 // ADR-0007: no raw HTML, no images, and links as plain text, so an injected reply can't make the browser fetch
 // anything. react-markdown shows raw HTML as text unless a plugin parses it.
@@ -45,11 +46,14 @@ function ScrollingTable({ children }: { children?: ReactNode }) {
   );
 }
 
-// A status answer's cards in frames, and any other list as it came; the reply's text, which the record keeps and the
-// oracle reads, is the same either way.
+// The cards and the transactions the agent's code lists, drawn as frames, and any other list as it came; the reply's
+// text, which the record keeps and the oracle reads, is the same either way.
 function List({ node, children, ...props }: ComponentProps<"ul"> & ExtraProps) {
   const cards = cardsIn(node);
-  return cards ? <Cards cards={cards} /> : <ul {...props}>{children}</ul>;
+  if (cards) return <Cards cards={cards} />;
+  const transactions = transactionsIn(node);
+  if (transactions) return <Transactions transactions={transactions} />;
+  return <ul {...props}>{children}</ul>;
 }
 
 export function Reply({ text }: { text: string }) {

@@ -128,3 +128,103 @@ test.each([
     "Tarjeta de crédito terminada en 3843: activa; fecha de vencimiento: 03/2030",
   );
 });
+
+// Transactions as the agent's code writes them: a page (formats.transaction_line) and the charges a customer picks from
+// (formats.transaction_name), pinned in tests/banking_agent/agent/test_formats.py.
+const PAGES = {
+  es: [
+    "Estos son los movimientos de su tarjeta de crédito terminada en 7858 entre el 20/03/2026 06:00 y el 18/06/2026 06:00, del más reciente al más antiguo:",
+    "",
+    "- 20/05/2026 06:50 · Compra · Cable TV · 1.539.989,39 COP · Aprobada",
+    "- 23/04/2026 21:27 · Compra · comercio no registrado · 1.990.264,27 COP · Rechazada · Panamá",
+    "- 06/04/2026 19:00 · Retiro · 472.908,96 COP · Aprobada",
+  ].join("\n"),
+  pt: [
+    "Estas são as transações do seu cartão de crédito final 7858 entre 20/03/2026 06:00 e 18/06/2026 06:00, da mais recente à mais antiga:",
+    "",
+    "- 20/05/2026 06:50 · Compra · Cable TV · 1.539.989,39 COP · Aprovada",
+    "- 23/04/2026 21:27 · Compra · estabelecimento não registrado · 1.990.264,27 COP · Recusada · Panamá",
+    "- 06/04/2026 19:00 · Saque · 472.908,96 COP · Aprovada",
+  ].join("\n"),
+};
+const CHARGES = [
+  "Encontré más de un cargo en su tarjeta de crédito terminada en 6223 que podría ser el que me indica. ¿Cuál es?",
+  "",
+  "- 18/06/2026 03:38, comercio no registrado, 1.757,25 USD",
+  "- 03/06/2026 21:15, Tienda, Centro, 299,81 USD",
+].join("\n");
+
+function rows(container: HTMLElement): (string | null)[][] {
+  return [...container.querySelectorAll("[data-transactions] > li")].map(
+    (row) => [...row.querySelectorAll("p")].map((line) => line.textContent),
+  );
+}
+
+test.each([
+  {
+    shown: "a page in Spanish",
+    text: PAGES.es,
+    expected: [
+      ["Cable TV", "20/05/2026 06:50 · Compra", "1.539.989,39 COP", "Aprobada"],
+      [
+        "Comercio no registrado",
+        "23/04/2026 21:27 · Compra · Panamá",
+        "1.990.264,27 COP",
+        "Rechazada",
+      ],
+      ["Retiro", "06/04/2026 19:00", "472.908,96 COP", "Aprobada"],
+    ],
+  },
+  {
+    shown: "a page in Portuguese",
+    text: PAGES.pt,
+    expected: [
+      ["Cable TV", "20/05/2026 06:50 · Compra", "1.539.989,39 COP", "Aprovada"],
+      [
+        "Estabelecimento não registrado",
+        "23/04/2026 21:27 · Compra · Panamá",
+        "1.990.264,27 COP",
+        "Recusada",
+      ],
+      ["Saque", "06/04/2026 19:00", "472.908,96 COP", "Aprovada"],
+    ],
+  },
+  {
+    shown: "the charges to pick from",
+    text: CHARGES,
+    expected: [
+      ["Comercio no registrado", "18/06/2026 03:38", "1.757,25 USD"],
+      ["Tienda, Centro", "03/06/2026 21:15", "299,81 USD"],
+    ],
+  },
+])("draws $shown as a statement, after its sentence", ({ text, expected }) => {
+  const { container } = render(<Reply text={text} />);
+
+  expect(rows(container)).toEqual(expected);
+  expect(
+    container.querySelector("[data-transactions]")?.previousElementSibling,
+  ).toHaveTextContent(text.split("\n")[0] ?? "");
+});
+
+test.each([
+  ["a line that isn't a transaction's", `${PAGES.es}\n- Algo más`],
+  [
+    "a transaction in the other language",
+    `${PAGES.es}\n- 06/04/2026 19:00 · Saque · 472.908,96 COP · Aprovada`,
+  ],
+  [
+    "a page's line among the charges",
+    `${CHARGES}\n- 06/04/2026 19:00 · Retiro · 472.908,96 COP · Aprobada`,
+  ],
+  [
+    "the cards to pick from",
+    "¿Cuál de estas tarjetas quiere bloquear?\n\n- Tarjeta de crédito terminada en 3843\n- Tarjeta de débito terminada en 4337",
+  ],
+])("keeps a list as a list when it holds %s", (_, text) => {
+  const { container } = render(<Reply text={text} />);
+
+  expect(
+    container.querySelector("[data-transactions], [data-cards]"),
+  ).toBeNull();
+  expect(container.querySelector("ul")).toBeInTheDocument();
+});
