@@ -51,8 +51,8 @@ function ScrollingTable({ children }: { children?: ReactNode }) {
 function List({ node, children, ...props }: ComponentProps<"ul"> & ExtraProps) {
   const cards = cardsIn(node);
   if (cards) return <Cards cards={cards} />;
-  const transactions = transactionsIn(node);
-  if (transactions) return <Transactions transactions={transactions} />;
+  const statement = transactionsIn(node);
+  if (statement) return <Transactions {...statement} />;
   return <ul {...props}>{children}</ul>;
 }
 

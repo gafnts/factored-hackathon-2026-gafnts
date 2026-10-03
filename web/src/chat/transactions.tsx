@@ -3,6 +3,7 @@ import { WORDS } from "../contracts/words";
 import {
   anyOf,
   capitalized,
+  escaped,
   type Found,
   itemTexts,
   LANGUAGES,
@@ -20,6 +21,12 @@ export interface Transaction {
   amount: string;
   status: string | null;
   tone: Tone;
+}
+
+// A statement's transactions, and the reason a decline's answer gives under the one it found.
+export interface Statement {
+  transactions: Transaction[];
+  reason: string | null;
 }
 
 const MOMENT = "[0-9]{2}/[0-9]{2}/[0-9]{4} [0-9]{2}:[0-9]{2}";
@@ -53,6 +60,24 @@ function pageLine(language: Language): RegExp {
 // A transaction the customer picks from, or the one a reply found (formats.transaction_name): its time, its merchant for
 // a purchase or its type otherwise, and its amount.
 const NAME_LINE = new RegExp(`^(${MOMENT}), (.+), (${AMOUNT})$`);
+
+// A decline's reason, on the line under the transaction it explains (formats.reason_line): its label and the code's
+// meaning, which takes a capital as a label's value.
+function reasonLine(language: Language): RegExp {
+  const label = escaped(capitalized(WORDS.reason_label[language]));
+  const meanings = anyOf(WORDS.response_meaning[language]);
+  return new RegExp(`^(${label}): (${meanings})$`);
+}
+
+const REASON_LINES = LANGUAGES.map(reasonLine);
+
+function reasonIn(text: string | undefined): string | null {
+  for (const line of REASON_LINES) {
+    const [, label, meaning] = line.exec(text ?? "") ?? [];
+    if (label && meaning) return `${label}: ${capitalized(meaning)}`;
+  }
+  return null;
+}
 
 function merchant(name: string): string {
   return WORDED.has(name) ? capitalized(name) : name;
@@ -98,23 +123,26 @@ const READERS: Reader[] = [
   [NAME_LINE, fromName],
 ];
 
-// The transactions a list states, when every item is a line of one kind; otherwise null, and the list stays one.
-export function transactionsIn(list: Node | undefined): Transaction[] | null {
+// The transactions a list states, when every item is a line of one kind, or the one a decline's answer found with its
+// reason under it; otherwise null, and the list stays one.
+export function transactionsIn(list: Node | undefined): Statement | null {
   const texts = itemTexts(list);
   if (!texts) return null;
+  const reason = texts.length === 2 ? reasonIn(texts[1]) : null;
+  if (reason) {
+    const transactions = readAll(texts.slice(0, 1), NAME_LINE, fromName);
+    return transactions && { transactions, reason };
+  }
   for (const [line, read] of READERS) {
     const transactions = readAll(texts, line, read);
-    if (transactions) return transactions;
+    if (transactions) return { transactions, reason: null };
   }
   return null;
 }
 
-// A statement in one frame, as the cards are: a hairline between transactions, the amount and status flush right.
-export function Transactions({
-  transactions,
-}: {
-  transactions: Transaction[];
-}) {
+// A statement in one frame, as the cards are: a hairline between transactions, the amount and status flush right, and a
+// decline's reason as the last row.
+export function Transactions({ transactions, reason }: Statement) {
   return (
     <ul
       data-transactions
@@ -151,6 +179,11 @@ export function Transactions({
           </div>
         </li>
       ))}
+      {reason && (
+        <li data-reason className="my-0 px-4 py-3">
+          <p>{reason}</p>
+        </li>
+      )}
     </ul>
   );
 }

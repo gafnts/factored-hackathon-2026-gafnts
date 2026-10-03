@@ -183,6 +183,21 @@ const FOUND = [
   "El banco revisará el cargo que no reconoce, bloquee o no la tarjeta.",
 ].join("\n");
 
+const EXPLAINED = {
+  es: [
+    "Encontré esta transacción rechazada en su tarjeta de crédito terminada en 6223:",
+    "",
+    "- 18/06/2026 03:38, pago, 1.757,25 USD",
+    "- Motivo: fondos insuficientes",
+  ].join("\n"),
+  pt: [
+    "Encontrei esta transação recusada no seu cartão de crédito final 6223:",
+    "",
+    "- 18/06/2026 03:38, pagamento, 1.757,25 USD",
+    "- Motivo: saldo insuficiente",
+  ].join("\n"),
+};
+
 function rows(container: HTMLElement): (string | null)[][] {
   return [...container.querySelectorAll("[data-transactions] > li")].map(
     (row) => [...row.querySelectorAll("p")].map((line) => line.textContent),
@@ -232,6 +247,22 @@ test.each([
     text: FOUND,
     expected: [["Pago", "18/06/2026 03:38", "1.757,25 USD"]],
   },
+  {
+    shown: "a decline explained, its reason last",
+    text: EXPLAINED.es,
+    expected: [
+      ["Pago", "18/06/2026 03:38", "1.757,25 USD"],
+      ["Motivo: Fondos insuficientes"],
+    ],
+  },
+  {
+    shown: "a decline explained in Portuguese",
+    text: EXPLAINED.pt,
+    expected: [
+      ["Pagamento", "18/06/2026 03:38", "1.757,25 USD"],
+      ["Motivo: Saldo insuficiente"],
+    ],
+  },
 ])("draws $shown as a statement, after its sentence", ({ text, expected }) => {
   const { container } = render(<Reply text={text} />);
 
@@ -250,6 +281,15 @@ test.each([
   [
     "a page's line among the charges",
     `${CHARGES}\n- 06/04/2026 19:00 · Retiro · 472.908,96 COP · Aprobada`,
+  ],
+  ["a reason under a page", `${PAGES.es}\n- Motivo: fondos insuficientes`],
+  [
+    "a reason the codes don't give",
+    EXPLAINED.es.replace("fondos insuficientes", "no sé"),
+  ],
+  [
+    "a reason above its transaction",
+    "Encontré esta transacción:\n\n- Motivo: fondos insuficientes\n- 18/06/2026 03:38, pago, 1.757,25 USD",
   ],
   [
     "the cards to pick from",
