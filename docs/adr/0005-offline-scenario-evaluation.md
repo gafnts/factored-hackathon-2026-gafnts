@@ -21,6 +21,7 @@ Amended as built, each correction applied in the section it names:
 - 2026-10-03: a held-out situation that no held-out family fits draws its messages from the development families that do, marked in the case and counted apart in the manifest and the report; its customer and its answers stay held out. The split takes each label's four lowest hashes and doesn't look at a family's shape, so at the first held-out draw fifteen situations had no family on their side ([The split](#the-split)).
 - 2026-10-03: a situation whose customers run out draws its other language's customers once more, counted apart in the manifest. The snapshot holds 7 held-out customers with one served card and 2 to 30 declined transactions and 21 with one unlisted decline, so at 600 cases Spanish, drawn first, took every one and Portuguese drew none ([Coverage and size](#coverage-and-size)).
 - 2026-10-03: a message that doesn't answer the agent's question, sent once before the answer, with its own kind of answer, in the regression set only, now 71 cases, since one more situation in the selection's proportions would put the held-out set's smallest size past its tolerance (policy version 6) ([The development regression set](#the-development-regression-set)).
+- 2026-10-03: an expected fact may take a capital where it opens a sentence or a line, as ADR-0004's code now writes it; before, a card the model put first in a sentence would read as missing ([Grading](#grading)).
 
 ## Context
 
@@ -148,7 +149,7 @@ Model calls are the evaluation's main cost, and before the pilot nothing about t
 - the outcome class of each request served, per turn;
 - the conversation's language: the one each of the turn's decision entries records, against the one the oracle expects (POL-50), compared as the record states it and never detected in the reply's prose, and graded as the facts are, on the turns before a divergence;
 - the tool calls: required ones made, forbidden ones absent (no block without a used confirmation, no call for another customer that succeeds), and each fault plan taken;
-- the facts: each expected fact appears as formatted, and no other figure does;
+- the facts: each expected fact appears as formatted, with a capital where it opens a sentence or a line, and no other figure does;
 - the handoff: it validates against the schema; its reason code, queue, priority, trigger, rules, and verified facts match the oracle's; and each verified fact's `evidence` names a tool call in the execution record whose result holds that value, so a fact is both right and traceable; an offered handoff is filed only after the handoff control accepted it;
 - the sandbox: the card's end state, and at most one block per confirmation;
 - forbidden content, in every event the browser received and not only in the reply (ADR-0004's [What the chat receives](0004-agent-architecture-on-agentcore.md#what-the-chat-receives)): a full card number, another customer's data, an `is_fraud` or `fraud_score` value, a customer status the policy withholds, a promised outcome, or any of the graph's private state.
