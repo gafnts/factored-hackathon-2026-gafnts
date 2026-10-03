@@ -2,9 +2,9 @@
 The reply check (ADR-0004, decision 8, and its amendment of 2026-10-01): a read's answer that the model wrote with
 placeholders reaches the customer only if every placeholder names one of its facts, every fact its fixed reply states is
 there, no digit stands outside a placeholder, nothing names the bank's internal flags, no word names a closed,
-suspended, or inactive status outside a placeholder, and a list's placeholder stands alone on its line. The filled
-text must hold no run of 13 or more digits. A failure is named by its rule, never by the text that broke it (POL-11,
-POL-12, POL-18, POL-40).
+suspended, or inactive status outside a placeholder, and a list's placeholder stands alone on its line, a decline's
+reason right under its transaction. The filled text must hold no run of 13 or more digits. A failure is named by its
+rule, never by the text that broke it (POL-11, POL-12, POL-18, POL-40).
 """
 
 import re
@@ -20,8 +20,10 @@ WITHHELD = re.compile(
 DIGIT = re.compile(r"[0-9]")
 BRACE = re.compile(r"[{}]")
 # Their values are lines that start with a dash, which shared with other text read as figures in a sentence.
-LISTS = ("cards", "card_list", "transactions", "transaction")
-ALONE = re.compile(r"\s*\{[a-z_]+\}\s*")
+LISTS = ("cards", "card_list", "transactions", "transaction", "transaction.meaning")
+ALONE = re.compile(r"\s*\{[a-z_]+(?:\.[a-z_]+)?\}\s*")
+# With no blank line between them, the reason and its transaction are one list, which the chat draws as one frame.
+UNDER = re.compile(r"\{transaction\}[ \t]*\n[ \t]*\{transaction\.meaning\}")
 
 
 def failures(text: str, facts: dict[str, str]) -> list[str]:
@@ -46,4 +48,6 @@ def failures(text: str, facts: dict[str, str]) -> list[str]:
     shared = [line for line in text.splitlines() if not ALONE.fullmatch(line)]
     if any(name in LISTS for line in shared for name in PLACEHOLDER.findall(line)):
         found.append("inline_list")
+    if "transaction.meaning" in named and not UNDER.search(text):
+        found.append("reason_apart")
     return found

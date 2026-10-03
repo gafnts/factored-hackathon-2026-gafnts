@@ -688,7 +688,7 @@ class Conversation:
         if not found.listed_code:
             step = Step("abstain", [*rules, "POL-32"], "handoff_control", tools, facts)
             return (yield from self.offer(step, "missing_data"))
-        facts["{transaction.meaning}"] = self.facts.meaning(found)
+        facts["{transaction.meaning}"] = self.facts.reason(found)
         step = Step("answer", [*rules, "POL-29"], tools=tools, facts=facts)
         if "expired_code_before_expiration" in card.conflicts(found):
             step.rules.append("POL-30")

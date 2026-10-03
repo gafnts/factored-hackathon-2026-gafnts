@@ -12,7 +12,6 @@ import re
 from typing import Any
 
 from banking_agent.agent.formats import (
-    MEANINGS,
     STATUSES,
     TRANSACTION_STATUSES,
     amount,
@@ -21,6 +20,7 @@ from banking_agent.agent.formats import (
     day,
     expiration,
     moment,
+    reason_line,
     transaction_line,
     transaction_name,
 )
@@ -141,8 +141,8 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-02 and POL-27 to POL-29: the code's meaning and nothing else.
     "decline_explained": {
-        "es": "Encontré esta transacción rechazada en su {card}:\n\n{transaction}\n\nEl motivo registrado es: {transaction.meaning}.",
-        "pt": "Encontrei esta transação recusada no seu {card}:\n\n{transaction}\n\nO motivo registrado é: {transaction.meaning}.",
+        "es": "Encontré esta transacción rechazada en su {card}:\n\n{transaction}\n{transaction.meaning}",
+        "pt": "Encontrei esta transação recusada no seu {card}:\n\n{transaction}\n{transaction.meaning}",
     },
     "decline_status": {
         "es": "Encontré esta transacción en su {card}:\n\n{transaction}\n\nFigura como {transaction.status}, no como rechazada.",
@@ -163,8 +163,8 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-30: both facts, neither chosen.
     "code_conflict": {
-        "es": "El código de este rechazo indica tarjeta vencida, aunque la transacción es anterior a la fecha de vencimiento registrada de su {card}: {card.expiration}.",
-        "pt": "O código desta recusa indica cartão vencido, embora a transação seja anterior à data de validade registrada do seu {card}: {card.expiration}.",
+        "es": "El motivo de este rechazo es tarjeta vencida, aunque la transacción es anterior a la fecha de vencimiento registrada de su {card}: {card.expiration}.",
+        "pt": "O motivo desta recusa é cartão vencido, embora a transação seja anterior à data de validade registrada do seu {card}: {card.expiration}.",
     },
     "before_opening": {
         "es": "La fecha de esta transacción es anterior a la fecha de apertura registrada de su {card}.",
@@ -438,9 +438,9 @@ def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
                 transaction["transaction_status"]
             ]
         if transaction.get("response_meaning") is not None:
-            filled["transaction.meaning"] = MEANINGS[language][
-                transaction["response_meaning"]
-            ]
+            filled["transaction.meaning"] = reason_line(
+                transaction["response_meaning"], language
+            )
     if "transactions" in facts:
         filled["transactions"] = "\n".join(
             f"- {transaction_name(t, language, country)}" for t in facts["transactions"]

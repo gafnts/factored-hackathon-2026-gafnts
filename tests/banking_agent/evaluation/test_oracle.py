@@ -328,7 +328,7 @@ def test_a_decline_with_a_listed_code_is_explained(
         turn["facts"]["{transaction}"]
         == "- 12/06/2026 10:05, Electro Ejemplo, 920.000,00 COP"
     )
-    assert turn["facts"]["{transaction.meaning}"] == "fondos insuficientes (código 51)"
+    assert turn["facts"]["{transaction.meaning}"] == "- Motivo: fondos insuficientes"
 
 
 def test_a_decline_with_no_code_abstains(con: duckdb.DuckDBPyConnection) -> None:

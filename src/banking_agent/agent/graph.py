@@ -129,7 +129,7 @@ DESCRIPTIONS = {
     "transactions": "the transactions, one per line, newest first; put it on a line of its own",
     "transaction": "the transaction found: its date, its merchant or its type, and its amount; put it on a line of its own",
     "transaction.status": "the transaction's status",
-    "transaction.meaning": "what the decline's code means",
+    "transaction.meaning": "the reason on record for the decline; put it on the line right under the transaction",
 }
 # The shape of each answer the model writes, so its sentences carry the placeholders instead of listing them.
 SHAPES = {
@@ -151,7 +151,7 @@ SHAPES = {
     ),
     "decline_explained": (
         "One sentence that says this declined transaction was found on the card, then the transaction on a line of its"
-        " own, then one sentence that gives the reason on record, introduced as the recorded reason: the code's meaning."
+        " own, with the reason on record on the line right under it, and nothing after them."
     ),
     "decline_status": (
         "One sentence that says this transaction was found on the card, then the transaction on a line of its own,"
@@ -313,14 +313,12 @@ def kind(card: dict[str, Any]) -> str:
 
 def seen(card: dict[str, Any], transaction: dict[str, Any] | None = None) -> str:
     """
-    The values the reply's model may choose words around: a card's type and status, a transaction's status and its
-    code's meaning. Never an amount, a date, last four digits, a merchant, or a country.
+    The values the reply's model may choose words around: a card's type and status, and a transaction's status. Never
+    an amount, a date, last four digits, a merchant, a country, or a code's meaning, which stands on a line of its own.
     """
     text = f"A {kind(card)} card whose status is {card['product_status']}."
     if transaction is not None:
-        text += f" The transaction's status is {transaction['transaction_status']}"
-        meaning = transaction.get("response_meaning")
-        text += f", and its code means {meaning}." if meaning else "."
+        text += f" The transaction's status is {transaction['transaction_status']}."
     return text
 
 

@@ -156,6 +156,10 @@ class Facts:
     def meaning(self, transaction: Transaction) -> str:
         return self._word("response_meaning", MEANINGS[transaction.code or ""])
 
+    def reason(self, transaction: Transaction) -> str:
+        label = self._phrase("reason_label")
+        return f"- {label[0].upper()}{label[1:]}: {self.meaning(transaction)}"
+
     def as_of(self) -> str:
         return day(BUSINESS_DATE)
 

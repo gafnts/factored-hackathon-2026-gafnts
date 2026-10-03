@@ -445,8 +445,8 @@ REPLIES: dict[str, tuple[dict[str, str], ...]] = {
     ),
     "decline_reason": (
         {
-            "es": "La transacción de su {card} fue rechazada:\n\n{transaction}\n\nMotivo registrado: {transaction.meaning}.",
-            "pt": "A transação do seu {card} foi recusada:\n\n{transaction}\n\nMotivo registrado: {transaction.meaning}.",
+            "es": "La transacción de su {card} fue rechazada:\n\n{transaction}\n{transaction.meaning}",
+            "pt": "A transação do seu {card} foi recusada:\n\n{transaction}\n{transaction.meaning}",
         },
         {
             "es": "La transacción de su {card} figura como {transaction.status}:\n\n{transaction}",

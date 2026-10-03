@@ -25,6 +25,7 @@ TRANSACTION_STATUSES: dict[str, dict[str, str]] = WORDS["transaction_status"]
 TRANSACTION_TYPES: dict[str, dict[str, str]] = WORDS["transaction_type"]
 # POL-02: the ISO 8583 meaning of each listed code, and nothing else (POL-29).
 MEANINGS: dict[str, dict[str, str]] = WORDS["response_meaning"]
+REASON: dict[str, str] = WORDS["reason_label"]
 UNRECORDED: dict[str, str] = WORDS["merchant_unrecorded"]
 EXPIRES: dict[str, str] = WORDS["expiration_label"]
 SEPARATOR = " · "
@@ -65,6 +66,14 @@ def card_line(card: dict[str, Any], language: str) -> str:
         f"- {card_name(card, language).capitalize()}: {STATUSES[language][card['product_status']]}; "
         f"{EXPIRES[language]}: {expiration(card['expiration_date'], language)}"
     )
+
+
+def reason_line(meaning: str, language: str) -> str:
+    """
+    A decline's reason, on the line under its transaction, so the two read as one list: its label and the code's meaning
+    (POL-02, POL-29).
+    """
+    return f"- {REASON[language].capitalize()}: {MEANINGS[language][meaning]}"
 
 
 def recorded(text: str) -> str:

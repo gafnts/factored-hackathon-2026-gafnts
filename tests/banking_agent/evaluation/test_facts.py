@@ -129,6 +129,8 @@ def test_a_long_digit_run_in_a_record_is_masked() -> None:
 def test_a_codes_meaning_and_a_transactions_status(words: dict[str, Any]) -> None:
     es, pt = facts.Facts("es", "Colombia", words), facts.Facts("pt", "Colombia", words)
 
-    assert es.meaning(charge()) == "fondos insuficientes (código 51)"
-    assert pt.meaning(charge()) == "saldo insuficiente (código 51)"
+    assert es.meaning(charge()) == "fondos insuficientes"
+    assert pt.meaning(charge()) == "saldo insuficiente"
+    assert es.reason(charge()) == "- Motivo: fondos insuficientes"
+    assert pt.reason(charge()) == "- Motivo: saldo insuficiente"
     assert es.transaction_status(charge(status="Reversed")) == "revertida"

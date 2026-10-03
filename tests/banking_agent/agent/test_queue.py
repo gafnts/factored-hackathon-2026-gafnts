@@ -43,7 +43,7 @@ def test_the_rest_wait_through_a_question_and_are_served_after_it(
 ) -> None:
     chat = Chat(harness)
     harness.script.replies = [
-        "{card}:\n{transaction}\n{transaction.meaning}.",
+        "{card}:\n{transaction}\n{transaction.meaning}",
         "{card}: {card.status}, {card.expiration}.",
     ]
 
@@ -57,7 +57,7 @@ def test_the_rest_wait_through_a_question_and_are_served_after_it(
     answered = chat.say("La de crédito 4821", requests=[], last_four="4821")
 
     explained, status, conflict = reply(answered).split("\n\n")
-    assert explained.endswith("Fondos insuficientes (código 51).")
+    assert explained.endswith("\n- Motivo: fondos insuficientes")
     assert status == "Tarjeta de crédito terminada en 4821: activa, 02/2026."
     assert conflict == FIXED["past_expiration"]["es"].format(
         card="tarjeta de crédito terminada en 4821"

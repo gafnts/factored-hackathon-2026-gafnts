@@ -58,17 +58,21 @@
   },
   "response_meaning": {
     "es": {
-      "do_not_honor": "no autorizada por el emisor (código 05)",
-      "invalid_card_number": "número de tarjeta inválido (código 14)",
-      "insufficient_funds": "fondos insuficientes (código 51)",
-      "expired_card": "tarjeta vencida (código 54)"
+      "do_not_honor": "no autorizada por el emisor",
+      "invalid_card_number": "número de tarjeta inválido",
+      "insufficient_funds": "fondos insuficientes",
+      "expired_card": "tarjeta vencida"
     },
     "pt": {
-      "do_not_honor": "não autorizada pelo emissor (código 05)",
-      "invalid_card_number": "número de cartão inválido (código 14)",
-      "insufficient_funds": "saldo insuficiente (código 51)",
-      "expired_card": "cartão vencido (código 54)"
+      "do_not_honor": "não autorizada pelo emissor",
+      "invalid_card_number": "número de cartão inválido",
+      "insufficient_funds": "saldo insuficiente",
+      "expired_card": "cartão vencido"
     }
+  },
+  "reason_label": {
+    "es": "motivo",
+    "pt": "motivo"
   },
   "card_ending": {
     "es": "terminada en",

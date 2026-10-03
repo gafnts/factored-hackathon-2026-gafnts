@@ -1,7 +1,7 @@
 """
 The reply check refuses a model's answer that names a fact it doesn't have, leaves out one its fixed reply states,
-writes a figure of its own, names an internal flag or a status the policy withholds, or writes a list inside a line,
-and names each failure by its rule only (ADR-0004, decision 8, and its amendment of 2026-10-01; POL-11, POL-12, POL-18, POL-40).
+writes a figure of its own, names an internal flag or a status the policy withholds, writes a list inside a line, or
+puts a decline's reason apart from its transaction, and names each failure by its rule only (ADR-0004, decision 8, and its amendment of 2026-10-01; POL-11, POL-12, POL-18, POL-40).
 """
 
 import pytest
@@ -63,6 +63,32 @@ def test_a_list_on_a_line_of_its_own_passes() -> None:
     )
 
 
+EXPLAINED = {**FOUND, "transaction.meaning": "- Motivo: fondos insuficientes"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Encontré esta transacción en su {card}:\n\n{transaction}\n\n{transaction.meaning}",
+        "Encontré esta transacción en su {card}:\n\n{transaction.meaning}\n{transaction}",
+    ],
+)  # fmt: skip
+def test_a_reason_apart_from_its_transaction_is_refused(text: str) -> None:
+    assert failures(text, EXPLAINED) == ["reason_apart"]
+
+
+def test_a_reason_inside_a_sentence_is_refused() -> None:
+    text = "Encontré esta transacción en su {card}:\n{transaction}\nFue rechazada por {transaction.meaning}."
+
+    assert failures(text, EXPLAINED) == ["inline_list", "reason_apart"]
+
+
+def test_a_reason_right_under_its_transaction_passes() -> None:
+    text = "Encontré esta transacción en su {card}:\n\n{transaction}\n{transaction.meaning}"
+
+    assert failures(text, EXPLAINED) == []
+
+
 def test_a_digit_run_is_found_once_the_text_is_filled() -> None:
     # A fact's value is formatted by code, but the run it makes beside another counts all the same (POL-11).
     facts = {"card": "1234 5678", "credit.available": "9012 3456"}
@@ -75,4 +101,9 @@ def test_the_failures_are_the_execution_records() -> None:
         "failures"
     ]["items"]["enum"]
 
-    assert {"unknown_placeholder", "missing_fact", "inline_list"} <= set(allowed)
+    assert {
+        "unknown_placeholder",
+        "missing_fact",
+        "inline_list",
+        "reason_apart",
+    } <= set(allowed)

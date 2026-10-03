@@ -44,6 +44,11 @@ REASONS = {
 # The families and the answers hold POL-35's codes; the model says its own name for any other reason.
 MODEL_REASONS = {code: value for value, code in REASON_CODES.items()}
 PLACEHOLDER = re.compile(r"^- (\{[a-z_.]+\}):", re.MULTILINE)
+# The prompt puts a decline's reason on the line under its transaction, so the two read as one list.
+UNDER = (
+    "{transaction}\n\n{transaction.meaning}",
+    "{transaction}\n{transaction.meaning}",
+)
 LISTED = re.compile(r"^(\d+)\. ")
 HANDOFF_TEXT = {
     "summary": "El cliente pidió ayuda con su tarjeta por el chat.",
@@ -261,9 +266,9 @@ class ScriptedModels:
         return structured(HandoffText.model_validate(HANDOFF_TEXT))
 
     async def reply(self, messages: list[BaseMessage]) -> AIMessage:
-        written = PLACEHOLDER.findall(messages[0].text)
+        written = "\n\n".join(PLACEHOLDER.findall(messages[0].text))
         return AIMessage(
-            content="\n\n".join(written) or "Listo.",
+            content=written.replace(*UNDER) or "Listo.",
             usage_metadata=USAGE,
             response_metadata={"model_name": MODEL},
         )

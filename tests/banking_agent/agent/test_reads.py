@@ -628,7 +628,7 @@ def test_a_decline_found_is_explained_by_its_codes_meaning(
 ) -> None:
     chat = Chat(harness)
     harness.script.fitting = [2]
-    harness.script.replies = ["{card}, {transaction}: {transaction.meaning}."]
+    harness.script.replies = ["{card}:\n\n{transaction}\n{transaction.meaning}"]
     text = {
         "es": "¿Por qué rechazaron mi pago?",
         "pt": "Por que meu pagamento foi recusado?",
@@ -638,11 +638,13 @@ def test_a_decline_found_is_explained_by_its_codes_meaning(
         text[language], requests=["decline_reason"], language=language, last_four="4821"
     )
 
-    meaning = {
-        "es": "fondos insuficientes (código 51)",
-        "pt": "saldo insuficiente (código 51)",
+    # The reason on the line under its transaction, so the two read as one list, and without the code's number.
+    reason = {
+        "es": "- Motivo: fondos insuficientes",
+        "pt": "- Motivo: saldo insuficiente",
     }
-    assert reply(events).endswith(f": {meaning[language]}.")
+    assert reply(events).endswith(f"\n{reason[language]}")
+    assert checks(chat)[0]["passed"] is True
     (decided,) = decisions(chat)
     assert (decided["outcome_class"], decided["rules"]) == (
         "answer",
