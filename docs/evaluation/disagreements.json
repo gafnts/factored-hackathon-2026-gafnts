@@ -83,6 +83,39 @@
         { "situation": "block.cancelled", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["clarify"], "observed": ["block"] },
         { "situation": "block.cancelled", "language": "es", "turn": 1, "check": "awaiting", "expected": "reason", "observed": "confirm_control" }
       ]
+    },
+    {
+      "id": "D-007",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-27"],
+      "question": "Several declined transactions, the system asks which, and the scripted customer answers with the second newest-transaction paraphrase, \"La última que aparece\" or \"A última que aparece\". The oracle reads every answer of that kind as the newest transaction, the first shown, since the list is newest first (POL-27); the model read it as the last one listed and explained the older decline, so the reply states a figure the oracle didn't expect and misses the expected one. Found live on 2026-10-03 in three of the situation's four cases; the fourth, answered with \"La más reciente\", passed, and in process the scripted models pass all four. Our lean: the authored answer, which says the last one shown and so means the older one when the list is newest first; reword it to mean the newest unambiguously, or read it as the last one listed. The held-out side's paraphrase of that kind is not read.",
+      "matches": [
+        { "situation": "decline.several", "turn": 2, "check": "fact", "expected": "{transaction}", "observed": "missing" },
+        { "situation": "decline.several", "turn": 2, "check": "fact", "expected": "{transaction.meaning}", "observed": "missing" },
+        { "situation": "decline.several", "turn": 2, "check": "extra_figure", "expected": "none", "observed": "stated" }
+      ]
+    },
+    {
+      "id": "D-008",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-50"],
+      "question": "A first message in Portuguese, \"por que recusou\", answered in Spanish. The router's call read it as Portuguese and so did the card extraction's; the transaction extraction's call read the same message as Spanish, and the last reading set the conversation's language (POL-50), so the clarifying question and its facts came out in Spanish. Found live on 2026-10-03 in one case; D-005's known limitation covers a message the model misreads, not a message read right and then moved by a later call. Our lean: the system: a message is read once, by the router's call, and a later call on the same text doesn't move the language.",
+      "matches": [
+        { "situation": "decline.several", "language": "pt", "turn": 1, "check": "language", "expected": "pt", "observed": ["es"] },
+        { "situation": "decline.several", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" }
+      ]
+    },
+    {
+      "id": "D-009",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-37", "POL-39"],
+      "question": "An unrecognized charge whose block is confirmed and verified: the turn blocks the card and files POL-39's handoff, and its reply should name the transaction (POL-37). In one of six such cases played live on 2026-10-03 the reply didn't; the turn's reply comes from the handoff's text and isn't put through the reply check, so a missing fact there isn't caught or retried. Our lean: the system: run the reply check on that turn's reply, as on an answer's.",
+      "matches": [
+        { "situation": "charge.blocked", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction}", "observed": "missing" }
+      ]
     }
   ]
 }
