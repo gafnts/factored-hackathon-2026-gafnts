@@ -36,7 +36,7 @@ from banking_agent.evaluation.state import (
     merged,
 )
 
-POLICY_VERSION = 5
+POLICY_VERSION = 6
 # POL-50: the conversation's language until a message clearly in one of the two sets it.
 DEFAULT_LANGUAGE = "es"
 # POL-05's order.
