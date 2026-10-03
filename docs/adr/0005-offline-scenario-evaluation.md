@@ -20,7 +20,7 @@ Amended as built, each correction applied in the section it names:
 - 2026-10-02: each turn's language graded against the conversation's language the oracle expects, as the turn's decision entries record it; before, no check compared a turn's language with an expectation, so a turn that misread the customer's language could pass every other check ([What a case is](#what-a-case-is), [Grading](#grading)).
 - 2026-10-03: a held-out situation that no held-out family fits draws its messages from the development families that do, marked in the case and counted apart in the manifest and the report; its customer and its answers stay held out. The split takes each label's four lowest hashes and doesn't look at a family's shape, so at the first held-out draw fifteen situations had no family on their side ([The split](#the-split)).
 - 2026-10-03: a situation whose customers run out draws its other language's customers once more, counted apart in the manifest. The snapshot holds 7 held-out customers with one served card and 2 to 30 declined transactions and 21 with one unlisted decline, so at 600 cases Spanish, drawn first, took every one and Portuguese drew none ([Coverage and size](#coverage-and-size)).
-- 2026-10-03: a message that doesn't answer the agent's question, sent once before the answer, with its own kind of answer, in the regression set only, since one more situation in the selection's proportions would put the held-out set's smallest size past its tolerance (policy version 6) ([The development regression set](#the-development-regression-set)).
+- 2026-10-03: a message that doesn't answer the agent's question, sent once before the answer, with its own kind of answer, in the regression set only, now 71 cases, since one more situation in the selection's proportions would put the held-out set's smallest size past its tolerance (policy version 6) ([The development regression set](#the-development-regression-set)).
 
 ## Context
 
@@ -90,7 +90,7 @@ Tests guard the split. No development artifact (cases, prompts, router data, per
 
 ### The development regression set
 
-67 cases as drawn, from development customers and development families: the three paths in both languages, and one case for each main failure mode (a confirmation, an access attempt, an injection, a tool failure, missing data). It runs on every change to the graph, prompts, tools, or policy, is logged like any run, and never appears as a reported result. The held-out workload runs only for reported results, each run with its manifest.
+71 cases as drawn, from development customers and development families: the three paths in both languages, and one case for each main failure mode (a confirmation, a message that doesn't answer a question, an access attempt, an injection, a tool failure, missing data). It runs on every change to the graph, prompts, tools, or policy, is logged like any run, and never appears as a reported result. The held-out workload runs only for reported results, each run with its manifest.
 
 **Cases stay out of the repository.** A case names its customer, its messages carry that customer's last four digits, merchants, amounts, and dates, and its expected facts are record values, so a case is row-level data (SEC-03). Case sets live in `data/evaluation/` and in the evaluation bucket, and only their manifests are committed under `docs/evaluation/sets/`: opaque case IDs, hashes, and counts. A set is rebuilt from the snapshot, the families, the generator's commit, and its seed (OPS-07).
 
