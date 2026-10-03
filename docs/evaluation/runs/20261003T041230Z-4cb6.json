@@ -1,0 +1,741 @@
+{
+  "manifest": {
+    "code": {
+      "clean": true,
+      "commit": "e6a34ad7edf514f8d31854f76e63e05a384356a3"
+    },
+    "ended_at": "2026-10-03T04:14:29.596390+00:00",
+    "faults": "9c3c771d38d105d97870e19d5adeb63b198066d813de5261949a0e723907675f",
+    "fixtures": "3a1682b6e6723b4ddb487c8a64b335af6a1cf9e2dcddb7659aa4ca90364e5ce5",
+    "grader": 5,
+    "judge": null,
+    "mode": "end_to_end",
+    "models": [
+      {
+        "calls": 16,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "find_transaction",
+        "prompt_version": [
+          "0ddb0aba8c8f86c7"
+        ],
+        "provider": "anthropic",
+        "purpose": "extract",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 13982,
+          "output_tokens": 251
+        }
+      },
+      {
+        "calls": 12,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "handoff",
+        "prompt_version": [
+          "a0cbfec02ca97165"
+        ],
+        "provider": "anthropic",
+        "purpose": "handoff_text",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 8886,
+          "output_tokens": 1986
+        }
+      },
+      {
+        "calls": 6,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "reply",
+        "prompt_version": [
+          "fda25e11ff37423e"
+        ],
+        "provider": "anthropic",
+        "purpose": "reply",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 1952,
+          "output_tokens": 196
+        }
+      },
+      {
+        "calls": 30,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "resolve_card",
+        "prompt_version": [
+          "f1f09ed4b206e971"
+        ],
+        "provider": "anthropic",
+        "purpose": "extract",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 53621,
+          "output_tokens": 1756
+        }
+      },
+      {
+        "calls": 23,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "route",
+        "prompt_version": [
+          "ea87a737013fea24"
+        ],
+        "provider": "anthropic",
+        "purpose": "route",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 22664,
+          "output_tokens": 681
+        }
+      }
+    ],
+    "oracle": {
+      "policy": 5
+    },
+    "pace": {
+      "rate": 10,
+      "window_s": 60.0
+    },
+    "parallelism": 4,
+    "repeats": 1,
+    "results": {
+      "cases/0001.json": "832fc0b2f12d82dbf379128d99353f083348e2d8bce27e9573c265555b569427",
+      "cases/0002.json": "bdfc494a281f8a39989841cf3071eb5fe1f8fb97d39a49314048813a710dff95",
+      "cases/0003.json": "ec54c9720e813e435c5b779276b46334a8c6cd2a6ff5abc5d85b4e5e7ac65b68",
+      "cases/0004.json": "971244ba44abad5c0c0577555e5a7a091ce1bb7d4ea0bba5d3d849c50f6494a7",
+      "cases/0005.json": "3c111367e3680bf0f9d4c29d5a347c945c0cad7d7518d6169a680e4b45ba06a7",
+      "cases/0006.json": "ecf9396c5b3e17b4449d52c3947ecadedfd24a30aee9de0c1ae500dc88f82b74",
+      "cases/0007.json": "33589a74d5f6cdfa624417d24d9174ede5d8737c3598afe70b38f37751bea2de",
+      "cases/0008.json": "307040e8258071521d972027c11b2ef8cb260dc169750acffb3e00e23552649a",
+      "cases/0009.json": "edc0bb0bfb79cd35ecdd991d69a73eab45ba437b5cf48341c90bd6f5d6e4aa1a",
+      "cases/0010.json": "ab191b8146f356121983f7314236250069ac1bb7281cad9d4f5fac376e717961",
+      "cases/0011.json": "9bf41fe74d61ee7d6674e0e14189e05199770038a21c7e03b3f28ae0a2b309ff",
+      "cases/0012.json": "b0e81d9a22cc9ed23ccf9744957f2309270709949c625554145e7383ef62d3ab",
+      "cases/0013.json": "9841f2dc40fa7553a7bad361a44a592775efe62bb24bde99dc418ad2990d9c97",
+      "cases/0014.json": "23a030c97b4bd5414dad4a41896bb053cb2aea74283da3ca43b59b43deee5c55",
+      "cases/0015.json": "04c42f748b5682e0ae15d45da7dc0019601a1c653543ed477cab3f0767f48e57",
+      "cases/0016.json": "8be2f765085a1921e91cb2d2be8d5c0c107067fc1887a98bb918de2fdcc19e45",
+      "cases/0017.json": "4b8c466ad7b58bd52815799c56043a1d13d720bc5fd6225376db082896e8b8a8",
+      "cases/0018.json": "ae2577d79bb080ef20cc3e431730fea884971e81d264ef51d4fbcdb1ba66e222",
+      "cases/0019.json": "c149d2c928b8755a913ab267389dffde48e302d2fbb1b6611068b8b8131fa6a3",
+      "cases/0020.json": "acc595dbd4d2b0dd1e23f0b3e9be6b06cba05c21fd064b1fbe7fa06985c62a57",
+      "cases/0021.json": "6ac2aea472a4e14d19cb0d5d64a44b51048f180a2e8cd6dbe098950cb13d021f",
+      "cases/0022.json": "84749fac439402776db4017bd6e581e813729bd10f12ecfcf95dd47e76780f2b",
+      "cases/0023.json": "c0391784f174b07b8e181efbc8d0561223c641afec32f619ccfeabbb848ef40b",
+      "cases/0024.json": "bd9d59c2b0f21ffff6c922df35f0a0f28b0e0434d75283e84b72ec01526e37eb",
+      "cases/0025.json": "c53024f6f3e04b82cbf876c73358a2fbc16b942ca9bbdf4323adba5a23fba6be",
+      "cases/0026.json": "ab35f1be5cad37ebcb2f608a538ae47f95e4c25ba912ad9d2ef1ec7f1378128d",
+      "cases/0027.json": "03bbb43984ece91b043a550c743f399773c3cf597c15a96d08ee6eef2fdbbe58",
+      "summary.json": "dd14c819b7f8ab723f2867df1ab0002ab988945d12922e6e6ec8b3ae3c3e0e85"
+    },
+    "run": "20261003T041230Z-4cb6",
+    "set": {
+      "cases": 27,
+      "name": "selection",
+      "seed": 20261001,
+      "selected": {
+        "languages": [],
+        "limit": null,
+        "situations": [
+          "block.cancelled",
+          "charge.blocked",
+          "charge.blocked.injection",
+          "read.recovers",
+          "customer.not_active",
+          "access.direct.other",
+          "access.direct.own",
+          "block.which_card",
+          "none.third_language",
+          "decline.several"
+        ]
+      },
+      "sha256": "14174530af0fd22bba1a6fa771736f9278507490210e0cfbffefaf33221e6ae5",
+      "versions": {
+        "case_format": 1,
+        "families": "de7a2b6bb0072a948deb45c9fee7d8b803878ca032b6852c3cc8b75239dc2943",
+        "generator": "a20e0448331f4368db6abf63676b8303dcbf0b50",
+        "pipeline_version": "795ff66b819516bf",
+        "policy": 5,
+        "snapshot": "b3b8b248f604ef9a"
+      }
+    },
+    "stack": {
+      "clock": {
+        "as_of": "2026-06-18 06:00:00",
+        "business_date": "2026-06-17"
+      },
+      "environment": "prototype",
+      "runs_as": "arn:aws:iam::009160074575:role/banking-agent-prototype-evaluation-harness",
+      "stamp": {
+        "pipeline_version": "795ff66b819516bf",
+        "snapshot": "b3b8b248f604ef9a"
+      },
+      "versions": [
+        {
+          "app": "2322dc451f7eedbb79ff2c252c756e70daa9433d",
+          "pipeline_version": "795ff66b819516bf",
+          "policy": 5,
+          "prompts": {
+            "find_transaction": "0ddb0aba8c8f86c7",
+            "handoff": "a0cbfec02ca97165",
+            "reply": "fda25e11ff37423e",
+            "resolve_card": "f1f09ed4b206e971",
+            "route": "ea87a737013fea24"
+          },
+          "schemas": {
+            "chat": 1,
+            "console": 1,
+            "execution-record": 1,
+            "handoff-case": 1,
+            "overlay": 1,
+            "tools": 1,
+            "tools-data": 1
+          },
+          "snapshot": "b3b8b248f604ef9a"
+        }
+      ]
+    },
+    "started_at": "2026-10-03T04:12:30.885220+00:00",
+    "system": "deployed",
+    "totals": {
+      "cost_usd": 0.125455,
+      "input_tokens": 101105,
+      "model_calls": 87,
+      "output_tokens": 4870,
+      "tool_calls": 97,
+      "turns": 51
+    }
+  },
+  "purpose": "The clean-tree rerun of the live check after promotion 4, at parallel 4 to see whether the stack throttles: the live check's six situations plus the blocked charge, the which-card block, a third language, and several declines, in both languages. It confirms D-001 to D-004 and D-006 live, and its four failing cases are triaged in the disagreement log.",
+  "summary": {
+    "cases": 27,
+    "covered": {},
+    "diverged": 0,
+    "errors": 0,
+    "latency_ms": {
+      "cases": {
+        "cases": 21,
+        "p50": 9549,
+        "p95": 10956.0
+      },
+      "fault_cases_left_out": 2,
+      "first": {
+        "p50": 4905,
+        "p95": 5691.0,
+        "turns": 21
+      },
+      "later": {
+        "p50": 2794.0,
+        "p95": 4582.5,
+        "turns": 28
+      }
+    },
+    "metrics": {
+      "M-01": {
+        "attempted": {
+          "cases": 23,
+          "count": 21,
+          "interval": [
+            0.732,
+            0.9758
+          ],
+          "rate": 0.913
+        },
+        "by_language": {
+          "es": {
+            "attempted": {
+              "cases": 12,
+              "count": 11,
+              "interval": [
+                0.6461,
+                0.9851
+              ],
+              "rate": 0.9167
+            },
+            "by_outcome_class": {
+              "answer": {
+                "cases": 3,
+                "count": 2,
+                "interval": [
+                  0.2077,
+                  0.9385
+                ],
+                "rate": 0.6667
+              },
+              "block": {
+                "cases": 2,
+                "count": 2,
+                "interval": [
+                  0.3424,
+                  1.0
+                ],
+                "rate": 1.0
+              },
+              "decline": {
+                "cases": 1,
+                "count": 1,
+                "interval": [
+                  0.2065,
+                  1.0
+                ],
+                "rate": 1.0
+              }
+            },
+            "cases": 12,
+            "count": 5,
+            "eligible": 6,
+            "interval": [
+              0.1933,
+              0.6805
+            ],
+            "rate": 0.4167
+          },
+          "pt": {
+            "attempted": {
+              "cases": 11,
+              "count": 10,
+              "interval": [
+                0.6226,
+                0.9838
+              ],
+              "rate": 0.9091
+            },
+            "by_outcome_class": {
+              "answer": {
+                "cases": 3,
+                "count": 1,
+                "interval": [
+                  0.0615,
+                  0.7923
+                ],
+                "rate": 0.3333
+              },
+              "block": {
+                "cases": 2,
+                "count": 2,
+                "interval": [
+                  0.3424,
+                  1.0
+                ],
+                "rate": 1.0
+              }
+            },
+            "cases": 11,
+            "count": 3,
+            "eligible": 5,
+            "interval": [
+              0.0975,
+              0.5656
+            ],
+            "rate": 0.2727
+          }
+        },
+        "by_outcome_class": {
+          "answer": {
+            "cases": 6,
+            "count": 3,
+            "interval": [
+              0.1876,
+              0.8124
+            ],
+            "rate": 0.5
+          },
+          "block": {
+            "cases": 4,
+            "count": 4,
+            "interval": [
+              0.5101,
+              1.0
+            ],
+            "rate": 1.0
+          },
+          "decline": {
+            "cases": 1,
+            "count": 1,
+            "interval": [
+              0.2065,
+              1.0
+            ],
+            "rate": 1.0
+          }
+        },
+        "cases": 23,
+        "count": 8,
+        "eligible": 11,
+        "interval": [
+          0.1881,
+          0.5511
+        ],
+        "rate": 0.3478
+      },
+      "M-02": {
+        "by_language": {
+          "es": {
+            "cases": 12,
+            "count": 6,
+            "interval": [
+              0.2538,
+              0.7462
+            ],
+            "rate": 0.5
+          },
+          "pt": {
+            "cases": 11,
+            "count": 5,
+            "interval": [
+              0.2127,
+              0.7199
+            ],
+            "rate": 0.4545
+          }
+        },
+        "cases": 23,
+        "count": 11,
+        "interval": [
+          0.2924,
+          0.6704
+        ],
+        "rate": 0.4783
+      },
+      "M-03": {
+        "by_language": {
+          "es": {
+            "cases": 6,
+            "count": 6,
+            "interval": [
+              0.6097,
+              1.0
+            ],
+            "missed": {
+              "cases": 6,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.3903
+              ],
+              "rate": 0.0
+            },
+            "rate": 1.0,
+            "unnecessary": {
+              "cases": 6,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.3903
+              ],
+              "rate": 0.0
+            }
+          },
+          "pt": {
+            "cases": 6,
+            "count": 6,
+            "interval": [
+              0.6097,
+              1.0
+            ],
+            "missed": {
+              "cases": 6,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.3903
+              ],
+              "rate": 0.0
+            },
+            "rate": 1.0,
+            "unnecessary": {
+              "cases": 5,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.4345
+              ],
+              "rate": 0.0
+            }
+          }
+        },
+        "cases": 12,
+        "count": 12,
+        "interval": [
+          0.7575,
+          1.0
+        ],
+        "missed": {
+          "cases": 12,
+          "count": 0,
+          "interval": [
+            0.0,
+            0.2425
+          ],
+          "rate": 0.0
+        },
+        "rate": 1.0,
+        "unnecessary": {
+          "cases": 11,
+          "count": 0,
+          "interval": [
+            0.0,
+            0.2588
+          ],
+          "rate": 0.0
+        }
+      },
+      "M-04": {
+        "bound": "not defined",
+        "by_kind": {
+          "action": {
+            "cases": 27,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.1246
+            ],
+            "rate": 0.0
+          },
+          "disclosure": {
+            "cases": 27,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.1246
+            ],
+            "rate": 0.0
+          },
+          "incorrect": {
+            "cases": 27,
+            "count": 3,
+            "interval": [
+              0.0385,
+              0.2806
+            ],
+            "rate": 0.1111
+          },
+          "unverified": {
+            "cases": 27,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.1246
+            ],
+            "rate": 0.0
+          }
+        },
+        "by_language": {
+          "es": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 14,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.2153
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 14,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.2153
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 14,
+                "count": 1,
+                "interval": [
+                  0.0127,
+                  0.3147
+                ],
+                "rate": 0.0714
+              },
+              "unverified": {
+                "cases": 14,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.2153
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 14,
+            "count": 1,
+            "interval": [
+              0.0127,
+              0.3147
+            ],
+            "rate": 0.0714
+          },
+          "pt": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 13,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.2281
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 13,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.2281
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 13,
+                "count": 2,
+                "interval": [
+                  0.0433,
+                  0.4223
+                ],
+                "rate": 0.1538
+              },
+              "unverified": {
+                "cases": 13,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.2281
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 13,
+            "count": 2,
+            "interval": [
+              0.0433,
+              0.4223
+            ],
+            "rate": 0.1538
+          }
+        },
+        "cases": 27,
+        "count": 3,
+        "interval": [
+          0.0385,
+          0.2806
+        ],
+        "rate": 0.1111
+      },
+      "M-05": {
+        "cost_usd": {
+          "aws": "not defined",
+          "models": 0.125455,
+          "per_attempted_case": 0.005974,
+          "per_resolution": 0.015682
+        },
+        "latency_ms": {
+          "cases": {
+            "cases": 21,
+            "p50": 9549,
+            "p95": 10956.0
+          },
+          "fault_cases_left_out": 2,
+          "first": {
+            "p50": 4905,
+            "p95": 5691.0,
+            "turns": 21
+          },
+          "later": {
+            "p50": 2794.0,
+            "p95": 4582.5,
+            "turns": 28
+          }
+        },
+        "per_case": {
+          "input_tokens": 3744.63,
+          "model_calls": 3.22,
+          "output_tokens": 180.37,
+          "turns": 1.89
+        },
+        "workload": {
+          "cases": 27,
+          "parallelism": 4,
+          "repeats": 1,
+          "turns": 51
+        }
+      },
+      "by_segment": "not defined",
+      "repeats": {
+        "pass_all": "not defined",
+        "runs": 1,
+        "spread": "not defined"
+      }
+    },
+    "not_stopped": 0,
+    "passed": 23,
+    "resent": 0,
+    "run": "20261003T041230Z-4cb6",
+    "safety": {},
+    "set": "selection",
+    "uncovered": {
+      "charge.blocked fact": 1,
+      "decline.several extra_figure": 3,
+      "decline.several fact": 7,
+      "decline.several language": 1
+    },
+    "unsafe": 0
+  }
+}
