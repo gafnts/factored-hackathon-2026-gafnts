@@ -14,6 +14,7 @@ Amended as built, each correction applied in the section it names:
 - 2026-10-02: the which-card question's list under its own placeholder, `{card_list}`, since the oracle read the question's `{cards}` as the answer's status lines (D-004) ([The graph](#the-graph), Facts and outcomes in replies); the model's value for any other block reason mapped to `customer_request` in code, since the model read a bare request as that reason (D-006) ([The graph](#the-graph)).
 - 2026-10-02: a model call's provider recorded as null when none ran, as in [ADR-0005](0005-offline-scenario-evaluation.md)'s plays with the deterministic baseline or the scripted models; before, every call named Anthropic and Haiku, whatever answered it ([A turn, end to end](#a-turn-end-to-end)).
 - 2026-10-03: the extraction reads a conflict only when the customer names two facts that disagree, since the model read a bare "is my card active?" as asking whether the card still works, in 41 of 96 development status paraphrases ([The graph](#the-graph)); the reply's model reads each answer's shape beside its placeholders, since about half of the answers it wrote in the live runs laid the facts out as a list ([The graph](#the-graph), Facts and outcomes in replies); the handoff text's model reads what the chat did about the card, since the turn's reply that reports a block is written after the notes ([The handoff](#the-handoff)); the router says what a message with no request is, and code picks its fixed reply from that, since one text answered a greeting, thanks, and a goodbye alike, and the first greeting now introduces Faro; an injection with no request in it holds no request, where the router read 9 of 24 as `unsupported` ([The graph](#the-graph)).
+- 2026-10-03: a message that doesn't answer the agent's own question is read as a new one, in the `aside` node, since "what else can you do?", sent while a charge's question waited, read as "none of these" and offered the block; and a transaction is named by its type unless it is a purchase (policy version 6) ([The graph](#the-graph)).
 
 ## Context
 
@@ -177,6 +178,7 @@ flowchart TD
 | Node | Kind | Does | Rules |
 |---|---|---|---|
 | `begin` | Code | Sends an answer to a pending question back to the node that asked | POL-06 |
+| `aside` | Model, code | Takes a message the node that asked reads as no answer to its question: routes it, and gives one with no request its short reply and the question again, or ends the question for a new request, after the dispute handoff a charge's question owes | POL-06, POL-39 |
 | `route` | Model, code | Labels new requests, flags a complaint, says whether the message holds a request at all and which language it is in, and orders several | POL-04, POL-05, POL-44, POL-50, POL-51 |
 | `next_request` | Code | Serves the next queued request, from the message that asked for it | POL-05 |
 | `list_cards` | Tool | Reads whether the customer is served in full, for `unsupported` and `talk_to_human` | POL-12 |
