@@ -111,10 +111,11 @@
     },
     {
       "id": "D-009",
-      "status": "open",
-      "verdict": null,
+      "status": "closed",
+      "verdict": "system",
       "rules": ["POL-27", "POL-39"],
-      "question": "An unrecognized charge reported with no detail of the charge, on a card whose window lists one transaction: the oracle takes the one listed as the charge meant (POL-27, POL-39), and the turn's reply names it before the block's confirmation. In one of six such cases played live on 2026-10-03, in Portuguese, the search's model returned no fitting transaction for the message that a purchase made by someone else had appeared, so the agent said it found no charge and offered the block all the same; the five other replies named it. The search's prompt asks for every number when nothing in the message tells the transactions apart. The reply check isn't involved: both texts are fixed. Our lean: the system: one sentence in the search's prompt saying that a message which only reports a charge as unrecognized, fraudulent, or not the customer's tells nothing apart, verified with a cents-sized live run of the situation in both languages.",
+      "question": "An unrecognized charge reported with no detail of the charge, on a card whose window lists one transaction: the oracle takes the one listed as the charge meant (POL-27, POL-39), and the turn's reply names it before the block's confirmation. In one of six such cases played live on 2026-10-03, in Portuguese, the search's model returned no fitting transaction for the message that a purchase made by someone else had appeared, so the agent said it found no charge and offered the block all the same; the five other replies named it. The search's prompt asks for every number when nothing in the message tells the transactions apart. The reply check isn't involved: both texts are fixed. The one listed was not a purchase, and the message said a purchase, so the model read a kind the oracle doesn't: a bare report names no kind.",
+      "resolution": "The search's prompt now says that the words a customer uses for any charge name no kind, and that a charge being unrecognized, strange, fraudulent, not the customer's, or made by someone else contradicts no transaction, so a message that says only that tells nothing apart. Over the development family's twelve detail-free paraphrases against one made-up listed transaction, a purchase and then a withdrawal, the choice returned the one listed every time before the change and after it, so the live miss is a rare one the selection run at the freeze measures again.",
       "matches": [
         { "situation": "charge.blocked", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction}", "observed": "missing" }
       ]
