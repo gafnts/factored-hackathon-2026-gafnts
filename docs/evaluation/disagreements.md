@@ -12,7 +12,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-006](#d-006) | Closed | The system was wrong | POL-35, POL-36 | `block.cancelled` |
 | [D-007](#d-007) | Closed | The oracle was wrong | POL-27 | `decline.several` |
 | [D-008](#d-008) | Closed | The system was wrong | POL-50 | `decline.several` |
-| [D-009](#d-009) | Open | To triage | POL-37, POL-39 | `charge.blocked` |
+| [D-009](#d-009) | Open | To triage | POL-27, POL-39 | `charge.blocked` |
 
 ## D-001
 
@@ -117,7 +117,7 @@ A first message in Portuguese, "por que recusou", answered in Spanish. The route
 
 ## D-009
 
-An unrecognized charge whose block is confirmed and verified: the turn blocks the card and files POL-39's handoff, and its reply should name the transaction (POL-37). In one of six such cases played live on 2026-10-03 the reply didn't; the turn's reply comes from the handoff's text and isn't put through the reply check, so a missing fact there isn't caught or retried. Our lean: the system: run the reply check on that turn's reply, as on an answer's.
+An unrecognized charge reported with no detail of the charge, on a card whose window lists one transaction: the oracle takes the one listed as the charge meant (POL-27, POL-39), and the turn's reply names it before the block's confirmation. In one of six such cases played live on 2026-10-03, in Portuguese, the search's model returned no fitting transaction for the message that a purchase made by someone else had appeared, so the agent said it found no charge and offered the block all the same; the five other replies named it. The search's prompt asks for every number when nothing in the message tells the transactions apart. The reply check isn't involved: both texts are fixed. Our lean: the system: one sentence in the search's prompt saying that a message which only reports a charge as unrecognized, fraudulent, or not the customer's tells nothing apart, verified with a cents-sized live run of the situation in both languages.
 
 - `charge.blocked` (pt), turn 1: `fact`, expected `{transaction}`, observed `missing`
 
