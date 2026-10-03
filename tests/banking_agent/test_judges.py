@@ -106,11 +106,61 @@ def test_every_password_carries_each_class_the_pool_requires() -> None:
     assert any(c not in string.ascii_letters + string.digits for c in secret)
 
 
-def test_an_existing_user_refuses_the_run_and_names_reset() -> None:
+def test_an_existing_user_without_credentials_refuses_the_run_and_names_delete() -> (
+    None
+):
     cognito = FakeCognito(existing={"agente"})
 
-    with pytest.raises(judges.JudgesError, match="agente.*reset"):
+    with pytest.raises(judges.JudgesError, match="agente.*delete"):
         judges.create(cognito, "pool", CHOSEN)
+
+
+def test_an_existing_user_with_credentials_is_kept_and_not_remade() -> None:
+    cognito = FakeCognito(existing={"agente"})
+
+    created = judges.create(cognito, "pool", CHOSEN, recorded={"agente"})
+
+    assert "agente" not in created
+    assert "equipo-ia" in created
+    assert all(c["Username"] != "agente" for _, c in cognito.calls)
+
+
+def test_a_run_that_stops_partway_keeps_what_it_made_and_resumes(
+    tmp_path: Path,
+) -> None:
+    stack = write_stack_and_personas(tmp_path)
+    args = judges.parse(["create", "--stack", str(stack), "--data-dir", str(tmp_path)])
+    path = judges.credentials_path(tmp_path, "local")
+    first = FakeCognito()
+    failing = CHOSEN["mixed"].username
+    original = first.admin_add_user_to_group
+
+    def add_to_group(**kwargs: object) -> None:
+        if kwargs["Username"] == failing:
+            raise ClientError(
+                {"Error": {"Code": "TooManyRequestsException", "Message": ""}},
+                "AdminAddUserToGroup",
+            )
+        original(**kwargs)
+
+    first.admin_add_user_to_group = add_to_group  # type: ignore[method-assign]
+
+    with pytest.raises(ClientError):
+        judges.run(args, first)
+
+    made = {str(c["Username"]) for kind, c in first.calls if kind == "group"}
+    assert set(judges.read_users(path)) == made
+    assert judges.note_path(tmp_path, "local").is_file()
+
+    with pytest.raises(judges.JudgesError, match="delete"):
+        judges.run(args, FakeCognito(existing=made | {failing}))
+
+    said = judges.run(args, FakeCognito(existing=made))
+
+    assert set(judges.read_users(path)) == {p.username for p in CHOSEN.values()} | set(
+        judges.STAFF
+    )
+    assert f"kept {len(made)}" in said
 
 
 def test_credentials_land_on_disk_owner_only_and_a_reset_keeps_the_briefing(
@@ -159,7 +209,7 @@ def test_the_single_user_commands_reach_their_admin_calls() -> None:
     assert [kind for kind, _ in cognito.calls] == ["sign_out", "disable", "enable"]
 
 
-def test_run_prints_no_password_username_or_customer_id(tmp_path: Path) -> None:
+def write_stack_and_personas(tmp_path: Path) -> Path:
     stack = tmp_path / "local.outputs.json"
     stack.write_text(json.dumps({"user_pool_id": {"value": "pool"}}), encoding="utf-8")
     snapshot = read_lock(Path("dataset.lock")).snapshot_id
@@ -180,6 +230,11 @@ def test_run_prints_no_password_username_or_customer_id(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
+    return stack
+
+
+def test_run_prints_no_password_username_or_customer_id(tmp_path: Path) -> None:
+    stack = write_stack_and_personas(tmp_path)
     args = judges.parse(["create", "--stack", str(stack), "--data-dir", str(tmp_path)])
     cognito = FakeCognito()
 

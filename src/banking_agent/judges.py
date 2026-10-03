@@ -3,7 +3,8 @@ The judges' users (ADR-0007, Judges' access): one script creates the personas' a
 stack's pool, and resets, signs out, disables, or enables one. The personas come from data/personas/ (make personas),
 each signed in by its customer's synthetic name with custom:customer_id and the customer group; each password satisfies
 every class the pool requires and goes with the account's briefing to data/judges/<env>.json with owner-only
-permissions, from which the private note, data/judges/<env>.md, is rendered whole on every change, ready to send.
+permissions as each user is made, from which the private note, data/judges/<env>.md, is rendered whole on every
+change, ready to send.
 Usernames are names and so identity data: the script prints counts and paths, never a username, a password, or an ID
 (SEC-03). A reset also signs the user out everywhere, so a leaked credential is cut off within the access token's
 15 minutes, and delete retires a user with its entries.
@@ -13,7 +14,7 @@ import argparse
 import json
 import secrets
 import string
-from collections.abc import Sequence
+from collections.abc import Callable, Collection, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,13 @@ def note_path(data_dir: Path, env: str) -> Path:
     return data_dir / "judges" / f"{env}.md"
 
 
+def read_users(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    users: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))["users"]
+    return users
+
+
 def write_credentials(path: Path, env: str, users: dict[str, dict[str, str]]) -> None:
     body: dict[str, Any] = {"environment": env, "users": {}}
     if path.is_file():
@@ -117,11 +125,17 @@ def write_note(path: Path, site: str | None, users: dict[str, Any]) -> None:
 
 
 def create(
-    cognito: Any, pool: str, chosen: dict[str, personas.Persona]
+    cognito: Any,
+    pool: str,
+    chosen: dict[str, personas.Persona],
+    recorded: Collection[str] = (),
+    record: Callable[[str, dict[str, str]], None] | None = None,
 ) -> dict[str, dict[str, str]]:
     """
-    Returns each created username's password and briefing; a username already in the pool refuses the whole run, so
-    a rotation goes through reset and never silently remakes a user.
+    Returns each username this run made with its password and briefing, handing each to record as soon as it's
+    made, so a run that stops partway loses no password and runs again from where it stopped. A user already in the
+    pool is kept when recorded holds it, and refuses the run otherwise: its password is lost, so it's deleted and
+    made again, and a rotation goes through reset.
     """
     wanted: list[tuple[str, str, str | None, str]] = [
         (p.username, "customer", p.customer_id, p.briefing)
@@ -132,7 +146,6 @@ def create(
     ]
     created: dict[str, dict[str, str]] = {}
     for username, group, customer_id, briefing in wanted:
-        word = password()
         attributes = (
             [{"Name": "custom:customer_id", "Value": customer_id}]
             if customer_id
@@ -146,18 +159,24 @@ def create(
                 MessageAction="SUPPRESS",
             )
         except ClientError as error:
-            if error.response["Error"]["Code"] == "UsernameExistsException":
-                raise JudgesError(
-                    f"{username} already exists; reset it instead"
-                ) from error
-            raise
+            if error.response["Error"]["Code"] != "UsernameExistsException":
+                raise
+            if username in recorded:
+                continue
+            raise JudgesError(
+                f"{username} is in the pool without saved credentials; delete it, then create again"
+            ) from error
+        word = password()
         cognito.admin_set_user_password(
             UserPoolId=pool, Username=username, Password=word, Permanent=True
         )
         cognito.admin_add_user_to_group(
             UserPoolId=pool, Username=username, GroupName=group
         )
-        created[username] = {"password": word, "briefing": briefing}
+        fields = {"password": word, "briefing": briefing}
+        if record:
+            record(username, fields)
+        created[username] = fields
     return created
 
 
@@ -199,10 +218,7 @@ def parse(argv: Sequence[str] | None) -> argparse.Namespace:
 
 
 def refresh_note(args: argparse.Namespace, outputs: dict[str, Any], env: str) -> Path:
-    path = credentials_path(args.data_dir, env)
-    users = (
-        json.loads(path.read_text(encoding="utf-8"))["users"] if path.is_file() else {}
-    )
+    users = read_users(credentials_path(args.data_dir, env))
     rendered = note_path(args.data_dir, env)
     site = outputs.get("site", {}).get("url")
     write_note(rendered, site, users)
@@ -217,10 +233,20 @@ def run(args: argparse.Namespace, cognito: Any) -> str:
     if args.command == "create":
         snapshot = read_lock(Path("dataset.lock")).snapshot_id
         chosen = personas.read(personas.path_for(args.data_dir, snapshot), snapshot)
-        users = create(cognito, pool, chosen)
-        write_credentials(path, env, users)
-        note = refresh_note(args, outputs, env)
-        return f"created {len(users)} users; credentials in {path}; note in {note}"
+        try:
+            users = create(
+                cognito,
+                pool,
+                chosen,
+                read_users(path),
+                lambda username, fields: write_credentials(
+                    path, env, {username: fields}
+                ),
+            )
+        finally:
+            note = refresh_note(args, outputs, env)
+        kept = len(chosen) + len(STAFF) - len(users)
+        return f"created {len(users)} users, kept {kept}; credentials in {path}; note in {note}"
     if args.command == "reset":
         write_credentials(
             path, env, {args.user: {"password": reset(cognito, pool, args.user)}}
