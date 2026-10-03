@@ -294,7 +294,7 @@ def test_a_new_request_while_which_charge_is_asked_files_the_dispute_then_is_ser
     ]
     first, answered = reply(served).split("\n\n")
     assert first == FIXED["handoff_filed"]["pt"].format(reference=case["reference"])
-    assert answered.startswith("cartão de débito final 1177: ativo")
+    assert answered.startswith("Cartão de débito final 1177: ativo")
 
 
 def test_a_charge_not_settled_after_two_questions_is_recorded_unfound(

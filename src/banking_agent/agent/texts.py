@@ -393,6 +393,8 @@ REQUESTS = {
 }
 AND = {"es": "y", "pt": "e"}
 PLACEHOLDER = re.compile(r"\{([a-z_]+(?:\.[a-z_]+)?)\}")
+# What comes before a placeholder that opens a sentence or a line.
+OPENING = re.compile(r"(?:\A|\n|[.!?] )[ ¿¡]*\Z")
 
 
 def joined(items: list[str], language: str) -> str:
@@ -475,7 +477,17 @@ def placeholders(text: str) -> list[str]:
 
 
 def fill(text: str, filled: dict[str, str]) -> str:
-    return PLACEHOLDER.sub(lambda match: filled[match.group(1)], text)
+    """
+    Each placeholder replaced by its value, with a capital where it opens a sentence or a line, as the model may write
+    the card first (ADR-0004, Facts and outcomes in replies).
+    """
+
+    def value(match: re.Match[str]) -> str:
+        found = filled[match.group(1)]
+        opens = OPENING.search(text[: match.start()]) is not None
+        return found[:1].upper() + found[1:] if opens else found
+
+    return PLACEHOLDER.sub(value, text)
 
 
 def render(name: str, language: str, facts: dict[str, Any]) -> str:

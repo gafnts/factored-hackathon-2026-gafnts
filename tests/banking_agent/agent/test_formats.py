@@ -194,10 +194,27 @@ def test_the_transaction_found_stands_as_a_list_of_one() -> None:
     assert found == f"- {transaction_name(PURCHASE, 'es', 'Colombia')}"
 
 
+@pytest.mark.parametrize(
+    ("text", "filled"),
+    [
+        ("{card} está activa.", "Tarjeta de crédito terminada en 4821 está activa."),
+        ("Hola. {card} está activa.", "Hola. Tarjeta de crédito terminada en 4821 está activa."),
+        ("Hola:\n\n{card}", "Hola:\n\nTarjeta de crédito terminada en 4821"),
+        ("¿{card} está activa?", "¿Tarjeta de crédito terminada en 4821 está activa?"),
+        ("Su {card} está activa.", "Su tarjeta de crédito terminada en 4821 está activa."),
+        ("En su {card}: {card}.", "En su tarjeta de crédito terminada en 4821: tarjeta de crédito terminada en 4821."),
+    ],
+)  # fmt: skip
+def test_a_value_that_opens_a_sentence_or_a_line_takes_a_capital(
+    text: str, filled: str
+) -> None:
+    assert fill(text, {"card": "tarjeta de crédito terminada en 4821"}) == filled
+
+
 def test_the_queue_names_what_is_left_in_words() -> None:
     assert render("queued", "es", SAMPLE) == (
         "Después sigo con su crédito disponible y sus movimientos recientes."
     )
-    assert fill("{requests}", values("pt", {"requests": ["card_status"]})) == (
-        "o status do seu cartão"
+    assert fill("com {requests}", values("pt", {"requests": ["card_status"]})) == (
+        "com o status do seu cartão"
     )

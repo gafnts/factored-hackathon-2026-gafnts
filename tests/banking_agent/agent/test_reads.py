@@ -93,7 +93,7 @@ def test_one_card_named_gets_its_status_and_expiration(
 
     card = detail(harness.bank.cards()[2])
     shown = render("card_status", language, {"card": card}).split(" ", 1)[1]
-    assert reply(events).startswith(shown.split(" ")[0])
+    assert reply(events).startswith(shown.split(" ")[0].capitalize())
     assert tools(harness) == ["list_cards", "get_card"]
     assert decisions(chat) == [
         {
@@ -190,7 +190,7 @@ def test_a_new_request_while_which_card_is_asked_ends_the_question(
         last_four="4821",
     )
 
-    assert reply(events).startswith(f"{CARD}, ")
+    assert reply(events).startswith(f"{CARD.capitalize()}, ")
     assert decisions(chat) == [
         {
             "request_label": "recent_transactions",
@@ -250,7 +250,7 @@ def test_a_bare_four_digit_number_names_the_card_without_the_model(
         requests=["recent_transactions"],
     )
 
-    assert reply(events).startswith(f"{CARD}, ")
+    assert reply(events).startswith(f"{CARD.capitalize()}, ")
     assert tools(harness) == ["list_cards", "find_transactions"]
     assert decisions(chat)[0]["outcome_class"] == "answer"
 
@@ -532,7 +532,7 @@ def test_a_page_lists_the_window_newest_first_with_its_dates(
 
     lines = reply(events).split("\n\n")[1].split("\n")
     assert reply(events).startswith(
-        f"{CARD if language == 'es' else 'cartão de crédito final 4821'}, 20/03/2026 06:00 - 18/06/2026 06:00:"
+        f"{CARD.capitalize() if language == 'es' else 'Cartão de crédito final 4821'}, 20/03/2026 06:00 - 18/06/2026 06:00:"
     )
     # POL-25: the country only abroad, the merchant only for a purchase, "not recorded" when it's missing.
     assert lines[0].endswith(" · USA")

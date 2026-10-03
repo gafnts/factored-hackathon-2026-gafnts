@@ -57,8 +57,8 @@ def test_the_rest_wait_through_a_question_and_are_served_after_it(
     answered = chat.say("La de crédito 4821", requests=[], last_four="4821")
 
     explained, status, conflict = reply(answered).split("\n\n")
-    assert explained.endswith("fondos insuficientes (código 51).")
-    assert status == "tarjeta de crédito terminada en 4821: activa, 02/2026."
+    assert explained.endswith("Fondos insuficientes (código 51).")
+    assert status == "Tarjeta de crédito terminada en 4821: activa, 02/2026."
     assert conflict == FIXED["past_expiration"]["es"].format(
         card="tarjeta de crédito terminada en 4821"
     )
@@ -88,7 +88,7 @@ def test_the_rest_wait_through_the_confirm_control_and_follow_the_block(
 
     verified, status = reply(blocked).split("\n\n")
     assert verified == render("block_verified", "es", {"card": harness.bank.cards()[2]})
-    assert status == "tarjeta de débito terminada en 1177: bloqueada, no registrada."
+    assert status == "Tarjeta de débito terminada en 1177: bloqueada, no registrada."
     assert [(d["request_label"], d["outcome_class"]) for d in decisions(chat)] == [
         ("block_card", "block"),
         ("card_status", "answer"),
