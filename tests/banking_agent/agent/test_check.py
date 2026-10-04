@@ -79,6 +79,13 @@ def test_several_cards_credit_stands_on_a_line_of_its_own() -> None:
     assert failures("Al {as_of}, este es su crédito:\n\n{credits}", CREDITS) == []
 
 
+def test_a_list_written_twice_is_refused() -> None:
+    # As the model wrote it once per card, so three cards' credit read as nine rows.
+    text = "Al {as_of}, este es el crédito disponible en sus tarjetas:\n\n{credits}\n{credits}\n{credits}"
+
+    assert failures(text, CREDITS) == ["repeated_list"]
+
+
 EXPLAINED = {**FOUND, "transaction.meaning": "- Motivo: fondos insuficientes"}
 
 
@@ -123,4 +130,5 @@ def test_the_failures_are_the_execution_records() -> None:
         "inline_list",
         "reason_apart",
         "lone_fact",
+        "repeated_list",
     } <= set(allowed)

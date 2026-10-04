@@ -123,7 +123,10 @@ DESCRIPTIONS = {
     "cards": "the customer's cards, one per line, each with its status and expiration; put it on a line of its own",
     "credit.available": "the credit available on the card, with its currency",
     "credit.over_by": "the amount by which the card's balance exceeds its limit, with its currency",
-    "credits": "each card's credit available, one per line; put it on a line of its own",
+    "credits": (
+        "the credit available on every card the answer covers, a line per card, all in this one placeholder; write it"
+        " once, on a line of its own"
+    ),
     "as_of": "the date the figures are as of, stated as the records' date (Spanish 'al', Portuguese 'em'), never as a start",
     "window.from": "when the period of transactions shown starts",
     "window.to": "when the period of transactions shown ends",

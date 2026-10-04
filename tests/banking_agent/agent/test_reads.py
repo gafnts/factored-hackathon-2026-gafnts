@@ -499,6 +499,9 @@ def over_limit(harness: Harness) -> None:
     }
 
 
+FIXED_CREDITS = "Al 17/06/2026, este es el crédito disponible de sus tarjetas:"
+
+
 @pytest.mark.parametrize(
     ("written", "opening"),
     [
@@ -506,10 +509,11 @@ def over_limit(harness: Harness) -> None:
             "Al {as_of}, este es el crédito de sus tarjetas:\n\n{credits}",
             "Al 17/06/2026, este es el crédito de sus tarjetas:",
         ),
-        # The list inside the sentence, which the check refuses, so the fixed reply states it.
+        # Refused by the check, so the fixed reply states the list: inside the sentence, and once per card.
+        ("Al {as_of}, sus tarjetas tienen {credits}.", FIXED_CREDITS),
         (
-            "Al {as_of}, sus tarjetas tienen {credits}.",
-            "Al 17/06/2026, este es el crédito disponible de sus tarjetas:",
+            "Al {as_of}, este es el crédito de sus tarjetas:\n\n{credits}\n{credits}",
+            FIXED_CREDITS,
         ),
     ],
 )
@@ -542,7 +546,7 @@ def test_the_credit_of_several_cards_is_one_list_under_one_sentence(
     )
     assert len(harness.script.model_inputs["reply"]) == 1
     (checked,) = checks(chat)
-    assert checked["fell_back"] is ("{credits}." in written)
+    assert checked["fell_back"] is (opening == FIXED_CREDITS)
     (decided,) = decisions(chat)
     assert decided["outcome_class"] == "answer"
     assert {"POL-14", "POL-22", "POL-23", "POL-31"} <= set(decided["rules"])
