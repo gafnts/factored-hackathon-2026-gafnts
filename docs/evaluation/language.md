@@ -13,7 +13,7 @@ section; those items stay out of the language tables, so the tables compare acro
 Each answer that names a card by its place in a list is also sent as a later message, after the chat listed the
 cards, and the card read is counted in a section of its own (POL-13).
 
-Latest live check: 2026-10-04T01:31:17Z, claude-haiku-4-5-20251001, 918 items, 1.6541 USD at list price. Prompts: `route` 1e38f07c584350f4, `resolve_card` 8af35f0b0d19013d, `find_transaction` 2ed4bdd7a69264c4.
+Latest live check: 2026-10-04T01:43:13Z, claude-haiku-4-5-20251001, 918 items, 1.6602 USD at list price. Prompts: `route` 1e38f07c584350f4, `resolve_card` b3bf4f7419d1f904, `find_transaction` 2ed4bdd7a69264c4.
 
 | Expected | Baseline read | Live read |
 |---|---|---|
@@ -86,17 +86,14 @@ when the request gives no reason, so POL-35's question should follow, or the rea
 
 ## Cards named by their place, latest live check
 
-6 of 8 (75.0%) of the answers that name a card by its place in a list ("la segunda") read as the card at
+8 of 8 (100.0%) of the answers that name a card by its place in a list ("la segunda") read as the card at
 that place: as the answer to the which-card question, and as a later message after the chat listed the cards.
 
 | Read as | Live read |
 |---|---|
-| answer | 2 of 4 (50.0%) |
+| answer | 4 of 4 (100.0%) |
 | later | 4 of 4 (100.0%) |
 
 ### Misses
 
-| Message | Expected | Said |
-|---|---|---|
-| card_position-02/es | 1177 | none |
-| card_position-02/pt | 1177 | none |
+None.
