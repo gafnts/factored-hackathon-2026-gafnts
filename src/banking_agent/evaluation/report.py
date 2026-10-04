@@ -53,6 +53,8 @@ class Run:
     manifest: dict[str, Any]
     summary: dict[str, Any]
     graded: Graded
+    cost_usd: float | None = None
+    unpriced_calls: int = 0
 
     @property
     def run_id(self) -> str:
@@ -106,7 +108,47 @@ def load_run(path: Path, sets: Path = SETS) -> Run:
         raise ReportError(
             f"run {manifest['run']} graded {len(missing)} cases the set doesn't hold"
         )
-    return Run(path, manifest, summary, [(drawn[g["case_id"]], g) for g in grades])
+    cost, unpriced = priced(path, manifest)
+    return Run(
+        path,
+        manifest,
+        summary,
+        [(drawn[g["case_id"]], g) for g in grades],
+        cost,
+        unpriced,
+    )
+
+
+def priced(path: Path, manifest: Mapping[str, Any]) -> tuple[float | None, int]:
+    """
+    The run's model cost and the number of model calls without a price. The manifest's total is void when any call
+    has none (a failed attempt the harness retried carries no usage), so the priced calls are summed from the
+    evidence instead and the unpriced ones counted, for the page to say.
+    """
+    total = (manifest.get("totals") or {}).get("cost_usd")
+    if total is not None:
+        return float(total), 0
+    records: list[list[dict[str, Any]]] = []
+    if (path / "evidence.jsonl").is_file():
+        with (path / "evidence.jsonl").open(encoding="utf-8") as kept:
+            records = [
+                json.loads(line).get("record") or [] for line in kept if line.strip()
+            ]
+    elif (path / "cases").is_dir():
+        records = [
+            json.loads(kept_case.read_text(encoding="utf-8"))["evidence"].get("record")
+            or []
+            for kept_case in sorted((path / "cases").glob("*.json"))
+        ]
+    calls: list[dict[str, Any]] = [
+        e for record in records for e in record if e.get("kind") == "model_call"
+    ]
+    if not calls:
+        return None, 0
+    found = [e["cost_usd"] for e in calls if e.get("cost_usd") is not None]
+    if not found:
+        return None, len(calls)
+    return round(sum(found), 6), len(calls) - len(found)
 
 
 def profiles(database: Path, side: str, customers: set[str]) -> dict[str, Profile]:
@@ -453,10 +495,34 @@ def versions(run: Run) -> dict[str, Any]:
             for m in run.manifest.get("models") or []
         ],
         "parallelism": run.manifest.get("parallelism"),
-        "cost_usd": (run.manifest.get("totals") or {}).get("cost_usd"),
+        "cost_usd": run.cost_usd,
+        "unpriced_calls": run.unpriced_calls,
         "cases": len(run.graded),
         "passed": sum(bool(g["passed"]) for _, g in run.graded),
     }
+
+
+def efficiency(run: Run) -> dict[str, Any]:
+    """
+    The run's M-05 as its summary states it, the cost filled from the priced calls when the summary left it undefined.
+    """
+    m5 = dict(run.summary["metrics"]["M-05"])
+    cost = dict(m5["cost_usd"])
+    if cost.get("models") == metrics.NOT_DEFINED and run.cost_usd is not None:
+        tried = sum(metrics.attempted(g) for _, g in run.graded)
+        done = sum(
+            metrics.resolved(c, g) for c, g in run.graded if metrics.conversation(c)
+        )
+        cost["models"] = run.cost_usd
+        cost["per_attempted_case"] = (
+            round(run.cost_usd / tried, 6) if tried else metrics.NOT_DEFINED
+        )
+        cost["per_resolution"] = (
+            round(run.cost_usd / done, 6) if done else metrics.NOT_DEFINED
+        )
+    cost["unpriced_calls"] = run.unpriced_calls
+    m5["cost_usd"] = cost
+    return m5
 
 
 def mix(set_manifest: Mapping[str, Any]) -> dict[str, Any]:
@@ -521,9 +587,9 @@ def build(
             {
                 "run": r.run_id,
                 **{
-                    k: r.summary["metrics"][k]
-                    for k in ("M-01", "M-02", "M-03", "M-04", "M-05")
+                    k: r.summary["metrics"][k] for k in ("M-01", "M-02", "M-03", "M-04")
                 },
+                "M-05": efficiency(r),
             }
             for r in runs
         ],
@@ -723,11 +789,22 @@ def page(found: Mapping[str, Any]) -> str:
             f"| {r['run']} | {_p(lat, 'later')} | {_p(lat, 'first')} | {_p(lat, 'cases')} | {cost['per_attempted_case']} | "
             f"{cost['per_resolution']} | {m5['per_case']['turns']} | {m5['per_case']['model_calls']} |"
         )
+    unpriced = [
+        f"`{r['run']}` {r['M-05']['cost_usd']['unpriced_calls']}"
+        for r in found["per_run"]
+        if r["M-05"]["cost_usd"].get("unpriced_calls")
+    ]
     lines += [
         "",
         "Latency is measured by the harness from the send to the turn's last event; the first turn of a case opens",
         "its runtime session, so it is shown apart. Cost is the models' tokens at list price on the run date; AWS",
-        'charges are not estimated here ("not defined").',
+        'charges are not estimated here ("not defined").'
+        + (
+            " Model calls without a price (a failed attempt the harness retried carries no usage) are left out of"
+            f" the sum: {', '.join(unpriced)}."
+            if unpriced
+            else ""
+        ),
         "",
         "## By language and by segment",
         "",

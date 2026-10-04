@@ -598,3 +598,47 @@ def test_profiles_are_joined_from_the_snapshot_for_the_customers_named(
     assert found[EXAMPLE_CUSTOMER].segment in ("Basic", "Plus", "Premium", "Student")
     assert found[EXAMPLE_CUSTOMER].country in ("México", "Colombia", "Argentina")
     assert isinstance(found[EXAMPLE_CUSTOMER].updated_after_as_of, bool)
+
+
+def test_a_run_whose_total_is_void_is_priced_from_its_calls(
+    tmp_path: Path, sets: tuple[Path, list[dict[str, Any]]]
+) -> None:
+    sets_dir, found = sets
+    run_dir = write_run(
+        tmp_path, "20261004T150000Z-dddd", found, [grade(c) for c in found]
+    )
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["totals"]["cost_usd"] = None
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["metrics"]["M-05"]["cost_usd"] = {
+        k: metrics.NOT_DEFINED
+        for k in ("models", "aws", "per_attempted_case", "per_resolution")
+    }
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+    first = run_dir / "cases" / "0001.json"
+    kept = json.loads(first.read_text(encoding="utf-8"))
+    kept["evidence"]["record"] = [
+        {"kind": "model_call", "node": "route", "cost_usd": None},
+        {"kind": "model_call", "node": "route", "cost_usd": 0.25},
+        {"kind": "model_call", "node": "reply", "cost_usd": 0.5},
+        {"kind": "turn_closed", "totals": {"cost_usd": None}},
+    ]
+    first.write_text(json.dumps(kept), encoding="utf-8")
+
+    run = report.load_run(run_dir, sets_dir)
+    assert (run.cost_usd, run.unpriced_calls) == (0.75, 1)
+
+    built = report.build([run], set_manifest(found), profiles_for(found), [])
+    cost = built["per_run"][0]["M-05"]["cost_usd"]
+    assert cost["models"] == 0.75
+    assert cost["unpriced_calls"] == 1
+    assert cost["per_attempted_case"] != metrics.NOT_DEFINED
+    assert built["runs"][0]["cost_usd"] == 0.75
+
+    report.write(built, tmp_path / "docs" / "r.json", tmp_path / "docs" / "r.md")
+    text = (tmp_path / "docs" / "r.md").read_text(encoding="utf-8")
+    assert "without a price" in text
+    assert "`20261004T150000Z-dddd` 1" in text
