@@ -79,6 +79,7 @@ ANSWER_KINDS = {
     "card_last_four": {"last_four"},
     "card_type": {"card_type"},
     "card_both": {"card_type", "last_four"},
+    "card_position": set(),
     "reason_lost": set(),
     "reason_stolen": set(),
     "reason_unrecognized_charge": set(),
@@ -88,6 +89,7 @@ ANSWER_KINDS = {
     "transaction_date": {"date"},
     "transaction_newest": set(),
     "dont_know": set(),
+    "aside": set(),
     "typed_yes": set(),
 }
 PER_ANSWER_KIND = 3

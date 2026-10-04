@@ -1,5 +1,6 @@
-{
-  "$comment": "The words a reply states each recorded value in, per language, by the tools' field that holds it (ADR-0004's amendment of 2026-10-01, the table under decision 8). The agent's replies, ADR-0005's oracle, and the chat all read this file.",
+// Generated from src/banking_agent/contracts/reply-words.json by pnpm contracts.
+
+export const WORDS = {
   "product_type": {
     "es": {
       "Tarjeta Crédito": "tarjeta de crédito",
@@ -98,4 +99,4 @@
     "es": "comercio no registrado",
     "pt": "estabelecimento não registrado"
   }
-}
+} as const;

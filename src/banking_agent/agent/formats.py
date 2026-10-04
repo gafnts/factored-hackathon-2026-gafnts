@@ -25,6 +25,9 @@ TRANSACTION_STATUSES: dict[str, dict[str, str]] = WORDS["transaction_status"]
 TRANSACTION_TYPES: dict[str, dict[str, str]] = WORDS["transaction_type"]
 # POL-02: the ISO 8583 meaning of each listed code, and nothing else (POL-29).
 MEANINGS: dict[str, dict[str, str]] = WORDS["response_meaning"]
+REASON: dict[str, str] = WORDS["reason_label"]
+NO_CREDIT: dict[str, str] = WORDS["credit_none"]
+OVER_BY: dict[str, str] = WORDS["over_limit_label"]
 UNRECORDED: dict[str, str] = WORDS["merchant_unrecorded"]
 EXPIRES: dict[str, str] = WORDS["expiration_label"]
 SEPARATOR = " · "
@@ -67,6 +70,29 @@ def card_line(card: dict[str, Any], language: str) -> str:
     )
 
 
+def reason_line(meaning: str, language: str) -> str:
+    """
+    A decline's reason, on the line under its transaction, so the two read as one list: its label and the code's meaning
+    (POL-02, POL-29).
+    """
+    return f"- {REASON[language].capitalize()}: {MEANINGS[language][meaning]}"
+
+
+def credit_line(
+    card: dict[str, Any], credit: dict[str, Any], language: str, country: str
+) -> str:
+    """
+    A card in an answer about the credit of several: its credit available, or none and the amount its balance exceeds
+    its limit by (POL-14, POL-22, POL-23).
+    """
+    name = card_name(card, language).capitalize()
+    currency = credit["currency"]
+    if credit["availability"] == "over_limit":
+        over = amount(credit["over_limit_by"], currency, country)
+        return f"- {name}: {NO_CREDIT[language]}; {OVER_BY[language]} {over}"
+    return f"- {name}: {amount(credit['available_credit'], currency, country)}"
+
+
 def recorded(text: str) -> str:
     return mask(text)
 
@@ -78,10 +104,17 @@ def merchant(transaction: dict[str, Any], language: str) -> str:
 
 def transaction_name(transaction: dict[str, Any], language: str, country: str) -> str:
     """
-    A transaction the customer means: its time, its merchant, and its amount (POL-27, POL-39).
+    A transaction the customer means: its time, its merchant for a purchase or its type otherwise, as a page names it,
+    and its amount (POL-27, POL-39).
     """
+    kind = transaction["transaction_type"]
+    named = (
+        merchant(transaction, language)
+        if kind == "Purchase"
+        else TRANSACTION_TYPES[language][kind]
+    )
     return (
-        f"{moment(transaction['transaction_date'])}, {merchant(transaction, language)}, "
+        f"{moment(transaction['transaction_date'])}, {named}, "
         f"{amount(transaction['amount'], transaction['currency'], country)}"
     )
 

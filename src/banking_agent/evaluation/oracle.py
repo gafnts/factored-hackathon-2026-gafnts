@@ -36,7 +36,9 @@ from banking_agent.evaluation.state import (
     merged,
 )
 
-POLICY_VERSION = 5
+POLICY_VERSION = 6
+# The details the agent asks the customer for (POL-06, POL-13, POL-27, POL-35).
+ASKED = ("card", "reason", "transaction")
 # POL-50: the conversation's language until a message clearly in one of the two sets it.
 DEFAULT_LANGUAGE = "es"
 # POL-05's order.
@@ -220,6 +222,7 @@ class Conversation:
             else None
         )
         self.typed = False
+        self.asided = False
         self.paging: tuple[Card, int] | None = None
         self.turns: list[dict[str, Any]] = []
         self.blocked: list[str] = []
@@ -243,6 +246,9 @@ class Conversation:
 
     def answer_for(self, awaiting: str) -> Answer | None:
         answers = self.script["answers"]
+        if awaiting in ASKED and "aside" in answers and not self.asided:
+            self.asided = True
+            return Answer("aside", language=said_in(answers["aside"]))
         if awaiting == "confirm_control":
             if "typed_yes" in answers and not self.typed:
                 self.typed = True
@@ -466,6 +472,16 @@ class Conversation:
             return Step("answer", ["POL-45"])
         raise NotCoveredError("text sent while a handoff is offered")
 
+    def asking(self, step: Step) -> Generator[Step, Answer, Answer]:
+        """
+        A question, and the same one again after a message that doesn't answer it, which counts toward no limit (POL-06,
+        POL-17).
+        """
+        answer = yield step
+        while answer.sends == "aside":
+            answer = yield replace(step, rules=[*step.rules, "POL-06"], tools=())
+        return answer
+
     def unsettled(self) -> Request:
         return (
             yield from self.offer(
@@ -512,12 +528,14 @@ class Conversation:
                 return (yield from self.unsettled())
             tools = ("list_cards",) if asked == 0 else ()
             asked += 1
-            answer = yield Step(
-                "clarify",
-                rules,
-                "card",
-                tools=tools,
-                facts={"{card_list}": self.facts.card_list(listed)},
+            answer = yield from self.asking(
+                Step(
+                    "clarify",
+                    rules,
+                    "card",
+                    tools=tools,
+                    facts={"{card_list}": self.facts.card_list(listed)},
+                )
             )
             hints = hints.merged(answer.hints)
 
@@ -537,15 +555,17 @@ class Conversation:
             if asked == QUESTIONS:
                 return (yield from self.unsettled())
             asked += 1
-            answer = yield Step(
-                "clarify",
-                ["POL-27"],
-                "transaction",
-                tools=("find_transactions",) if asked == 1 else (),
-                facts={
-                    "{card}": self.facts.card(card),
-                    "{transactions}": self.facts.choices(shown),
-                },
+            answer = yield from self.asking(
+                Step(
+                    "clarify",
+                    ["POL-27"],
+                    "transaction",
+                    tools=("find_transactions",) if asked == 1 else (),
+                    facts={
+                        "{card}": self.facts.card(card),
+                        "{transactions}": self.facts.choices(shown),
+                    },
+                )
             )
             if answer.hints.newest:
                 meant = shown[:1]
@@ -657,7 +677,7 @@ class Conversation:
         facts = {"{card}": self.facts.card(card)}
         if found is None:
             return Step("answer", ["POL-27"], tools=tools, facts=facts)
-        facts["{transaction}"] = self.facts.transaction(found)
+        facts["{transaction}"] = self.facts.found(found)
         rules = ["POL-02", "POL-27"]
         if found.status != "Declined":
             facts["{transaction.status}"] = self.facts.transaction_status(found)
@@ -668,7 +688,7 @@ class Conversation:
         if not found.listed_code:
             step = Step("abstain", [*rules, "POL-32"], "handoff_control", tools, facts)
             return (yield from self.offer(step, "missing_data"))
-        facts["{transaction.meaning}"] = self.facts.meaning(found)
+        facts["{transaction.meaning}"] = self.facts.reason(found)
         step = Step("answer", [*rules, "POL-29"], tools=tools, facts=facts)
         if "expired_code_before_expiration" in card.conflicts(found):
             step.rules.append("POL-30")
@@ -696,7 +716,9 @@ class Conversation:
             if asked == QUESTIONS:
                 return (yield from self.unsettled())
             asked += 1
-            answer = yield Step("clarify", ["POL-35"], "reason", facts=facts())
+            answer = yield from self.asking(
+                Step("clarify", ["POL-35"], "reason", facts=facts())
+            )
             reason = answer.block_reason
         shown = yield Step(
             "block", ["POL-35", "POL-36"], "confirm_control", facts=facts()
@@ -757,7 +779,7 @@ class Conversation:
         found, tools = searched
         facts = {"{card}": self.facts.card(card)}
         if found is not None:
-            facts["{transaction}"] = self.facts.transaction(found)
+            facts["{transaction}"] = self.facts.found(found)
         if not card.active:
             priority = "normal" if card.status == "Blocked" else "urgent"
             return Step(

@@ -55,6 +55,7 @@ from banking_agent.agent.models import (
 from banking_agent.agent.payload import (
     built,
     context,
+    done,
     offered,
     required,
     transcript,
@@ -122,15 +123,51 @@ DESCRIPTIONS = {
     "cards": "the customer's cards, one per line, each with its status and expiration; put it on a line of its own",
     "credit.available": "the credit available on the card, with its currency",
     "credit.over_by": "the amount by which the card's balance exceeds its limit, with its currency",
-    "as_of": "the date the figures are as of",
+    "credits": (
+        "the credit available on every card the answer covers, a line per card, all in this one placeholder; write it"
+        " once, on a line of its own"
+    ),
+    "as_of": "the date the figures are as of, stated as the records' date (Spanish 'al', Portuguese 'em'), never as a start",
     "window.from": "when the period of transactions shown starts",
     "window.to": "when the period of transactions shown ends",
     "transactions": "the transactions, one per line, newest first; put it on a line of its own",
-    "transaction": "the transaction: its date, merchant, and amount",
+    "transaction": "the transaction found: its date, its merchant or its type, and its amount; put it on a line of its own",
     "transaction.status": "the transaction's status",
-    "transaction.meaning": "what the decline's code means",
+    "transaction.meaning": "the reason on record for the decline; put it on the line right under the transaction",
+}
+# The shape of each answer the model writes, so its sentences carry the placeholders instead of listing them.
+SHAPES = {
+    "card_status": "One sentence that names the card and its status, then its expiration.",
+    "cards_status": "One sentence that introduces the customer's cards, then their list on a line of its own.",
+    "only_card_status": "One sentence that introduces the customer's only card, then it on a line of its own.",
+    "credit_available": "One sentence: as of the date, the card has that credit available.",
+    "credits_available": (
+        "One sentence that says, as of the date, this is the credit available on the customer's cards, then their list"
+        " on a line of its own, and nothing after it."
+    ),
+    "credit_over_limit": (
+        "One sentence: as of the date, the card has no credit available, since its balance exceeds its limit by"
+        " that amount."
+    ),
+    "transactions_page": (
+        "One sentence that names the card and the period, newest first, then the list on a line of its own, and"
+        " nothing after it."
+    ),
+    "transactions_next": (
+        "One sentence that says these are the card's next transactions in the period, then the list on a line of"
+        " its own, and nothing after it."
+    ),
+    "decline_explained": (
+        "One sentence that says this declined transaction was found on the card, then the transaction on a line of its"
+        " own, with the reason on record on the line right under it, and nothing after them."
+    ),
+    "decline_status": (
+        "One sentence that says this transaction was found on the card, then the transaction on a line of its own,"
+        " then one sentence that says it stands as its status, not as declined."
+    ),
 }
 MORE = "The chat's last reply listed a page of a card's recent transactions and said the customer can ask for the next 10."
+EARLIER = "Earlier in the conversation, the chat listed these cards, in this order:"
 
 
 class ChatState(TypedDict):
@@ -167,8 +204,11 @@ class State(ChatState, total=False):
     text: str | None
     paging: dict[str, Any] | None
     recent: str | None
+    # The cards the chat last listed, in their order, so a later message can name one by its place (POL-13).
+    shown_cards: list[str] | None
     parts: list[str]
     names: list[str]
+    no_request: str | None
 
 
 def latest_text(state: State) -> str:
@@ -191,7 +231,12 @@ def routing(routed: RouterOutput, text: str) -> dict[str, Any]:
     request, like any new one, leaves nothing queued (POL-05, POL-06).
     """
     if not routed.has_request:
-        return {"label": None, "case": "no_request", "queue": None}
+        return {
+            "label": None,
+            "case": "no_request",
+            "queue": None,
+            "no_request": routed.kind,
+        }
     first, *rest = [label for label in ORDER if label in routed.requests] or [
         "unsupported"
     ]
@@ -200,6 +245,7 @@ def routing(routed: RouterOutput, text: str) -> dict[str, Any]:
         "case": CASES[first],
         "complaint": routed.complaint,
         "text": text,
+        "no_request": None,
         "queue": (
             {"labels": rest, "text": text, "complaint": routed.complaint}
             if rest
@@ -278,14 +324,12 @@ def kind(card: dict[str, Any]) -> str:
 
 def seen(card: dict[str, Any], transaction: dict[str, Any] | None = None) -> str:
     """
-    The values the reply's model may choose words around: a card's type and status, a transaction's status and its
-    code's meaning. Never an amount, a date, last four digits, a merchant, or a country.
+    The values the reply's model may choose words around: a card's type and status, and a transaction's status. Never
+    an amount, a date, last four digits, a merchant, a country, or a code's meaning, which stands on a line of its own.
     """
     text = f"A {kind(card)} card whose status is {card['product_status']}."
     if transaction is not None:
-        text += f" The transaction's status is {transaction['transaction_status']}"
-        meaning = transaction.get("response_meaning")
-        text += f", and its code means {meaning}." if meaning else "."
+        text += f" The transaction's status is {transaction['transaction_status']}."
     return text
 
 
@@ -529,15 +573,26 @@ ASKS = {
 }
 
 
+def cards_named(cards: list[dict[str, Any]], ids: list[str]) -> str:
+    """
+    The cards the IDs name, in the IDs' order, as the chat listed them.
+    """
+    by_id = {c["card_id"]: c for c in cards}
+    return "\n".join(
+        f"- {'credit' if c['product_type'] == TYPES['credit'] else 'debit'} card ending in {c['last_four']}"
+        for c in (by_id[i] for i in ids if i in by_id)
+    )
+
+
 def extraction_context(
     state: State, asking: dict[str, Any], cards: list[dict[str, Any]], label: str
 ) -> str:
+    """
+    What the extraction reads beside the message: the question it answers, if any, or the request with the cards the
+    chat last listed, so a card named by its place in that list ("la segunda") is the one at that place (POL-13).
+    """
     if asking.get("detail") == "card":
-        listed = "\n".join(
-            f"- {'credit' if c['product_type'] == TYPES['credit'] else 'debit'} card ending in {c['last_four']}"
-            for c in cards
-            if c["card_id"] in asking["candidates"]
-        )
+        listed = cards_named(cards, asking["candidates"])
         return f"The customer is answering which of these cards they mean:\n{listed}"
     if asking.get("detail") == "reason":
         return "The customer is answering why they want to block the card."
@@ -548,8 +603,11 @@ def extraction_context(
             f"{moment(shown['from'])} to {moment(shown['to'])}."
         )
         more = paged(state)
-        return context if more is None else f"{context} {more}"
-    return ASKS[label]
+        context = context if more is None else f"{context} {more}"
+    else:
+        context = ASKS[label]
+    listed = cards_named(cards, state.get("shown_cards") or [])
+    return f"{context}\n{EARLIER}\n{listed}" if listed else context
 
 
 def hints(details: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -660,13 +718,22 @@ def question(
             "offer": offering(request, "abstain"),
             "decision": decided("abstain", stopped, OFFERED, label),
         }
+    listed, cards = offer
+    decision = decided(
+        "clarify", rules, "card" if detail == "card" else "reason", label
+    )
     return {
         "case": "fixed",
-        "asking": {"detail": detail, "questions": before + 1, **kept},
+        "asking": {
+            "detail": detail,
+            "questions": before + 1,
+            "asked": [name, facts],
+            "decision": decision,
+            "cited": {"calls": [listed] if listed else [], "cards": cards},
+            **kept,
+        },
         "say": [*state.get("say", []), *said((name, facts))],
-        "decision": decided(
-            "clarify", rules, "card" if detail == "card" else "reason", label
-        ),
+        "decision": decision,
     }
 
 
@@ -679,6 +746,7 @@ EMPTY = {
     "owner": None,
     "conflict": None,
     "service": None,
+    "question": None,
 }
 
 
@@ -749,6 +817,8 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 return {**turn, "case": "third_language"}
             turn |= heard(state, text, extracted.language)
             details = extracted.details()
+            if asked and details["question"] == "unanswered":
+                return {**turn, "case": "aside"}
     # A charge someone else made on the customer's card is still theirs to report (POL-39).
     if details.get("owner") == "someone_else" and not charge:
         return {**turn, "case": "other_person", "asking": None}
@@ -869,6 +939,9 @@ async def resolve_card(state: State) -> dict[str, Any]:
             elif reading and found != "which_type":
                 name = f"{name}_read"
             facts = {"cards": [card_facts(c) for c in meant], "last_four": last_four}
+            # Every question but the type's lists the cards.
+            if found != "which_type":
+                turn["shown_cards"] = [c["card_id"] for c in meant]
             return {
                 **turn,
                 **question(
@@ -970,7 +1043,13 @@ def listing(transactions: list[dict[str, Any]]) -> str:
 def shown(transaction: dict[str, Any]) -> dict[str, Any]:
     return {
         k: transaction[k]
-        for k in ("transaction_date", "merchant_name", "amount", "currency")
+        for k in (
+            "transaction_date",
+            "transaction_type",
+            "merchant_name",
+            "amount",
+            "currency",
+        )
     }
 
 
@@ -1047,6 +1126,8 @@ async def find_transaction(state: State) -> dict[str, Any]:
                 # POL-51: a question asked stays pending.
                 return {**turn, "case": "third_language", "asking": state.get("asking")}
             turn |= heard(state, text, chosen.language)
+            if answering and chosen.question == "unanswered":
+                return {**turn, "case": "aside", "asking": asked}
             fitting = [
                 candidates[n - 1]
                 for n in dict.fromkeys(chosen.fitting)
@@ -1063,6 +1144,15 @@ async def find_transaction(state: State) -> dict[str, Any]:
         return {**turn, "case": "unavailable"}
     if len(fitting) > 1 and before < QUESTIONS:
         listed = fitting[:SHOWN]
+        which = [
+            "which_decline" if declined else "which_charge",
+            {
+                "card": card,
+                "transactions": [shown(t) for t in listed],
+                "country": country,
+            },
+        ]
+        decision = decided("clarify", rules, "transaction", label)
         return {
             **turn,
             "asking": {
@@ -1073,21 +1163,15 @@ async def find_transaction(state: State) -> dict[str, Any]:
                 "candidates": listed,
                 "calls": calls,
                 "text": asked.get("text") or request_text(state),
+                "asked": which,
+                "decision": decision,
+                "cited": {
+                    "calls": [target["listed"], *calls],
+                    "cards": [target["card_id"]],
+                },
             },
-            "say": [
-                *say,
-                *said(
-                    (
-                        "which_decline" if declined else "which_charge",
-                        {
-                            "card": card,
-                            "transactions": [shown(t) for t in listed],
-                            "country": country,
-                        },
-                    )
-                ),
-            ],
-            "decision": decided("clarify", rules, "transaction", label),
+            "say": [*say, which],
+            "decision": decision,
         }
     if declined:
         return await explained(state, turn, target, fitting, [target["listed"], *calls])
@@ -1132,6 +1216,72 @@ async def find_transaction(state: State) -> dict[str, Any]:
             cards=[target["card_id"]],
             transactions=charge["transactions"],
         ),
+    }
+
+
+async def aside(state: State) -> dict[str, Any]:
+    """
+    A message the step that asked read as no answer to its question, read as a new one (POL-06): one with no request
+    gets its short reply and the question again, which counts toward no limit (POL-17), and a new request ends the
+    question and is served, after the dispute handoff a charge's question owes (POL-39).
+    """
+    scope = SCOPE.get()
+    asked = state["asking"]
+    assert asked is not None
+    text = latest_text(state)
+    try:
+        routed = await scope.models.route(text, paged(state))
+    except ModelFailedError:
+        return {"case": "unavailable", "asking": None}
+    if routed.language == OTHER:
+        return {"case": "third_language"}
+    turn = heard(state, text, routed.language)
+    if not routed.has_request:
+        decision = asked["decision"]
+        return {
+            **turn,
+            "case": "fixed",
+            "say": [
+                *said(
+                    (asked_again(small_talk({**state, "no_request": routed.kind})), {})
+                ),
+                asked["asked"],
+            ],
+            "decision": {**decision, "rules": [*decision["rules"], "POL-06"]},
+        }
+    served = {
+        **turn,
+        **routing(routed, text),
+        "asking": None,
+        "say": [],
+        "decision": None,
+        "rules": [],
+        "details": None,
+        "target": None,
+        "targets": [],
+        "block": None,
+        "listed": None,
+        "handoff": None,
+        "then": None,
+    }
+    if asked.get("label") != "unrecognized_charge":
+        return served
+    cited = asked["cited"]
+    return {
+        **served,
+        "label": "unrecognized_charge",
+        "case": "handoff",
+        "handoff": required(
+            "unrecognized_charge",
+            "unrecognized_charge",
+            ["POL-06", "POL-39"],
+            calls=cited["calls"],
+            cards=cited["cards"],
+        ),
+        "then": {
+            k: served[k]
+            for k in ("label", "case", "complaint", "text", "no_request", "queue")
+        },
     }
 
 
@@ -1330,27 +1480,68 @@ async def read_status(state: State) -> dict[str, Any]:
             return {"case": "unavailable"}
         shown.append(call.result["card"])
     rules = ["POL-01", "POL-21"]
-    if len(shown) == 1:
+    every = (state.get("details") or {}).get("cards") == "all"
+    listing: dict[str, Any] = {}
+    if len(shown) == 1 and not every:
         say = writable("card_status", {"card": shown[0]}, seen(shown[0]))
     else:
         rules.append("POL-14")
         say = writable(
-            "cards_status",
+            "cards_status" if len(shown) > 1 else "only_card_status",
             {"statuses": shown},
             " ".join(seen(card) for card in shown),
         )
+        listing = {"shown_cards": [c["card_id"] for c in shown]}
     conflicted = [
         c for c in shown if c["product_status"] == "Active" and c["past_expiration"]
     ]
     say += [part for c in conflicted for part in said(("past_expiration", {"card": c}))]
     if not conflicted:
-        return {"say": say, "decision": decided("answer", rules, label=label)}
+        return {
+            "say": say,
+            "decision": decided("answer", rules, label=label),
+            **listing,
+        }
     rules += ["POL-30", "POL-31"]
     if (state.get("details") or {}).get("conflict") == "asks_which":
-        return conflict_offer(
-            state, label, rules, calls, [c["card_id"] for c in conflicted], say
+        return {
+            **conflict_offer(
+                state, label, rules, calls, [c["card_id"] for c in conflicted], say
+            ),
+            **listing,
+        }
+    return {"say": say, "decision": decided("answer", rules, label=label), **listing}
+
+
+def credit_seen(figure: dict[str, Any]) -> str:
+    over = figure["credit"]["availability"] == "over_limit"
+    return seen(figure["card"]) + (
+        " Its balance is over its limit, so it has no credit available."
+        if over
+        else " Its balance is within its limit."
+    )
+
+
+def figures(figured: list[dict[str, Any]], country: str, as_of: str) -> list[list[Any]]:
+    """
+    The cards with a figure, in one model call: one in a sentence, and two or more in a list under one (POL-14).
+    """
+    if not figured:
+        return []
+    facts = {"country": country, "as_of": as_of}
+    if len(figured) == 1:
+        (only,) = figured
+        over = only["credit"]["availability"] == "over_limit"
+        return writable(
+            "credit_over_limit" if over else "credit_available",
+            {**facts, **only},
+            credit_seen(only),
         )
-    return {"say": say, "decision": decided("answer", rules, label=label)}
+    return writable(
+        "credits_available",
+        {**facts, "credits": figured},
+        " ".join(credit_seen(figure) for figure in figured),
+    )
 
 
 async def read_credit(state: State) -> dict[str, Any]:
@@ -1358,14 +1549,17 @@ async def read_credit(state: State) -> dict[str, Any]:
     Each card meant, read with get_available_credit, which computes the figure (POL-01, POL-18, POL-19, POL-22 to
     POL-24): an active credit card's credit, within or over its limit; a debit card or one that isn't active declined
     with the reason; a missing limit abstained on, with a person offered. An Active card past its expiration is
-    reported with both facts (POL-31).
+    reported with both facts (POL-31). The cards with a figure come first, then each without one, then each past its
+    expiration.
     """
     scope, label = SCOPE.get(), "available_credit"
     listed = state.get("listed")
     calls = [listed] if listed else []
-    say: list[list[Any]] = []
+    figured: list[dict[str, Any]] = []
+    others: list[list[Any]] = []
+    notes: list[list[Any]] = []
     rules: list[str] = []
-    figures, missing = 0, []
+    missing: list[str] = []
     for card in state["targets"]:
         call = await tool(scope, "get_available_credit", card_id=card["card_id"])
         calls.append(call.call_id)
@@ -1375,30 +1569,14 @@ async def read_credit(state: State) -> dict[str, Any]:
         if failed is not None or call.result is None or "card" not in call.result:
             return failed or {"case": "unavailable"}
         credit = call.result["card"]
-        facts = {
-            "card": card,
-            "credit": credit,
-            "country": state.get("country", ""),
-            "as_of": scope.business_date,
-        }
         availability = credit["availability"]
         if availability in ("available", "over_limit"):
-            figures += 1
+            figured.append({"card": card, "credit": credit})
             over = availability == "over_limit"
-            say += writable(
-                "credit_over_limit" if over else "credit_available",
-                facts,
-                seen(card)
-                + (
-                    " Its balance is over its limit, so it has no credit available."
-                    if over
-                    else " Its balance is within its limit."
-                ),
-            )
             rules += ["POL-01", "POL-19", "POL-22", *(["POL-23"] if over else [])]
         elif availability == "no_limit":
             missing.append(card["card_id"])
-            say += said(("credit_no_limit", facts))
+            others += said(("credit_no_limit", {"card": card}))
             rules += ["POL-24"]
         else:
             name = (
@@ -1406,19 +1584,29 @@ async def read_credit(state: State) -> dict[str, Any]:
                 if availability == "debit_card"
                 else "credit_not_active"
             )
-            say += said(
+            others += said(
                 (name, {"card": {**card, "product_status": credit["product_status"]}})
             )
             rules += ["POL-22"]
         if card["product_status"] == "Active" and card["past_expiration"]:
-            say += said(("past_expiration", {"card": card}))
+            notes += said(("past_expiration", {"card": card}))
             rules += ["POL-31"]
     if len(state["targets"]) > 1:
         rules.append("POL-14")
     rules = list(dict.fromkeys(rules))
-    outcome = "answer" if figures else "abstain" if missing else "decline"
+    say = [
+        *figures(figured, state.get("country", ""), scope.business_date),
+        *others,
+        *notes,
+    ]
+    outcome = "answer" if figured else "abstain" if missing else "decline"
+    listing = (
+        {"shown_cards": [f["card"]["card_id"] for f in figured]}
+        if len(figured) > 1
+        else {}
+    )
     if not missing:
-        return {"say": say, "decision": decided(outcome, rules, label=label)}
+        return {"say": say, "decision": decided(outcome, rules, label=label), **listing}
     request = offered(
         "missing_data", label, ["POL-24"], rules, calls=calls, cards=missing
     )
@@ -1426,6 +1614,7 @@ async def read_credit(state: State) -> dict[str, Any]:
         "say": [*say, *said(("handoff_offer", {}))],
         "offer": offering(request, outcome),
         "decision": decided(outcome, rules, OFFERED, label),
+        **listing,
     }
 
 
@@ -1551,6 +1740,9 @@ async def confirm(state: State) -> dict[str, Any]:
         else ["POL-13", "POL-35", "POL-36"]
     )
     say = said(("confirm_prompt", facts))
+    if target["reason"] == "unrecognized_charge":
+        # POL-39: the charge goes to a person however the offer ends, so the offer says so first.
+        say = [*said(("charge_reviewed", {})), *say]
     if target["past_expiration"]:
         say = [*said(("past_expiration", facts)), *say]
         rules.append("POL-31")
@@ -2308,7 +2500,7 @@ async def handoff(state: State) -> dict[str, Any]:
     )
     try:
         text = await scope.models.handoff_text(
-            transcript(state["messages"]), context(request)
+            transcript(state["messages"]), context(request), done(request)
         )
     except ModelFailedError:
         text = None
@@ -2383,6 +2575,28 @@ FIXED["other_person"] = FIXED["refused"]
 ASKED = {"card": "card", "reason": "reason", "transaction": "transaction"}
 
 
+def small_talk(state: State) -> str:
+    """
+    The fixed text a message with no request gets, from what the router read it as (POL-06): the introduction the
+    first time the chat speaks and whenever the message is aimed at the chat itself, a bare injection included, and
+    after that a line for a greeting, for thanks, or for a goodbye, and the capabilities for anything else.
+    """
+    kind = state.get("no_request") or "other"
+    if kind in ("thanks", "closing"):
+        return kind
+    introduced = any(isinstance(m, AIMessage) for m in state["messages"])
+    if kind == "about" or not introduced:
+        return "no_request"
+    return "greeting" if kind == "greeting" else "capabilities"
+
+
+def asked_again(name: str) -> str:
+    """
+    The small talk before a question asked again, without the closing question its fixed text ends in (POL-06).
+    """
+    return f"{name}_aside" if f"{name}_aside" in FIXED else name
+
+
 def decision(state: State, case: str) -> dict[str, Any]:
     outcome_class, rules = OUTCOMES_BY_CASE[case]
     label = None if case in ("no_request", "third_language") else state.get("label")
@@ -2404,13 +2618,15 @@ def instructions(
     state: State, label: str, part: dict[str, Any], facts: list[str]
 ) -> str:
     """
-    What the reply's model reads besides the request's message: the request, the records in words, and each placeholder
-    with what it holds, never its value.
+    What the reply's model reads besides the request's message: the request, the records in words, the answer's shape,
+    and each placeholder with what it holds, never its value.
     """
     listed = "\n".join(f"- {{{name}}}: {DESCRIPTIONS[name]}" for name in facts)
+    shape = SHAPES.get(part.get("template", ""))
     return (
         f"Request: {label}.\nWhat the records show: {part['shown']}\n"
-        f"Placeholders, each to be written once:\n{listed}"
+        + (f"Shape: {shape}\n" if shape else "")
+        + f"Placeholders, each to be written once:\n{listed}"
     )
 
 
@@ -2468,8 +2684,9 @@ async def conclude(state: State) -> dict[str, Any]:
         names += used
         parts.append(text)
     if case in FIXED:
-        names.append(case)
-        parts.append(FIXED[case][language])
+        name = small_talk(state) if case == "no_request" else case
+        names.append(name)
+        parts.append(FIXED[name][language])
     explicit = state.get("decision")
     outcome = decision(state, case) if explicit is None or case in FIXED else explicit
     offer = state.get("offer") if case != "unavailable" else None
@@ -2570,11 +2787,18 @@ def after_resolve(state: State) -> str:
         "find": "find_transaction",
         "reading": "read",
         "handoff": "handoff",
+        "aside": "aside",
     }.get(state["case"], "conclude")
 
 
 def after_find(state: State) -> str:
-    return {"confirm": "confirm", "handoff": "handoff"}.get(state["case"], "conclude")
+    return {"confirm": "confirm", "handoff": "handoff", "aside": "aside"}.get(
+        state["case"], "conclude"
+    )
+
+
+def after_aside(state: State) -> str:
+    return "handoff" if state["case"] == "handoff" else serve(state)
 
 
 def onward(state: State) -> str:
@@ -2615,8 +2839,8 @@ def build(
     graph = StateGraph(State, input_schema=ChatState, output_schema=ChatState)
     for node in (
         begin, route, next_request, list_cards, unsupported, resolve_card, read,
-        find_transaction, ask_reason, confirm, await_control, hold, block, verify,
-        handoff, conclude, reply,
+        find_transaction, aside, ask_reason, confirm, await_control, hold, block,
+        verify, handoff, conclude, reply,
     ):  # fmt: skip
         graph.add_node(node.__name__, citing(node))
     starts = ["resolve_card", "list_cards", "conclude"]
@@ -2633,12 +2857,21 @@ def build(
     graph.add_conditional_edges(
         "resolve_card",
         after_resolve,
-        ["confirm", "ask_reason", "find_transaction", "read", "handoff", "conclude"],
+        [
+            "confirm",
+            "ask_reason",
+            "find_transaction",
+            "read",
+            "aside",
+            "handoff",
+            "conclude",
+        ],
     )
     graph.add_conditional_edges("read", onward, ["handoff", "conclude"])
     graph.add_conditional_edges(
-        "find_transaction", after_find, ["confirm", "handoff", "conclude"]
+        "find_transaction", after_find, ["confirm", "aside", "handoff", "conclude"]
     )
+    graph.add_conditional_edges("aside", after_aside, ["handoff", *starts])
     graph.add_edge("ask_reason", "conclude")
     graph.add_edge("confirm", "conclude")
     graph.add_conditional_edges("conclude", after_conclude, ["next_request", "reply"])

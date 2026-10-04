@@ -296,7 +296,7 @@ def test_a_reply_the_check_refuses_falls_back_and_is_counted(harness: Harness) -
     ]
     assert checked["passed"] is False
     assert checked["fell_back"] is True
-    assert checked["failures"] == ["unknown_placeholder", "bare_number"]
+    assert checked["failures"] == ["unknown_placeholder", "bare_number", "inline_list"]
     replied = [e for e in harness.records.of(who.origin_jti) if e["kind"] == "reply"]
     assert replied[0]["fixed_texts"] == ["cards_status", "past_expiration"]
 
@@ -334,12 +334,65 @@ def test_the_conversation_carries_over_turns_in_its_language(harness: Harness) -
     harness.script.language = "unclear"
     events = harness.post(run_body("ok"), who.token(), session)
 
-    assert events[2]["delta"] == FIXED["no_request"]["pt"]
+    assert events[2]["delta"] == FIXED["capabilities"]["pt"]
     assert len(harness.checkpoint(who, "thread-0001")["messages"]) == 4
     second = [
         e for e in harness.records.of(who.origin_jti) if e["kind"] == "turn_opened"
     ][1]
     assert second["language"] == "pt"
+
+
+# A message with no request (POL-06)
+
+
+@pytest.mark.parametrize(
+    ("kind", "first", "later"),
+    [
+        ("greeting", "no_request", "greeting"),
+        ("about", "no_request", "no_request"),
+        ("thanks", "thanks", "thanks"),
+        ("closing", "closing", "closing"),
+        ("other", "no_request", "capabilities"),
+    ],
+)
+def test_a_message_with_no_request_gets_the_text_for_what_it_is(
+    harness: Harness, kind: str, first: str, later: str
+) -> None:
+    # The chat introduces itself the first time it speaks and whenever asked about itself; after that a greeting,
+    # thanks, and a goodbye get a line each, and anything else the capabilities (ADR-0004's amendment of 2026-10-03).
+    who, session = customer(), session_id()
+    harness.script.requests, harness.script.has_request = [], False
+    harness.script.kind = kind
+
+    opening = harness.post(run_body("hola"), who.token(), session)
+    harness.script.requests, harness.script.has_request = ["card_status"], True
+    harness.post(run_body(), who.token(), session)
+    harness.script.requests, harness.script.has_request = [], False
+    again = harness.post(run_body("hola"), who.token(), session)
+
+    assert opening[2]["delta"] == FIXED[first]["es"]
+    assert again[2]["delta"] == FIXED[later]["es"]
+    replies = [e for e in harness.records.of(who.origin_jti) if e["kind"] == "reply"]
+    assert [replies[0]["fixed_texts"], replies[2]["fixed_texts"]] == [[first], [later]]
+    decisions = [
+        e for e in harness.records.of(who.origin_jti) if e["kind"] == "decision"
+    ]
+    assert all(d["rules"] == ["POL-06"] for d in (decisions[0], decisions[2]))
+
+
+def test_the_introduction_names_what_faro_is_and_no_person() -> None:
+    for language, name in (
+        ("es", "asistente automático"),
+        ("pt", "assistente automático"),
+    ):
+        assert FIXED["no_request"][language].startswith(
+            ("Hola, soy Faro", "Olá, eu sou o Faro")
+        )
+        assert name in FIXED["no_request"][language]
+        assert "LATAM Bank" in FIXED["no_request"][language]
+    for name in ("no_request", "greeting", "capabilities", "thanks", "closing"):
+        for text in FIXED[name].values():
+            assert not any(c.isdigit() for c in text) and "!" not in text
 
 
 # Card numbers (POL-11; SEC-03)

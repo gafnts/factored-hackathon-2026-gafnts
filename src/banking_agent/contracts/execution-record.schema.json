@@ -375,7 +375,7 @@
           "description": "The structured output of a routing or extraction call that succeeded. A reply's or a handoff's text isn't kept here.",
           "oneOf": [
             {
-              "description": "The router: every supported request it finds, whether the message holds one at all (S5), whether it is a complaint (POL-44; ADR-0004's amendment of 2026-09-30), and which language the message is mostly in (POL-50, POL-51; the amendment of 2026-10-02).",
+              "description": "The router: every supported request it finds, whether the message holds one at all (S5), whether it is a complaint (POL-44; ADR-0004's amendment of 2026-09-30), which language the message is mostly in (POL-50, POL-51; the amendment of 2026-10-02), and what a message with no request is, which chooses its fixed reply (POL-06; the amendment of 2026-10-03).",
               "type": "object",
               "additionalProperties": false,
               "required": ["requests", "has_request", "complaint", "language"],
@@ -383,7 +383,8 @@
                 "requests": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/label" } },
                 "has_request": { "type": "boolean" },
                 "complaint": { "type": "boolean" },
-                "language": { "type": "string", "enum": ["es", "pt", "other", "unclear"] }
+                "language": { "type": "string", "enum": ["es", "pt", "other", "unclear"] },
+                "kind": { "type": "string", "enum": ["greeting", "about", "thanks", "closing", "other"] }
               }
             },
             {
@@ -540,7 +541,7 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": ["unknown_placeholder", "missing_fact", "bare_number", "digit_run", "internal_flag", "withheld_status"]
+            "enum": ["unknown_placeholder", "missing_fact", "bare_number", "digit_run", "internal_flag", "withheld_status", "inline_list", "reason_apart", "lone_fact", "repeated_list"]
           }
         },
         "fell_back": {

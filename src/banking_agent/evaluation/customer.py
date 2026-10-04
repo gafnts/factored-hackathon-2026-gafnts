@@ -48,6 +48,7 @@ class Customer:
         self.limit = 2 * len(case["expected"]["turns"])
         self.turns = 0
         self.typed = False
+        self.asided = False
 
     def first(self) -> Send:
         return self._sent(self._message())
@@ -62,6 +63,11 @@ class Customer:
         if awaiting is None or self.turns >= self.limit:
             return None
         if awaiting in ASKED:
+            # A message that doesn't answer the question, sent once before the answer (POL-06).
+            aside = self.answers.get("aside")
+            if aside is not None and not self.asided:
+                self.asided = True
+                return self._sent(Send("aside", aside["text"], aside["id"]))
             return self._sent(self._answer(awaiting))
         if awaiting == "confirm_control":
             typed = self.answers.get("typed_yes")

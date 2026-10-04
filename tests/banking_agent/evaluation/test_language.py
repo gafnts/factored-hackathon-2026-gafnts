@@ -62,7 +62,7 @@ def saying(
                     }
                 )
             else:
-                parsed = TransactionChoice(fitting=[1], language=said)
+                parsed = TransactionChoice(fitting=[1], language=said, question=None)
             raw = AIMessage(content="{}", usage_metadata=USAGE)
             return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
@@ -104,6 +104,8 @@ def test_the_items_are_the_development_side_filled_and_labeled() -> None:
     )
     some = language.development_items(LOADED, ANSWERS, HELD, only=[third.family_id])
     assert {i.id.split("/")[0] for i in some} == {third.family_id}
+    told = language.development_items(LOADED, ANSWERS, HELD, only=[answer.answer_id])
+    assert {i.id for i in told} == {f"{answer.answer_id}/es", f"{answer.answer_id}/pt"}
 
 
 def test_block_requests_and_reason_answers_also_read_the_reason() -> None:
@@ -141,7 +143,69 @@ def test_block_requests_and_reason_answers_also_read_the_reason() -> None:
         i.expected is None
         for i in items
         if i.id.split("/")[0] not in {f.family_id for f in blocks}
+        and not i.id.endswith("/later")
     )
+
+
+def test_an_answer_by_place_reads_the_card_as_an_answer_and_later() -> None:
+    items = language.development_items(LOADED, ANSWERS, HELD)
+    placed = next(
+        a for a in ANSWERS if a.kind == "card_position" and a.answer_id not in HELD
+    )
+
+    reads = [i for i in items if i.id.startswith(f"{placed.answer_id}/es")]
+
+    assert [(i.expected, i.context, i.card) for i in reads] == [
+        ("es", language.CARDS, language.PLACED),
+        (None, language.LATER, language.PLACED),
+    ]
+    # The card at that place in both lists.
+    assert language.CARDS.endswith(f"ending in {language.PLACED}")
+    assert language.LATER.endswith(f"ending in {language.PLACED}")
+
+
+def test_the_card_read_for_an_answer_by_place_is_counted_apart(tmp_path: Path) -> None:
+    answer = language.Item(
+        "card_position-01/es",
+        "es",
+        "La segunda.",
+        "extract",
+        language.CARDS,
+        card=language.PLACED,
+    )
+    later = language.Item(
+        "card_position-01/es/later",
+        None,
+        "La segunda.",
+        "extract",
+        language.LATER,
+        card=language.PLACED,
+    )
+    results = [
+        language.Result(answer, "es", card="1177"),
+        language.Result(later, "es", card="credit"),
+    ]
+
+    found = language.report(results, 0.0, datetime(2026, 10, 3, 12, tzinfo=UTC))
+
+    # Only the answer enters the language count.
+    assert found["items"] == 1
+    assert found["cards_by_place"] == {
+        "items": 2,
+        "read": 1,
+        "by_turn": {
+            "answer": {"items": 1, "read": 1},
+            "later": {"items": 1, "read": 0},
+        },
+        "misses": [
+            {"id": "card_position-01/es/later", "expected": "1177", "said": "credit"}
+        ],
+    }
+    language.write(found, tmp_path / "language", tmp_path / "language.md")
+    rendered = (tmp_path / "language.md").read_text(encoding="utf-8")
+    assert "## Cards named by their place, latest live check" in rendered
+    assert "| later | 0 of 1 (0.0%) |" in rendered
+    assert "segunda." not in rendered
 
 
 def test_the_check_counts_what_the_model_said_against_the_label(tmp_path: Path) -> None:

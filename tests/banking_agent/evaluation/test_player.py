@@ -13,9 +13,12 @@ import httpx
 import pytest
 from langchain_core.messages import HumanMessage
 
+from banking_agent.agent.check import failures
+from banking_agent.agent.graph import SHAPES
+from banking_agent.agent.texts import FIXED, placeholders
 from banking_agent.evaluation import bronze, families, generator, player
 from banking_agent.evaluation.facts import contract_words
-from banking_agent.evaluation.scripted import ScriptedModels, listed
+from banking_agent.evaluation.scripted import ScriptedModels, laid_out, listed
 
 from .bank import Bank
 
@@ -181,6 +184,18 @@ def test_the_scripted_models_say_the_language_a_reader_would(
     said = asyncio.run(models.route([HumanMessage(marked.text)]))
 
     assert (marked.clear, said["parsed"].language) == (False, "unclear")
+
+
+@pytest.mark.parametrize("answer", sorted(SHAPES))
+def test_the_scripted_reply_lays_its_placeholders_out_as_the_prompt_asks(
+    answer: str,
+) -> None:
+    # So a case played with the scripted models states the model's answer, not the fixed one the check falls back to.
+    names = list(dict.fromkeys(placeholders(FIXED[answer]["es"])))
+
+    written = laid_out([f"{{{name}}}" for name in names])
+
+    assert failures(written, dict.fromkeys(names, "valor")) == []
 
 
 def test_the_scripted_extraction_names_any_other_reason_as_the_model_does(

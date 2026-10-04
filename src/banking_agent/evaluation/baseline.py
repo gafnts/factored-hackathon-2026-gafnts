@@ -345,6 +345,7 @@ def extract(text: str) -> RequestDetails:
             "owner": None,
             "conflict": "asks_which" if has(plain, CONFLICTS) else None,
             "service": first(plain, SERVICES),
+            "question": None,
         }
     )
 
@@ -410,7 +411,9 @@ def choose(text: str, listing: str) -> TransactionChoice:
             and (not on or day in on)
             and (not named or n in named)
         ]
-    return TransactionChoice(language=language(text), fitting=fitting[:10])
+    return TransactionChoice(
+        language=language(text), fitting=fitting[:10], question=None
+    )
 
 
 REPLIES: dict[str, tuple[dict[str, str], ...]] = {
@@ -442,12 +445,12 @@ REPLIES: dict[str, tuple[dict[str, str], ...]] = {
     ),
     "decline_reason": (
         {
-            "es": "La transacción {transaction} de su {card} fue rechazada. Motivo registrado: {transaction.meaning}.",
-            "pt": "A transação {transaction} do seu {card} foi recusada. Motivo registrado: {transaction.meaning}.",
+            "es": "La transacción de su {card} fue rechazada:\n\n{transaction}\n{transaction.meaning}",
+            "pt": "A transação do seu {card} foi recusada:\n\n{transaction}\n{transaction.meaning}",
         },
         {
-            "es": "La transacción {transaction} de su {card} figura como {transaction.status}.",
-            "pt": "A transação {transaction} do seu {card} consta como {transaction.status}.",
+            "es": "La transacción de su {card} figura como {transaction.status}:\n\n{transaction}",
+            "pt": "A transação do seu {card} consta como {transaction.status}:\n\n{transaction}",
         },
     ),
 }

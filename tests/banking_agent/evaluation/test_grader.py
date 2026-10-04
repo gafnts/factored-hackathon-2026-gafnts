@@ -143,6 +143,20 @@ def test_a_fact_the_reply_doesnt_state_fails_its_turn_by_placeholder(
     assert checks(graded["failures"]) == ["fact"] * len(placeholders)
 
 
+def test_a_fact_may_take_a_capital_only_where_it_opens_a_sentence_or_a_line() -> None:
+    # ADR-0004's code capitalizes a value the model put first, so the fact is stated all the same.
+    card = "tarjeta de crédito terminada en 4821"
+
+    assert grader.opens(card, "Tarjeta de crédito terminada en 4821 está activa.")
+    assert grader.opens(card, "Hola. Tarjeta de crédito terminada en 4821 está activa.")
+    assert grader.opens(
+        card, "Sus movimientos:\n\nTarjeta de crédito terminada en 4821"
+    )
+    assert not grader.opens(
+        card, "Su Tarjeta de crédito terminada en 4821 está activa."
+    )
+
+
 def test_a_turn_whose_decisions_record_another_language_fails_it(
     played: dict[str, Any],
 ) -> None:

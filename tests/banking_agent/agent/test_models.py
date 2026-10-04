@@ -134,6 +134,7 @@ def test_a_route_call_records_its_output_usage_and_cost() -> None:
         "has_request": True,
         "complaint": False,
         "language": "es",
+        "kind": "other",
     }
     assert entry["usage"] == {
         "input_tokens": 1_000,
@@ -222,6 +223,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
         owner=None,
         conflict=None,
         service=None,
+        question=None,
         language="es",
     )
     raw = answer(content="{}", usage_metadata=USAGE)
@@ -243,6 +245,7 @@ def test_an_extraction_records_what_it_found_among_the_allowed_values() -> None:
             "owner": None,
             "conflict": None,
             "service": None,
+            "question": None,
             "language": "es",
         }
     }
