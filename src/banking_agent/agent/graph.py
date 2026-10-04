@@ -123,6 +123,7 @@ DESCRIPTIONS = {
     "cards": "the customer's cards, one per line, each with its status and expiration; put it on a line of its own",
     "credit.available": "the credit available on the card, with its currency",
     "credit.over_by": "the amount by which the card's balance exceeds its limit, with its currency",
+    "credits": "each card's credit available, one per line; put it on a line of its own",
     "as_of": "the date the figures are as of, stated as the records' date (Spanish 'al', Portuguese 'em'), never as a start",
     "window.from": "when the period of transactions shown starts",
     "window.to": "when the period of transactions shown ends",
@@ -137,6 +138,10 @@ SHAPES = {
     "cards_status": "One sentence that introduces the customer's cards, then their list on a line of its own.",
     "only_card_status": "One sentence that introduces the customer's only card, then it on a line of its own.",
     "credit_available": "One sentence: as of the date, the card has that credit available.",
+    "credits_available": (
+        "One sentence that says, as of the date, this is the credit available on the customer's cards, then their list"
+        " on a line of its own, and nothing after it."
+    ),
     "credit_over_limit": (
         "One sentence: as of the date, the card has no credit available, since its balance exceeds its limit by"
         " that amount."
@@ -1474,19 +1479,53 @@ async def read_status(state: State) -> dict[str, Any]:
     return {"say": say, "decision": decided("answer", rules, label=label)}
 
 
+def credit_seen(figure: dict[str, Any]) -> str:
+    over = figure["credit"]["availability"] == "over_limit"
+    return seen(figure["card"]) + (
+        " Its balance is over its limit, so it has no credit available."
+        if over
+        else " Its balance is within its limit."
+    )
+
+
+def figures(figured: list[dict[str, Any]], country: str, as_of: str) -> list[list[Any]]:
+    """
+    The cards with a figure, in one model call: one in a sentence, and two or more in a list under one (POL-14).
+    """
+    if not figured:
+        return []
+    facts = {"country": country, "as_of": as_of}
+    if len(figured) == 1:
+        (only,) = figured
+        over = only["credit"]["availability"] == "over_limit"
+        return writable(
+            "credit_over_limit" if over else "credit_available",
+            {**facts, **only},
+            credit_seen(only),
+        )
+    return writable(
+        "credits_available",
+        {**facts, "credits": figured},
+        " ".join(credit_seen(figure) for figure in figured),
+    )
+
+
 async def read_credit(state: State) -> dict[str, Any]:
     """
     Each card meant, read with get_available_credit, which computes the figure (POL-01, POL-18, POL-19, POL-22 to
     POL-24): an active credit card's credit, within or over its limit; a debit card or one that isn't active declined
     with the reason; a missing limit abstained on, with a person offered. An Active card past its expiration is
-    reported with both facts (POL-31).
+    reported with both facts (POL-31). The cards with a figure come first, then each without one, then each past its
+    expiration.
     """
     scope, label = SCOPE.get(), "available_credit"
     listed = state.get("listed")
     calls = [listed] if listed else []
-    say: list[list[Any]] = []
+    figured: list[dict[str, Any]] = []
+    others: list[list[Any]] = []
+    notes: list[list[Any]] = []
     rules: list[str] = []
-    figures, missing = 0, []
+    missing: list[str] = []
     for card in state["targets"]:
         call = await tool(scope, "get_available_credit", card_id=card["card_id"])
         calls.append(call.call_id)
@@ -1496,30 +1535,14 @@ async def read_credit(state: State) -> dict[str, Any]:
         if failed is not None or call.result is None or "card" not in call.result:
             return failed or {"case": "unavailable"}
         credit = call.result["card"]
-        facts = {
-            "card": card,
-            "credit": credit,
-            "country": state.get("country", ""),
-            "as_of": scope.business_date,
-        }
         availability = credit["availability"]
         if availability in ("available", "over_limit"):
-            figures += 1
+            figured.append({"card": card, "credit": credit})
             over = availability == "over_limit"
-            say += writable(
-                "credit_over_limit" if over else "credit_available",
-                facts,
-                seen(card)
-                + (
-                    " Its balance is over its limit, so it has no credit available."
-                    if over
-                    else " Its balance is within its limit."
-                ),
-            )
             rules += ["POL-01", "POL-19", "POL-22", *(["POL-23"] if over else [])]
         elif availability == "no_limit":
             missing.append(card["card_id"])
-            say += said(("credit_no_limit", facts))
+            others += said(("credit_no_limit", {"card": card}))
             rules += ["POL-24"]
         else:
             name = (
@@ -1527,17 +1550,22 @@ async def read_credit(state: State) -> dict[str, Any]:
                 if availability == "debit_card"
                 else "credit_not_active"
             )
-            say += said(
+            others += said(
                 (name, {"card": {**card, "product_status": credit["product_status"]}})
             )
             rules += ["POL-22"]
         if card["product_status"] == "Active" and card["past_expiration"]:
-            say += said(("past_expiration", {"card": card}))
+            notes += said(("past_expiration", {"card": card}))
             rules += ["POL-31"]
     if len(state["targets"]) > 1:
         rules.append("POL-14")
     rules = list(dict.fromkeys(rules))
-    outcome = "answer" if figures else "abstain" if missing else "decline"
+    say = [
+        *figures(figured, state.get("country", ""), scope.business_date),
+        *others,
+        *notes,
+    ]
+    outcome = "answer" if figured else "abstain" if missing else "decline"
     if not missing:
         return {"say": say, "decision": decided(outcome, rules, label=label)}
     request = offered(

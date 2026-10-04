@@ -11,6 +11,7 @@ from banking_agent.agent.check import failures
 from banking_agent.agent.formats import (
     amount,
     card_line,
+    credit_line,
     day,
     expiration,
     moment,
@@ -24,6 +25,18 @@ CARD = {
     "last_four": "4821",
     "product_status": "Active",
     "expiration_date": "2027-03-31",
+}
+WITHIN = {
+    "availability": "available",
+    "available_credit": 3759.45,
+    "over_limit_by": 0,
+    "currency": "USD",
+}
+OVER = {
+    "availability": "over_limit",
+    "available_credit": 0,
+    "over_limit_by": 150.4,
+    "currency": "USD",
 }
 PURCHASE = {
     "transaction_date": "2026-06-14 21:07:33",
@@ -78,6 +91,17 @@ def test_a_card_line_names_the_card_its_status_and_its_expiration() -> None:
     )
     assert card_line({**CARD, "product_status": "Blocked"}, "pt") == (
         "- Cartão de crédito final 4821: bloqueado; validade: 03/2027"
+    )
+
+
+def test_a_credit_line_names_the_card_and_its_credit_or_the_amount_over_its_limit() -> (
+    None
+):
+    assert credit_line(CARD, WITHIN, "es", "Colombia") == (
+        "- Tarjeta de crédito terminada en 4821: 3.759,45 USD"
+    )
+    assert credit_line(CARD, OVER, "pt", "México") == (
+        "- Cartão de crédito final 4821: sem crédito disponível; ultrapassa o limite em 150.40 USD"
     )
 
 
@@ -161,6 +185,7 @@ SAMPLE: dict[str, Any] = {
     "transaction": PURCHASE,
     "transactions": [PURCHASE],
     "credit": {"available_credit": 3759.45, "over_limit_by": 0, "currency": "USD"},
+    "credits": [{"card": CARD, "credit": WITHIN}, {"card": CARD, "credit": OVER}],
     "as_of": "2026-06-17",
     "window": {"from": "2026-03-20 06:00:00", "to": "2026-06-18 06:00:00"},
     "service": "pin",

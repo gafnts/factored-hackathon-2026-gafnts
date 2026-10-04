@@ -74,6 +74,14 @@
     "es": "motivo",
     "pt": "motivo"
   },
+  "credit_none": {
+    "es": "sin crédito disponible",
+    "pt": "sem crédito disponível"
+  },
+  "over_limit_label": {
+    "es": "supera el límite en",
+    "pt": "ultrapassa o limite em"
+  },
   "card_ending": {
     "es": "terminada en",
     "pt": "final"

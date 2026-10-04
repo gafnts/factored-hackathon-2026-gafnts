@@ -482,6 +482,97 @@ def test_all_credit_cards_are_answered_for_each(harness: Harness) -> None:
     assert {"POL-14", "POL-22", "POL-24"} <= set(decided["rules"])
 
 
+def over_limit(harness: Harness) -> None:
+    # The closed credit card made active, and over its limit.
+    harness.bank.listed["cards"][1] = {
+        **harness.bank.listed["cards"][1],
+        "product_status": "Active",
+    }
+    harness.bank.credit[CLOSED]["card"] = {
+        **harness.bank.credit[CLOSED]["card"],
+        "product_status": "Active",
+        "availability": "over_limit",
+        "credit_limit": 2000.0,
+        "current_balance": 2150.4,
+        "available_credit": 0,
+        "over_limit_by": 150.4,
+    }
+
+
+@pytest.mark.parametrize(
+    ("written", "opening"),
+    [
+        (
+            "Al {as_of}, este es el crédito de sus tarjetas:\n\n{credits}",
+            "Al 17/06/2026, este es el crédito de sus tarjetas:",
+        ),
+        # The list inside the sentence, which the check refuses, so the fixed reply states it.
+        (
+            "Al {as_of}, sus tarjetas tienen {credits}.",
+            "Al 17/06/2026, este es el crédito disponible de sus tarjetas:",
+        ),
+    ],
+)
+def test_the_credit_of_several_cards_is_one_list_under_one_sentence(
+    harness: Harness, written: str, opening: str
+) -> None:
+    # POL-14: the cards with a figure in one answer, which the model writes once.
+    credit(
+        harness,
+        "available",
+        credit_limit=5000.0,
+        current_balance=1240.55,
+        available_credit=3759.45,
+        over_limit_by=0,
+    )
+    over_limit(harness)
+    harness.script.replies = [written]
+    chat = Chat(harness)
+
+    events = chat.say(
+        "¿Y el crédito de todas mis tarjetas?",
+        requests=["available_credit"],
+        cards="all",
+    )
+
+    assert reply(events).startswith(
+        f"{opening}\n\n"
+        "- Tarjeta de crédito terminada en 4821: 3,759.45 USD\n"
+        "- Tarjeta de crédito terminada en 9034: sin crédito disponible; supera el límite en 150.40 USD\n\n"
+    )
+    assert len(harness.script.model_inputs["reply"]) == 1
+    (checked,) = checks(chat)
+    assert checked["fell_back"] is ("{credits}." in written)
+    (decided,) = decisions(chat)
+    assert decided["outcome_class"] == "answer"
+    assert {"POL-14", "POL-22", "POL-23", "POL-31"} <= set(decided["rules"])
+
+
+def test_one_card_with_a_figure_among_several_keeps_its_sentence(
+    harness: Harness,
+) -> None:
+    credit(
+        harness,
+        "available",
+        credit_limit=5000.0,
+        current_balance=1240.55,
+        available_credit=3759.45,
+        over_limit_by=0,
+    )
+    harness.script.replies = ["Al {as_of}, su {card} tiene {credit.available}."]
+    chat = Chat(harness)
+
+    events = chat.say(
+        "¿Y el crédito de todas mis tarjetas?",
+        requests=["available_credit"],
+        cards="all",
+    )
+
+    text = reply(events)
+    assert text.startswith(f"Al 17/06/2026, su {CARD} tiene 3,759.45 USD.\n\n")
+    assert render("credit_not_active", "es", {"card": harness.bank.cards()[1]}) in text
+
+
 def test_a_customer_the_tool_doesnt_serve_in_full_is_handed_off(
     harness: Harness,
 ) -> None:

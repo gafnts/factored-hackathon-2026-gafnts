@@ -26,6 +26,8 @@ TRANSACTION_TYPES: dict[str, dict[str, str]] = WORDS["transaction_type"]
 # POL-02: the ISO 8583 meaning of each listed code, and nothing else (POL-29).
 MEANINGS: dict[str, dict[str, str]] = WORDS["response_meaning"]
 REASON: dict[str, str] = WORDS["reason_label"]
+NO_CREDIT: dict[str, str] = WORDS["credit_none"]
+OVER_BY: dict[str, str] = WORDS["over_limit_label"]
 UNRECORDED: dict[str, str] = WORDS["merchant_unrecorded"]
 EXPIRES: dict[str, str] = WORDS["expiration_label"]
 SEPARATOR = " · "
@@ -74,6 +76,21 @@ def reason_line(meaning: str, language: str) -> str:
     (POL-02, POL-29).
     """
     return f"- {REASON[language].capitalize()}: {MEANINGS[language][meaning]}"
+
+
+def credit_line(
+    card: dict[str, Any], credit: dict[str, Any], language: str, country: str
+) -> str:
+    """
+    A card in an answer about the credit of several: its credit available, or none and the amount its balance exceeds
+    its limit by (POL-14, POL-22, POL-23).
+    """
+    name = card_name(card, language).capitalize()
+    currency = credit["currency"]
+    if credit["availability"] == "over_limit":
+        over = amount(credit["over_limit_by"], currency, country)
+        return f"- {name}: {NO_CREDIT[language]}; {OVER_BY[language]} {over}"
+    return f"- {name}: {amount(credit['available_credit'], currency, country)}"
 
 
 def recorded(text: str) -> str:

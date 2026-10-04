@@ -66,6 +66,19 @@ def test_a_list_on_a_line_of_its_own_passes() -> None:
     )
 
 
+CREDITS = {
+    "as_of": "17/06/2026",
+    "credits": "- Tarjeta de crédito terminada en 4821: 10 USD\n- Tarjeta de crédito terminada en 9034: 20 USD",
+}
+
+
+def test_several_cards_credit_stands_on_a_line_of_its_own() -> None:
+    assert failures("Al {as_of}, sus tarjetas tienen {credits}.", CREDITS) == [
+        "inline_list"
+    ]
+    assert failures("Al {as_of}, este es su crédito:\n\n{credits}", CREDITS) == []
+
+
 EXPLAINED = {**FOUND, "transaction.meaning": "- Motivo: fondos insuficientes"}
 
 

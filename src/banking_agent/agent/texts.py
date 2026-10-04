@@ -17,6 +17,7 @@ from banking_agent.agent.formats import (
     amount,
     card_line,
     card_name,
+    credit_line,
     day,
     expiration,
     moment,
@@ -92,7 +93,11 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Esta es su tarjeta y su estado:\n\n{cards}",
         "pt": "Este é o seu cartão e o status dele:\n\n{cards}",
     },
-    # POL-01, POL-19, POL-22 to POL-24.
+    # POL-01, POL-19, POL-22 to POL-24; POL-14's cards with a figure, when two or more, under one sentence.
+    "credits_available": {
+        "es": "Al {as_of}, este es el crédito disponible de sus tarjetas:\n\n{credits}",
+        "pt": "Em {as_of}, este é o crédito disponível dos seus cartões:\n\n{credits}",
+    },
     "credit_available": {
         "es": "Al {as_of}, su {card} tiene {credit.available} de crédito disponible.",
         "pt": "Em {as_of}, seu {card} tem {credit.available} de crédito disponível.",
@@ -458,6 +463,11 @@ def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
             filled["credit.over_by"] = amount(
                 credit["over_limit_by"], credit["currency"], country
             )
+    if "credits" in facts:
+        filled["credits"] = "\n".join(
+            credit_line(c["card"], c["credit"], language, country)
+            for c in facts["credits"]
+        )
     if "as_of" in facts:
         filled["as_of"] = day(facts["as_of"])
     if "window" in facts:

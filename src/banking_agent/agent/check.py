@@ -21,7 +21,14 @@ DIGIT = re.compile(r"[0-9]")
 BRACE = re.compile(r"[{}]")
 # Their values are lines that start with a dash, which shared with other text read as figures in a sentence. Any
 # other fact alone on a line, out of its sentence, doesn't say what it is.
-LISTS = ("cards", "card_list", "transactions", "transaction", "transaction.meaning")
+LISTS = (
+    "cards",
+    "card_list",
+    "credits",
+    "transactions",
+    "transaction",
+    "transaction.meaning",
+)
 ALONE = re.compile(r"\s*\{[a-z_]+(?:\.[a-z_]+)?\}\s*")
 # With no blank line between them, the reason and its transaction are one list, which the chat draws as one frame.
 UNDER = re.compile(r"\{transaction\}[ \t]*\n[ \t]*\{transaction\.meaning\}")
