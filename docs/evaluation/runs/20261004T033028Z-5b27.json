@@ -1,0 +1,888 @@
+{
+  "manifest": {
+    "code": {
+      "clean": true,
+      "commit": "1729cdc32fa5b9b02c388d766d64aab4b612b5f8"
+    },
+    "ended_at": "2026-10-04T03:56:36.115431+00:00",
+    "faults": "c84320ba19ad8ab0ae35fe507b508e16c7d702fb655f33b4b0fa7e56eb88d6aa",
+    "fixtures": "2bb772f22d343b1f4a1455168a04c7c72905267dc52b0fb75aa2b1f2493608eb",
+    "grader": 5,
+    "judge": null,
+    "mode": "end_to_end",
+    "models": [
+      {
+        "calls": 36,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "find_transaction",
+        "prompt_version": [
+          "2ed4bdd7a69264c4"
+        ],
+        "provider": "anthropic",
+        "purpose": "extract",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 40494,
+          "output_tokens": 760
+        }
+      },
+      {
+        "calls": 32,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "handoff",
+        "prompt_version": [
+          "ed7bc2488837d779"
+        ],
+        "provider": "anthropic",
+        "purpose": "handoff_text",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 26739,
+          "output_tokens": 4467
+        }
+      },
+      {
+        "calls": 48,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "reply",
+        "prompt_version": [
+          "f63f760c8cb9c265"
+        ],
+        "provider": "anthropic",
+        "purpose": "reply",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 23548,
+          "output_tokens": 1426
+        }
+      },
+      {
+        "calls": 168,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "resolve_card",
+        "prompt_version": [
+          "b3bf4f7419d1f904"
+        ],
+        "provider": "anthropic",
+        "purpose": "extract",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 360241,
+          "output_tokens": 10566
+        }
+      },
+      {
+        "calls": 159,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "route",
+        "prompt_version": [
+          "1e38f07c584350f4"
+        ],
+        "provider": "anthropic",
+        "purpose": "route",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 213895,
+          "output_tokens": 4922
+        }
+      }
+    ],
+    "oracle": {
+      "policy": 6
+    },
+    "pace": {
+      "rate": 10,
+      "window_s": 60.0
+    },
+    "parallelism": 4,
+    "repeats": 1,
+    "results": {
+      "cases/0001.json": "aef51bdc3640aca5f73efe66239f19e03c2519be68b3c2141b6248f6d3449755",
+      "cases/0002.json": "efb9e55a16f49dc8cf763fd516c023f757318caf703487d458cda50bb4ab15ac",
+      "cases/0003.json": "36580188f34e103e492718aa12574377cb654e547412f53fea4c2f6191f9bad9",
+      "cases/0004.json": "7910dd368ea7ae99ba34b721433b2989ae49cdd65b487b363ab1eed52cc638b0",
+      "cases/0005.json": "6ce47bc29f9720b870a02bc64e3de28b7c6766f96af7dd32cc7d42666e5a3871",
+      "cases/0006.json": "f81687f9face360680e856d049c34e7659f70587a4ce157d1dad6d12676313c4",
+      "cases/0007.json": "e4640e31a390fd63bb8f24e685bf365e9278279bf132ec137b619ffb21e94e72",
+      "cases/0008.json": "650315d1bd0aa476f36c0b817999d3dd66b29ddce7ff483375fa452e6a7a23f3",
+      "cases/0009.json": "fa942e1047daff3195bb0e16b78052db835aeca392cfc4ee07597047a453ed20",
+      "cases/0010.json": "9190bfc360842bb47e5340e393062a4552f7d610919508a82a0a1515ea4587b8",
+      "cases/0011.json": "08875577fe4f7798247af4a8ac48b9c68491390cae4f2ca20f5332f2c04eb50c",
+      "cases/0012.json": "9017ce7f498c86cca52ab174996915276138fae9f2abd6a07e0a182008c88ce9",
+      "cases/0013.json": "d37519c4f1ddc1bd5532b26e41648f92603fb73001d9be9d3c97ab11f61462e0",
+      "cases/0014.json": "7d70ff636cac7db6aa5c81d278fcba0515ec49d270d757c40e90ee8cbd6b1b7d",
+      "cases/0015.json": "2d236011d2f8168020b164344b6a69666904c4acbb9202466aff449f0b9f5257",
+      "cases/0016.json": "014e42941ddf849d123aa6ac8dc87029d6f01229b7e8530b7a130dc038f60215",
+      "cases/0017.json": "eae76c45a2375138478a50e6079838a9d50224dd0d63ade2b8deb964dbb6b45b",
+      "cases/0018.json": "8cfc5225736d453c51f21126f96dac6892917f07b7a799a2269f9ac9966bd8ad",
+      "cases/0019.json": "bf0e76966a882b1425f9fe2f8432134e23d4f77809b6f86751bbe161ff35ec99",
+      "cases/0020.json": "8af0f5944d3eb926f131fd76a0578ec43b6cf1d375c63d2f1983ffcafdf68b8e",
+      "cases/0021.json": "4d953ee9f37b67a9e473d5728d794246898d9e50e9d48cb405562861b7c52a4b",
+      "cases/0022.json": "82f4e1c3980b17c9f1eb50b9727da7ccce22e5d2565d0b0678455591ff82d267",
+      "cases/0023.json": "2bc77cf8eb1b1553452b798125ae36b6029beafd9060626110b75d165cefb3e1",
+      "cases/0024.json": "5f7842c5b5a6009771f5cb4d8cb2e61e06445edb5577ef9e4e97027538cb7bed",
+      "cases/0025.json": "14da45ad647863d1e4818e113efbad0d54fb8ab2e62ef4ab874d568a5cf79d3b",
+      "cases/0026.json": "8244f60410d6b40222c66f3eded455835731c29e1a3c5672027ce78d2087ab63",
+      "cases/0027.json": "8bbf07fe11731906120d6a2a1153a630a8d4dfcfcd55ea379b9ae285f4324c31",
+      "cases/0028.json": "da5bcbd60ececd5369890d397096300aa1835a847bd0b14f722973489a50c5ac",
+      "cases/0029.json": "7e14a4c49ff4c1a7b3b45b48a93c6fef9c9f35199e3b3017d6010a8eee2c7a44",
+      "cases/0030.json": "7ec15b09e6add568e7e130a2cd61c0153d8dfe6527b736f83db3f4bcf169319a",
+      "cases/0031.json": "253b8ca8ab6c0b899ccc7bc456942115b18ede233b8e05b4c60c3e7d1cca5cee",
+      "cases/0032.json": "5342139f7f20a963dd18c6a98b07a5694d5256fc3c8679635a2796717be74dd1",
+      "cases/0033.json": "f75cd3b94fb6f2034909e4f981892890278ce6b3df38f3f91f72f28822cb9766",
+      "cases/0034.json": "0d9f0a4fec9b6403369f71a00b46517b3a450ca96369db1cf4820bd6baa1f367",
+      "cases/0035.json": "cd791eb4c8bf6beff8ece9e663356118e580aa9bd0403b6873715cabc0a363e6",
+      "cases/0036.json": "196806fefad030ef05684d8f984d8c6ec634b85e259f40bf19011bbe0360786a",
+      "cases/0037.json": "f534f7d4e8c544d8b1c7e0a01c8801c0ae48df30481a28d91b33692406799ff9",
+      "cases/0038.json": "3963ec6a69fda7b24a40bbca2938aa46c92ec85f7e6b4bf4d12c2d615ecf77f2",
+      "cases/0039.json": "ca813257d9a7e09fa923cf97b4c2454fabf6bcba4e83128218d4b88aea90d7a9",
+      "cases/0040.json": "a55a62e3816088c067ca5b731385f53426c7dfc5dd50e688efa1c5613cb05505",
+      "cases/0041.json": "4afe477a44698d2052bfabf9e1523011148babefef14344d692aeec259581e6a",
+      "cases/0042.json": "6649446a1fe0847494d151e5edd821e0beb632b2d6562fd7a0d56cad54318c3e",
+      "cases/0043.json": "7d4fe751347e4783a82ae9aac37d56a06641302ea09ed3cc56f39dfaaff0f0f7",
+      "cases/0044.json": "ea00883238bef28841629822c44bc5294d80cef7e2d8c373930293669f79a256",
+      "cases/0045.json": "46eedd641336d7565c88175a831dbddab498eab2b8445bf8d7dc68f7687e5cfd",
+      "cases/0046.json": "c419b457b11c0295665b21615ff036ddf80c1b9ce968b15080fe485d4ed0aa19",
+      "cases/0047.json": "d0e89999a17ec6b2d7bc3640bff5c118a117c2a69c6251edf0791bcf396a5e13",
+      "cases/0048.json": "ff4fe580bff8a2b6e821a263feaf794c253454ed09c7224fe79c9f2f5252b075",
+      "cases/0049.json": "e8f52142a512849f3b153d73be70ce774fb62c1450d6a0bba84ffe773bed8771",
+      "cases/0050.json": "dd0b1304240a24e0ffd7841b9f2c4a89ecbcb1517fe8bdd28c25d7efa921374a",
+      "cases/0051.json": "fc18a5c2e6ac1b67856593aa251886a7956f294e6c9f4c1b74caa999c9bbc95a",
+      "cases/0052.json": "da22600484152d5c03cfc6b00d956acb71bf3bc7495f016c76d1db940512a0b2",
+      "cases/0053.json": "94cb8a3415f03931bd9e745ee16061eb59644ec971f9234301f3886f424c6456",
+      "cases/0054.json": "267a36f6de9801c93db9b399b27a02e54abeb4205d20eabbcf2508a5235a4a54",
+      "cases/0055.json": "fccaff6aa114b1b69a8a73f8eb0e338e64a25f1e0a1834ca57f2ed7ccd7075ca",
+      "cases/0056.json": "3009944d4054680576aca66370d0b8013c48dce43bc5a0410d77aa4e63d7c64d",
+      "cases/0057.json": "16337ae5b05f59f9dd64dd28f78346fa072808d3b7019b44e6ac834be1723609",
+      "cases/0058.json": "d07e41b9b5f651f8e0574db96475700d056b06a7d5fb0282f23e63a5667d2849",
+      "cases/0059.json": "106776c98f36996d6d6e3426ef4810c289ddca9d16e0b5f05924f4af74c26fe1",
+      "cases/0060.json": "50031c5761a70283b88d875ab73c53ffc58bb275607c172662d4b8f87ef3247a",
+      "cases/0061.json": "3e1b080a491e493c548c2ed65c8bf311d8e3cdfa254af1e0d924a8de8d08c6a0",
+      "cases/0062.json": "4da815beb09dba698680426fbf630ce0c035c2cc4a5951abb000fe153ef12e4b",
+      "cases/0063.json": "b1945bebb51d76c812131853c646c56e432556e1db519a9554c9d567810d25fc",
+      "cases/0064.json": "b57d82bdc9242a3f5d280f3ca6b98b280b84606c89f3c9ba5c0fab8896ceeb95",
+      "cases/0065.json": "3123211366342e78843f847ecbe052782ae28ff4433c266b0cc1b4b1807431a8",
+      "cases/0066.json": "7c7fedd9db2a119598af1137be16ce471cb66e544c6d19bade10e13090ad1718",
+      "cases/0067.json": "708a23c03fdea8c99d73c90e6f382b4d31c7a30b11e3e0400f11479c5fd435a8",
+      "cases/0068.json": "74d4b9a8b5fc49c2de0ef90a1722db0c9d2f40602de04e9c9660178b1fc330d9",
+      "cases/0069.json": "a02259bcf3221a6277e90449aabfebe3ecf52a43591f3e9278dca579670ac3a4",
+      "cases/0070.json": "31f9b2baacb38a263d3066ec9dd5848d32961a527efdd4ad6e8b16e6d16e12e4",
+      "cases/0071.json": "68f2042332cd1b8b1576d4782976e85f71d1527da0b7f058618506c3e8f9abc1",
+      "cases/0072.json": "e900c06201ad7a171ee803c4ee886b8d4d90628e4fcea7bac092f99627fa4eda",
+      "cases/0073.json": "fefdcc64ade97e8bc9e2f447054c92eef628e815ad5a8e08bd4b35510f53604a",
+      "cases/0074.json": "6d52bf7f68462a50f3cd21fa618d7491108c7b4a6ea2d4b96c8089c9401a60dc",
+      "cases/0075.json": "3140a6c400e33f188563bf974121b928dfa680e47848773c7a27d61595eb1f72",
+      "cases/0076.json": "f2c9b37eefff72ea935cb2553903fac7c077a696da26f85bbe2cf6b4e5106152",
+      "cases/0077.json": "ab82f31ea12a9b3edcc17e1fbf543460fe9c5751f90d76cc461ccb796c6350bf",
+      "cases/0078.json": "5a96280b45543c39253a6660f72862cb66dcc77dd6db647e328515e972795a89",
+      "cases/0079.json": "a0317389cc676a70d5858cc99ce5eeb8afe78ba13f48197b03bb9740c1c69d48",
+      "cases/0080.json": "504118a7d439ef79d9b0f08c133bff18328df2fb81f06797784350a2d039d15c",
+      "cases/0081.json": "2429b54c7c6f958cea0435f1e92992b1003d67e5ede757b2b9e7428587db3f1f",
+      "cases/0082.json": "274e969dcaf046c75bf7af4f4def94d1f31db9b266418479d7d441552727970b",
+      "cases/0083.json": "a8fac7b3b9dd5a296af9a1a00079a1db457121217539ff7f4d5ff9ad89e4d126",
+      "cases/0084.json": "f62568775302745fbbc16198452db3d5602f721cb1828ea10e8f1a832929479a",
+      "cases/0085.json": "bd456fbfadbd4c411b11cb4ceaed0e260bb2a024f56b8204ac13cc60ccd28b38",
+      "cases/0086.json": "9dc96b4c601be7ea5467ff3266183b7ab5d752914a2f6e967958a6696824ef84",
+      "cases/0087.json": "09c90fc6d70cd8f121f8412f182f4c4606cf6939a85410e68a09683d7c2dc8c8",
+      "cases/0088.json": "493fe061456ed9457a3bb9da53439a48b363ac63389689c84cc7e6e966fd8256",
+      "cases/0089.json": "b53ad5139d6a2056f587496032f40ee3f1cd9120b247fcf0b416f35309d1fa4b",
+      "cases/0090.json": "9a532c0f38440f38f5827063da056cb8fde22d078b944be4944b98caf91351db",
+      "cases/0091.json": "20e87997b6f2034e5f4d31a3e8290240344592b213723f882b4501776a974c3c",
+      "cases/0092.json": "744132a9448f68eb05dfdf967f798732bac2865960a78a3c335c0dd477bf45bc",
+      "cases/0093.json": "ca06fd88ce2571b0631dfb607ebee57c5813c90ceef9725b419a5b290c88db7a",
+      "cases/0094.json": "fdfaa456d32ebb58942ab39a51729dd3aad55bcf2fc0f5b8a83d14ba01663a21",
+      "cases/0095.json": "c40887b0a12a8edd863371d562ca3e9b65d4bb5b62c0e530863af625669a28c3",
+      "cases/0096.json": "8fa51ebb726f72181ae00ed3f5a463c91e54e91dfe704739f56916ebe88ebae4",
+      "cases/0097.json": "5f1babe564b76e3c1325cfbfa1f654233d9206666519190467427f86ab641524",
+      "cases/0098.json": "33f3b41d3f658d54c60a5e8716da255cdb4d9fc86ea6f3f5d17479ec71f4ae6e",
+      "cases/0099.json": "e35e1a1b2fc36cf66ec3e85042a5edd0d61b0c674ad3ae63c7ef1652a05cc6bb",
+      "cases/0100.json": "c410f52e08504ae237eee4177b0fd5bdfe0fdea0550078c3ef2bd12a4a72a0a6",
+      "cases/0101.json": "9fe4ec2e8f74fdb4137a27381808cad8d3ca7786db695520489640f52eb45705",
+      "cases/0102.json": "02eddc67edd4fbf95661c2f16d3572d44fbb358b50a45f23c8545757e55d617b",
+      "cases/0103.json": "49b767d85d7691d1a6f5d669b0783ff4278b2ddf739f70fdfb82d19b1934cd14",
+      "cases/0104.json": "90d2f2325e0bedb6f167b8781eb22c5b2793c46458c959ebefbf1f84bcbaf9f4",
+      "cases/0105.json": "a0a8642da2cf1b9ae38b85c0136eb54174a58336096fee58199a5bb53c406ee9",
+      "cases/0106.json": "5b229e916dfe88a7759280cdc00f73864d6eb9a81bcd95cb2df288c924a434b8",
+      "cases/0107.json": "8e73b46b9db3f732a355aff8dc69f825acc12681741f76f4dd52edf496fb1923",
+      "cases/0108.json": "dcc5c34bbe8aa7785806d4aa94596f9d6efa3dc268cd8124eea5ee303ba9796f",
+      "cases/0109.json": "4a5b5af345696be922d8ae4c48ef6538aa46447f5426a5b5509023f464897259",
+      "cases/0110.json": "dbacf827e914806f39ea2fcf68449df2ab93bcad47827fb7c27f3d9aaf3c0965",
+      "cases/0111.json": "926e1c802406b48411306098181cfd6e9c1fd99c81e9835991c4565979890f48",
+      "cases/0112.json": "e69b71a95134bd37b21114c3220dcbf4ae9c83cd19bab2486b53611d8d6389bc",
+      "cases/0113.json": "0144f2e037da2cd2eae043a174d78ff364bd17e21748805bd0e0a4189574a345",
+      "cases/0114.json": "61782784f1ec80b9d65bd6738b2db85a0e3653f62ec49967ea00e233867549e4",
+      "cases/0115.json": "5f90a7673f3b45faf8d1ce03eb138c267b4c8ea44e9ec36c2e1c91b1cf515728",
+      "cases/0116.json": "754f423ac8ce98c99468e38dff96fff2aae21eebeb6ee13e7976a190b72738cb",
+      "cases/0117.json": "ee6f26dc94bebe5fc56b491282ffefe6dd325d728a8c72fe6138380805638440",
+      "cases/0118.json": "c23b7bd078f3d859d157563a3b06d5f7e457bc2f52dec9f98355db114f9dd0c5",
+      "cases/0119.json": "847692708e4fce232d541cf0fee5273ac1d6e8f3b671a4961198938b19caaf12",
+      "cases/0120.json": "f75b3874860bfb8c848ce8063b96097f9dd47811e4229c6429f77a1fff27b9b2",
+      "cases/0121.json": "ad4c8f60ef70074b6d05f70237012b47479c96939683405a9d3d8e534880752d",
+      "cases/0122.json": "9243b65fdbbc400da153b9c857c9d0a49c89ffca267c94a2e15332d59a39afb8",
+      "cases/0123.json": "36f55610eaa031f40024a726edcca8a0ad32ab2c22623ad0410484c571c9aa82",
+      "cases/0124.json": "4fc60ba648a42b572c094e90e5068b6f8488d7029cb39ba56632522204a811c7",
+      "cases/0125.json": "f3ab594c845490088d24f5c616494899ed170140a16c660390db6d4df3836fe1",
+      "cases/0126.json": "c7e9cea58066256ade55fb4ab9c9fb3a39cfc36b2e2863ffde3c8eb268e7d059",
+      "cases/0127.json": "33955cf70cc4a5ef5ecaffe09e5bf0a45098913ea7008ca18b406bbddc723803",
+      "cases/0128.json": "64677a4bcbbaea38e6d43e0d180a6d38a69c18f31e4db81d3a32c123941b7b97",
+      "cases/0129.json": "dd5f1e4646e4e7c7f9e70e822647e24b470f9e2d0d4aa916a3a3b88515193cdf",
+      "cases/0130.json": "87710ebadecdf1b33c520d8a25f0411541c50c02b3e40e260934827210c84b5a",
+      "cases/0131.json": "a5bc90fc464d9f274f89ffa8b111064b5b70d2413a479f9d1ed36cb1c9079a42",
+      "cases/0132.json": "6da2939c6e8bed7f527f7d9187b38336370136869d188f968cdca48edc8621e3",
+      "cases/0133.json": "290c29a219ab53cb1dbb0870484da78e6e91a254e0cebef51ccf93a09b6e6224",
+      "cases/0134.json": "51683aaaf91a821c14429d6512601812e1a2cce9b6c70134fabcb481f3b361a0",
+      "cases/0135.json": "ed845d1e5882384264046a4fd5d5ac3183661a89e4a658905e3a7ed1acdf870a",
+      "cases/0136.json": "1b4538d0be89cf7dd12a6c417b118723e83d74c44d9fb72f027037d84852bbe4",
+      "cases/0137.json": "0eab40fd10fd427f4e69e4eadc85a822b26c7c0cb567083451f7135b97e629b0",
+      "cases/0138.json": "13aa818976d1883dcdd704e1017a4b4358ecdb66f1bfa42c3ad337dd970e80fe",
+      "cases/0139.json": "0fd2349e746ab518dbfe4e3ecb2e92a4a4d99a1a1750e4716089ec078bc946a4",
+      "cases/0140.json": "ace0b8c2f322ac771237d0aff8623da4bd685a77e023fe6a55f391c48f8422de",
+      "cases/0141.json": "2c7a632b6b530854c962dafac41f73e3285f92b10b0e549b3ba3878f7d61135d",
+      "cases/0142.json": "1a0d2ba86fa043673f223918b388753fab25b6d095f6ff5ad9eefd488d2fe2ed",
+      "cases/0143.json": "dcf276a2959bdfef008305976bef1ee6e0cb81f0f3b4248437712c6c2987934d",
+      "cases/0144.json": "0c28412d83d9796bc2e089ab6ac92dbbaedcebeb820d58d6a9e028d5fab399e0",
+      "cases/0145.json": "d48a45c495b08317c06e4b4607378353caffdcc4da3913dc44876cfdc76e8bf2",
+      "cases/0146.json": "1917965d88f46afa83986e08e4730b4183bfdbb45e74d20c7460432560c55bf4",
+      "cases/0147.json": "5485556f6f36d12f3884b8770feb9e9590a22064c85fdb331c97c00645f1e829",
+      "cases/0148.json": "a4cd3be8a7ecb3ea641e1dc5056bf53af5c17b4ebca0e3406affcb5e6ab2b695",
+      "cases/0149.json": "8c89a1ebfe13f5c8538afb0580a7ae172faefca394031907ccd98675e7266648",
+      "cases/0150.json": "fa9a0042ac44fdb04ee8bb9d1d9b7b30796c0b194c2371ef2f21198096d6b023",
+      "cases/0151.json": "3ccd218f801c75b3eb7644448e53709643a6ccccbd73405e5b60de28bfb1e4d3",
+      "cases/0152.json": "3b7ff87ddb54b44f711f2f0e1e0e8e1c199b82ae7e1bba1e20e559d69d1241c6",
+      "cases/0153.json": "f784abfb48013443ccc84c64a66426cf6c1f43eacec4de9e22d3ebdb8d4f3ad4",
+      "cases/0154.json": "780cf9ffa1b96011a9b6425f30d0eaee373bb01d4d072cd9da893fc0360fa74c",
+      "cases/0155.json": "4e08230054c0a990ab6af3482f71751fc16711fb86b1bfdb41bf77a0c9c13ece",
+      "cases/0156.json": "5f52e116bcfb5c703f8f6bae399ffc1437da790d1aae0433551fd143a2f56f37",
+      "cases/0157.json": "4114558c08b9f08844ea0634807bd26c9491b7d1d4ec78d75f96db216c370c0c",
+      "summary.json": "6ddfcc2f86c8b4b94f0aa06bc45ce1e049ddb48fd42ce85dd56ca300c555dff4"
+    },
+    "run": "20261004T033028Z-5b27",
+    "set": {
+      "cases": 157,
+      "name": "selection",
+      "seed": 20261001,
+      "selected": {
+        "languages": [],
+        "limit": null,
+        "situations": []
+      },
+      "sha256": "3afbef4f6fe220833f318df66ee471b6001a0b4c9340fe027bab1dcca371205f",
+      "versions": {
+        "case_format": 1,
+        "families": "9815f5589a91638c758fede391fb0a0bcd53cf5f28d7662254ad88f698344c0b",
+        "generator": "610c6e261e5250d0fe6896e19685016e28ef0d11",
+        "pipeline_version": "795ff66b819516bf",
+        "policy": 6,
+        "snapshot": "b3b8b248f604ef9a"
+      }
+    },
+    "stack": {
+      "clock": {
+        "as_of": "2026-06-18 06:00:00",
+        "business_date": "2026-06-17"
+      },
+      "environment": "prototype",
+      "runs_as": "arn:aws:iam::009160074575:role/banking-agent-prototype-evaluation-harness",
+      "stamp": {
+        "pipeline_version": "795ff66b819516bf",
+        "snapshot": "b3b8b248f604ef9a"
+      },
+      "versions": [
+        {
+          "app": "8aa77fa7ce98f79e6ddc17ad57ca5bd9b62f389c",
+          "pipeline_version": "795ff66b819516bf",
+          "policy": 6,
+          "prompts": {
+            "find_transaction": "2ed4bdd7a69264c4",
+            "handoff": "ed7bc2488837d779",
+            "reply": "f63f760c8cb9c265",
+            "resolve_card": "b3bf4f7419d1f904",
+            "route": "1e38f07c584350f4"
+          },
+          "schemas": {
+            "chat": 1,
+            "console": 1,
+            "execution-record": 1,
+            "handoff-case": 1,
+            "overlay": 1,
+            "tools": 1,
+            "tools-data": 1
+          },
+          "snapshot": "b3b8b248f604ef9a"
+        }
+      ]
+    },
+    "started_at": "2026-10-04T03:30:28.380886+00:00",
+    "system": "deployed",
+    "totals": {
+      "cost_usd": 0.775622,
+      "input_tokens": 664917,
+      "model_calls": 443,
+      "output_tokens": 22141,
+      "tool_calls": 412,
+      "turns": 271
+    }
+  },
+  "purpose": "The selection play at the freeze (ADR-0005), on the clean tree after promotion 5: every selection case on prototype at parallel 4, the first full measurement of the frozen agent and the version check, and the pool the judge's blind sample is drawn from. Its ten cases that didn't pass are triaged in the disagreement log (D-010 to D-012) and drive no change before the held-out runs.",
+  "summary": {
+    "cases": 157,
+    "covered": {},
+    "diverged": 7,
+    "errors": 0,
+    "latency_ms": {
+      "cases": {
+        "cases": 141,
+        "p50": 5247,
+        "p95": 10385.0
+      },
+      "fault_cases_left_out": 10,
+      "first": {
+        "p50": 4387,
+        "p95": 6147.0,
+        "turns": 141
+      },
+      "later": {
+        "p50": 1622.5,
+        "p95": 4031.15,
+        "turns": 110
+      }
+    },
+    "metrics": {
+      "M-01": {
+        "attempted": {
+          "cases": 151,
+          "count": 141,
+          "interval": [
+            0.8824,
+            0.9636
+          ],
+          "rate": 0.9338
+        },
+        "by_language": {
+          "es": {
+            "attempted": {
+              "cases": 76,
+              "count": 71,
+              "interval": [
+                0.8551,
+                0.9716
+              ],
+              "rate": 0.9342
+            },
+            "by_outcome_class": {
+              "answer": {
+                "cases": 46,
+                "count": 43,
+                "interval": [
+                  0.825,
+                  0.9776
+                ],
+                "rate": 0.9348
+              },
+              "block": {
+                "cases": 7,
+                "count": 7,
+                "interval": [
+                  0.6457,
+                  1.0
+                ],
+                "rate": 1.0
+              },
+              "decline": {
+                "cases": 6,
+                "count": 5,
+                "interval": [
+                  0.4365,
+                  0.9699
+                ],
+                "rate": 0.8333
+              }
+            },
+            "cases": 76,
+            "count": 55,
+            "eligible": 59,
+            "interval": [
+              0.6142,
+              0.8116
+            ],
+            "rate": 0.7237
+          },
+          "pt": {
+            "attempted": {
+              "cases": 75,
+              "count": 70,
+              "interval": [
+                0.8532,
+                0.9712
+              ],
+              "rate": 0.9333
+            },
+            "by_outcome_class": {
+              "answer": {
+                "cases": 46,
+                "count": 43,
+                "interval": [
+                  0.825,
+                  0.9776
+                ],
+                "rate": 0.9348
+              },
+              "block": {
+                "cases": 7,
+                "count": 7,
+                "interval": [
+                  0.6457,
+                  1.0
+                ],
+                "rate": 1.0
+              },
+              "decline": {
+                "cases": 5,
+                "count": 4,
+                "interval": [
+                  0.3755,
+                  0.9638
+                ],
+                "rate": 0.8
+              }
+            },
+            "cases": 75,
+            "count": 54,
+            "eligible": 58,
+            "interval": [
+              0.6096,
+              0.809
+            ],
+            "rate": 0.72
+          }
+        },
+        "by_outcome_class": {
+          "answer": {
+            "cases": 92,
+            "count": 86,
+            "interval": [
+              0.8649,
+              0.9698
+            ],
+            "rate": 0.9348
+          },
+          "block": {
+            "cases": 14,
+            "count": 14,
+            "interval": [
+              0.7847,
+              1.0
+            ],
+            "rate": 1.0
+          },
+          "decline": {
+            "cases": 11,
+            "count": 9,
+            "interval": [
+              0.523,
+              0.9486
+            ],
+            "rate": 0.8182
+          }
+        },
+        "cases": 151,
+        "count": 109,
+        "eligible": 117,
+        "interval": [
+          0.6456,
+          0.7871
+        ],
+        "rate": 0.7219
+      },
+      "M-02": {
+        "by_language": {
+          "es": {
+            "cases": 76,
+            "count": 60,
+            "interval": [
+              0.685,
+              0.866
+            ],
+            "rate": 0.7895
+          },
+          "pt": {
+            "cases": 75,
+            "count": 59,
+            "interval": [
+              0.6812,
+              0.8642
+            ],
+            "rate": 0.7867
+          }
+        },
+        "cases": 151,
+        "count": 119,
+        "interval": [
+          0.7162,
+          0.8457
+        ],
+        "rate": 0.7881
+      },
+      "M-03": {
+        "by_language": {
+          "es": {
+            "cases": 17,
+            "count": 16,
+            "interval": [
+              0.7302,
+              0.9895
+            ],
+            "missed": {
+              "cases": 17,
+              "count": 1,
+              "interval": [
+                0.0105,
+                0.2698
+              ],
+              "rate": 0.0588
+            },
+            "rate": 0.9412,
+            "unnecessary": {
+              "cases": 59,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.0611
+              ],
+              "rate": 0.0
+            }
+          },
+          "pt": {
+            "cases": 17,
+            "count": 16,
+            "interval": [
+              0.7302,
+              0.9895
+            ],
+            "missed": {
+              "cases": 17,
+              "count": 1,
+              "interval": [
+                0.0105,
+                0.2698
+              ],
+              "rate": 0.0588
+            },
+            "rate": 0.9412,
+            "unnecessary": {
+              "cases": 58,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.0621
+              ],
+              "rate": 0.0
+            }
+          }
+        },
+        "cases": 34,
+        "count": 32,
+        "interval": [
+          0.8091,
+          0.9837
+        ],
+        "missed": {
+          "cases": 34,
+          "count": 2,
+          "interval": [
+            0.0163,
+            0.1909
+          ],
+          "rate": 0.0588
+        },
+        "rate": 0.9412,
+        "unnecessary": {
+          "cases": 117,
+          "count": 0,
+          "interval": [
+            0.0,
+            0.0318
+          ],
+          "rate": 0.0
+        }
+      },
+      "M-04": {
+        "bound": "not defined",
+        "by_kind": {
+          "action": {
+            "cases": 157,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0239
+            ],
+            "rate": 0.0
+          },
+          "disclosure": {
+            "cases": 157,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0239
+            ],
+            "rate": 0.0
+          },
+          "incorrect": {
+            "cases": 157,
+            "count": 2,
+            "interval": [
+              0.0035,
+              0.0453
+            ],
+            "rate": 0.0127
+          },
+          "unverified": {
+            "cases": 157,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0239
+            ],
+            "rate": 0.0
+          }
+        },
+        "by_language": {
+          "es": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 79,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0464
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 79,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0464
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 79,
+                "count": 1,
+                "interval": [
+                  0.0022,
+                  0.0683
+                ],
+                "rate": 0.0127
+              },
+              "unverified": {
+                "cases": 79,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0464
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 79,
+            "count": 1,
+            "interval": [
+              0.0022,
+              0.0683
+            ],
+            "rate": 0.0127
+          },
+          "pt": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 78,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0469
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 78,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0469
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 78,
+                "count": 1,
+                "interval": [
+                  0.0023,
+                  0.0691
+                ],
+                "rate": 0.0128
+              },
+              "unverified": {
+                "cases": 78,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0469
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 78,
+            "count": 1,
+            "interval": [
+              0.0023,
+              0.0691
+            ],
+            "rate": 0.0128
+          }
+        },
+        "cases": 157,
+        "count": 2,
+        "interval": [
+          0.0035,
+          0.0453
+        ],
+        "rate": 0.0127
+      },
+      "M-05": {
+        "cost_usd": {
+          "aws": "not defined",
+          "models": 0.775622,
+          "per_attempted_case": 0.005501,
+          "per_resolution": 0.007116
+        },
+        "latency_ms": {
+          "cases": {
+            "cases": 141,
+            "p50": 5247,
+            "p95": 10385.0
+          },
+          "fault_cases_left_out": 10,
+          "first": {
+            "p50": 4387,
+            "p95": 6147.0,
+            "turns": 141
+          },
+          "later": {
+            "p50": 1622.5,
+            "p95": 4031.15,
+            "turns": 110
+          }
+        },
+        "per_case": {
+          "input_tokens": 4235.14,
+          "model_calls": 2.82,
+          "output_tokens": 141.03,
+          "turns": 1.73
+        },
+        "workload": {
+          "cases": 157,
+          "parallelism": 4,
+          "repeats": 1,
+          "turns": 271
+        }
+      },
+      "by_segment": "not defined",
+      "repeats": {
+        "pass_all": "not defined",
+        "runs": 1,
+        "spread": "not defined"
+      }
+    },
+    "not_stopped": 0,
+    "passed": 147,
+    "resent": 0,
+    "run": "20261004T033028Z-5b27",
+    "safety": {},
+    "set": "selection",
+    "uncovered": {
+      "block.reason_given.mixed_language fact": 1,
+      "block.reason_given.mixed_language language": 3,
+      "decline.listed_code labels": 1,
+      "decline.listed_code outcome_class": 1,
+      "none.no_request language": 1,
+      "person.asked labels": 1,
+      "person.asked outcome_class": 1,
+      "person.asked tool_required": 1,
+      "status.one_card awaiting": 1,
+      "status.one_card fact": 2,
+      "status.one_card labels": 1,
+      "status.one_card language": 1,
+      "status.one_card outcome_class": 1,
+      "status.one_card tool_required": 1,
+      "transactions.next_page labels": 1,
+      "transactions.next_page tool_required": 1,
+      "unsupported.outside_cards awaiting": 1,
+      "unsupported.outside_cards labels": 2,
+      "unsupported.outside_cards outcome_class": 1,
+      "unsupported.unblock awaiting": 1,
+      "unsupported.unblock labels": 1,
+      "unsupported.unblock outcome_class": 1,
+      "unsupported.unblock tool_required": 1
+    },
+    "unsafe": 0
+  }
+}
