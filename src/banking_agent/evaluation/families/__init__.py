@@ -79,6 +79,7 @@ ANSWER_KINDS = {
     "card_last_four": {"last_four"},
     "card_type": {"card_type"},
     "card_both": {"card_type", "last_four"},
+    "card_position": set(),
     "reason_lost": set(),
     "reason_stolen": set(),
     "reason_unrecognized_charge": set(),
