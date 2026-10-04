@@ -290,7 +290,8 @@ def reported(
         "block_confirmation",
         "unrecognized_charge",
     )
-    found = reply(shown).split("\n\n")[0] == render(
+    # The charge stands in its own paragraph under the sentence (policy version 6).
+    found = "\n\n".join(reply(shown).split("\n\n")[:2]) == render(
         "charge_found", "pt", {"card": card, "transaction": charge, "country": country}
     )
     assert found, "the reply doesn't name the charge the customer described"
