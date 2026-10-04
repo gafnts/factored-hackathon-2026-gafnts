@@ -5,6 +5,7 @@ import type {
   ProductType,
   RunError,
 } from "./contracts/chat";
+import { WORDS } from "./contracts/words";
 
 export type RunErrorCode = RunError["code"];
 export type Problem = RunErrorCode | "unreachable";
@@ -72,16 +73,10 @@ export interface Texts {
   };
 }
 
-const CARD_TYPES: Record<Language, Record<ProductType, string>> = {
-  es: {
-    "Tarjeta Crédito": "tarjeta de crédito",
-    "Tarjeta Débito": "tarjeta de débito",
-  },
-  pt: {
-    "Tarjeta Crédito": "cartão de crédito",
-    "Tarjeta Débito": "cartão de débito",
-  },
-};
+const CARD_TYPES: Record<
+  Language,
+  Record<ProductType, string>
+> = WORDS.product_type;
 
 // What a person can do for each offered handoff; the reply before the control says why it's offered.
 const OFFERS: Record<Language, Record<OfferedReasonCode, string>> = {
@@ -105,18 +100,19 @@ const OFFERS: Record<Language, Record<OfferedReasonCode, string>> = {
   },
 };
 
+// Each stands after "Motivo:" as a label's value, so it takes a capital.
 const REASONS: Record<Language, Record<BlockReason, string>> = {
   es: {
-    lost: "pérdida",
-    stolen: "robo",
-    unrecognized_charge: "cargo no reconocido",
-    customer_request: "solicitud del cliente",
+    lost: "Pérdida",
+    stolen: "Robo",
+    unrecognized_charge: "Cargo no reconocido",
+    customer_request: "Solicitud del cliente",
   },
   pt: {
-    lost: "perda",
-    stolen: "roubo",
-    unrecognized_charge: "cobrança não reconhecida",
-    customer_request: "pedido do cliente",
+    lost: "Perda",
+    stolen: "Roubo",
+    unrecognized_charge: "Cobrança não reconhecida",
+    customer_request: "Pedido do cliente",
   },
 };
 

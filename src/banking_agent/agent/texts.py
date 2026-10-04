@@ -12,24 +12,43 @@ import re
 from typing import Any
 
 from banking_agent.agent.formats import (
-    MEANINGS,
     STATUSES,
     TRANSACTION_STATUSES,
     amount,
     card_line,
     card_name,
+    credit_line,
     day,
     expiration,
     moment,
+    reason_line,
     transaction_line,
     transaction_name,
 )
 
 FIXED: dict[str, dict[str, str]] = {
-    # POL-06: a message with no card request.
+    # POL-06: a message with no card request, by what it is. The introduction answers the first greeting and any
+    # message aimed at the chat itself, an injection with no request included; a later greeting, thanks, and a
+    # goodbye get a line each, and the rest the list.
     "no_request": {
-        "es": "Hola. Puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, decirle el motivo registrado de un pago rechazado, bloquear una tarjeta y ayudarle con un cargo que no reconoce: pregúnteme.",
-        "pt": "Olá. Posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, dizer o motivo registrado de um pagamento recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece: é só perguntar.",
+        "es": "Hola, soy Faro, el asistente automático de tarjetas de LATAM Bank. Puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, decirle el motivo registrado de un pago rechazado, bloquear una tarjeta y ayudarle con un cargo que no reconoce. ¿En qué le puedo ayudar?",
+        "pt": "Olá, eu sou o Faro, o assistente automático de cartões do LATAM Bank. Posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, dizer o motivo registrado de um pagamento recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece. Como posso ajudar?",
+    },
+    "greeting": {
+        "es": "Hola. ¿En qué le puedo ayudar?",
+        "pt": "Olá. Como posso ajudar?",
+    },
+    "capabilities": {
+        "es": "En este chat puedo mostrarle sus tarjetas y el estado de cada una, el crédito disponible de una tarjeta de crédito y sus movimientos recientes, decirle el motivo registrado de un pago rechazado, bloquear una tarjeta y ayudarle con un cargo que no reconoce. ¿En qué le puedo ayudar?",
+        "pt": "Neste chat posso mostrar seus cartões e o status de cada um, o crédito disponível de um cartão de crédito e suas transações recentes, dizer o motivo registrado de um pagamento recusado, bloquear um cartão e ajudar com uma cobrança que você não reconhece. Como posso ajudar?",
+    },
+    "thanks": {
+        "es": "Con gusto. Quedo a su disposición para cualquier otra consulta sobre sus tarjetas.",
+        "pt": "Por nada. Fico à disposição para qualquer outra dúvida sobre seus cartões.",
+    },
+    "closing": {
+        "es": "Quedo a su disposición para cualquier otra consulta sobre sus tarjetas.",
+        "pt": "Fico à disposição para qualquer outra dúvida sobre seus cartões.",
     },
     # POL-51: a third language gets Spanish, with one sentence in Portuguese.
     "third_language": {
@@ -60,7 +79,8 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "No encuentro una tarjeta suya que coincida con lo que me indica. Estas son sus tarjetas:\n\n{card_list}\n\n¿Sobre cuál me pregunta?",
         "pt": "Não encontrei um cartão seu que corresponda ao que você indicou. Estes são os seus cartões:\n\n{card_list}\n\nSobre qual você está perguntando?",
     },
-    # POL-01 and POL-21: a status answer's fixed reply, for one card and for each.
+    # POL-01 and POL-21: a status answer's fixed reply, for one card and for each. POL-14's "my cards" lists an only card
+    # too, so the chat draws it as it draws several.
     "card_status": {
         "es": "Su {card} está {card.status}; fecha de vencimiento: {card.expiration}.",
         "pt": "Seu {card} está {card.status}; validade: {card.expiration}.",
@@ -69,7 +89,15 @@ FIXED: dict[str, dict[str, str]] = {
         "es": "Estas son sus tarjetas y el estado de cada una:\n\n{cards}",
         "pt": "Estes são os seus cartões e o status de cada um:\n\n{cards}",
     },
-    # POL-01, POL-19, POL-22 to POL-24.
+    "only_card_status": {
+        "es": "Esta es su tarjeta y su estado:\n\n{cards}",
+        "pt": "Este é o seu cartão e o status dele:\n\n{cards}",
+    },
+    # POL-01, POL-19, POL-22 to POL-24; POL-14's cards with a figure, when two or more, under one sentence.
+    "credits_available": {
+        "es": "Al {as_of}, este es el crédito disponible de sus tarjetas:\n\n{credits}",
+        "pt": "Em {as_of}, este é o crédito disponível dos seus cartões:\n\n{credits}",
+    },
     "credit_available": {
         "es": "Al {as_of}, su {card} tiene {credit.available} de crédito disponible.",
         "pt": "Em {as_of}, seu {card} tem {credit.available} de crédito disponível.",
@@ -118,17 +146,17 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-02 and POL-27 to POL-29: the code's meaning and nothing else.
     "decline_explained": {
-        "es": "Encontré esta transacción rechazada en su {card}: {transaction}. El motivo registrado es: {transaction.meaning}.",
-        "pt": "Encontrei esta transação recusada no seu {card}: {transaction}. O motivo registrado é: {transaction.meaning}.",
+        "es": "Encontré esta transacción rechazada en su {card}:\n\n{transaction}\n{transaction.meaning}",
+        "pt": "Encontrei esta transação recusada no seu {card}:\n\n{transaction}\n{transaction.meaning}",
     },
     "decline_status": {
-        "es": "Encontré esta transacción en su {card}: {transaction}. Figura como {transaction.status}, no como rechazada.",
-        "pt": "Encontrei esta transação no seu {card}: {transaction}. Ela consta como {transaction.status}, não como recusada.",
+        "es": "Encontré esta transacción en su {card}:\n\n{transaction}\n\nFigura como {transaction.status}, no como rechazada.",
+        "pt": "Encontrei esta transação no seu {card}:\n\n{transaction}\n\nEla consta como {transaction.status}, não como recusada.",
     },
     # POL-32, followed by handoff_offer.
     "decline_no_code": {
-        "es": "Encontré esta transacción rechazada en su {card}: {transaction}. No hay un motivo registrado para este rechazo.",
-        "pt": "Encontrei esta transação recusada no seu {card}: {transaction}. Não há um motivo registrado para esta recusa.",
+        "es": "Encontré esta transacción rechazada en su {card}:\n\n{transaction}\n\nNo hay un motivo registrado para este rechazo.",
+        "pt": "Encontrei esta transação recusada no seu {card}:\n\n{transaction}\n\nNão há um motivo registrado para esta recusa.",
     },
     "decline_not_found": {
         "es": "No encontré en los últimos 90 días de su {card} una transacción que coincida con lo que me indica.",
@@ -140,8 +168,8 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-30: both facts, neither chosen.
     "code_conflict": {
-        "es": "El código de este rechazo indica tarjeta vencida, aunque la transacción es anterior a la fecha de vencimiento registrada de su {card}: {card.expiration}.",
-        "pt": "O código desta recusa indica cartão vencido, embora a transação seja anterior à data de validade registrada do seu {card}: {card.expiration}.",
+        "es": "El motivo de este rechazo es tarjeta vencida, aunque la transacción es anterior a la fecha de vencimiento registrada de su {card}: {card.expiration}.",
+        "pt": "O motivo desta recusa é cartão vencido, embora a transação seja anterior à data de validade registrada do seu {card}: {card.expiration}.",
     },
     "before_opening": {
         "es": "La fecha de esta transacción es anterior a la fecha de apertura registrada de su {card}.",
@@ -198,8 +226,8 @@ FIXED: dict[str, dict[str, str]] = {
     },
     # POL-39, as in POL-27: the charge is looked for in any status, and whether it is fraud is never said.
     "charge_found": {
-        "es": "Encontré este cargo en su {card}: {transaction}.",
-        "pt": "Encontrei esta cobrança no seu {card}: {transaction}.",
+        "es": "Encontré este cargo en su {card}:\n\n{transaction}",
+        "pt": "Encontrei esta cobrança no seu {card}:\n\n{transaction}",
     },
     "which_charge": {
         "es": "Encontré más de un cargo en su {card} que podría ser el que me indica. ¿Cuál es?\n\n{transactions}",
@@ -244,6 +272,10 @@ FIXED: dict[str, dict[str, str]] = {
     "control_pointer": {
         "es": "Para bloquear la tarjeta, use el botón: un mensaje escrito no confirma el bloqueo. Si prefiere no bloquearla, puede cancelar con el botón.",
         "pt": "Para bloquear o cartão, use o botão: uma mensagem escrita não confirma o bloqueio. Se preferir não bloqueá-lo, pode cancelar no botão.",
+    },
+    "charge_reviewed": {
+        "es": "El banco revisará el cargo que no reconoce, bloquee o no la tarjeta.",
+        "pt": "O banco vai analisar a cobrança que você não reconhece, bloqueando ou não o cartão.",
     },
     "confirmation_cancelled": {
         "es": "De acuerdo: no bloqueé su {card}.",
@@ -308,6 +340,14 @@ FIXED: dict[str, dict[str, str]] = {
 
 # A reply that failed the check is replaced by the unavailable text, under its own name.
 FIXED["reply_fallback"] = FIXED["unavailable"]
+# POL-06: a message that doesn't answer the agent's question gets its reply without the reply's own closing question,
+# since the agent's question follows it.
+CLOSING = {"es": " ¿En qué le puedo ayudar?", "pt": " Como posso ajudar?"}
+for _name in ("no_request", "greeting", "capabilities"):
+    FIXED[f"{_name}_aside"] = {
+        language: text.removesuffix(CLOSING[language])
+        for language, text in FIXED[_name].items()
+    }
 
 LANGUAGE_NAMES = {
     "es": "Spanish, addressing the customer as “usted”",
@@ -366,6 +406,8 @@ REQUESTS = {
 }
 AND = {"es": "y", "pt": "e"}
 PLACEHOLDER = re.compile(r"\{([a-z_]+(?:\.[a-z_]+)?)\}")
+# What comes before a placeholder that opens a sentence or a line.
+OPENING = re.compile(r"(?:\A|\n|[.!?] )[ ¿¡]*\Z")
 
 
 def joined(items: list[str], language: str) -> str:
@@ -403,15 +445,15 @@ def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
         filled["reference"] = facts["reference"]
     if "transaction" in facts:
         transaction = facts["transaction"]
-        filled["transaction"] = transaction_name(transaction, language, country)
+        filled["transaction"] = f"- {transaction_name(transaction, language, country)}"
         if "transaction_status" in transaction:
             filled["transaction.status"] = TRANSACTION_STATUSES[language][
                 transaction["transaction_status"]
             ]
         if transaction.get("response_meaning") is not None:
-            filled["transaction.meaning"] = MEANINGS[language][
-                transaction["response_meaning"]
-            ]
+            filled["transaction.meaning"] = reason_line(
+                transaction["response_meaning"], language
+            )
     if "transactions" in facts:
         filled["transactions"] = "\n".join(
             f"- {transaction_name(t, language, country)}" for t in facts["transactions"]
@@ -429,6 +471,11 @@ def values(language: str, facts: dict[str, Any]) -> dict[str, str]:
             filled["credit.over_by"] = amount(
                 credit["over_limit_by"], credit["currency"], country
             )
+    if "credits" in facts:
+        filled["credits"] = "\n".join(
+            credit_line(c["card"], c["credit"], language, country)
+            for c in facts["credits"]
+        )
     if "as_of" in facts:
         filled["as_of"] = day(facts["as_of"])
     if "window" in facts:
@@ -448,7 +495,17 @@ def placeholders(text: str) -> list[str]:
 
 
 def fill(text: str, filled: dict[str, str]) -> str:
-    return PLACEHOLDER.sub(lambda match: filled[match.group(1)], text)
+    """
+    Each placeholder replaced by its value, with a capital where it opens a sentence or a line, as the model may write
+    the card first (ADR-0004, Facts and outcomes in replies).
+    """
+
+    def value(match: re.Match[str]) -> str:
+        found = filled[match.group(1)]
+        opens = OPENING.search(text[: match.start()]) is not None
+        return found[:1].upper() + found[1:] if opens else found
+
+    return PLACEHOLDER.sub(value, text)
 
 
 def render(name: str, language: str, facts: dict[str, Any]) -> str:

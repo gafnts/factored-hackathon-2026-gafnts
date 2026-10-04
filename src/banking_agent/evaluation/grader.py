@@ -116,6 +116,15 @@ def path(
     return found
 
 
+def opens(value: str, reply: str) -> bool:
+    """
+    Whether the value opens a sentence or a line of the reply with its first letter a capital, as ADR-0004's code writes
+    a fact the model put first.
+    """
+    capital = re.escape(value[:1].upper() + value[1:])
+    return re.search(rf"(?:\A|\n|[.!?] )[ ¿¡]*{capital}", reply) is not None
+
+
 def content(
     turn: int,
     expected: Mapping[str, Any],
@@ -129,7 +138,7 @@ def content(
     if language is not None and said != [language]:
         found.append(finding(turn, "language", language, said))
     for placeholder, value in expected["facts"].items():
-        if value not in reply:
+        if value not in reply and not opens(value, reply):
             found.append(finding(turn, "fact", placeholder, "missing"))
     stated = set(AMOUNT.findall(" ".join(expected["facts"].values())))
     if set(AMOUNT.findall(reply)) - stated:
@@ -280,6 +289,7 @@ def grade(case: Mapping[str, Any], evidence: Mapping[str, Any]) -> dict[str, Any
         "group": case["group"],
         "situation": case["situation"],
         "source": case["source"],
+        "phrasing": case.get("phrasing") or case.get("side"),
         "language": case["language"],
         "grader": VERSION,
         "error": evidence["error"],

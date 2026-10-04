@@ -293,13 +293,18 @@ def test_the_extraction_and_the_choice_answer_through_the_agents_model_calls() -
     assert details.details()["block_reason"] == "stolen"
     assert (chosen.fitting, chosen.language) == ([2], "pt")
     assert [e["outcome"] for e in recorded] == ["ok", "ok"]
-    assert recorded[1]["output"]["extracted"] == {"fitting": "2", "language": "pt"}
+    assert recorded[1]["output"]["extracted"] == {
+        "fitting": "2",
+        "language": "pt",
+        "question": None,
+    }
 
 
 # The reads' fixed replies, by the request whose answer the model writes in their place.
 WRITTEN = {
     "card_status": "card_status",
     "cards_status": "card_status",
+    "only_card_status": "card_status",
     "credit_available": "available_credit",
     "credit_over_limit": "available_credit",
     "transactions_page": "recent_transactions",

@@ -2,7 +2,8 @@
 Models scripted from a case (ADR-0005, The development regression set: scripted model outputs, no provider). Each call
 gets the output a model that read the message correctly would give: the router the family's labels, the extraction
 the family's fields with the case's slots, or an answer's fields from the record the customer means, the choice the
-listed transactions that fit what the customer said, and a reply that writes each placeholder once. So a case played
+listed transactions that fit what the customer said, and a reply that writes each placeholder once, as the prompt lays
+them out. So a case played
 with them tests the graph's control logic, not a model. A text that isn't the case's is kept in `unplaced` and fails
 the call, and the player reports the case as its own error, never the agent's.
 """
@@ -16,6 +17,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
+from banking_agent.agent.check import LISTS
 from banking_agent.agent.models import (
     REASON_CODES,
     HandoffText,
@@ -44,6 +46,11 @@ REASONS = {
 # The families and the answers hold POL-35's codes; the model says its own name for any other reason.
 MODEL_REASONS = {code: value for value, code in REASON_CODES.items()}
 PLACEHOLDER = re.compile(r"^- (\{[a-z_.]+\}):", re.MULTILINE)
+# The prompt puts a decline's reason on the line under its transaction, so the two read as one list.
+UNDER = (
+    "{transaction}\n\n{transaction.meaning}",
+    "{transaction}\n{transaction.meaning}",
+)
 LISTED = re.compile(r"^(\d+)\. ")
 HANDOFF_TEXT = {
     "summary": "El cliente pidió ayuda con su tarjeta por el chat.",
@@ -71,6 +78,16 @@ def raw() -> AIMessage:
     return AIMessage(
         content="{}", usage_metadata=USAGE, response_metadata={"model_name": MODEL}
     )
+
+
+def laid_out(written: list[str]) -> str:
+    """
+    The facts in one sentence, then each list on a line of its own, a decline's reason right under its transaction.
+    """
+    told = [name for name in written if name.strip("{}") not in LISTS]
+    paragraphs = [f"{', '.join(told)}."] if told else []
+    paragraphs += [name for name in written if name.strip("{}") in LISTS]
+    return "\n\n".join(paragraphs).replace(*UNDER)
 
 
 def structured(parsed: Any) -> dict[str, Any]:
@@ -189,6 +206,8 @@ class ScriptedModels:
             details |= said.extract
             if "last_four" in said.slots:
                 details["last_four"] = self.slots["last_four"]
+        elif said == "aside":
+            details["question"] = "unanswered"
         elif said in REASONS:
             details["block_reason"] = REASONS[said]
         elif said.startswith("card_") and self.card is not None:
@@ -206,7 +225,15 @@ class ScriptedModels:
         shown = listed(messages[0].text)
         if said == "transaction_newest":
             return structured(
-                TransactionChoice.model_validate({"fitting": [1], "language": language})
+                TransactionChoice.model_validate(
+                    {"fitting": [1], "language": language, "question": None}
+                )
+            )
+        if said == "aside":
+            return structured(
+                TransactionChoice.model_validate(
+                    {"fitting": [], "language": language, "question": "unanswered"}
+                )
             )
         merchant, amount, on = self.hints(said)
         fitting = [
@@ -220,7 +247,7 @@ class ScriptedModels:
             fitting = [n for n, *_ in shown]
         return structured(
             TransactionChoice.model_validate(
-                {"fitting": fitting[:10], "language": language}
+                {"fitting": fitting[:10], "language": language, "question": None}
             )
         )
 
@@ -251,9 +278,8 @@ class ScriptedModels:
         return structured(HandoffText.model_validate(HANDOFF_TEXT))
 
     async def reply(self, messages: list[BaseMessage]) -> AIMessage:
-        written = PLACEHOLDER.findall(messages[0].text)
         return AIMessage(
-            content="\n\n".join(written) or "Listo.",
+            content=laid_out(PLACEHOLDER.findall(messages[0].text)) or "Listo.",
             usage_metadata=USAGE,
             response_metadata={"model_name": MODEL},
         )

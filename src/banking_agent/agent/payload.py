@@ -252,5 +252,33 @@ def transcript(messages: Sequence[AnyMessage]) -> str:
     )
 
 
+# What the chat did about the card, by each action's outcome, which the conversation the model reads doesn't show yet:
+# the turn's reply is written after the handoff's text (POL-37, POL-39).
+DONE = {
+    "verified": (
+        "The chat blocked the card at the customer's confirmation and verified the block: the card is blocked."
+    ),
+    "not_verified": (
+        "The customer confirmed a block, but the chat couldn't verify it: the card's state is unknown."
+    ),
+    "declined_by_customer": (
+        "The chat offered to block the card and the customer cancelled with the control: the card isn't blocked."
+    ),
+    "lapsed": (
+        "The chat offered to block the card and the offer ended without a confirmation: the card isn't blocked."
+    ),
+}
+NOTHING_DONE = "The chat didn't block a card or offer to in this conversation."
+
+
 def context(request: Mapping[str, Any]) -> str:
     return f"Why the case goes to a person: {HANDOFFS[request['reason_code']].summary}"
+
+
+def done(request: Mapping[str, Any]) -> str:
+    """
+    What the chat did about the card, as a block of its own after the context, so the model's notes agree with a block
+    the turn's reply hasn't reported yet.
+    """
+    lines = [DONE[a["outcome"]] for a in request["actions"] if a["outcome"] in DONE]
+    return "\n".join(lines or [NOTHING_DONE])

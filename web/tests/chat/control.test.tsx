@@ -178,7 +178,7 @@ test("shows the control from the interrupt's payload, in fixed text in its langu
   expect(
     within(shown).getByText("Bloquear cartão de crédito final 4821"),
   ).toBeInTheDocument();
-  expect(within(shown).getByText("Motivo: perda")).toBeInTheDocument();
+  expect(within(shown).getByText("Motivo: Perda")).toBeInTheDocument();
   expect(within(shown).getByText(TEXTS.pt.control.undo)).toBeInTheDocument();
   expect(
     within(shown).getByRole("button", { name: TEXTS.pt.control.confirm }),

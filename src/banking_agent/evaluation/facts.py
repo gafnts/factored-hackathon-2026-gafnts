@@ -113,16 +113,24 @@ class Facts:
 
     def transaction(self, transaction: Transaction) -> str:
         assert transaction.amount is not None
+        named = (
+            self.merchant(transaction)
+            if transaction.type == "Purchase"
+            else self._word("transaction_type", transaction.type)
+        )
         return ", ".join(
             [
                 moment(transaction.at),
-                self.merchant(transaction),
+                named,
                 self.amount(transaction.amount, transaction.currency),
             ]
         )
 
+    def found(self, transaction: Transaction) -> str:
+        return f"- {self.transaction(transaction)}"
+
     def choices(self, transactions: Sequence[Transaction]) -> str:
-        return "\n".join(f"- {self.transaction(t)}" for t in transactions)
+        return "\n".join(self.found(t) for t in transactions)
 
     def page_line(self, transaction: Transaction) -> str:
         assert transaction.amount is not None
@@ -147,6 +155,10 @@ class Facts:
 
     def meaning(self, transaction: Transaction) -> str:
         return self._word("response_meaning", MEANINGS[transaction.code or ""])
+
+    def reason(self, transaction: Transaction) -> str:
+        label = self._phrase("reason_label")
+        return f"- {label[0].upper()}{label[1:]}: {self.meaning(transaction)}"
 
     def as_of(self) -> str:
         return day(BUSINESS_DATE)

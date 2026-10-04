@@ -27,6 +27,12 @@ export const CONTRACTS: readonly Contract[] = [
   },
 ];
 
+// The words a reply states recorded values in, which the agent's code and the oracle read too.
+export const REPLY_WORDS = {
+  source: "reply-words.json",
+  words: resolve(here, "../src/contracts/words.ts"),
+};
+
 // A contract refers to another, or to the handoff schema, by its $id.
 async function schemasById(): Promise<Map<string, string>> {
   const folders = [contracts, resolve(source, "policy")];
@@ -67,8 +73,24 @@ export async function generate(contract: Contract): Promise<string> {
   });
 }
 
+export async function generateWords(): Promise<string> {
+  const parsed = JSON.parse(
+    await readFile(resolve(contracts, REPLY_WORDS.source), "utf8"),
+  ) as Record<string, unknown>;
+  const words = Object.fromEntries(
+    Object.entries(parsed).filter(([key]) => key !== "$comment"),
+  );
+  return [
+    `// Generated from src/banking_agent/contracts/${REPLY_WORDS.source} by pnpm contracts.`,
+    "",
+    `export const WORDS = ${JSON.stringify(words, null, 2)} as const;`,
+    "",
+  ].join("\n");
+}
+
 if (import.meta.main) {
   for (const contract of CONTRACTS) {
     await writeFile(contract.types, await generate(contract));
   }
+  await writeFile(REPLY_WORDS.words, await generateWords());
 }

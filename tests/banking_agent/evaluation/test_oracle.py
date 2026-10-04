@@ -113,6 +113,30 @@ def test_a_status_asks_which_card_then_answers_it(
     assert last["tools_forbidden"] == ["block_card", "file_handoff"]
 
 
+def test_a_message_that_doesnt_answer_which_card_gets_the_question_again(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    # POL-06, version 6: it counts toward no limit (POL-17), so the answer after it is still the first.
+    expected = play(
+        con,
+        case(
+            EXAMPLE_CUSTOMER,
+            "card_status-01",
+            answers={"aside": "aside-01", "card": "card_last_four-01"},
+            means={"product_id": "PRD-EXAMPLE00008"},
+        ),
+    )
+
+    assert path(expected) == [
+        ("message", [("card_status", "clarify")], "card"),
+        ("aside", [("card_status", "clarify")], "card"),
+        ("card", [("card_status", "answer")], "none"),
+    ]
+    first, again, _ = expected["turns"]
+    assert again["facts"] == first["facts"]
+    assert "POL-06" in again["decisions"][0]["rules"]
+
+
 @pytest.mark.parametrize(
     ("card_id", "outcome", "fact"),
     [
@@ -302,9 +326,9 @@ def test_a_decline_with_a_listed_code_is_explained(
     ]
     assert (
         turn["facts"]["{transaction}"]
-        == "12/06/2026 10:05, Electro Ejemplo, 920.000,00 COP"
+        == "- 12/06/2026 10:05, Electro Ejemplo, 920.000,00 COP"
     )
-    assert turn["facts"]["{transaction.meaning}"] == "fondos insuficientes (código 51)"
+    assert turn["facts"]["{transaction.meaning}"] == "- Motivo: fondos insuficientes"
 
 
 def test_a_decline_with_no_code_abstains(con: duckdb.DuckDBPyConnection) -> None:
@@ -448,7 +472,7 @@ def test_an_unrecognized_charge_from_yesterday_is_found_blocked_and_handed_off(
     )
 
     first, last = expected["turns"]
-    assert first["facts"]["{transaction}"].startswith("16/06/2026 19:20")
+    assert first["facts"]["{transaction}"].startswith("- 16/06/2026 19:20")
     assert last["handoff"] == {
         "reason_code": "unrecognized_charge",
         "trigger": "required",
@@ -463,7 +487,7 @@ def test_today_is_the_business_date_not_the_as_of_instants_day(
 ) -> None:
     [turn] = play(con, case("CLI-EVAL00000003", "decline_reason-07"))["turns"]
 
-    assert turn["facts"]["{transaction}"].startswith("17/06/2026 11:15")
+    assert turn["facts"]["{transaction}"].startswith("- 17/06/2026 11:15")
     assert turn["facts"]["{transaction.status}"] == "aprobada"
 
 

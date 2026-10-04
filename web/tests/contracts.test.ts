@@ -2,7 +2,12 @@ import { readFile } from "node:fs/promises";
 
 import { expect, test } from "vitest";
 
-import { CONTRACTS, generate } from "../scripts/contracts";
+import {
+  CONTRACTS,
+  generate,
+  generateWords,
+  REPLY_WORDS,
+} from "../scripts/contracts";
 
 test.each(CONTRACTS)(
   "the $name contract's types match it; run pnpm contracts if not",
@@ -12,3 +17,7 @@ test.each(CONTRACTS)(
     );
   },
 );
+
+test("the reply words match their contract; run pnpm contracts if not", async () => {
+  expect(await generateWords()).toBe(await readFile(REPLY_WORDS.words, "utf8"));
+});

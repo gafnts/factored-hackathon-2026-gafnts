@@ -82,6 +82,7 @@ def test_every_message_is_filled_and_development_only(
         ]
         assert not any(re.search(r"\{[a-z_]+\}", t) for t in texts), case["situation"]
         assert case["family_id"] not in HELD
+        assert case["phrasing"] == "development"
 
 
 def test_each_situation_takes_its_path(regression: generator.Drawn) -> None:
@@ -181,6 +182,79 @@ def test_a_situation_short_of_natural_customers_is_topped_up_with_built_ones(
         assert case["source"] == "built"
         assert taken(case) == natural.path
         assert listed(case) > oracle.PAGE
+
+
+def test_a_situation_whose_customers_run_out_shares_them_across_languages(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    situation = generator.BY_NAME["status.one_card"]
+    one = (
+        f"{situation.where} and customer_id = "
+        f"(select min(customer_id) from eval_summary where {situation.where})"
+    )
+    monkeypatch.setitem(
+        generator.BY_NAME, situation.name, replace(situation, where=one)
+    )
+    monkeypatch.setitem(generator.COMPOSITIONS, "spent", {situation.name: 1})
+    drawing = generator.Generator(
+        con, "development", LOADED, ANSWERS, HELD, contract_words()
+    )
+    drawn = drawing.draw("spent", 7)
+
+    assert drawn.short == []
+    assert [c["language"] for c in drawn.cases] == ["es", "pt"]
+    assert len({c["customer_id"] for c in drawn.cases}) == 1
+    assert generator.manifest("spent", 7, drawn, {})["shared"] == [
+        {"situation": situation.name, "language": "es", "cases": 1},
+        {"situation": situation.name, "language": "pt", "cases": 1},
+    ]
+
+
+def test_a_situation_with_customers_to_spare_shares_none(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    situation = generator.BY_NAME["status.one_card"]
+    monkeypatch.setitem(generator.COMPOSITIONS, "spare", {situation.name: 1})
+    drawing = generator.Generator(
+        con, "development", LOADED, ANSWERS, HELD, contract_words()
+    )
+    drawn = drawing.draw("spare", 7)
+
+    assert drawn.short == []
+    assert len({c["customer_id"] for c in drawn.cases}) == 2
+    assert generator.manifest("spare", 7, drawn, {})["shared"] == []
+
+
+def test_a_held_out_situation_no_held_out_family_fits_borrows_development_phrasing(
+    bank: Bank, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    situation = generator.BY_NAME["status.one_card"]
+    # As if the split had put every family of this shape on the development side.
+    held = frozenset(
+        h
+        for h in HELD
+        if not any(f.family_id == h and situation.fits(f) for f in LOADED)
+    )
+    monkeypatch.setitem(generator.COMPOSITIONS, "borrowed", {situation.name: 1})
+    with bronze.connect(bank.database, "held_out") as held_con:
+        drawing = generator.Generator(
+            held_con, "held_out", LOADED, ANSWERS, held, contract_words(), reuse=True
+        )
+        drawn = drawing.draw("borrowed", 7)
+    found = [c for c in drawn.cases if c["situation"] == situation.name]
+
+    assert [c["language"] for c in found] == ["es", "pt"]
+    assert drawn.short == []
+    for case in found:
+        assert case["side"] == "held_out"
+        assert case["phrasing"] == "development"
+        assert case["family_id"] not in held
+        answers = [a for a in case["script"]["answers"].values() if isinstance(a, dict)]
+        assert all(a["id"].split("/")[0] in held for a in answers)
+    assert generator.manifest("borrowed", 7, drawn, {})["borrowed"] == [
+        {"situation": situation.name, "language": "es", "cases": 1},
+        {"situation": situation.name, "language": "pt", "cases": 1},
+    ]
 
 
 def listed(case: dict[str, Any]) -> int:

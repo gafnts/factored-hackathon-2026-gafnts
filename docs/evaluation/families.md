@@ -15,7 +15,7 @@ One request, written in Spanish and in Portuguese: a seed in each language, then
 - its **slots**: `{last_four}`, `{merchant}`, `{amount}`, `{date}`, `{other_customer_id}`. The generator fills them from a case's customer, so no family holds an identifier or a value from the records (SEC-03);
 - which of its paraphrases aren't **clearly in one language** (`unclear`, by position in each language's list): a bare word both languages share, such as `bloquear`, `humano`, or `operador`. The scripted models say `unclear` for them, the oracle keeps the conversation's language for the turn they open (POL-50), and the live language check expects `unclear` from the model for them.
 
-`answers.json` holds what the customer says when the agent asks: which card, a reason, which listed transaction, that it doesn't know, and a typed yes (which never confirms a block, POL-36). Three phrasings per kind, in both languages.
+`answers.json` holds what the customer says when the agent asks: which card, a reason, which listed transaction, that it doesn't know, a message that doesn't answer (a greeting, thanks, or what else the chat does, POL-06), and a typed yes (which never confirms a block, POL-36). Three phrasings per kind, in both languages.
 
 108 families (12 per label and 12 in `none`) and 39 answers, 1,284 family messages in all.
 

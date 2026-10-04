@@ -436,6 +436,16 @@ SITUATIONS = [
         family=lambda f: _no_hints(f) and _plain_read(f),
     ),
     Situation(
+        "status.aside",
+        "clarify_or_decline",
+        ("card_status",),
+        f"{SERVED} and cards between 2 and 4",
+        any_card,
+        [("clarify", "card"), ("clarify", "card"), ("answer", "none")],
+        {"aside": "aside", "card": "card_last_four"},
+        family=lambda f: _no_hints(f) and _plain_read(f),
+    ),
+    Situation(
         "status.conflict_asked",
         "missing_data",
         ("card_status",),
@@ -542,6 +552,16 @@ SITUATIONS = [
         a_transaction(lambda t: t.status == "Declined", True),
         [("clarify", "transaction"), ("answer", "none")],
         {"transaction": "transaction_newest"},
+        family=lambda f: _plain_read(f) and _no_hints(f) and f.when is None,
+    ),
+    Situation(
+        "decline.aside",
+        "clarify_or_decline",
+        ("decline_reason",),
+        f"{SERVED} and cards = 1 and declined between 2 and 30",
+        a_transaction(lambda t: t.status == "Declined", True),
+        [("clarify", "transaction"), ("clarify", "transaction"), ("answer", "none")],
+        {"aside": "aside", "transaction": "transaction_newest"},
         family=lambda f: _plain_read(f) and _no_hints(f) and f.when is None,
     ),
     Situation(
@@ -852,12 +872,14 @@ COMPOSITIONS: dict[str, dict[str, int]] = {
     "regression": {
         "status.one_card": 1,
         "status.which_card": 1,
+        "status.aside": 1,
         "credit.available": 1,
         "credit.over_limit": 1,
         "transactions.page": 1,
         "transactions.next_page": 1,
         "decline.listed_code": 1,
         "decline.several": 1,
+        "decline.aside": 1,
         "block.reason_given": 1,
         "block.reason_asked": 1,
         "block.which_card": 1,
@@ -1020,6 +1042,7 @@ class Generator:
         self.words = words
         self.reuse = reuse
         self.used: set[str] = set()
+        self.served: dict[tuple[str, str], set[str]] = {}
         summarize(con)
 
     def draw(
@@ -1079,6 +1102,7 @@ class Generator:
                     "case_id": cases.case_id(set_name, seed, offset + len(made)),
                     "set": set_name,
                     "side": self.side,
+                    "phrasing": self.side,
                     "group": "unauthorized_access",
                     "situation": name,
                     "source": "harness",
@@ -1146,6 +1170,7 @@ class Generator:
                     "case_id": cases.case_id(set_name, seed, offset + len(made)),
                     "set": set_name,
                     "side": self.side,
+                    "phrasing": self.side,
                     "group": "expired_sessions",
                     "situation": name,
                     "source": "harness",
@@ -1198,6 +1223,19 @@ class Generator:
                 seed,
                 offset + len(made),
             )
+        if len(made) < wanted:
+            # The pool is spent (ADR-0005, Customers): a customer the situation took in its other language
+            # serves it once more, in this one.
+            made += self._drawn(
+                situation,
+                language,
+                wanted - len(made),
+                rng,
+                set_name,
+                seed,
+                offset + len(made),
+                share=True,
+            )
         return made
 
     def _drawn(
@@ -1209,8 +1247,19 @@ class Generator:
         set_name: str,
         seed: int,
         offset: int,
+        share: bool = False,
     ) -> list[dict[str, Any]]:
         fitting = [f for f in self.families if situation.fits(f) and _said(f, language)]
+        phrasing = self.side
+        if not fitting and self.side == "held_out":
+            # The split takes hashes, not shapes (ADR-0005, The split): a shape with no held-out family
+            # borrows development phrasing, and the case says so.
+            fitting = [
+                f
+                for f in self._development()
+                if situation.fits(f) and _said(f, language)
+            ]
+            phrasing = "development"
         if not fitting:
             return []
         made: list[dict[str, Any]] = []
@@ -1219,7 +1268,11 @@ class Generator:
         ):
             if len(made) == wanted:
                 break
-            if customer_id in self.used and not self.reuse:
+            if (
+                customer_id in self.used
+                and not self.reuse
+                and not (share and self._shared(situation, language, customer_id))
+            ):
                 continue
             customer = state.read(self.con, customer_id)
             if customer is None:
@@ -1229,13 +1282,35 @@ class Generator:
             for n in range(len(fitting)):
                 family = fitting[(start + n) % len(fitting)]
                 case = self._case(
-                    situation, customer, family, language, rng, set_name, seed, start
+                    situation,
+                    customer,
+                    family,
+                    language,
+                    rng,
+                    set_name,
+                    seed,
+                    start,
+                    phrasing,
                 )
                 if case is not None:
                     made.append(case)
                     self.used.add(customer_id)
+                    self.served.setdefault((situation.name, language), set()).add(
+                        customer_id
+                    )
                     break
         return made
+
+    def _shared(self, situation: Situation, language: str, customer_id: str) -> bool:
+        """
+        Whether the situation took the customer in another language and not yet in this one.
+        """
+        taken = {
+            lang
+            for (name, lang), ids in self.served.items()
+            if name == situation.name and customer_id in ids
+        }
+        return bool(taken) and language not in taken
 
     def _case(
         self,
@@ -1247,6 +1322,7 @@ class Generator:
         set_name: str,
         seed: int,
         draw: int,
+        phrasing: str,
     ) -> dict[str, Any] | None:
         pick = situation.pick(customer, family, rng)
         if pick is None:
@@ -1283,7 +1359,9 @@ class Generator:
         messages = []
         for family_id in (family.family_id, *situation.then):
             source = (
-                family if family_id == family.family_id else self._family(family_id)
+                family
+                if family_id == family.family_id
+                else self._family(family_id, phrasing)
             )
             message = rng.choice(_said(source, language))
             messages.append({"id": message.id, "text": _fill(message.text, values)})
@@ -1314,6 +1392,7 @@ class Generator:
             "case_id": cases.case_id(set_name, seed, draw),
             "set": set_name,
             "side": self.side,
+            "phrasing": phrasing,
             "group": situation.group,
             "situation": situation.name,
             "source": "built" if pick.fixtures else "harness" if faults else "natural",
@@ -1353,8 +1432,12 @@ class Generator:
             )
         return case
 
-    def _family(self, family_id: str) -> Family:
-        return next(f for f in self.families if f.family_id == family_id)
+    def _family(self, family_id: str, phrasing: str) -> Family:
+        pool = self.families if phrasing == self.side else self._development()
+        return next(f for f in pool if f.family_id == family_id)
+
+    def _development(self) -> list[Family]:
+        return [f for f in self.all_families if f.family_id not in self.held]
 
 
 def digest(case: Mapping[str, Any]) -> str:
@@ -1373,6 +1456,16 @@ def manifest(
     What a set's committed copy holds: opaque case IDs, hashes, and counts, never a customer or a record's value.
     """
     by = Counter((c["group"], c["situation"], c["language"]) for c in drawn.cases)
+    languages: dict[tuple[str, str], set[str]] = {}
+    for c in drawn.cases:
+        languages.setdefault((c["situation"], c["customer_id"]), set()).add(
+            c["language"]
+        )
+    shared = Counter(
+        (c["situation"], c["language"])
+        for c in drawn.cases
+        if len(languages[(c["situation"], c["customer_id"])]) > 1
+    )
     return {
         "set": set_name,
         "seed": seed,
@@ -1386,6 +1479,20 @@ def manifest(
             for (g, s, lang), n in sorted(by.items())
         ],
         "short": drawn.short,
+        "borrowed": [
+            {"situation": s, "language": lang, "cases": n}
+            for (s, lang), n in sorted(
+                Counter(
+                    (c["situation"], c["language"])
+                    for c in drawn.cases
+                    if c["phrasing"] != c["side"]
+                ).items()
+            )
+        ],
+        "shared": [
+            {"situation": s, "language": lang, "cases": n}
+            for (s, lang), n in sorted(shared.items())
+        ],
         "case_ids": [
             {"case_id": c["case_id"], "sha256": digest(c)} for c in drawn.cases
         ],

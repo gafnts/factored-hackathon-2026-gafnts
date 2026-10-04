@@ -15,7 +15,11 @@
     },
     "set": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
     "side": {
-      "description": "A held_out case's customer, family, and answers are all held out; a development case's are all development (DML-09).",
+      "description": "A held_out case's customer and answers are held out, and its messages too unless phrasing says otherwise; a development case is development throughout (DML-09).",
+      "enum": ["development", "held_out"]
+    },
+    "phrasing": {
+      "description": "The side the case's messages come from: its own, or development for a held_out situation that no held-out family fits (ADR-0005, The split). Absent means its own.",
       "enum": ["development", "held_out"]
     },
     "group": {
@@ -86,6 +90,10 @@
             "reason": { "$ref": "#/$defs/text" },
             "transaction": { "$ref": "#/$defs/text" },
             "dont_know": { "$ref": "#/$defs/text" },
+            "aside": {
+              "description": "Sent once when the agent asks for a detail, before the answer, and answers nothing (POL-06).",
+              "$ref": "#/$defs/text"
+            },
             "typed_yes": {
               "description": "Typed when the confirm control shows, in place of pressing it (POL-36).",
               "$ref": "#/$defs/text"
@@ -178,7 +186,7 @@
       "properties": {
         "sends": {
           "description": "What the customer sends this turn: the script's next message, an answer, or a control press.",
-          "enum": ["message", "card", "reason", "transaction", "dont_know", "typed_yes", "confirm", "cancel", "accept", "decline"]
+          "enum": ["message", "card", "reason", "transaction", "dont_know", "aside", "typed_yes", "confirm", "cancel", "accept", "decline"]
         },
         "decisions": {
           "description": "One per request served, in POL-05's order; the scripted customer reacts to the last.",
