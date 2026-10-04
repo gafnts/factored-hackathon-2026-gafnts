@@ -1,6 +1,7 @@
 import type { Language } from "../contracts/chat";
 import { WORDS } from "../contracts/words";
 import {
+  AMOUNT,
   anyOf,
   capitalized,
   escaped,
@@ -30,7 +31,6 @@ export interface Statement {
 }
 
 const MOMENT = "[0-9]{2}/[0-9]{2}/[0-9]{4} [0-9]{2}:[0-9]{2}";
-const AMOUNT = "-?[0-9][0-9.,]* [A-Z]{3}";
 const SEPARATOR = " · ";
 // The words the agent's code writes in place of a merchant's name, which take a capital as a title.
 const WORDED = new Set<string>([

@@ -3,6 +3,7 @@ import Markdown, { type ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { Cards, cardsIn } from "./cards";
+import { Credits, creditsIn } from "./credits";
 import { Transactions, transactionsIn } from "./transactions";
 
 // ADR-0007: no raw HTML, no images, and links as plain text, so an injected reply can't make the browser fetch
@@ -46,11 +47,13 @@ function ScrollingTable({ children }: { children?: ReactNode }) {
   );
 }
 
-// The cards and the transactions the agent's code lists, drawn as frames, and any other list as it came; the reply's
-// text, which the record keeps and the oracle reads, is the same either way.
+// The cards, their credit, and the transactions the agent's code lists, drawn as frames, and any other list as it came;
+// the reply's text, which the record keeps and the oracle reads, is the same either way.
 function List({ node, children, ...props }: ComponentProps<"ul"> & ExtraProps) {
   const cards = cardsIn(node);
   if (cards) return <Cards cards={cards} />;
+  const credits = creditsIn(node);
+  if (credits) return <Credits credits={credits} />;
   const statement = transactionsIn(node);
   if (statement) return <Transactions {...statement} />;
   return <ul {...props}>{children}</ul>;

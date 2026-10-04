@@ -6,6 +6,10 @@ export type Node = NonNullable<ExtraProps["node"]>;
 
 export const LANGUAGES: readonly Language[] = ["es", "pt"];
 
+// An amount as the agent's code writes it (formats.amount): grouped as the customer's country writes numbers, then the
+// card's ISO code.
+export const AMOUNT = "-?[0-9][0-9.,]* [A-Z]{3}";
+
 // A pattern's groups, an unmatched one undefined.
 export type Found = (string | undefined)[];
 

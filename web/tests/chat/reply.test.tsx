@@ -304,6 +304,82 @@ test.each([
   expect(container.querySelector("ul")).toBeInTheDocument();
 });
 
+// Several cards' credit as the agent's code writes it (formats.credit_line, pinned in
+// tests/banking_agent/agent/test_formats.py).
+const CREDITS = {
+  es: [
+    "Al 17/06/2026, este es el crédito disponible de sus tarjetas:",
+    "",
+    "- Tarjeta de crédito terminada en 2054: 155.687.085,19 COP",
+    "- Tarjeta de crédito terminada en 6223: sin crédito disponible; supera el límite en 150,40 USD",
+  ].join("\n"),
+  pt: [
+    "Em 17/06/2026, este é o crédito disponível dos seus cartões:",
+    "",
+    "- Cartão de crédito final 2054: 155.687.085,19 COP",
+    "- Cartão de crédito final 6223: sem crédito disponível; ultrapassa o limite em 150,40 USD",
+  ].join("\n"),
+};
+
+function credits(container: HTMLElement): (string | null)[][] {
+  return [...container.querySelectorAll("[data-credits] > li")].map((row) =>
+    [...row.querySelectorAll("p")].map((line) => line.textContent),
+  );
+}
+
+test.each([
+  {
+    language: "es" as const,
+    expected: [
+      ["Tarjeta de crédito terminada en 2054", "155.687.085,19 COP"],
+      [
+        "Tarjeta de crédito terminada en 6223",
+        "Supera el límite en 150,40 USD",
+        "Sin crédito disponible",
+      ],
+    ],
+  },
+  {
+    language: "pt" as const,
+    expected: [
+      ["Cartão de crédito final 2054", "155.687.085,19 COP"],
+      [
+        "Cartão de crédito final 6223",
+        "Ultrapassa o limite em 150,40 USD",
+        "Sem crédito disponível",
+      ],
+    ],
+  },
+])(
+  "draws several cards' credit in one frame, after its sentence ($language)",
+  ({ language, expected }) => {
+    const { container } = render(<Reply text={CREDITS[language]} />);
+
+    expect(credits(container)).toEqual(expected);
+    expect(
+      container.querySelector("[data-credits]")?.previousElementSibling,
+    ).toHaveTextContent(CREDITS[language].split("\n")[0] ?? "");
+    expect(screen.getByText(expected[1]?.[2] ?? "")).toHaveClass("text-port");
+  },
+);
+
+test.each([
+  ["a line that isn't a card's credit", `${CREDITS.es}\n- Algo más`],
+  [
+    "a card's credit in the other language",
+    `${CREDITS.es}\n- Cartão de crédito final 3843: 120,00 USD`,
+  ],
+  [
+    "a figure in words",
+    `${CREDITS.es}\n- Tarjeta de crédito terminada en 3843: mucho crédito`,
+  ],
+])("keeps a list as a list when it holds %s", (_, text) => {
+  const { container } = render(<Reply text={text} />);
+
+  expect(container.querySelector("[data-credits]")).toBeNull();
+  expect(container.querySelector("ul")).toBeInTheDocument();
+});
+
 // Green for a status that is well, red for one that stops, and the rest muted, always beside the word.
 test.each([
   {
