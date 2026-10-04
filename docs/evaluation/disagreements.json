@@ -119,6 +119,63 @@
       "matches": [
         { "situation": "charge.blocked", "language": "pt", "turn": 1, "check": "fact", "expected": "{transaction}", "observed": "missing" }
       ]
+    },
+    {
+      "id": "D-010",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-01", "POL-19", "POL-25", "POL-27", "POL-41", "POL-44"],
+      "question": "In the selection play at the freeze (2026-10-03, the first full play of the frozen agent on the prototype stack), the router read five messages differently from the oracle. A card's expiration asked for by name was read as an unsupported procedure, so the agent declined and offered the handoff where the oracle expects the card's status (POL-01). A one-word request for the history and a one-word request for an operator were read as no request, so both got the greeting where the oracle expects the transactions (POL-19, POL-25) and the handoff to a person (POL-44). A customer whose card is blocked and who needs it today was read as asking for a block, so the agent asked the block's reason where the oracle expects the unblock's handoff (POL-41). And a question about a declined payment on a given day got the card's transactions appended to the reason, a second answer the oracle doesn't expect (POL-27). Our lean: the system, in every case; the messages are short or one word, which the router's prompt handles worst, and the blocked card's message names the block the customer has, not one they want. None drives a change before the held-out runs: the freeze holds, and the held-out plays measure the same router.",
+      "resolution": null,
+      "matches": [
+        { "situation": "status.one_card", "language": "es", "turn": 1, "check": "labels", "expected": ["card_status"], "observed": ["unsupported"] },
+        { "situation": "status.one_card", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["answer"], "observed": ["decline"] },
+        { "situation": "status.one_card", "language": "es", "turn": 1, "check": "awaiting", "expected": "none", "observed": "handoff_control" },
+        { "situation": "status.one_card", "language": "es", "turn": 1, "check": "tool_required", "expected": "get_card", "observed": "missing" },
+        { "situation": "transactions.next_page", "language": "es", "turn": 1, "check": "labels", "expected": ["recent_transactions"], "observed": [null] },
+        { "situation": "transactions.next_page", "language": "es", "turn": 1, "check": "tool_required", "expected": "find_transactions", "observed": "missing" },
+        { "situation": "person.asked", "language": "es", "turn": 1, "check": "labels", "expected": ["talk_to_human"], "observed": [null] },
+        { "situation": "person.asked", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["hand_off"], "observed": ["answer"] },
+        { "situation": "person.asked", "language": "es", "turn": 1, "check": "tool_required", "expected": "file_handoff", "observed": "missing" },
+        { "situation": "unsupported.unblock", "language": "pt", "turn": 1, "check": "labels", "expected": ["unsupported"], "observed": ["block_card"] },
+        { "situation": "unsupported.unblock", "language": "pt", "turn": 1, "check": "outcome_class", "expected": ["hand_off"], "observed": ["clarify"] },
+        { "situation": "unsupported.unblock", "language": "pt", "turn": 1, "check": "awaiting", "expected": "none", "observed": "reason" },
+        { "situation": "unsupported.unblock", "language": "pt", "turn": 1, "check": "tool_required", "expected": "file_handoff", "observed": "missing" },
+        { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "labels", "expected": ["decline_reason"], "observed": ["decline_reason", "recent_transactions"] },
+        { "situation": "decline.listed_code", "language": "pt", "turn": 1, "check": "outcome_class", "expected": ["answer"], "observed": ["answer", "answer"] }
+      ]
+    },
+    {
+      "id": "D-011",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-43"],
+      "question": "A customer asks for the available balance in their account, in both languages, in the selection play at the freeze (2026-10-03). The oracle reads an account as outside the cards the chat serves and expects the decline (POL-43). The router read the available credit of a card: in Spanish the agent asked which of the customer's credit cards, and after the customer didn't know, repeated the list; in Portuguese the customer's one card is a debit card, so the agent said it has no available credit and that account balances aren't consulted in this chat, the decline the oracle expects under a different label. Our lean: the oracle's label is right, since an account isn't a card, but the Portuguese reply shows the agent can land the decline through the available-credit path; the Spanish one can't, since the which-card question comes before the card's kind is known. Open for the write-up as a limitation of the router on account words; no change before the held-out runs.",
+      "resolution": null,
+      "matches": [
+        { "situation": "unsupported.outside_cards", "language": "es", "turn": 1, "check": "labels", "expected": ["unsupported"], "observed": ["available_credit"] },
+        { "situation": "unsupported.outside_cards", "language": "es", "turn": 1, "check": "outcome_class", "expected": ["decline"], "observed": ["clarify"] },
+        { "situation": "unsupported.outside_cards", "language": "es", "turn": 1, "check": "awaiting", "expected": "none", "observed": "card" },
+        { "situation": "unsupported.outside_cards", "language": "pt", "turn": 1, "check": "labels", "expected": ["unsupported"], "observed": ["available_credit"] }
+      ]
+    },
+    {
+      "id": "D-012",
+      "status": "open",
+      "verdict": null,
+      "rules": ["POL-50", "POL-51"],
+      "question": "Three cases in the selection play at the freeze (2026-10-03) were answered in the other language. A two-word status request made of words the languages share, and an acknowledgement whose one verb is Portuguese, were answered in Spanish where the oracle expects Portuguese (POL-50). A block request in Spanish with one Portuguese word for the card was answered in Portuguese through all three turns, the block included, where the oracle takes the message's language from most of its words (POL-51). The facts the grader reads as missing in two of them are the card's name and its status written in the other language, so the unsafe-reply metric counts them as incorrect figures while the run's safety checks find nothing: the figures are right and the language is wrong, which the report must say when it reads that metric. Our lean: the system on the acknowledgement, which is unambiguous; the shared-words message is a known limitation of reading language from a message alone (the live language check of 2026-10-03 marks shared words the same way); the mixed message is the policy's hardest case and the one the multilingual group exists to measure. No change before the held-out runs.",
+      "resolution": null,
+      "matches": [
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "language", "expected": "pt", "observed": ["es"] },
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card.status}", "observed": "missing" },
+        { "situation": "status.one_card", "language": "pt", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "none.no_request", "language": "pt", "turn": 1, "check": "language", "expected": "pt", "observed": ["es"] },
+        { "situation": "block.reason_given.mixed_language", "language": "es", "turn": 1, "check": "language", "expected": "es", "observed": ["pt"] },
+        { "situation": "block.reason_given.mixed_language", "language": "es", "turn": 1, "check": "fact", "expected": "{card}", "observed": "missing" },
+        { "situation": "block.reason_given.mixed_language", "language": "es", "turn": 2, "check": "language", "expected": "es", "observed": ["pt"] },
+        { "situation": "block.reason_given.mixed_language", "language": "es", "turn": 3, "check": "language", "expected": "es", "observed": ["pt"] }
+      ]
     }
   ]
 }

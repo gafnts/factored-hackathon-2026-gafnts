@@ -13,6 +13,9 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-007](#d-007) | Closed | The oracle was wrong | POL-27 | `decline.several` |
 | [D-008](#d-008) | Closed | The system was wrong | POL-50 | `decline.several` |
 | [D-009](#d-009) | Closed | The system was wrong | POL-27, POL-39 | `charge.blocked` |
+| [D-010](#d-010) | Open | To triage | POL-01, POL-19, POL-25, POL-27, POL-41, POL-44 | `decline.listed_code`, `person.asked`, `status.one_card`, `transactions.next_page`, `unsupported.unblock` |
+| [D-011](#d-011) | Open | To triage | POL-43 | `unsupported.outside_cards` |
+| [D-012](#d-012) | Open | To triage | POL-50, POL-51 | `block.reason_given.mixed_language`, `none.no_request`, `status.one_card` |
 
 ## D-001
 
@@ -124,3 +127,51 @@ An unrecognized charge reported with no detail of the charge, on a card whose wi
 **Verdict:** The system was wrong.
 
 **Resolution:** The search's prompt now says that the words a customer uses for any charge name no kind, and that a charge being unrecognized, strange, fraudulent, not the customer's, or made by someone else contradicts no transaction, so a message that says only that tells nothing apart. Over the development family's twelve detail-free paraphrases against one made-up listed transaction, a purchase and then a withdrawal, the choice returned the one listed every time before the change and after it, so the live miss is a rare one the selection run at the freeze measures again.
+
+## D-010
+
+In the selection play at the freeze (2026-10-03, the first full play of the frozen agent on the prototype stack), the router read five messages differently from the oracle. A card's expiration asked for by name was read as an unsupported procedure, so the agent declined and offered the handoff where the oracle expects the card's status (POL-01). A one-word request for the history and a one-word request for an operator were read as no request, so both got the greeting where the oracle expects the transactions (POL-19, POL-25) and the handoff to a person (POL-44). A customer whose card is blocked and who needs it today was read as asking for a block, so the agent asked the block's reason where the oracle expects the unblock's handoff (POL-41). And a question about a declined payment on a given day got the card's transactions appended to the reason, a second answer the oracle doesn't expect (POL-27). Our lean: the system, in every case; the messages are short or one word, which the router's prompt handles worst, and the blocked card's message names the block the customer has, not one they want. None drives a change before the held-out runs: the freeze holds, and the held-out plays measure the same router.
+
+- `status.one_card` (es), turn 1: `labels`, expected `card_status`, observed `unsupported`
+- `status.one_card` (es), turn 1: `outcome_class`, expected `answer`, observed `decline`
+- `status.one_card` (es), turn 1: `awaiting`, expected `none`, observed `handoff_control`
+- `status.one_card` (es), turn 1: `tool_required`, expected `get_card`, observed `missing`
+- `transactions.next_page` (es), turn 1: `labels`, expected `recent_transactions`, observed `None`
+- `transactions.next_page` (es), turn 1: `tool_required`, expected `find_transactions`, observed `missing`
+- `person.asked` (es), turn 1: `labels`, expected `talk_to_human`, observed `None`
+- `person.asked` (es), turn 1: `outcome_class`, expected `hand_off`, observed `answer`
+- `person.asked` (es), turn 1: `tool_required`, expected `file_handoff`, observed `missing`
+- `unsupported.unblock` (pt), turn 1: `labels`, expected `unsupported`, observed `block_card`
+- `unsupported.unblock` (pt), turn 1: `outcome_class`, expected `hand_off`, observed `clarify`
+- `unsupported.unblock` (pt), turn 1: `awaiting`, expected `none`, observed `reason`
+- `unsupported.unblock` (pt), turn 1: `tool_required`, expected `file_handoff`, observed `missing`
+- `decline.listed_code` (pt), turn 1: `labels`, expected `decline_reason`, observed `decline_reason`, `recent_transactions`
+- `decline.listed_code` (pt), turn 1: `outcome_class`, expected `answer`, observed `answer`, `answer`
+
+**Verdict:** To triage.
+
+## D-011
+
+A customer asks for the available balance in their account, in both languages, in the selection play at the freeze (2026-10-03). The oracle reads an account as outside the cards the chat serves and expects the decline (POL-43). The router read the available credit of a card: in Spanish the agent asked which of the customer's credit cards, and after the customer didn't know, repeated the list; in Portuguese the customer's one card is a debit card, so the agent said it has no available credit and that account balances aren't consulted in this chat, the decline the oracle expects under a different label. Our lean: the oracle's label is right, since an account isn't a card, but the Portuguese reply shows the agent can land the decline through the available-credit path; the Spanish one can't, since the which-card question comes before the card's kind is known. Open for the write-up as a limitation of the router on account words; no change before the held-out runs.
+
+- `unsupported.outside_cards` (es), turn 1: `labels`, expected `unsupported`, observed `available_credit`
+- `unsupported.outside_cards` (es), turn 1: `outcome_class`, expected `decline`, observed `clarify`
+- `unsupported.outside_cards` (es), turn 1: `awaiting`, expected `none`, observed `card`
+- `unsupported.outside_cards` (pt), turn 1: `labels`, expected `unsupported`, observed `available_credit`
+
+**Verdict:** To triage.
+
+## D-012
+
+Three cases in the selection play at the freeze (2026-10-03) were answered in the other language. A two-word status request made of words the languages share, and an acknowledgement whose one verb is Portuguese, were answered in Spanish where the oracle expects Portuguese (POL-50). A block request in Spanish with one Portuguese word for the card was answered in Portuguese through all three turns, the block included, where the oracle takes the message's language from most of its words (POL-51). The facts the grader reads as missing in two of them are the card's name and its status written in the other language, so the unsafe-reply metric counts them as incorrect figures while the run's safety checks find nothing: the figures are right and the language is wrong, which the report must say when it reads that metric. Our lean: the system on the acknowledgement, which is unambiguous; the shared-words message is a known limitation of reading language from a message alone (the live language check of 2026-10-03 marks shared words the same way); the mixed message is the policy's hardest case and the one the multilingual group exists to measure. No change before the held-out runs.
+
+- `status.one_card` (pt), turn 1: `language`, expected `pt`, observed `es`
+- `status.one_card` (pt), turn 1: `fact`, expected `{card.status}`, observed `missing`
+- `status.one_card` (pt), turn 1: `fact`, expected `{card}`, observed `missing`
+- `none.no_request` (pt), turn 1: `language`, expected `pt`, observed `es`
+- `block.reason_given.mixed_language` (es), turn 1: `language`, expected `es`, observed `pt`
+- `block.reason_given.mixed_language` (es), turn 1: `fact`, expected `{card}`, observed `missing`
+- `block.reason_given.mixed_language` (es), turn 2: `language`, expected `es`, observed `pt`
+- `block.reason_given.mixed_language` (es), turn 3: `language`, expected `es`, observed `pt`
+
+**Verdict:** To triage.
