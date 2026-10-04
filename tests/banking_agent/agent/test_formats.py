@@ -205,6 +205,18 @@ def test_every_fixed_reply_fills_in_both_languages(name: str, language: str) -> 
     )
 
 
+@pytest.mark.parametrize("name", ["no_request", "greeting", "capabilities"])
+@pytest.mark.parametrize("language", ["es", "pt"])
+def test_small_talk_before_a_question_asked_again_drops_its_own_question(
+    name: str, language: str
+) -> None:
+    aside = FIXED[f"{name}_aside"][language]
+
+    assert FIXED[name][language].startswith(aside)
+    assert aside.endswith(".")
+    assert "?" not in aside
+
+
 def test_a_page_fills_the_transactions_placeholder_with_full_lines() -> None:
     page = values("es", {"page": [PURCHASE], "country": "Colombia"})["transactions"]
 

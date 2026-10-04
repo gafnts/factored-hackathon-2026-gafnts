@@ -340,6 +340,14 @@ FIXED: dict[str, dict[str, str]] = {
 
 # A reply that failed the check is replaced by the unavailable text, under its own name.
 FIXED["reply_fallback"] = FIXED["unavailable"]
+# POL-06: a message that doesn't answer the agent's question gets its reply without the reply's own closing question,
+# since the agent's question follows it.
+CLOSING = {"es": " ¿En qué le puedo ayudar?", "pt": " Como posso ajudar?"}
+for _name in ("no_request", "greeting", "capabilities"):
+    FIXED[f"{_name}_aside"] = {
+        language: text.removesuffix(CLOSING[language])
+        for language, text in FIXED[_name].items()
+    }
 
 LANGUAGE_NAMES = {
     "es": "Spanish, addressing the customer as “usted”",

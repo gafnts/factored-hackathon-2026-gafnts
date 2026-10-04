@@ -252,7 +252,11 @@ def test_a_message_that_doesnt_answer_which_charge_gets_its_reply_and_the_questi
         "Em que mais você pode me ajudar?", requests=[], question="unanswered"
     )
 
-    assert reply(aside) == "\n\n".join([FIXED["capabilities"]["pt"], reply(asked)])
+    # One question: the capabilities without their own closing one, then the question asked.
+    assert reply(aside) == "\n\n".join(
+        [FIXED["capabilities_aside"]["pt"], reply(asked)]
+    )
+    assert reply(aside).count("?") == reply(asked).count("?")
     decision = chat.decision()
     assert (decision["outcome_class"], decision["awaiting"]) == (
         "clarify",

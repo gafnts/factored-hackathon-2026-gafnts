@@ -1222,7 +1222,9 @@ async def aside(state: State) -> dict[str, Any]:
             **turn,
             "case": "fixed",
             "say": [
-                *said((small_talk({**state, "no_request": routed.kind}), {})),
+                *said(
+                    (asked_again(small_talk({**state, "no_request": routed.kind})), {})
+                ),
                 asked["asked"],
             ],
             "decision": {**decision, "rules": [*decision["rules"], "POL-06"]},
@@ -2551,6 +2553,13 @@ def small_talk(state: State) -> str:
     if kind == "about" or not introduced:
         return "no_request"
     return "greeting" if kind == "greeting" else "capabilities"
+
+
+def asked_again(name: str) -> str:
+    """
+    The small talk before a question asked again, without the closing question its fixed text ends in (POL-06).
+    """
+    return f"{name}_aside" if f"{name}_aside" in FIXED else name
 
 
 def decision(state: State, case: str) -> dict[str, Any]:
