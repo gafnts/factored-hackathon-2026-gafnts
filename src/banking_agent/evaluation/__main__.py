@@ -200,6 +200,10 @@ def check_language(
     print(f"block reasons: {reasons['read']} of {reasons['items']} read as expected")
     for miss in reasons["misses"]:
         print(f"  {miss['id']}: expected {miss['expected']}, said {miss['said']}")
+    placed = found["cards_by_place"]
+    print(f"cards by place: {placed['read']} of {placed['items']} read as expected")
+    for miss in placed["misses"]:
+        print(f"  {miss['id']}: expected {miss['expected']}, said {miss['said']}")
     if only:
         print(
             f"{len(found['misses'])} misses over {found['items']} items; {found['cost_usd']:.4f} USD; not kept"

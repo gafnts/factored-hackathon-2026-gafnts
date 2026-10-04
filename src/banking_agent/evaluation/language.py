@@ -129,7 +129,7 @@ def development_items(
     only: Iterable[str] = (),
 ) -> list[Item]:
     """
-    only narrows the check to the families named, for a look at a prompt change before a whole run.
+    only narrows the check to the families and answers named, for a look at a prompt change before a whole run.
     """
     wanted = set(only)
     items = []
@@ -157,7 +157,7 @@ def development_items(
                     )
                 )
     for answer in answers:
-        if answer.answer_id in held or wanted:
+        if answer.answer_id in held or (wanted and answer.answer_id not in wanted):
             continue
         call, context = CALLS[answer.kind]
         placed = PLACED if answer.kind == "card_position" else None

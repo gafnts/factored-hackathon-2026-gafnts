@@ -104,6 +104,8 @@ def test_the_items_are_the_development_side_filled_and_labeled() -> None:
     )
     some = language.development_items(LOADED, ANSWERS, HELD, only=[third.family_id])
     assert {i.id.split("/")[0] for i in some} == {third.family_id}
+    told = language.development_items(LOADED, ANSWERS, HELD, only=[answer.answer_id])
+    assert {i.id for i in told} == {f"{answer.answer_id}/es", f"{answer.answer_id}/pt"}
 
 
 def test_block_requests_and_reason_answers_also_read_the_reason() -> None:
