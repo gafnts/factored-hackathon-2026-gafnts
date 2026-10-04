@@ -7,7 +7,7 @@ What we decided about Faro, why, and the evidence behind it. Every document cite
 | [adr/](adr/README.md) | The architecture decision records and their index |
 | [analysis/](analysis/) | The profiling, traffic, workflow selection, and card support reports, with their JSON and figures, from `make analysis` |
 | [architecture.md](architecture.md) | The system on one page: what runs where, a turn, the graph, where each rule holds, the data, and the evaluation |
-| [evaluation/](evaluation/) | The request [families](evaluation/families.md), the [disagreement log](evaluation/disagreements.md), the [run index](evaluation/runs.md), and the manifests of the sets and the reported runs |
+| [evaluation/](evaluation/) | The [report](evaluation/report.md), the [results](evaluation/results.md), the [limitations](evaluation/limitations.md), the request [families](evaluation/families.md), the [disagreement log](evaluation/disagreements.md), the [run index](evaluation/runs.md), and the manifests of the sets and the reported runs |
 | [images/](images/) | The README's banner, screenshot, and diagrams |
 | [pipeline/](pipeline/) | The manifest of each gold export, from `make export`: the stamp, the clock, rows per model, content hashes, and every check's result ([the pipeline](../pipeline/README.md)) |
 | [policy/](policy/) | The [card support policy](policy/card-support.md) we wrote for the synthetic bank: what Faro answers, does, and refuses, one ID per rule |
@@ -22,5 +22,5 @@ What we decided about Faro, why, and the evidence behind it. Every document cite
 3. [The policy](policy/card-support.md): the rules Faro follows.
 4. [The architecture](architecture.md): the whole system on one page.
 5. [ADR-0004](adr/0004-agent-architecture-on-agentcore.md): what runs where, and what enforces each rule.
-6. [ADR-0005](adr/0005-offline-scenario-evaluation.md): how we know it works.
+6. [ADR-0005](adr/0005-offline-scenario-evaluation.md): how we know it works; the [report](evaluation/report.md) and the [limitations](evaluation/limitations.md): what we found.
 7. [ADR-0006](adr/0006-batch-medallion-pipeline.md) and [ADR-0007](adr/0007-role-gated-web-app.md): the data pipeline and the web app.
