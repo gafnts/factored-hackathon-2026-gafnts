@@ -167,6 +167,7 @@ SHAPES = {
     ),
 }
 MORE = "The chat's last reply listed a page of a card's recent transactions and said the customer can ask for the next 10."
+EARLIER = "Earlier in the conversation, the chat listed these cards, in this order:"
 
 
 class ChatState(TypedDict):
@@ -203,6 +204,8 @@ class State(ChatState, total=False):
     text: str | None
     paging: dict[str, Any] | None
     recent: str | None
+    # The cards the chat last listed, in their order, so a later message can name one by its place (POL-13).
+    shown_cards: list[str] | None
     parts: list[str]
     names: list[str]
     no_request: str | None
@@ -570,15 +573,26 @@ ASKS = {
 }
 
 
+def cards_named(cards: list[dict[str, Any]], ids: list[str]) -> str:
+    """
+    The cards the IDs name, in the IDs' order, as the chat listed them.
+    """
+    by_id = {c["card_id"]: c for c in cards}
+    return "\n".join(
+        f"- {'credit' if c['product_type'] == TYPES['credit'] else 'debit'} card ending in {c['last_four']}"
+        for c in (by_id[i] for i in ids if i in by_id)
+    )
+
+
 def extraction_context(
     state: State, asking: dict[str, Any], cards: list[dict[str, Any]], label: str
 ) -> str:
+    """
+    What the extraction reads beside the message: the question it answers, if any, or the request with the cards the
+    chat last listed, so a card named by its place in that list ("la segunda") is the one at that place (POL-13).
+    """
     if asking.get("detail") == "card":
-        listed = "\n".join(
-            f"- {'credit' if c['product_type'] == TYPES['credit'] else 'debit'} card ending in {c['last_four']}"
-            for c in cards
-            if c["card_id"] in asking["candidates"]
-        )
+        listed = cards_named(cards, asking["candidates"])
         return f"The customer is answering which of these cards they mean:\n{listed}"
     if asking.get("detail") == "reason":
         return "The customer is answering why they want to block the card."
@@ -589,8 +603,11 @@ def extraction_context(
             f"{moment(shown['from'])} to {moment(shown['to'])}."
         )
         more = paged(state)
-        return context if more is None else f"{context} {more}"
-    return ASKS[label]
+        context = context if more is None else f"{context} {more}"
+    else:
+        context = ASKS[label]
+    listed = cards_named(cards, state.get("shown_cards") or [])
+    return f"{context}\n{EARLIER}\n{listed}" if listed else context
 
 
 def hints(details: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -922,6 +939,9 @@ async def resolve_card(state: State) -> dict[str, Any]:
             elif reading and found != "which_type":
                 name = f"{name}_read"
             facts = {"cards": [card_facts(c) for c in meant], "last_four": last_four}
+            # Every question but the type's lists the cards.
+            if found != "which_type":
+                turn["shown_cards"] = [c["card_id"] for c in meant]
             return {
                 **turn,
                 **question(
@@ -1461,6 +1481,7 @@ async def read_status(state: State) -> dict[str, Any]:
         shown.append(call.result["card"])
     rules = ["POL-01", "POL-21"]
     every = (state.get("details") or {}).get("cards") == "all"
+    listing: dict[str, Any] = {}
     if len(shown) == 1 and not every:
         say = writable("card_status", {"card": shown[0]}, seen(shown[0]))
     else:
@@ -1470,18 +1491,26 @@ async def read_status(state: State) -> dict[str, Any]:
             {"statuses": shown},
             " ".join(seen(card) for card in shown),
         )
+        listing = {"shown_cards": [c["card_id"] for c in shown]}
     conflicted = [
         c for c in shown if c["product_status"] == "Active" and c["past_expiration"]
     ]
     say += [part for c in conflicted for part in said(("past_expiration", {"card": c}))]
     if not conflicted:
-        return {"say": say, "decision": decided("answer", rules, label=label)}
+        return {
+            "say": say,
+            "decision": decided("answer", rules, label=label),
+            **listing,
+        }
     rules += ["POL-30", "POL-31"]
     if (state.get("details") or {}).get("conflict") == "asks_which":
-        return conflict_offer(
-            state, label, rules, calls, [c["card_id"] for c in conflicted], say
-        )
-    return {"say": say, "decision": decided("answer", rules, label=label)}
+        return {
+            **conflict_offer(
+                state, label, rules, calls, [c["card_id"] for c in conflicted], say
+            ),
+            **listing,
+        }
+    return {"say": say, "decision": decided("answer", rules, label=label), **listing}
 
 
 def credit_seen(figure: dict[str, Any]) -> str:
@@ -1571,8 +1600,13 @@ async def read_credit(state: State) -> dict[str, Any]:
         *notes,
     ]
     outcome = "answer" if figured else "abstain" if missing else "decline"
+    listing = (
+        {"shown_cards": [f["card"]["card_id"] for f in figured]}
+        if len(figured) > 1
+        else {}
+    )
     if not missing:
-        return {"say": say, "decision": decided(outcome, rules, label=label)}
+        return {"say": say, "decision": decided(outcome, rules, label=label), **listing}
     request = offered(
         "missing_data", label, ["POL-24"], rules, calls=calls, cards=missing
     )
@@ -1580,6 +1614,7 @@ async def read_credit(state: State) -> dict[str, Any]:
         "say": [*say, *said(("handoff_offer", {}))],
         "offer": offering(request, outcome),
         "decision": decided(outcome, rules, OFFERED, label),
+        **listing,
     }
 
 

@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from banking_agent.agent.graph import SHAPES
+from banking_agent.agent.graph import EARLIER, SHAPES
 from banking_agent.agent.texts import FIXED, render
 
 from .conftest import Harness, detail, tool_result
@@ -24,6 +24,12 @@ CARD = "tarjeta de crédito terminada en 4821"
 CREDIT = "PRD-EXAMPLE00002"
 CLOSED = "PRD-EXAMPLE00007"
 DEBIT = "PRD-EXAMPLE00005"
+
+
+def extracted(harness: Harness, n: int) -> str:
+    content: Any = harness.script.model_inputs["extract"][n][0].content
+    text: str = content[1]["text"]
+    return text
 
 
 def decisions(chat: Chat) -> list[dict[str, Any]]:
@@ -351,6 +357,46 @@ def test_someone_elses_card_is_refused_without_reading_it(
     assert tools(harness) == ["list_cards"]
     (decided,) = decisions(chat)
     assert (decided["outcome_class"], decided["rules"]) == ("decline", ["POL-08"])
+
+
+def test_a_later_message_reads_the_cards_the_chat_last_listed_in_their_order(
+    harness: Harness,
+) -> None:
+    # POL-13: "la segunda" names the card at that place in the list the chat showed, which the first message has none of.
+    chat = Chat(harness)
+    harness.script.replies = ["Estas son sus tarjetas:\n\n{cards}"]
+    chat.say("¿Qué tarjetas tengo?", requests=["card_status"], cards="all")
+    chat.say(
+        "¿Y cuánto crédito tiene la segunda?",
+        requests=["available_credit"],
+        last_four="9034",
+    )
+
+    assert EARLIER not in extracted(harness, 0)
+    assert extracted(harness, 1).endswith(
+        f"{EARLIER}\n- credit card ending in 4821\n- credit card ending in 9034\n- debit card ending in 1177"
+    )
+
+
+def test_a_question_that_lists_the_cards_is_the_list_a_later_message_reads(
+    harness: Harness,
+) -> None:
+    # A new request in place of the answer still names a card by its place in the question's list.
+    chat = Chat(harness)
+    chat.say("¿Cuánto crédito tengo?", requests=["available_credit"])
+    harness.script.replies = ["{card}: {card.status}, {card.expiration}."]
+    chat.say(
+        "Mejor dígame cómo está la segunda.",
+        requests=["card_status"],
+        question="unanswered",
+        last_four="9034",
+    )
+
+    # The answer is read against the question, and the request it holds against the list.
+    assert "answering which of these cards" in extracted(harness, 1)
+    assert extracted(harness, -1).endswith(
+        f"{EARLIER}\n- credit card ending in 4821\n- credit card ending in 9034"
+    )
 
 
 # Available credit
