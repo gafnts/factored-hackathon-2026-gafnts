@@ -10,21 +10,23 @@ Anthropic model, wrote the paraphrases, and an Anthropic model reads them here, 
 ([ADR-0005](../adr/0005-offline-scenario-evaluation.md), The split). The check also sends each development
 block request through the extraction and compares the block reason read with the family's, in the last
 section; those items stay out of the language tables, so the tables compare across reports (POL-35, D-006).
+Each answer that names a card by its place in a list is also sent as a later message, after the chat listed the
+cards, and the card read is counted in a section of its own (POL-13).
 
-Latest live check: 2026-10-02T17:37:10Z, claude-haiku-4-5-20251001, 910 items, 1.2556 USD at list price. Prompts: `route` ea87a737013fea24, `resolve_card` f1f09ed4b206e971, `find_transaction` 0ddb0aba8c8f86c7.
+Latest live check: 2026-10-04T01:31:17Z, claude-haiku-4-5-20251001, 918 items, 1.6541 USD at list price. Prompts: `route` 1e38f07c584350f4, `resolve_card` 8af35f0b0d19013d, `find_transaction` 2ed4bdd7a69264c4.
 
 | Expected | Baseline read | Live read |
 |---|---|---|
-| es | 383 of 448 (85.5%) | 442 of 448 (98.7%) |
+| es | 383 of 448 (85.5%) | 445 of 452 (98.5%) |
 | other | 2 of 6 (33.3%) | 6 of 6 (100.0%) |
-| pt | 384 of 446 (86.1%) | 429 of 446 (96.2%) |
-| unclear | 10 of 10 (100.0%) | 0 of 10 (0.0%) |
+| pt | 384 of 446 (86.1%) | 434 of 450 (96.4%) |
+| unclear | 10 of 10 (100.0%) | 2 of 10 (20.0%) |
 
 | Call | Live read |
 |---|---|
 | choose | 15 of 16 (93.8%) |
-| extract | 32 of 32 (100.0%) |
-| route | 830 of 862 (96.3%) |
+| extract | 40 of 40 (100.0%) |
+| route | 832 of 862 (96.5%) |
 
 ## Misses, latest live check
 
@@ -37,41 +39,39 @@ Latest live check: 2026-10-02T17:37:10Z, claude-haiku-4-5-20251001, 910 items, 1
 | block_card-11/pt/1 | pt | es |
 | block_card-11/pt/2 | pt | es |
 | unrecognized_charge-12/pt/1 | pt | es |
-| unrecognized_charge-12/pt/3 | pt | es |
 | talk_to_human-03/es/1 | unclear | es |
 | talk_to_human-03/es/2 | unclear | es |
-| talk_to_human-03/es/4 | unclear | es |
 | talk_to_human-03/pt/1 | unclear | es |
 | talk_to_human-03/pt/2 | unclear | es |
-| talk_to_human-03/pt/4 | unclear | es |
-| talk_to_human-05/pt/4 | pt | es |
+| talk_to_human-03/pt/5 | pt | es |
+| talk_to_human-11/es/1 | es | pt |
 | decline_reason-03/pt/0 | pt | es |
-| decline_reason-03/pt/2 | pt | es |
 | decline_reason-03/pt/4 | pt | es |
-| decline_reason-08/es/3 | es | pt |
 | decline_reason-08/pt/3 | unclear | es |
 | card_status-07/pt/3 | pt | es |
 | card_status-11/pt/1 | pt | es |
-| available_credit-07/pt/4 | pt | unclear |
 | available_credit-12/pt/1 | pt | es |
-| recent_transactions-07/pt/2 | unclear | pt |
+| available_credit-12/pt/2 | pt | es |
+| recent_transactions-07/pt/2 | unclear | es |
+| recent_transactions-12/es/5 | es | pt |
+| unsupported-12/es/2 | es | pt |
 | unsupported-12/pt/2 | pt | es |
 | unsupported-12/pt/3 | pt | es |
 | none-03/pt/5 | pt | es |
 | none-09/es/0 | es | unclear |
 | none-09/es/1 | es | unclear |
-| none-09/es/5 | es | unclear |
+| none-09/pt/0 | pt | unclear |
 | none-09/pt/2 | pt | unclear |
 | transaction_merchant-01/pt | pt | es |
 
 ## Block reasons, latest live check
 
-111 of 112 (99.1%) of the block requests and reason answers read with the reason we expect: the family's, `none`
+110 of 112 (98.2%) of the block requests and reason answers read with the reason we expect: the family's, `none`
 when the request gives no reason, so POL-35's question should follow, or the reason answer's kind.
 
 | Expected | Live read |
 |---|---|
-| customer_request | 15 of 16 (93.8%) |
+| customer_request | 14 of 16 (87.5%) |
 | lost | 40 of 40 (100.0%) |
 | none | 36 of 36 (100.0%) |
 | stolen | 16 of 16 (100.0%) |
@@ -81,4 +81,22 @@ when the request gives no reason, so POL-35's question should follow, or the rea
 
 | Message | Expected | Said |
 |---|---|---|
-| block_card-05/pt/5 | customer_request | none |
+| block_card-05/es/3 | customer_request | none |
+| block_card-05/pt/3 | customer_request | none |
+
+## Cards named by their place, latest live check
+
+6 of 8 (75.0%) of the answers that name a card by its place in a list ("la segunda") read as the card at
+that place: as the answer to the which-card question, and as a later message after the chat listed the cards.
+
+| Read as | Live read |
+|---|---|
+| answer | 2 of 4 (50.0%) |
+| later | 4 of 4 (100.0%) |
+
+### Misses
+
+| Message | Expected | Said |
+|---|---|---|
+| card_position-02/es | 1177 | none |
+| card_position-02/pt | 1177 | none |
