@@ -73,13 +73,16 @@ Faro is evaluated offline, on scripted conversations played against the deployed
   <img src="docs/images/evaluation.png" alt="The evaluation" width="100%">
 </p>
 
-What exists today:
+What to read:
 
+- [report.md](docs/evaluation/report.md): the held-out results read in plain words, against the deterministic baseline, with the failures explained and the ROI as a projection.
+- [results.md](docs/evaluation/results.md): every number, M-01 to M-05 per run and per language, segment, country, group, and rule, with sample sizes and intervals.
+- [limitations.md](docs/evaluation/limitations.md): what the data, the languages, and the evaluation leave out; production readiness; the risks we accepted.
 - [families.md](docs/evaluation/families.md): the requests the scripted customer sends, and how they were written and split.
 - [disagreements.md](docs/evaluation/disagreements.md): where the system and the oracle differ, each triaged in writing.
 - [runs.md](docs/evaluation/runs.md): every reported run, with its grader version and headline numbers.
 
-The held-out run against a deterministic baseline, with M-01 to M-05 per language and segment, is still to come; its report lands here, labeled as an offline measurement. The design is in [ADR-0005](docs/adr/0005-offline-scenario-evaluation.md).
+Every number is an offline measurement on our own cases, never a production figure. The design is in [ADR-0005](docs/adr/0005-offline-scenario-evaluation.md).
 
 ---
 
@@ -89,7 +92,7 @@ The bank is synthetic, and it shows: contacts can't be tied to a workflow, no su
 
 Faro serves what this bank's data supports, and no more. Recent transactions, for one, are a card's last 90 days, ten at a time, with no filter by period, merchant, or amount. That is enough here, where 99% of cards with a transaction in that window have four or fewer, but it isn't a statement ([product brief](docs/product/brief.md#out-of-scope)).
 
-Three pieces are designed and not built, each a stated limitation: a handoff filed after a confirmation's deadline when the customer has left, claim and resolve in the console, and the AI team's page. The tools mock the bank's systems of record over a frozen snapshot; what they stand for, and what replacing them would take, is in [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems) and [ADR-0007](docs/adr/0007-role-gated-web-app.md#in-a-bank-ops-11). The evaluation report gathers the full account, with the remaining deployment work and risks, when it lands.
+Three pieces are designed and not built, each a stated limitation: a handoff filed after a confirmation's deadline when the customer has left, claim and resolve in the console, and the AI team's page. The tools mock the bank's systems of record over a frozen snapshot; what they stand for, and what replacing them would take, is in [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems) and [ADR-0007](docs/adr/0007-role-gated-web-app.md#in-a-bank-ops-11). The full account, with the remaining deployment work and risks, is in [limitations.md](docs/evaluation/limitations.md).
 
 ---
 
