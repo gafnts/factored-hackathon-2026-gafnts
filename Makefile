@@ -172,7 +172,7 @@ contracts: ## Rewrite the bronze contracts from the dictionary
 
 ##@ Evaluation
 
-.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index regression language-check
+.PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index eval-report regression language-check
 
 eval-sets: ## Draw the development sets, and the held-out set at HELD_OUT=600|400|240; manifests to docs/evaluation/sets/
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate $(if $(HELD_OUT),--held-out $(HELD_OUT))
@@ -192,6 +192,10 @@ disagreements: ## Regenerate docs/evaluation/disagreements.md
 
 eval-index: ## Regenerate docs/evaluation/runs.md
 	uv run python -m banking_agent.evaluation index
+
+eval-report: ## Write docs/evaluation/results.md from stored grades (RUNS="<run> ...", BASELINE=, JUDGED="<judge run> ...", AGREEMENT=)
+	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) report $(foreach r,$(RUNS),--run $(r)) \
+		$(if $(BASELINE),--baseline $(BASELINE)) $(foreach j,$(JUDGED),--judged $(j)) $(if $(AGREEMENT),--agreement $(AGREEMENT))
 
 regression: ## Play and grade the regression set in process, as CI does
 	uv run pytest -m regression -v --tb=short
