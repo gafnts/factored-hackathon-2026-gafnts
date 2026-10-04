@@ -17,8 +17,8 @@ export interface Credit {
   card: string;
   // The credit available, or that there is none.
   value: string;
-  // How far the balance exceeds the limit, when there is none.
-  over: string | null;
+  // How far the balance exceeds the limit, when there is none: its words and the amount, which wraps as one.
+  over: { label: string; amount: string } | null;
 }
 
 // A card in an answer about the credit of several, as the agent's code writes it (formats.credit_line), in the reply
@@ -43,7 +43,7 @@ function credit([, card, available, none, label, over]: Found): Credit | null {
   return {
     card,
     value: capitalized(none),
-    over: `${capitalized(label)} ${over}`,
+    over: { label: capitalized(label), amount: over },
   };
 }
 
@@ -76,7 +76,8 @@ export function Credits({ credits }: { credits: Credit[] }) {
             <p className="font-medium text-balance">{credit.card}</p>
             {credit.over && (
               <p className="text-sm text-bone-muted tabular-nums">
-                {credit.over}
+                {credit.over.label}{" "}
+                <span className="whitespace-nowrap">{credit.over.amount}</span>
               </p>
             )}
           </div>

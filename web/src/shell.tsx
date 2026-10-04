@@ -137,7 +137,7 @@ export function Shell({
         </nav>
       )}
       <header
-        className={`absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) animate-fade items-center border-b border-white/10 glass-thin px-4 sm:px-6 ${rail ? "max-sm:pr-16" : ""}`}
+        className={`absolute top-0 right-0 left-(--rail) z-10 flex h-(--bar) animate-fade items-center border-b border-white/10 glass-thin px-4 sm:px-6 ${rail ? "max-sm:pr-28" : ""}`}
       >
         {/* On phones, clear of the rail's icons, which sit in the bar. */}
         <div className="flex min-w-0 items-center gap-3">

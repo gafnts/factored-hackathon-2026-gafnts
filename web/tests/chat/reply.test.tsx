@@ -360,6 +360,8 @@ test.each([
       container.querySelector("[data-credits]")?.previousElementSibling,
     ).toHaveTextContent(CREDITS[language].split("\n")[0] ?? "");
     expect(screen.getByText(expected[1]?.[2] ?? "")).toHaveClass("text-port");
+    // On a phone the amount over the limit wraps as one, never its code alone.
+    expect(screen.getByText("150,40 USD")).toHaveClass("whitespace-nowrap");
   },
 );
 
