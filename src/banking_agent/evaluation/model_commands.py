@@ -2,7 +2,9 @@
 The commands that call models outside the system under test, and the judge's validation, which __main__ adds to its
 own. judge has Claude Opus 5.5 grade a run's replies, or a sample's, through the batch API, keeping its items,
 attempts, judgments, and manifest under data/evaluation/judge/. judge-sample draws the blind sample and its sheet from
-a run's replies, and judge-agreement scores a judge run against the filled sheet; neither calls a model. router
+a run's replies, and judge-agreement scores a judge run against the filled sheet; neither calls a model.
+relabel-sample draws the 50 messages relabeled by hand for label quality and relabel-agreement scores the filled
+sheet (labels.py); neither calls a model either. router
 compares the registered router candidates on one side of the family split, keeping its readings, errors, calls, and
 report under data/evaluation/router/. With --estimate a command prices its calls and makes none; otherwise it reads the
 Anthropic key from the env file, as the live language check does, and sends it to the client only. Each prints
@@ -26,13 +28,21 @@ from banking_agent.evaluation import (
     classifier,
     families,
     judge,
+    labels,
     router,
     rubric,
     runs,
 )
 from banking_agent.model_key import ModelKeyError, read_key
 
-COMMANDS = ("judge", "judge-sample", "judge-agreement", "router")
+COMMANDS = (
+    "judge",
+    "judge-sample",
+    "judge-agreement",
+    "relabel-sample",
+    "relabel-agreement",
+    "router",
+)
 
 # Each maker takes the env file and the list the candidate records its calls into, and reads no key until it calls.
 Make = Callable[[Path, list[dict[str, Any]]], router.Candidate]
@@ -95,6 +105,23 @@ def add(commands: Any) -> None:
         type=Path,
         required=True,
         help="The judge run over the sample's items",
+    )
+    relabeling = commands.add_parser(
+        "relabel-sample",
+        help="Draw the messages relabeled by hand for label quality, and the sheet",
+    )
+    relabeling.add_argument("--out", type=Path, default=labels.OUT)
+    relabeling.add_argument("--seed", type=int, default=labels.SEED)
+    relabeling.add_argument("--rows", type=int, default=labels.ROWS)
+    relabeled = commands.add_parser(
+        "relabel-agreement",
+        help="Score the filled relabel sheet against the families' labels",
+    )
+    relabeled.add_argument(
+        "--sample",
+        type=Path,
+        required=True,
+        help="A sample under data/evaluation/labels/",
     )
     judging = commands.add_parser(
         "judge",
@@ -185,6 +212,34 @@ def run_agreement(args: argparse.Namespace) -> None:
     print(f"kept in {agreement.write(found, args.sample)}")
 
 
+def run_relabel_sample(args: argparse.Namespace) -> None:
+    out = args.out / runs.run_id()
+    manifest = labels.sample(out, seed=args.seed, rows=args.rows)
+    print(
+        f"{manifest['rows']} messages: by language {manifest['by_language']}, by group {manifest['by_group']}, "
+        f"by side {manifest['by_side']}, by author {manifest['by_author']}"
+    )
+    print(f"label {out / 'sheet.csv'} blind, reading {out / 'guide.md'} first")
+
+
+def run_relabel_agreement(args: argparse.Namespace) -> None:
+    found = labels.score(args.sample)
+    exact, kappa = found["exact"], found["kappa_first_label"]
+    print(
+        f"{found['rows']} rows: exact agreement {exact['value']} [{exact['low']}, {exact['high']}] "
+        f"({exact['agreed']} agreed); kappa on the first label {kappa['value']} [{kappa['low']}, {kappa['high']}]; "
+        f"{len(found['disagreements'])} to settle by the policy's text"
+    )
+    for name in ("by_author", "by_side", "by_kind"):
+        print(
+            f"  {name}: "
+            + ", ".join(
+                f"{k} {v['agreed']} of {v['rows']}" for k, v in found[name].items()
+            )
+        )
+    print(f"kept in {labels.write(found, args.sample)}")
+
+
 def run_router(args: argparse.Namespace, code: dict[str, Any]) -> None:
     calls: list[dict[str, Any]] = []
     chosen = [CANDIDATES[name](args.env_file, calls) for name in args.candidate]
@@ -227,12 +282,17 @@ def main(args: argparse.Namespace, code: dict[str, Any]) -> int:
             run_sample(args)
         elif args.command == "judge-agreement":
             run_agreement(args)
+        elif args.command == "relabel-sample":
+            run_relabel_sample(args)
+        elif args.command == "relabel-agreement":
+            run_relabel_agreement(args)
         elif args.command == "router":
             run_router(args, code)
     except (
         ModelKeyError,
         blind.SampleError,
         agreement.AgreementError,
+        labels.LabelsError,
         router.RouterError,
     ) as error:
         print(f"Error: {error}", file=sys.stderr)

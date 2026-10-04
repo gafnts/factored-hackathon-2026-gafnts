@@ -33,6 +33,7 @@ from banking_agent.evaluation import (
     language,
     model_commands,
     oracle,
+    report,
     runs,
     state,
 )
@@ -216,6 +217,48 @@ def check_language(
     )
 
 
+def write_report(args: argparse.Namespace) -> None:
+    """
+    The results page from stored grades alone (ADR-0005, Reporting): the runs' set is read for its cases' fields, the
+    snapshot for the customers' segment and country, and nothing of either is printed.
+    """
+    lock = read_lock(args.lock)
+    database = runner.workspace(args.data_dir, lock.snapshot_id).database
+    if not database.is_file():
+        raise LockError(f"no pipeline build at {database}; run make pipeline first")
+    sets = args.data_dir / "evaluation" / "sets"
+    loaded = [report.load_run(path, sets) for path in args.run]
+    baseline = None if args.baseline is None else report.load_run(args.baseline, sets)
+    set_manifest = json.loads(
+        (args.docs / f"{loaded[0].set_name}.json").read_text(encoding="utf-8")
+    )
+    sides = {c["side"] for run in loaded for c, _ in run.graded}
+    if len(sides) != 1:
+        raise report.ReportError("the runs' cases are of one side of the split")
+    customers = report.profiles(
+        database,
+        sides.pop(),
+        {c["customer_id"] for run in loaded for c, _ in run.graded},
+    )
+    found = report.build(
+        loaded,
+        set_manifest,
+        customers,
+        disagreements.load(),
+        baseline,
+        args.judged,
+        args.agreement,
+        labels=args.labels,
+    )
+    out = report.write(found, args.out, args.page)
+    rep = found["repeated"]
+    print(
+        f"{len(loaded)} run(s) of {loaded[0].set_name} reported in {out} and {args.page}; "
+        f"{rep['cases']} cases played every time"
+    )
+    print(headline(loaded[0].summary["metrics"]) + " (the first run)")
+
+
 def tree() -> dict[str, Any]:
     """
     The commit a run's code is at, and whether the tree held changes besides.
@@ -318,6 +361,35 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "index", help="Regenerate the run index from the committed manifests"
     )
+    reporting = commands.add_parser(
+        "report",
+        help="Write the results page from the reported runs' stored grades, with the baseline and the judge where given",
+    )
+    reporting.add_argument(
+        "--run",
+        action="append",
+        default=[],
+        type=Path,
+        required=True,
+        help="A run of the set, repeatable",
+    )
+    reporting.add_argument("--baseline", type=Path, default=None)
+    reporting.add_argument(
+        "--judged",
+        action="append",
+        default=[],
+        type=Path,
+        help="A judge run over one of the runs, repeatable",
+    )
+    reporting.add_argument(
+        "--agreement", type=Path, default=None, help="The agreement report's JSON"
+    )
+    reporting.add_argument(
+        "--labels", type=Path, default=None, help="The relabel agreement's JSON"
+    )
+    reporting.add_argument("--docs", type=Path, default=SET_DOCS)
+    reporting.add_argument("--out", type=Path, default=report.RESULTS)
+    reporting.add_argument("--page", type=Path, default=report.PAGE)
     checking = commands.add_parser(
         "language",
         help="Run the real prompts over the development paraphrases and answers, and report each language",
@@ -347,6 +419,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "index":
         print(f"{runs.index()} reported runs in {runs.INDEX_PAGE}")
+        return 0
+    if args.command == "report":
+        try:
+            write_report(args)
+        except (LockError, report.ReportError) as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
         return 0
     if args.command == "disagreements":
         found = disagreements.problems(disagreements.load())
