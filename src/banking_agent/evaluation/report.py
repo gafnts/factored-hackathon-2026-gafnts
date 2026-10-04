@@ -485,6 +485,7 @@ def build(
     agreement: Path | None = None,
     loaded: rubric.Rubric | None = None,
     now: datetime | None = None,
+    labels: Path | None = None,
 ) -> dict[str, Any]:
     if not runs:
         raise ReportError("no run to report")
@@ -541,7 +542,25 @@ def build(
         "judge": None
         if not judged and agreement is None
         else judge_section(judged, agreement, loaded or rubric.load()),
+        "label_quality": None if labels is None else label_quality(labels),
         "suppression": {"under": MIN_CELL, "marked": SUPPRESSED},
+    }
+
+
+def label_quality(agreement_path: Path) -> dict[str, Any]:
+    """
+    The relabel's agreement (labels.py), as the report states label quality (EVL-08): counts and rates alone.
+    """
+    scored = json.loads(agreement_path.read_text(encoding="utf-8"))
+    return {
+        "sample": scored["sample"],
+        "rows": scored["rows"],
+        "exact": scored["exact"],
+        "kappa_first_label": scored["kappa_first_label"],
+        "by_author": scored["by_author"],
+        "by_side": scored["by_side"],
+        "disagreements": len(scored["disagreements"]),
+        "settled": sum(d.get("settled") is not None for d in scored["disagreements"]),
     }
 
 
@@ -825,6 +844,28 @@ def page(found: Mapping[str, Any]) -> str:
                 if isinstance(d.get("value"), float)
                 else "Paired difference in M-01: not defined."
             ),
+            "",
+        ]
+    quality = found.get("label_quality")
+    if quality:
+        exact, kappa = quality["exact"], quality["kappa_first_label"]
+        lines += [
+            "## Label quality",
+            "",
+            f"{quality['rows']} of the families' messages relabeled by hand, blind to their labels (DML-08, EVL-08; "
+            f"sample `{quality['sample']}`): the label set agreed on {exact['agreed']} ({_pct(exact['value'])}, "
+            f"{_pct(exact['low'])} to {_pct(exact['high'])}); kappa on the first label {kappa['value']} "
+            f"({kappa['low']} to {kappa['high']}). By author: "
+            + ", ".join(
+                f"{k} {v['agreed']} of {v['rows']}"
+                for k, v in quality["by_author"].items()
+            )
+            + "; by side: "
+            + ", ".join(
+                f"{k} {v['agreed']} of {v['rows']}"
+                for k, v in quality["by_side"].items()
+            )
+            + f". {quality['disagreements']} disagreements, {quality['settled']} settled by the policy's text.",
             "",
         ]
     judge = found["judge"]

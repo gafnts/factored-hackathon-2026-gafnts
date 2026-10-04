@@ -248,6 +248,7 @@ def write_report(args: argparse.Namespace) -> None:
         baseline,
         args.judged,
         args.agreement,
+        labels=args.labels,
     )
     out = report.write(found, args.out, args.page)
     rep = found["repeated"]
@@ -382,6 +383,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     reporting.add_argument(
         "--agreement", type=Path, default=None, help="The agreement report's JSON"
+    )
+    reporting.add_argument(
+        "--labels", type=Path, default=None, help="The relabel agreement's JSON"
     )
     reporting.add_argument("--docs", type=Path, default=SET_DOCS)
     reporting.add_argument("--out", type=Path, default=report.RESULTS)

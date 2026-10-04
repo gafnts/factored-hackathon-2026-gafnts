@@ -193,9 +193,10 @@ disagreements: ## Regenerate docs/evaluation/disagreements.md
 eval-index: ## Regenerate docs/evaluation/runs.md
 	uv run python -m banking_agent.evaluation index
 
-eval-report: ## Write docs/evaluation/results.md from stored grades (RUNS="<run> ...", BASELINE=, JUDGED="<judge run> ...", AGREEMENT=)
+eval-report: ## Write docs/evaluation/results.md from stored grades (RUNS="<run> ...", BASELINE=, JUDGED="<judge run> ...", AGREEMENT=, LABELS=)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) report $(foreach r,$(RUNS),--run $(r)) \
-		$(if $(BASELINE),--baseline $(BASELINE)) $(foreach j,$(JUDGED),--judged $(j)) $(if $(AGREEMENT),--agreement $(AGREEMENT))
+		$(if $(BASELINE),--baseline $(BASELINE)) $(foreach j,$(JUDGED),--judged $(j)) $(if $(AGREEMENT),--agreement $(AGREEMENT)) \
+		$(if $(LABELS),--labels $(LABELS))
 
 regression: ## Play and grade the regression set in process, as CI does
 	uv run pytest -m regression -v --tb=short
@@ -204,7 +205,7 @@ language-check: ## Run the real prompts over the development paraphrases and ans
 	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL)) $(foreach f,$(FAMILIES),--only $(f))
 
 # The judge and the router comparison call models outside the system under test; ESTIMATE=1 prices a call and makes none.
-.PHONY: judge judge-sample judge-agreement router-compare
+.PHONY: judge judge-sample judge-agreement relabel-sample relabel-agreement router-compare
 
 judge: ## Judge a run's replies (RUN=data/evaluation/runs/<run>) or a sample's (ITEMS=) through the batch API (ENV_FILE=, LIMIT=, ESTIMATE=1)
 	uv run python -m banking_agent.evaluation judge $(if $(ITEMS),--items $(ITEMS),--run $(RUN)) --env-file $(or $(ENV_FILE),.env) \
@@ -215,6 +216,12 @@ judge-sample: ## Draw the judge's blind sample and sheet from a run's replies, s
 
 judge-agreement: ## Score the judge against a filled blind sheet: agreement and kappa with intervals (SAMPLE=, JUDGED=)
 	uv run python -m banking_agent.evaluation judge-agreement --sample $(SAMPLE) --judged $(JUDGED)
+
+relabel-sample: ## Draw the 50 messages relabeled by hand for label quality, and the sheet (ROWS=, SEED=)
+	uv run python -m banking_agent.evaluation relabel-sample $(if $(ROWS),--rows $(ROWS)) $(if $(SEED),--seed $(SEED))
+
+relabel-agreement: ## Score the filled relabel sheet against the families' labels (SAMPLE=data/evaluation/labels/<sample>)
+	uv run python -m banking_agent.evaluation relabel-agreement --sample $(SAMPLE)
 
 # SIDE=held_out runs only once the candidates are frozen, from a clean tree, and never with FOLDS.
 router-compare: ## Compare router candidates per language, paired over families (ROUTERS=, SIDE=development, FOLDS=, ENV_FILE=, ESTIMATE=1)
