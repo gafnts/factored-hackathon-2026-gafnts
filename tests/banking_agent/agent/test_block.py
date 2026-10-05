@@ -413,6 +413,45 @@ def test_a_request_with_no_reason_is_asked_why_and_any_other_reason_reaches_the_
     assert record["reason"] == "customer_request"
 
 
+def test_a_reason_the_extraction_also_marks_unanswered_reaches_the_control(
+    harness: Harness,
+) -> None:
+    # D-013: a customer's own decision came back as the reason and as no answer in the same call; the reason is the
+    # answer, and the question isn't asked again (POL-06, POL-35).
+    chat = Chat(harness)
+    chat.say("Bloquee mi tarjeta de crédito.", card_type="credit")
+
+    shown = chat.say(
+        "Porque así lo decidí.",
+        requests=[],
+        block_reason="other_reason",
+        question="unanswered",
+    )
+
+    control = interrupt(shown)["metadata"]["controls"][0]
+    assert control["reason"] == "customer_request"
+    assert reply(shown).endswith(
+        FIXED["confirm_prompt"]["es"].format(
+            card="tarjeta de crédito terminada en 4821", reason="su solicitud"
+        )
+    )
+
+
+def test_a_message_with_no_reason_while_the_reason_is_asked_is_asked_again(
+    harness: Harness,
+) -> None:
+    # POL-06: with no reason in the message, the mark decides; the question is asked again and counts toward no limit.
+    chat = Chat(harness)
+    chat.say("Bloquee mi tarjeta de crédito.", card_type="credit")
+
+    again = chat.say("¿Sigue ahí?", requests=[], question="unanswered")
+
+    assert again[-1]["outcome"] == {"type": "success"}
+    decision = chat.decision()
+    assert (decision["outcome_class"], decision["awaiting"]) == ("clarify", "reason")
+    assert "POL-06" in decision["rules"]
+
+
 def test_the_same_reason_under_the_models_name_typed_while_the_control_shows_points_to_it(
     harness: Harness,
 ) -> None:

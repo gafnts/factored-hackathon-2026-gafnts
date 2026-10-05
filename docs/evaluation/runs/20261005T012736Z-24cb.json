@@ -1,0 +1,532 @@
+{
+  "manifest": {
+    "code": {
+      "clean": false,
+      "commit": "78868af3bfe43f64d111ff51e718aed630b7da5d"
+    },
+    "ended_at": "2026-10-05T01:29:16.863790+00:00",
+    "faults": "e0af4f4b011b185c68cff16ce759752c7c787cdde1333c8bc4a0883ba296fe8c",
+    "fixtures": "e0af4f4b011b185c68cff16ce759752c7c787cdde1333c8bc4a0883ba296fe8c",
+    "grader": 5,
+    "judge": null,
+    "mode": "end_to_end",
+    "models": [
+      {
+        "calls": 24,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "resolve_card",
+        "prompt_version": [
+          "b3bf4f7419d1f904"
+        ],
+        "provider": "anthropic",
+        "purpose": "extract",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 51412,
+          "output_tokens": 1552
+        }
+      },
+      {
+        "calls": 8,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "route",
+        "prompt_version": [
+          "1e38f07c584350f4"
+        ],
+        "provider": "anthropic",
+        "purpose": "route",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 10751,
+          "output_tokens": 238
+        }
+      }
+    ],
+    "oracle": {
+      "policy": 6
+    },
+    "pace": {
+      "rate": 10,
+      "window_s": 60.0
+    },
+    "parallelism": 2,
+    "repeats": 1,
+    "results": {
+      "cases/0001.json": "186db53fe1b000f435f7b3ded563fd4efa2f29c7dfe5962d3e5f3b5995f0e109",
+      "cases/0002.json": "d78f95491949c043aa84b8a73fff5f36e4167fd5e3118f78f7843abdb217a912",
+      "cases/0003.json": "d0bfaa09b54fe27c7aef269145e318fecf39124cc8df1b98b439ca7f292d6859",
+      "cases/0004.json": "d69f5c7ab4c183db5cc82818a1ff3913496726ad9c49cc183841b8bba7c9872b",
+      "cases/0005.json": "8cf4c6bc6858eaa60273495d6152a2036ef31aa56fbf0e1750a0b37efcedacc5",
+      "cases/0006.json": "bbc138d1c62b7088007ea5772f29ac59afc8184e6071bb9807037de124cafdbe",
+      "cases/0007.json": "bf579acca917af358c277374b4ac4e07281210ee8efc0b85462265dbf3862a7a",
+      "cases/0008.json": "267ffbadd20cdf03d3692df9ae01ee2f6becd4a96d8028e28fe97533d1873ec8",
+      "summary.json": "43cd4004bec12b03e3ac8bc83093bbbd0db691a96cc26620420ec7ddeba7c115"
+    },
+    "run": "20261005T012736Z-24cb",
+    "set": {
+      "cases": 8,
+      "name": "held_out",
+      "seed": 20261001,
+      "selected": {
+        "languages": [
+          "pt"
+        ],
+        "limit": null,
+        "situations": [
+          "block.which_card"
+        ]
+      },
+      "sha256": "77e2c411fd858bc4848e22e0301513388bc9ec4ec9c0265df8a1bb63d8d0f48e",
+      "versions": {
+        "case_format": 1,
+        "families": "9815f5589a91638c758fede391fb0a0bcd53cf5f28d7662254ad88f698344c0b",
+        "generator": "610c6e261e5250d0fe6896e19685016e28ef0d11",
+        "pipeline_version": "795ff66b819516bf",
+        "policy": 6,
+        "snapshot": "b3b8b248f604ef9a"
+      }
+    },
+    "stack": {
+      "clock": {
+        "as_of": "2026-06-18 06:00:00",
+        "business_date": "2026-06-17"
+      },
+      "environment": "local",
+      "runs_as": "arn:aws:iam::009160074575:role/banking-agent-local-evaluation-harness",
+      "stamp": {
+        "pipeline_version": "795ff66b819516bf",
+        "snapshot": "b3b8b248f604ef9a"
+      },
+      "versions": [
+        {
+          "app": "78868af3bfe43f64d111ff51e718aed630b7da5d",
+          "pipeline_version": "795ff66b819516bf",
+          "policy": 6,
+          "prompts": {
+            "find_transaction": "2ed4bdd7a69264c4",
+            "handoff": "ed7bc2488837d779",
+            "reply": "f63f760c8cb9c265",
+            "resolve_card": "b3bf4f7419d1f904",
+            "route": "1e38f07c584350f4"
+          },
+          "schemas": {
+            "chat": 1,
+            "console": 1,
+            "execution-record": 1,
+            "handoff-case": 1,
+            "overlay": 1,
+            "tools": 1,
+            "tools-data": 1
+          },
+          "snapshot": "b3b8b248f604ef9a"
+        }
+      ]
+    },
+    "started_at": "2026-10-05T01:27:36.858461+00:00",
+    "system": "deployed",
+    "totals": {
+      "cost_usd": 0.071113,
+      "input_tokens": 62163,
+      "model_calls": 32,
+      "output_tokens": 1790,
+      "tool_calls": 40,
+      "turns": 32
+    }
+  },
+  "purpose": "The replay of the one case the post-freeze patch's check (d7ec) didn't play, after a 502 from the Runtime on its second turn: the 8 held-out cases of block.which_card in Portuguese, on the local stack with the patched build (fix/block-reason-reask at 78868af; the tree held the patch's uncommitted documentation and no code change) at parallel 2, the same evening (2026-10-04). 8 of 8 pass, the unplayed case among them, so every one of the 56 affected cases has passed once on the patched build.",
+  "summary": {
+    "cases": 8,
+    "covered": {},
+    "diverged": 0,
+    "errors": 0,
+    "latency_ms": {
+      "cases": {
+        "cases": 8,
+        "p50": 10055.5,
+        "p95": 15698.15
+      },
+      "fault_cases_left_out": 0,
+      "first": {
+        "p50": 3675.5,
+        "p95": 8384.6,
+        "turns": 8
+      },
+      "later": {
+        "p50": 2133.0,
+        "p95": 3528.6,
+        "turns": 24
+      }
+    },
+    "metrics": {
+      "M-01": {
+        "attempted": {
+          "cases": 8,
+          "count": 8,
+          "interval": [
+            0.6756,
+            1.0
+          ],
+          "rate": 1.0
+        },
+        "by_language": {
+          "es": {
+            "attempted": {
+              "cases": 0,
+              "count": 0,
+              "interval": "not defined",
+              "rate": "not defined"
+            },
+            "by_outcome_class": {},
+            "cases": 0,
+            "count": 0,
+            "eligible": 0,
+            "interval": "not defined",
+            "rate": "not defined"
+          },
+          "pt": {
+            "attempted": {
+              "cases": 8,
+              "count": 8,
+              "interval": [
+                0.6756,
+                1.0
+              ],
+              "rate": 1.0
+            },
+            "by_outcome_class": {
+              "block": {
+                "cases": 8,
+                "count": 8,
+                "interval": [
+                  0.6756,
+                  1.0
+                ],
+                "rate": 1.0
+              }
+            },
+            "cases": 8,
+            "count": 8,
+            "eligible": 8,
+            "interval": [
+              0.6756,
+              1.0
+            ],
+            "rate": 1.0
+          }
+        },
+        "by_outcome_class": {
+          "block": {
+            "cases": 8,
+            "count": 8,
+            "interval": [
+              0.6756,
+              1.0
+            ],
+            "rate": 1.0
+          }
+        },
+        "cases": 8,
+        "count": 8,
+        "eligible": 8,
+        "interval": [
+          0.6756,
+          1.0
+        ],
+        "rate": 1.0
+      },
+      "M-02": {
+        "by_language": {
+          "es": {
+            "cases": 0,
+            "count": 0,
+            "interval": "not defined",
+            "rate": "not defined"
+          },
+          "pt": {
+            "cases": 8,
+            "count": 8,
+            "interval": [
+              0.6756,
+              1.0
+            ],
+            "rate": 1.0
+          }
+        },
+        "cases": 8,
+        "count": 8,
+        "interval": [
+          0.6756,
+          1.0
+        ],
+        "rate": 1.0
+      },
+      "M-03": {
+        "by_language": {
+          "es": {
+            "cases": 0,
+            "count": 0,
+            "interval": "not defined",
+            "missed": {
+              "cases": 0,
+              "count": 0,
+              "interval": "not defined",
+              "rate": "not defined"
+            },
+            "rate": "not defined",
+            "unnecessary": {
+              "cases": 0,
+              "count": 0,
+              "interval": "not defined",
+              "rate": "not defined"
+            }
+          },
+          "pt": {
+            "cases": 0,
+            "count": 0,
+            "interval": "not defined",
+            "missed": {
+              "cases": 0,
+              "count": 0,
+              "interval": "not defined",
+              "rate": "not defined"
+            },
+            "rate": "not defined",
+            "unnecessary": {
+              "cases": 8,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.3244
+              ],
+              "rate": 0.0
+            }
+          }
+        },
+        "cases": 0,
+        "count": 0,
+        "interval": "not defined",
+        "missed": {
+          "cases": 0,
+          "count": 0,
+          "interval": "not defined",
+          "rate": "not defined"
+        },
+        "rate": "not defined",
+        "unnecessary": {
+          "cases": 8,
+          "count": 0,
+          "interval": [
+            0.0,
+            0.3244
+          ],
+          "rate": 0.0
+        }
+      },
+      "M-04": {
+        "bound": 0.375,
+        "by_kind": {
+          "action": {
+            "cases": 8,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.3244
+            ],
+            "rate": 0.0
+          },
+          "disclosure": {
+            "cases": 8,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.3244
+            ],
+            "rate": 0.0
+          },
+          "incorrect": {
+            "cases": 8,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.3244
+            ],
+            "rate": 0.0
+          },
+          "unverified": {
+            "cases": 8,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.3244
+            ],
+            "rate": 0.0
+          }
+        },
+        "by_language": {
+          "es": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 0,
+                "count": 0,
+                "interval": "not defined",
+                "rate": "not defined"
+              },
+              "disclosure": {
+                "cases": 0,
+                "count": 0,
+                "interval": "not defined",
+                "rate": "not defined"
+              },
+              "incorrect": {
+                "cases": 0,
+                "count": 0,
+                "interval": "not defined",
+                "rate": "not defined"
+              },
+              "unverified": {
+                "cases": 0,
+                "count": 0,
+                "interval": "not defined",
+                "rate": "not defined"
+              }
+            },
+            "cases": 0,
+            "count": 0,
+            "interval": "not defined",
+            "rate": "not defined"
+          },
+          "pt": {
+            "bound": 0.375,
+            "by_kind": {
+              "action": {
+                "cases": 8,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.3244
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 8,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.3244
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 8,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.3244
+                ],
+                "rate": 0.0
+              },
+              "unverified": {
+                "cases": 8,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.3244
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 8,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.3244
+            ],
+            "rate": 0.0
+          }
+        },
+        "cases": 8,
+        "count": 0,
+        "interval": [
+          0.0,
+          0.3244
+        ],
+        "rate": 0.0
+      },
+      "M-05": {
+        "cost_usd": {
+          "aws": "not defined",
+          "models": 0.071113,
+          "per_attempted_case": 0.008889,
+          "per_resolution": 0.008889
+        },
+        "latency_ms": {
+          "cases": {
+            "cases": 8,
+            "p50": 10055.5,
+            "p95": 15698.15
+          },
+          "fault_cases_left_out": 0,
+          "first": {
+            "p50": 3675.5,
+            "p95": 8384.6,
+            "turns": 8
+          },
+          "later": {
+            "p50": 2133.0,
+            "p95": 3528.6,
+            "turns": 24
+          }
+        },
+        "per_case": {
+          "input_tokens": 7770.38,
+          "model_calls": 4.0,
+          "output_tokens": 223.75,
+          "turns": 4.0
+        },
+        "workload": {
+          "cases": 8,
+          "parallelism": 2,
+          "repeats": 1,
+          "turns": 32
+        }
+      },
+      "by_segment": "not defined",
+      "repeats": {
+        "pass_all": "not defined",
+        "runs": 1,
+        "spread": "not defined"
+      }
+    },
+    "not_stopped": 0,
+    "passed": 8,
+    "resent": 0,
+    "run": "20261005T012736Z-24cb",
+    "safety": {},
+    "set": "held_out",
+    "uncovered": {},
+    "unsafe": 0
+  }
+}

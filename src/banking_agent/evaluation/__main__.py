@@ -1,10 +1,11 @@
 """
 The evaluation's commands. generate draws the development regression and selection sets from the pinned snapshot's
-bronze (the last pipeline build) into data/evaluation/sets/, and the held-out set when asked, once (heldout.py), and
-writes their manifests to docs/evaluation/sets/: case IDs, hashes, and counts. play plays a drawn set in process with
-the scripted models, or the deterministic baseline's, and grades it, keeping the evidence, grades, and manifest under
-data/evaluation/runs/. run plays a drawn set end to end against a deployed stack and grades it, keeping each case's results under data/evaluation/runs/ and in the
-stack's evaluation bucket; cleanup deletes the test users a stopped run left behind. disagreements regenerates the
+bronze (the last pipeline build) into data/evaluation/sets/, and the held-out set when asked (once; after a run, a
+redraw only rebuilds it, heldout.py), and writes their manifests to docs/evaluation/sets/: case IDs, hashes, and
+counts. play plays a drawn set in process with the scripted models, or the deterministic baseline's, and grades it,
+keeping the evidence, grades, and manifest under data/evaluation/runs/. run plays a drawn set end to end against a
+deployed stack and grades it, keeping each case's results under data/evaluation/runs/ and in the stack's evaluation
+bucket; cleanup deletes the test users a stopped run left behind. disagreements regenerates the
 disagreement log's page. language runs the real prompts over the development side's paraphrases and answers and writes
 the language check's report and page under docs/evaluation/. Each prints counts, situations, and checks, never an ID, a
 token, or a value (SEC-03).
@@ -33,6 +34,7 @@ from banking_agent.evaluation import (
     language,
     model_commands,
     oracle,
+    report,
     runs,
     state,
 )
@@ -77,14 +79,23 @@ def generate(
     lock_path: Path, data_dir: Path, docs: Path, seed: int, held_out: int | None
 ) -> None:
     """
-    held_out is the held-out set's size, when it is drawn too: once, at the freeze, and never after a run names it.
+    held_out is the held-out set's size, when it is drawn too: once, at the freeze, and after a run names it only as
+    the committed manifest describes it, with the manifest left as it is.
     """
     lock = read_lock(lock_path)
     database = runner.workspace(data_dir, lock.snapshot_id).database
     if not database.is_file():
         raise LockError(f"no pipeline build at {database}; run make pipeline first")
-    if held_out is not None:
-        heldout.refuse_redraw(heldout.NAME, kept=data_dir / "evaluation" / "runs")
+    played = (
+        heldout.runs_against(heldout.NAME, kept=data_dir / "evaluation" / "runs")
+        if held_out is not None
+        else []
+    )
+    manifest_path = docs / f"{heldout.NAME}.json"
+    if played and not manifest_path.is_file():
+        raise LockError(
+            f"runs name the held-out set, and it has no manifest at {manifest_path}"
+        )
     loaded, answers = families.load(), families.load_answers()
     held = families.held_out_ids(loaded, answers)
 
@@ -123,10 +134,16 @@ def generate(
         drawing = generator.Generator(
             con, "held_out", loaded, answers, held, contract_words()
         )
-        keep(
-            heldout.NAME,
-            drawing.draw(heldout.NAME, seed, generator.held_out(held_out)),
-        )
+        drawn = drawing.draw(heldout.NAME, seed, generator.held_out(held_out))
+    if not played:
+        keep(heldout.NAME, drawn)
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    heldout.reproduce(played, drawn.cases, manifest, heldout.committed(manifest_path))
+    cases.write(data_dir / "evaluation" / "sets" / f"{heldout.NAME}.jsonl", drawn.cases)
+    print(
+        f"{heldout.NAME}: {len(drawn.cases)} cases, the ones its committed manifest describes; the manifest is unchanged"
+    )
 
 
 def headline(found: dict[str, Any]) -> str:
@@ -216,6 +233,48 @@ def check_language(
     )
 
 
+def write_report(args: argparse.Namespace) -> None:
+    """
+    The results page from stored grades alone (ADR-0005, Reporting): the runs' set is read for its cases' fields, the
+    snapshot for the customers' segment and country, and nothing of either is printed.
+    """
+    lock = read_lock(args.lock)
+    database = runner.workspace(args.data_dir, lock.snapshot_id).database
+    if not database.is_file():
+        raise LockError(f"no pipeline build at {database}; run make pipeline first")
+    sets = args.data_dir / "evaluation" / "sets"
+    loaded = [report.load_run(path, sets) for path in args.run]
+    baseline = None if args.baseline is None else report.load_run(args.baseline, sets)
+    set_manifest = json.loads(
+        (args.docs / f"{loaded[0].set_name}.json").read_text(encoding="utf-8")
+    )
+    sides = {c["side"] for run in loaded for c, _ in run.graded}
+    if len(sides) != 1:
+        raise report.ReportError("the runs' cases are of one side of the split")
+    customers = report.profiles(
+        database,
+        sides.pop(),
+        {c["customer_id"] for run in loaded for c, _ in run.graded},
+    )
+    found = report.build(
+        loaded,
+        set_manifest,
+        customers,
+        disagreements.load(),
+        baseline,
+        args.judged,
+        args.agreement,
+        labels=args.labels,
+    )
+    out = report.write(found, args.out, args.page)
+    rep = found["repeated"]
+    print(
+        f"{len(loaded)} run(s) of {loaded[0].set_name} reported in {out} and {args.page}; "
+        f"{rep['cases']} cases played every time"
+    )
+    print(headline(loaded[0].summary["metrics"]) + " (the first run)")
+
+
 def tree() -> dict[str, Any]:
     """
     The commit a run's code is at, and whether the tree held changes besides.
@@ -287,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         choices=generator.HELD_OUT_SIZES,
         default=None,
-        help="Draw the held-out set too, at this size; refused once a run names it",
+        help="Draw the held-out set too, at this size; once a run names it, only a draw that rebuilds it is kept",
     )
     playing = commands.add_parser(
         "play",
@@ -318,6 +377,35 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "index", help="Regenerate the run index from the committed manifests"
     )
+    reporting = commands.add_parser(
+        "report",
+        help="Write the results page from the reported runs' stored grades, with the baseline and the judge where given",
+    )
+    reporting.add_argument(
+        "--run",
+        action="append",
+        default=[],
+        type=Path,
+        required=True,
+        help="A run of the set, repeatable",
+    )
+    reporting.add_argument("--baseline", type=Path, default=None)
+    reporting.add_argument(
+        "--judged",
+        action="append",
+        default=[],
+        type=Path,
+        help="A judge run over one of the runs, repeatable",
+    )
+    reporting.add_argument(
+        "--agreement", type=Path, default=None, help="The agreement report's JSON"
+    )
+    reporting.add_argument(
+        "--labels", type=Path, default=None, help="The relabel agreement's JSON"
+    )
+    reporting.add_argument("--docs", type=Path, default=SET_DOCS)
+    reporting.add_argument("--out", type=Path, default=report.RESULTS)
+    reporting.add_argument("--page", type=Path, default=report.PAGE)
     checking = commands.add_parser(
         "language",
         help="Run the real prompts over the development paraphrases and answers, and report each language",
@@ -347,6 +435,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "index":
         print(f"{runs.index()} reported runs in {runs.INDEX_PAGE}")
+        return 0
+    if args.command == "report":
+        try:
+            write_report(args)
+        except (LockError, report.ReportError) as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
         return 0
     if args.command == "disagreements":
         found = disagreements.problems(disagreements.load())

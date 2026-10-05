@@ -429,16 +429,20 @@ def test_the_readmes_journey_blocks_the_card_and_files_the_charge_to_dispute_int
 
     listed = customer.ask(outputs, "Não reconheço uma compra no meu cartão.")
 
-    # Nothing in the message tells the charges apart, so the newest are listed (POL-27).
+    # Nothing in the message tells the charges apart, so the newest are listed (POL-27). The chat draws them as a
+    # statement, each charge's name, time, and amount on lines of their own, the name capitalized where it is a word.
     which = FIXED["which_charge"]["pt"].split("{card}")[0]
-    offered = which in listed and transaction_name(charge, "pt", country) in listed
+    parts = transaction_name(charge, "pt", country).lower().split(", ")
+    offered = which in listed and all(part in listed.lower() for part in parts)
     assert offered, "the reply doesn't list the card's charges"
     expect(controls).to_have_count(0)
 
     found = customer.ask(outputs, f"É {named(charge)}.")
 
+    # The charge found is drawn as a statement too, under its sentence.
     facts = {"card": card, "transaction": charge, "country": country}
-    shown = render("charge_found", "pt", facts) in found
+    sentence = render("charge_found", "pt", facts).split("\n\n")[0]
+    shown = sentence in found and all(part in found.lower() for part in parts)
     assert shown, "the reply doesn't name the charge the customer chose"
     expect(controls).to_have_count(1)
     reason = "Motivo: Cobrança não reconhecida" in controls.first.inner_text()

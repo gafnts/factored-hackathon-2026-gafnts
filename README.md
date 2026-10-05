@@ -20,34 +20,43 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
 
+> [!NOTE]
+> **For the judges.** The prototype runs at [faro.gabriel.com.gt](https://faro.gabriel.com.gt). The credentials for its customer personas and the human agent reached the organizers with the submission and are in no file here. The [slides](docs/slides.pdf) are in this repository and the [video pitch](https://www.youtube.com/watch?v=PLACEHOLDER) is unlisted on YouTube. Anyone else can deploy their own copy: see [Self-hosting](#self-hosting).
+
 ---
 
 ## Introduction
 
 Built for the Factored AI &amp; Data Hackathon 2026. In Spanish, *faro* is a lighthouse; in Portuguese, *ter faro* is to have a nose for things. Guidance in one language, judgment in the other: Faro grounds every answer in the cardholder's own records, enforces permissions in code rather than in the prompt, and gives a human agent a structured case file whenever a request needs one.
 
-A LATAM Bank customer spots a purchase on their credit card that they didn't make, and writes to the bank's chat in Portuguese: *Não reconheço uma compra no meu cartão.*
-
-Faro finds the charge among the card's transactions and offers to block the card. It won't act on a typed *sim*: the chat shows a button that names the card and the reason, and only that button confirms. Once the customer presses it, the tool reads the card back, and Faro says the card is blocked only because that read shows it. Then it files the case to dispute intake and gives the customer a reference.
-
-In another tab, a human agent sees the case arrive within seconds: the request, each verified fact next to the tool call that read it, the verified block, and the customer's own words kept apart from the facts. There is no transcript to read back and nothing to ask the customer twice. Had the customer cancelled the block, the same case would have arrived marked urgent.
+A LATAM Bank customer spots a charge on their credit card that they didn't make, and writes to the [bank's chat](https://faro.gabriel.com.gt/chat) in Portuguese: *Não reconheço uma compra no meu cartão.* Faro finds the charge among the card's transactions and offers to block the card. A typed *sim* does nothing: the chat shows a button that names the card and the reason, and only that button confirms. Once the customer presses it, the tool reads the card back, and Faro reports the block because that read shows it. Then it files the case to dispute intake and gives the customer a reference.
 
 <p align="center">
-  <a href="https://faro.gabriel.com.gt"><img src="docs/images/chat.png" alt="The chat, before the first message" width="100%"></a>
+  <a href="https://faro.gabriel.com.gt"><img src="docs/images/chat.png" alt="The chat: the charge found, the block confirmed with the button, the reference given" width="100%"></a>
 </p>
 
-> [!NOTE]
-> LATAM Bank and every customer in it are synthetic, from the organizers' dataset. This journey runs end to end on the prototype, and the browser suite plays it, in Portuguese, against every deployed stack it checks ([ADR-0007](docs/adr/0007-role-gated-web-app.md#judges-access)).
+In the [console](https://faro.gabriel.com.gt/cases), a human agent sees the case within seconds: the request, every verified fact next to the tool call that read it, the confirmed block, and the customer's own words kept apart from the facts. Nothing to read back, nothing to ask twice. Had the customer cancelled the block, the card would still be live with a charge they don't recognize, so the same case would have arrived marked urgent, for a person to act on first.
 
-What sets Faro apart:
+<p align="center">
+  <a href="https://faro.gabriel.com.gt/cases"><img src="docs/images/cases.png" alt="The console: the case with its evidence, seconds after the chat filed it" width="100%"></a>
+</p>
 
-- **A lighthouse doesn't steer the ship.** Faro shows what the records say and proposes the one action it can take; the customer's button decides, and typed text never does.
+> [!IMPORTANT]
+> LATAM Bank and every customer in it are synthetic, from the organizers' dataset. This journey runs end to end on the prototype, and the browser suite replays it as a test, in Portuguese, against each deployed stack before we promote it ([ADR-0007](docs/adr/0007-role-gated-web-app.md#judges-access)).
+
+### Why Faro exists
+
+A card is declined, goes missing, or shows a charge its holder didn't make. At this bank, a person answers every one of those moments. The contact center logs about 500 contacts a day; a customer waits about two minutes to be heard and then keeps a person for five more, and 35% of all contacts fall in the category nearest card support. Faro resolves 65% of held-out card contacts without a person, for under a cent each in model calls. For every thousand contacts, that is about 650 answered on the spot and 37 hours of a person's time freed. At 1 to 5 USD per human contact, it is 640 to 3,240 USD saved: a projection, since the data holds no cost per contact (see [the ROI section of the report](docs/evaluation/report.md#roi-a-projection)).
+
+### What sets Faro apart
+
+- **A lighthouse doesn't steer the ship.** Faro shows what the records say and proposes the one action it can take. The customer's button decides; typed text never does.
 - **Judgment in code, not in the prompt.** The tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed.
 - **Done means verified.** A block is reported only after the card is read back, and handed to a person when the read doesn't show it.
-- **Candid about its records.** A missing field is reported as not recorded, and conflicting records are stated side by side, never reconciled.
+- **Candid about its records.** A missing field is reported as not recorded; conflicting records are stated side by side, never reconciled.
 - **Graded by an independent oracle.** Expected outcomes come from the policy applied to the frozen bank, in code that shares nothing with Faro's tools, and results are reported with their failures.
 
-The [product brief](docs/product/brief.md) says who Faro serves and what it refuses to do; the [policy](docs/policy/card-support.md) holds every rule it follows, one ID per rule; [docs/](docs/README.md) indexes the rest.
+The [product brief](docs/product/brief.md) says who Faro serves and what it refuses to do; the [policy](docs/policy/card-support.md) holds every rule it follows, one ID per rule; the [glossary](docs/glossary.md) explains the terms; [docs/](docs/README.md) indexes the rest.
 
 ---
 
@@ -59,27 +68,41 @@ One backend on Amazon Bedrock AgentCore. A Runtime serves the chat and runs an e
   <img src="docs/images/architecture.png" alt="The system" width="100%">
 </p>
 
-The stack: AgentCore Runtime and Gateway, LangGraph, Cognito, Cedar, DynamoDB, Claude Haiku 4.5, dbt with DuckDB, React with assistant-ui, and Terraform for all of it.
-
-[architecture.md](docs/architecture.md) is the system on one page: a turn, the graph, where each rule holds, the data, and the evaluation. The [architecture decision records](docs/adr/README.md) hold the reasoning, from the choice of workflow to the web app.
+The stack: AgentCore Runtime and Gateway, LangGraph, Cognito, Cedar, DynamoDB, Claude Haiku 4.5, dbt with DuckDB, React with assistant-ui, and Terraform for all of it. [architecture.md](docs/architecture.md) is the system on one page; the [architecture decision records](docs/adr/README.md) hold the reasoning.
 
 ---
 
 ## Evaluation
 
-Faro is evaluated offline, on scripted conversations played against the deployed stack and graded by code. Expected outcomes come from an oracle that applies the policy to the frozen bank through its own code, so a bug in Faro's tools shows up as a disagreement rather than agreeing with itself. The cases are drawn from request families we wrote, in both languages, with a third of the families and a fifth of the customers held out and never read during development. Every run writes a manifest with its code, data, policy, prompt, and model versions.
+Offline: scripted conversations played against the deployed stack and graded by code against an oracle, our own code that applies the policy to the frozen bank and shares nothing with Faro's tools. The cases come from request families we wrote, in both languages; a third of the families and a fifth of the customers were held out and never read during development. Every run writes a manifest with its code, data, policy, prompt, and model versions.
 
 <p align="center">
   <img src="docs/images/evaluation.png" alt="The evaluation" width="100%">
 </p>
 
-What exists today:
+The held-out set, 608 cases played three times against the frozen agent, beside a deterministic baseline on the same cases:
 
-- [families.md](docs/evaluation/families.md): the requests the scripted customer sends, and how they were written and split.
-- [disagreements.md](docs/evaluation/disagreements.md): where the system and the oracle differ, each triaged in writing.
-- [runs.md](docs/evaluation/runs.md): every reported run, with its grader version and headline numbers.
+| ID | Metric | Faro | Baseline |
+|---|---|---|---|
+| M-01 | Safe automated resolution, of 602 conversation cases | 65% | 43% |
+| M-02 | Ended without a transfer, of 602 | 78% | 85% |
+| M-03 | Required handoffs transferred right, of 136 | 98% | 60% |
+| M-04 | Disclosures or unauthorized actions, of 608 | 0 | 0 |
+| M-04 | Materially incorrect outcomes | 5 | 49 |
+| M-05 | Median turn latency | 4.1 s | |
+| M-05 | Model cost per resolution | 1.3 cents | 0 |
 
-The held-out run against a deterministic baseline, with M-01 to M-05 per language and segment, is still to come; its report lands here, labeled as an offline measurement. The design is in [ADR-0005](docs/adr/0005-offline-scenario-evaluation.md).
+Ended without a transfer counts a case that stayed in the chat whether or not it was solved, so it is read beside safe resolution, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
+
+> [!NOTE]
+> **Two things the table doesn't show.** The ceiling for safe resolution is 77%, not 100%: 136 of the 602 cases are handoffs the policy requires, and a case handed off counts as zero by definition. And 56 of the 80 failing cases share one misread, fixed in the agent's code after the freeze; on the patched build, 55 of those 56 pass, which would put safe resolution near 75%. The table reports the frozen code as measured. We didn't re-run the set after the fix, because those cases are the ones that prompted it ([what failed and why](docs/evaluation/report.md#what-failed-and-why)).
+
+- [report.md](docs/evaluation/report.md): the results in plain words, with the failures and the ROI.
+- [results.md](docs/evaluation/results.md): every number, by run, language, segment, and rule.
+- [limitations.md](docs/evaluation/limitations.md): what the evaluation leaves out, and the risks we accepted.
+- [families.md](docs/evaluation/families.md), [disagreements.md](docs/evaluation/disagreements.md), [runs.md](docs/evaluation/runs.md): the requests, the disagreements, the runs.
+
+The design is in [ADR-0005](docs/adr/0005-offline-scenario-evaluation.md).
 
 ---
 
@@ -87,21 +110,20 @@ The held-out run against a deterministic baseline, with M-01 to M-05 per languag
 
 The bank is synthetic, and it shows: contacts can't be tied to a workflow, no supplied label carries signal, about half of all active cards are past their expiration date and still transact, and about 5% of each core field is missing at random. The workflow was chosen for being feasible on this data, not for being in demand ([ADR-0003](docs/adr/0003-choose-workflow-from-evidence.md)). No customer in the data writes Portuguese, so Portuguese rests on messages we wrote, and results are reported per language.
 
-Faro serves what this bank's data supports, and no more. Recent transactions, for one, are a card's last 90 days, ten at a time, with no filter by period, merchant, or amount. That is enough here, where 99% of cards with a transaction in that window have four or fewer, but it isn't a statement ([product brief](docs/product/brief.md#out-of-scope)).
-
-Three pieces are designed and not built, each a stated limitation: a handoff filed after a confirmation's deadline when the customer has left, claim and resolve in the console, and the AI team's page. The tools mock the bank's systems of record over a frozen snapshot; what they stand for, and what replacing them would take, is in [ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems) and [ADR-0007](docs/adr/0007-role-gated-web-app.md#in-a-bank-ops-11). The evaluation report gathers the full account, with the remaining deployment work and risks, when it lands.
+Faro serves what this bank's data supports, and no more: recent transactions are a card's last 90 days, ten at a time, with no filter ([product brief](docs/product/brief.md#out-of-scope)). Three pieces are designed and not built: a handoff filed after a confirmation's deadline when the customer has left, claim and resolve in the console, and the AI team's page. The tools mock the bank's systems of record over a frozen snapshot ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#the-tools-as-the-seam-to-the-banks-systems)). The full account, with the remaining deployment work and risks, is in [limitations.md](docs/evaluation/limitations.md).
 
 ---
 
 ## Self-hosting
 
-A fork stands up in an AWS account you control, with Terraform and nothing tied to our accounts. Most contributions need no AWS access at all:
+A fork stands up in an AWS account you control, with Terraform and nothing tied to our accounts:
 
 | You want to | You need |
 |---|---|
 | Change code, tests, or docs | Only the toolchain |
 | Explore or process the organizers' dataset | The read-only keys from the dataset dictionary |
 | Run the whole stack in your own AWS account | Admin access to an AWS account, and your own fork |
+| [Check our reported numbers](CONTRIBUTING.md#reproduce-the-results) | The toolchain to start; the dataset keys and your own stack for the later checks |
 
 With the [toolchain](CONTRIBUTING.md#1-install-the-toolchain) installed:
 
@@ -110,7 +132,8 @@ make install   # Python and web deps, pre-commit hooks, tflint plugins
 make check     # Every hook against every file, as CI runs them
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, and teardown.
+> [!TIP]
+> [CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, reproducing our results, and teardown.
 
 ---
 

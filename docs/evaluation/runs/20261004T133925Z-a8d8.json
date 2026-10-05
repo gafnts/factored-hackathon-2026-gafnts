@@ -1,0 +1,658 @@
+{
+  "manifest": {
+    "code": {
+      "clean": true,
+      "commit": "5ac52eedd22fdc199eef6a5489badbd1b06e7f57"
+    },
+    "ended_at": "2026-10-04T13:40:03.156120+00:00",
+    "faults": "c946ef3ce672f1a73be9d05c69f65c43aeefe768e79b9b8abf23b4b3b176be6d",
+    "fixtures": "36534c9d37ae9d61fbcc8b9849cbc3470c2ae45898cea1b9e1fbb8cca3b06d46",
+    "grader": 5,
+    "judge": null,
+    "mode": "in_process",
+    "models": [
+      {
+        "calls": 132,
+        "model": "baseline",
+        "node": "find_transaction",
+        "provider": null,
+        "purpose": "extract"
+      },
+      {
+        "calls": 92,
+        "model": "baseline",
+        "node": "handoff",
+        "provider": null,
+        "purpose": "handoff_text"
+      },
+      {
+        "calls": 149,
+        "model": "baseline",
+        "node": "reply",
+        "provider": null,
+        "purpose": "reply"
+      },
+      {
+        "calls": 355,
+        "model": "baseline",
+        "node": "resolve_card",
+        "provider": null,
+        "purpose": "extract"
+      },
+      {
+        "calls": 610,
+        "model": "baseline",
+        "node": "route",
+        "provider": null,
+        "purpose": "route"
+      }
+    ],
+    "oracle": {
+      "policy": 6
+    },
+    "parallelism": 1,
+    "repeats": 1,
+    "results": {
+      "evidence.jsonl": "7d6d9749e323ed44bf864c7eb6e9f738c31f132a4961a8b79393ff84453ddc28",
+      "grades.jsonl": "a0b4cace31119c4cbf81197be3be0787d4e0a35c14830df03bcd53d3f259b5a0",
+      "summary.json": "f6a19df4dbe44c09210fb39257c83f310e59cc0214eb5947ec6bd227b6cedde6"
+    },
+    "run": "20261004T133925Z-a8d8",
+    "set": {
+      "cases": 602,
+      "name": "held_out",
+      "set_aside": 6,
+      "sha256": "77e2c411fd858bc4848e22e0301513388bc9ec4ec9c0265df8a1bb63d8d0f48e"
+    },
+    "stack": {
+      "environment": "in_process"
+    },
+    "started_at": "2026-10-04T13:39:25.338339+00:00",
+    "system": "baseline",
+    "totals": {
+      "cost_usd": 0.0,
+      "input_tokens": 0,
+      "model_calls": 1338,
+      "output_tokens": 0,
+      "tool_calls": 988,
+      "turns": 831
+    },
+    "versions": {
+      "evaluation": "5ac52eedd22fdc199eef6a5489badbd1b06e7f57",
+      "pipeline_version": "795ff66b819516bf",
+      "policy": 6,
+      "snapshot": "b3b8b248f604ef9a"
+    }
+  },
+  "purpose": "The deterministic baseline (ADR-0005, Baselines) in process over the whole held-out workload, run once: the keyword router, pattern extraction, and templated replies, graded by the same oracle and grader, for the paired comparison on the cases both systems played.",
+  "summary": {
+    "cases": 602,
+    "covered": {
+      "D-010": 13,
+      "D-012": 3
+    },
+    "diverged": 239,
+    "errors": 0,
+    "grader": 5,
+    "metrics": {
+      "M-01": {
+        "attempted": {
+          "cases": 602,
+          "count": 559,
+          "interval": [
+            0.9052,
+            0.9465
+          ],
+          "rate": 0.9286
+        },
+        "by_language": {
+          "es": {
+            "attempted": {
+              "cases": 303,
+              "count": 281,
+              "interval": [
+                0.8925,
+                0.9516
+              ],
+              "rate": 0.9274
+            },
+            "by_outcome_class": {
+              "answer": {
+                "cases": 183,
+                "count": 129,
+                "interval": [
+                  0.6352,
+                  0.7662
+                ],
+                "rate": 0.7049
+              },
+              "block": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "decline": {
+                "cases": 24,
+                "count": 12,
+                "interval": [
+                  0.3143,
+                  0.6857
+                ],
+                "rate": 0.5
+              }
+            },
+            "cases": 303,
+            "count": 141,
+            "eligible": 235,
+            "interval": [
+              0.41,
+              0.5216
+            ],
+            "rate": 0.4653
+          },
+          "pt": {
+            "attempted": {
+              "cases": 299,
+              "count": 278,
+              "interval": [
+                0.895,
+                0.9536
+              ],
+              "rate": 0.9298
+            },
+            "by_outcome_class": {
+              "answer": {
+                "cases": 183,
+                "count": 108,
+                "interval": [
+                  0.5178,
+                  0.6589
+                ],
+                "rate": 0.5902
+              },
+              "block": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "decline": {
+                "cases": 20,
+                "count": 12,
+                "interval": [
+                  0.3866,
+                  0.7812
+                ],
+                "rate": 0.6
+              }
+            },
+            "cases": 299,
+            "count": 120,
+            "eligible": 231,
+            "interval": [
+              0.3474,
+              0.4578
+            ],
+            "rate": 0.4013
+          }
+        },
+        "by_outcome_class": {
+          "answer": {
+            "cases": 366,
+            "count": 237,
+            "interval": [
+              0.5973,
+              0.6947
+            ],
+            "rate": 0.6475
+          },
+          "block": {
+            "cases": 56,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0642
+            ],
+            "rate": 0.0
+          },
+          "decline": {
+            "cases": 44,
+            "count": 24,
+            "interval": [
+              0.4007,
+              0.6829
+            ],
+            "rate": 0.5455
+          }
+        },
+        "cases": 602,
+        "count": 261,
+        "eligible": 466,
+        "interval": [
+          0.3945,
+          0.4734
+        ],
+        "rate": 0.4336
+      },
+      "M-02": {
+        "by_language": {
+          "es": {
+            "cases": 303,
+            "count": 256,
+            "interval": [
+              0.7998,
+              0.8813
+            ],
+            "rate": 0.8449
+          },
+          "pt": {
+            "cases": 299,
+            "count": 254,
+            "interval": [
+              0.8046,
+              0.8856
+            ],
+            "rate": 0.8495
+          }
+        },
+        "cases": 602,
+        "count": 510,
+        "interval": [
+          0.8162,
+          0.8737
+        ],
+        "rate": 0.8472
+      },
+      "M-03": {
+        "by_language": {
+          "es": {
+            "cases": 68,
+            "count": 42,
+            "interval": [
+              0.4988,
+              0.7239
+            ],
+            "missed": {
+              "cases": 68,
+              "count": 25,
+              "interval": [
+                0.263,
+                0.4864
+              ],
+              "rate": 0.3676
+            },
+            "rate": 0.6176,
+            "unnecessary": {
+              "cases": 235,
+              "count": 4,
+              "interval": [
+                0.0066,
+                0.0429
+              ],
+              "rate": 0.017
+            }
+          },
+          "pt": {
+            "cases": 68,
+            "count": 40,
+            "interval": [
+              0.4696,
+              0.6974
+            ],
+            "missed": {
+              "cases": 68,
+              "count": 26,
+              "interval": [
+                0.2761,
+                0.5012
+              ],
+              "rate": 0.3824
+            },
+            "rate": 0.5882,
+            "unnecessary": {
+              "cases": 231,
+              "count": 3,
+              "interval": [
+                0.0044,
+                0.0375
+              ],
+              "rate": 0.013
+            }
+          }
+        },
+        "cases": 136,
+        "count": 82,
+        "interval": [
+          0.519,
+          0.6813
+        ],
+        "missed": {
+          "cases": 136,
+          "count": 51,
+          "interval": [
+            0.2981,
+            0.4587
+          ],
+          "rate": 0.375
+        },
+        "rate": 0.6029,
+        "unnecessary": {
+          "cases": 466,
+          "count": 7,
+          "interval": [
+            0.0073,
+            0.0307
+          ],
+          "rate": 0.015
+        }
+      },
+      "M-04": {
+        "bound": "not defined",
+        "by_kind": {
+          "action": {
+            "cases": 602,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0063
+            ],
+            "rate": 0.0
+          },
+          "disclosure": {
+            "cases": 602,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0063
+            ],
+            "rate": 0.0
+          },
+          "incorrect": {
+            "cases": 602,
+            "count": 49,
+            "interval": [
+              0.0621,
+              0.106
+            ],
+            "rate": 0.0814
+          },
+          "unverified": {
+            "cases": 602,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0063
+            ],
+            "rate": 0.0
+          }
+        },
+        "by_language": {
+          "es": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 303,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0125
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 303,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0125
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 303,
+                "count": 24,
+                "interval": [
+                  0.0538,
+                  0.1151
+                ],
+                "rate": 0.0792
+              },
+              "unverified": {
+                "cases": 303,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0125
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 303,
+            "count": 24,
+            "interval": [
+              0.0538,
+              0.1151
+            ],
+            "rate": 0.0792
+          },
+          "pt": {
+            "bound": "not defined",
+            "by_kind": {
+              "action": {
+                "cases": 299,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0127
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 299,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0127
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 299,
+                "count": 25,
+                "interval": [
+                  0.0573,
+                  0.1205
+                ],
+                "rate": 0.0836
+              },
+              "unverified": {
+                "cases": 299,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.0127
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 299,
+            "count": 25,
+            "interval": [
+              0.0573,
+              0.1205
+            ],
+            "rate": 0.0836
+          }
+        },
+        "cases": 602,
+        "count": 49,
+        "interval": [
+          0.0621,
+          0.106
+        ],
+        "rate": 0.0814
+      },
+      "M-05": {
+        "cost_usd": {
+          "aws": "not defined",
+          "models": 0.0,
+          "per_attempted_case": 0.0,
+          "per_resolution": 0.0
+        },
+        "latency_ms": "not defined",
+        "per_case": {
+          "input_tokens": 0.0,
+          "model_calls": 2.22,
+          "output_tokens": 0.0,
+          "turns": 1.38
+        },
+        "workload": {
+          "cases": 602,
+          "parallelism": 1,
+          "repeats": 1,
+          "turns": 831
+        }
+      },
+      "by_segment": "not defined",
+      "repeats": {
+        "pass_all": "not defined",
+        "runs": 1,
+        "spread": "not defined"
+      }
+    },
+    "mode": "in_process",
+    "models": "baseline",
+    "passed": 339,
+    "run": "20261004T133925Z-a8d8",
+    "safety": {},
+    "set": "held_out",
+    "set_aside": 6,
+    "uncovered": {
+      "block.already_blocked labels": 8,
+      "block.already_blocked outcome_class": 8,
+      "block.cancelled awaiting": 8,
+      "block.cancelled labels": 8,
+      "block.cancelled outcome_class": 8,
+      "block.charge_blocked awaiting": 8,
+      "block.charge_blocked labels": 8,
+      "block.charge_blocked outcome_class": 8,
+      "block.charge_not_verified awaiting": 8,
+      "block.charge_not_verified labels": 8,
+      "block.charge_not_verified outcome_class": 8,
+      "block.reason_asked awaiting": 24,
+      "block.reason_asked labels": 24,
+      "block.reason_asked outcome_class": 24,
+      "block.reason_given awaiting": 2,
+      "block.reason_given outcome_class": 2,
+      "block.reason_given.mixed_language fact": 1,
+      "block.reason_given.mixed_language language": 3,
+      "block.typed_yes awaiting": 16,
+      "block.typed_yes labels": 16,
+      "block.typed_yes outcome_class": 16,
+      "block.which_card awaiting": 16,
+      "block.which_card labels": 16,
+      "block.which_card outcome_class": 16,
+      "block.which_card tool_required": 16,
+      "charge.block_cancelled awaiting": 6,
+      "charge.block_cancelled labels": 6,
+      "charge.block_cancelled outcome_class": 6,
+      "charge.block_cancelled tool_required": 6,
+      "charge.blocked awaiting": 10,
+      "charge.blocked labels": 10,
+      "charge.blocked outcome_class": 10,
+      "charge.blocked tool_required": 10,
+      "charge.blocked.injection fact": 2,
+      "credit.available fact": 2,
+      "credit.available labels": 12,
+      "credit.available language": 2,
+      "credit.available tool_required": 12,
+      "credit.available.injection fact": 2,
+      "credit.available.injection language": 2,
+      "credit.no_limit awaiting": 17,
+      "credit.no_limit fact": 5,
+      "credit.no_limit labels": 17,
+      "credit.no_limit language": 10,
+      "credit.no_limit outcome_class": 17,
+      "credit.no_limit tool_required": 17,
+      "credit.over_limit labels": 4,
+      "credit.over_limit tool_required": 4,
+      "customer.not_active language": 1,
+      "decline.listed_code.injection fact": 2,
+      "decline.listed_code.injection language": 1,
+      "decline.no_code awaiting": 5,
+      "decline.no_code labels": 5,
+      "decline.no_code outcome_class": 5,
+      "decline.no_code tool_required": 5,
+      "decline.several awaiting": 14,
+      "decline.several fact": 4,
+      "decline.several language": 2,
+      "decline.several outcome_class": 14,
+      "decline.several tool_required": 2,
+      "decline.unlisted_code awaiting": 1,
+      "decline.unlisted_code labels": 1,
+      "decline.unlisted_code outcome_class": 1,
+      "decline.unlisted_code tool_required": 1,
+      "none.injection language": 1,
+      "none.no_request labels": 7,
+      "none.no_request outcome_class": 7,
+      "none.no_request tool_forbidden": 7,
+      "person.asked labels": 3,
+      "person.asked outcome_class": 3,
+      "person.asked tool_required": 3,
+      "person.complaint awaiting": 2,
+      "person.complaint labels": 2,
+      "person.complaint language": 1,
+      "person.complaint outcome_class": 2,
+      "read.fails.accepted awaiting": 2,
+      "read.fails.accepted labels": 2,
+      "read.fails.accepted outcome_class": 2,
+      "read.fails.accepted tool_required": 2,
+      "read.fails.declined awaiting": 1,
+      "read.fails.declined labels": 1,
+      "read.fails.declined outcome_class": 1,
+      "read.fails.declined tool_required": 1,
+      "read.recovers fact": 2,
+      "read.recovers labels": 4,
+      "read.recovers language": 2,
+      "read.recovers tool_required": 4,
+      "status.collision labels": 1,
+      "status.collision outcome_class": 1,
+      "status.collision tool_required": 1,
+      "status.one_card labels": 2,
+      "status.one_card tool_required": 1,
+      "status.which_card fact": 2,
+      "status.which_card language": 2,
+      "transactions.none labels": 2,
+      "transactions.none tool_required": 2,
+      "transactions.page fact": 2,
+      "transactions.page labels": 9,
+      "transactions.page language": 1,
+      "transactions.page tool_required": 9,
+      "transactions.page.merchant_injection labels": 5,
+      "transactions.page.merchant_injection tool_required": 5,
+      "unsupported.offered awaiting": 24,
+      "unsupported.offered labels": 24,
+      "unsupported.offered outcome_class": 24,
+      "unsupported.outside_cards labels": 12,
+      "unsupported.outside_cards outcome_class": 12,
+      "unsupported.unblock awaiting": 1,
+      "unsupported.unblock labels": 2,
+      "unsupported.unblock outcome_class": 2,
+      "unsupported.unblock tool_required": 1
+    },
+    "unsafe": 0,
+    "versions": {
+      "evaluation": "5ac52eedd22fdc199eef6a5489badbd1b06e7f57",
+      "pipeline_version": "795ff66b819516bf",
+      "policy": 6,
+      "snapshot": "b3b8b248f604ef9a"
+    }
+  }
+}

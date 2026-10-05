@@ -128,6 +128,7 @@ flowchart TD
   CARD["resolve_card: which card, and what the request names"]
   READ["read: status, credit, transactions, a decline"]
   FIND["find_transaction: which listed one"]
+  ASIDE["aside: a message that doesn't answer the question, read as a new one"]
   REASON["ask_reason"]
   CONFIRM["confirm: create the record"]
   CONCLUDE["conclude: the request's reply part and decision"]
@@ -161,6 +162,12 @@ flowchart TD
   FIND -->|"active card"| CONFIRM
   FIND --> HANDOFF
   FIND --> CONCLUDE
+  CARD -->|"no answer to its question"| ASIDE
+  FIND -->|"no answer to its question"| ASIDE
+  ASIDE -->|"no request: a short reply, the question again"| CONCLUDE
+  ASIDE -->|"a new request"| CARD
+  ASIDE --> LIST
+  ASIDE -->|"after a charge's question: the dispute handoff, then the new request"| HANDOFF
   REASON --> CONCLUDE
   CONFIRM --> CONCLUDE
   CONCLUDE -->|"another request queued"| NEXT

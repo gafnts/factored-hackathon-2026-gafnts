@@ -1,7 +1,9 @@
 """
 The held-out set's guards (ADR-0005, The split): it is drawn once, its manifest is committed before the first run that
-reports it, and no case of it is edited after a run. A redraw is refused once any run names the set, whether reported
-under docs/evaluation/runs/ or kept under data/evaluation/runs/; a play is refused unless the set is the one its
+reports it, and no case of it is edited after a run. Once any run names the set, whether reported under
+docs/evaluation/runs/ or kept under data/evaluation/runs/, a redraw only rebuilds it: its cases are kept when they are
+the ones the committed manifest describes, and the manifest is never rewritten, so a clone can rebuild the set from
+the snapshot (OPS-07) and no one can change it under its name. A play is refused unless the set is the one its
 committed manifest describes, so an edited case can't play under the set's name. A changed held-out set is a new
 version, drawn under a new name, with earlier results reported against the old one.
 """
@@ -40,13 +42,22 @@ def runs_against(name: str, reported: Path = REPORTED, kept: Path = KEPT) -> lis
     return sorted(set(found))
 
 
-def refuse_redraw(name: str, reported: Path = REPORTED, kept: Path = KEPT) -> None:
-    played = runs_against(name, reported, kept)
-    if played:
-        raise HeldOutError(
-            f"the {name} set has {len(played)} run(s) against it, the first {played[0]}; it is never redrawn after "
-            "a run, and a changed held-out set is a new version under a new name (ADR-0005, The split)"
-        )
+def reproduce(
+    played: Sequence[str],
+    found: Sequence[Mapping[str, Any]],
+    manifest: Mapping[str, Any],
+    is_committed: bool,
+) -> None:
+    """
+    A redraw once runs name the set keeps its cases only when they are the committed manifest's.
+    """
+    if is_committed and _hash(found) == manifest["sha256"]:
+        return
+    raise HeldOutError(
+        f"the {NAME} set has {len(played)} run(s) against it, the first {played[0]}, and this draw isn't the one its "
+        "committed manifest describes; a redraw only rebuilds it, at its size and seed, and a changed held-out set is a "
+        "new version under a new name (ADR-0005, The split)"
+    )
 
 
 def committed(path: Path) -> bool:
@@ -72,11 +83,14 @@ def verify(
         raise HeldOutError(
             "the held-out set's manifest isn't committed; it is committed before the first run (ADR-0005, The split)"
         )
-    digest = hashlib.sha256(
-        "".join(generator.digest(c) for c in found).encode()
-    ).hexdigest()
-    if digest != manifest["sha256"]:
+    if _hash(found) != manifest["sha256"]:
         raise HeldOutError(
             "the held-out set isn't the one its committed manifest describes; no held-out case is edited after "
             "it is drawn, and a changed set is a new version (ADR-0005, The split)"
         )
+
+
+def _hash(found: Sequence[Mapping[str, Any]]) -> str:
+    return hashlib.sha256(
+        "".join(generator.digest(c) for c in found).encode()
+    ).hexdigest()
