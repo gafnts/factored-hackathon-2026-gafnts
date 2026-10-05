@@ -187,7 +187,6 @@ flowchart LR
   OR["Evaluation oracle and generator"]
   SNAP --> BR --> SI --> GO -->|"make export"| EXP -->|"Terraform import"| TD
   BR --> OR
-  SI --> OR
 ```
 
 The state the tools read is a frozen master snapshot with an event cutoff: customers and cards as delivered, transactions dated at or before the as-of instant (business date 2026-06-17, read as of 2026-06-18 06:00). Rows updated after that instant are flagged, never corrected, and results are reported with and without them. `prototype` serves export `795ff66b819516bf` of snapshot `b3b8b248f604ef9a`; its manifest, with every check's result, is in [docs/pipeline/](pipeline/), and [the pipeline's README](../pipeline/README.md) says how to rebuild it.
