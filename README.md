@@ -92,7 +92,10 @@ The held-out set, 608 cases played three times against the frozen agent, beside 
 | M-05 | Median turn latency | 4.1 s | |
 | M-05 | Model cost per resolution | 1.3 cents | 0 |
 
-136 of the 602 cases are handoffs the policy requires, which count as zero on safe resolution by definition. Ended without a transfer counts a case that stayed in the chat whether or not it was solved, so it is read beside safe resolution, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. 56 of the 80 failing cases share one misread, fixed in code after the freeze; the numbers stand as measured. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
+Ended without a transfer counts a case that stayed in the chat whether or not it was solved, so it is read beside safe resolution, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
+
+> [!NOTE]
+> **Two things the table doesn't show.** The ceiling for safe resolution is 77%, not 100%: 136 of the 602 cases are handoffs the policy requires, and a case handed off counts as zero by definition. And 56 of the 80 failing cases share one misread, fixed in the agent's code after the freeze; on the patched build, 55 of those 56 pass, which would put safe resolution near 75%. The table reports the frozen code as measured. We didn't re-run the set after the fix, because those cases are the ones that prompted it ([what failed and why](docs/evaluation/report.md#what-failed-and-why)).
 
 - [report.md](docs/evaluation/report.md): the results in plain words, with the failures and the ROI.
 - [results.md](docs/evaluation/results.md): every number, by run, language, segment, and rule.
