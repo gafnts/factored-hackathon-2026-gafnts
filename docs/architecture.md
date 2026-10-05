@@ -91,6 +91,7 @@ flowchart TD
   CARD["resolve_card: which card, and what the request names"]
   READ["read: status, credit, transactions, a decline"]
   FIND["find_transaction: which listed one"]
+  ASIDE["aside: a message that doesn't answer the question, read as a new one"]
   REASON["ask_reason"]
   CONFIRM["confirm: create the record, show the control"]
   CONCLUDE["conclude: the request's reply part and decision"]
@@ -104,6 +105,7 @@ flowchart TD
   IN --> BEGIN
   BEGIN -->|"new message"| ROUTE
   BEGIN -->|"answer to a question"| CARD
+  BEGIN -->|"answer to a question"| FIND
   ROUTE -->|"a card request"| CARD
   ROUTE -->|"unsupported, talk_to_human"| LIST
   ROUTE -->|"no request, third language"| CONCLUDE
@@ -122,6 +124,12 @@ flowchart TD
   FIND -->|"active card"| CONFIRM
   FIND --> HANDOFF
   FIND --> CONCLUDE
+  CARD -->|"no answer to its question"| ASIDE
+  FIND -->|"no answer to its question"| ASIDE
+  ASIDE -->|"no request: a short reply, the question again"| CONCLUDE
+  ASIDE -->|"a new request"| CARD
+  ASIDE --> LIST
+  ASIDE -->|"after a charge's question: the dispute handoff, then the new request"| HANDOFF
   REASON --> CONCLUDE
   CONFIRM --> CONCLUDE
   CONCLUDE -->|"another request queued"| NEXT
