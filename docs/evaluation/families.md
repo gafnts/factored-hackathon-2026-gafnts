@@ -38,4 +38,4 @@ Within each label, and within each kind of answer, the third whose IDs have the 
 - **A model's paraphrases.** Claude Opus 5.5 is an Anthropic model, and so are the router comparison's LLM candidates, Claude Haiku 4.5 and Claude Sonnet 5.5: the bias favors neither over the other, but may favor both over the keyword router. The report says so beside the comparison (DML-11).
 - **One follow-up family.** The next page has a single family, which the split put on the development side, so held-out cases can't ask for a next page in held-out words.
 - **No development access family.** The split put all three `access` families (someone else's card, another customer's number) on the held-out side, so no development case asks in words about another customer's records; the harness's access cases (another customer's thread or session, a tool called directly) cover access on the development side.
-- **Label quality** is measured later, by relabelling 50 messages blind (DML-08).
+- **Label quality** wasn't measured. The blind relabel of 50 messages was drawn and not graded, for time ([report](report.md#label-quality), DML-08).
