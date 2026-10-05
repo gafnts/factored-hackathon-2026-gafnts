@@ -370,7 +370,11 @@ make destroy ENV=local  # Tear down your local resources
 
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
 
+#### The build
+
 `make plan` runs `make build` first, which writes a zip each for the Runtime and the Lambdas into `build/`: this package without its evaluation, which never runs in the stack, plus the Linux arm64 wheels that its `agent` or `tools` dependency group locks in `uv.lock`. On one machine, rebuilding the same tree gives the same zip, so a plan shows a change only when the code or a locked version changed; across uv versions the bytes can differ. The Runtime's entry script names the commit that last changed the packaged code, which every turn's execution record carries, so build from a committed tree: with uncommitted code, the build warns that the stamp names the last commit instead. The build also rewrites `infra/modules/gateway/tools.json`, the Gateway's copy of the tools' contract, which is committed so that CI can lint the stack without building; commit it with any change to the contract.
+
+#### Alarms
 
 The four alarms ([ADR-0004](docs/adr/0004-agent-architecture-on-agentcore.md#operations), monitoring) notify an SNS topic that `make outputs` writes under `alarms.topic_arn`. Terraform subscribes no address to it, so none reaches the repository: subscribe once per environment, then confirm from the email AWS sends.
 
@@ -381,13 +385,19 @@ aws sns subscribe --protocol email --notification-endpoint you@example.com \
 
 A subscription outlives applies, and `make destroy` removes it with the topic.
 
+#### The site
+
 The site's `config.json`, which names the user pool, both app clients, and the Runtime, is written by Terraform at every apply, so `make site` uploads only the build and leaves it alone. The console API is served under `/api` on the site's own origin, so the page reaches it without a cross-origin call, and `make web-dev` passes `/api` on to the deployed site. `make outputs` writes the site's URL under `site.url` in `build/<env>.outputs.json`, and the console API's under `console.url`.
 
 A custom domain is optional ([ADR-0007](docs/adr/0007-role-gated-web-app.md#hosting-and-the-domain)); without one, the site runs on its CloudFront domain. Setting `domain_name` in `infra/envs/<env>.tfvars` requests a certificate in us-east-1, and after that apply `make outputs` lists under `site.domain_records` the two CNAMEs the name needs in its DNS: the certificate's validation, which stays so the certificate renews, and the name itself, pointing at the distribution. Once both are in DNS, `attach_domain = true` waits for ACM to issue the certificate (up to 30 minutes), puts the name on the distribution, and makes `site.url` name it. The validation record belongs to the name and the account rather than to one certificate, so with it already in DNS, one change can set both.
 
 `make browser` runs the tests marked `browser`, which `make integration` leaves out: Playwright drives Chromium through the site as a customer and a human agent would, in two tabs, with throwaway users, and asserts on the pages and on the sign-in's execution record. It prints no reply, token, or ID, and saves no trace, screenshot, or video. Run `make site` first, so it tests the build you have.
 
+#### The tools' data
+
 The tools' data table is created from the export that `tools_data_export` names in `infra/envs/<env>.tfvars`, and only its import writes it. A change to the code that shapes the export (`pipeline/`, `src/banking_agent/pipeline/`, the export's writer, or the tools' data contract, as the [pipeline's README](pipeline/README.md) lists them) gives it a new version: run `make pipeline` and `make export`, which uploads it and prints the value, set it in both files, and commit the manifest it writes under `docs/pipeline/`. The next apply imports a new table, points the read tools at it, and then deletes the old one; each import takes a few minutes.
+
+#### New modules
 
 Add infrastructure as per-concern modules under `infra/modules/`, wired into `infra/main.tf`. The deploy roles have `PowerUserAccess`, which covers almost any AWS service. IAM is the exception: a deploy role can only manage roles named `banking-agent-<env>-*` that carry the environment's permissions boundary, so name Lambda and task execution roles accordingly and set `permissions_boundary = local.permissions_boundary_arn` on each (pass it into modules as a variable). The boundary allows everything except IAM and other environments' resources.
 
