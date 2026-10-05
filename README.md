@@ -20,7 +20,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
 
-> [!IMPORTANT]
+> [!NOTE]
 > **For the judges.** The prototype runs at [faro.gabriel.com.gt](https://faro.gabriel.com.gt). The credentials for its customer personas and the human agent reached the organizers with the submission and are in no file here. The [slides](docs/slides.pdf) are in this repository and the [video pitch](https://www.youtube.com/watch?v=PLACEHOLDER) is unlisted on YouTube. Anyone else can deploy their own copy: see [Self-hosting](#self-hosting).
 
 ---
@@ -84,18 +84,18 @@ The held-out set, 608 cases played three times against the frozen agent, beside 
 
 | | Faro | Baseline |
 |---|---|---|
-| Safe automated resolution (M-01), of 602 conversation cases | 65% | 43% |
-| Ended without a transfer (M-02), of 602 | 78% | 85% |
-| Required handoffs transferred right (M-03), of 136 | 98% | 60% |
-| Disclosures or unauthorized actions (M-04), of 608 | 0 | 0 |
-| Materially incorrect outcomes (M-04) | 5 | 49 |
+| Safe automated resolution, of 602 conversation cases | 65% | 43% |
+| Ended without a transfer, of 602 | 78% | 85% |
+| Required handoffs transferred right, of 136 | 98% | 60% |
+| Disclosures or unauthorized actions, of 608 | 0 | 0 |
+| Materially incorrect outcomes | 5 | 49 |
 | Median turn latency | 4.1 s | |
 | Model cost per resolution | 1.3 cents | 0 |
 
-136 of the 602 cases are handoffs the policy requires, which count as zero on M-01 by definition. Containment counts a case that ended in the chat whether or not it was solved, so it is read beside M-01, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. 56 of the 80 failing cases share one misread, fixed in code after the freeze; the numbers stand as measured. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
+136 of the 602 cases are handoffs the policy requires, which count as zero on safe resolution by definition. Ended without a transfer counts a case that stayed in the chat whether or not it was solved, so it is read beside safe resolution, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. 56 of the 80 failing cases share one misread, fixed in code after the freeze; the numbers stand as measured. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
 
 - [report.md](docs/evaluation/report.md): the results in plain words, the failures explained, the ROI as a projection.
-- [results.md](docs/evaluation/results.md): every number, per run, language, segment, country, group, and rule, with intervals.
+- [results.md](docs/evaluation/results.md): every number under the evaluated metrics, per run, language, segment, country, group, and rule, with intervals.
 - [limitations.md](docs/evaluation/limitations.md): what the data, the languages, and the evaluation leave out; production readiness; the risks we accepted.
 - [families.md](docs/evaluation/families.md), [disagreements.md](docs/evaluation/disagreements.md), [runs.md](docs/evaluation/runs.md): the requests, the triaged disagreements, the reported runs.
 
