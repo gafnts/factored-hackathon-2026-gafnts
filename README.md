@@ -29,19 +29,19 @@
 
 Built for the Factored AI &amp; Data Hackathon 2026. In Spanish, *faro* is a lighthouse; in Portuguese, *ter faro* is to have a nose for things. Guidance in one language, judgment in the other: Faro grounds every answer in the cardholder's own records, enforces permissions in code rather than in the prompt, and gives a human agent a structured case file whenever a request needs one.
 
-A LATAM Bank customer spots a charge on their credit card that they didn't make, and writes to the bank's chat in Portuguese: *Não reconheço uma compra no meu cartão.* Faro finds the charge among the card's transactions and offers to block the card. A typed *sim* does nothing: the chat shows a button that names the card and the reason, and only that button confirms. Once the customer presses it, the tool reads the card back, and Faro reports the block because that read shows it. Then it files the case to dispute intake and gives the customer a reference.
+A LATAM Bank customer spots a charge on their credit card that they didn't make, and writes to the [bank's chat](https://faro.gabriel.com.gt/chat) in Portuguese: *Não reconheço uma compra no meu cartão.* Faro finds the charge among the card's transactions and offers to block the card. A typed *sim* does nothing: the chat shows a button that names the card and the reason, and only that button confirms. Once the customer presses it, the tool reads the card back, and Faro reports the block because that read shows it. Then it files the case to dispute intake and gives the customer a reference.
 
 <p align="center">
   <a href="https://faro.gabriel.com.gt"><img src="docs/images/chat.png" alt="The chat: the charge found, the block confirmed with the button, the reference given" width="100%"></a>
 </p>
 
-In the console, a human agent sees the case within seconds: the request, every verified fact next to the tool call that read it, the confirmed block, and the customer's own words kept apart from the facts. Nothing to read back, nothing to ask twice. Had the customer cancelled the block, the card would still be live with a charge they don't recognize, so the same case would have arrived marked urgent, for a person to act on first.
+In the [console](https://faro.gabriel.com.gt/cases), a human agent sees the case within seconds: the request, every verified fact next to the tool call that read it, the confirmed block, and the customer's own words kept apart from the facts. Nothing to read back, nothing to ask twice. Had the customer cancelled the block, the card would still be live with a charge they don't recognize, so the same case would have arrived marked urgent, for a person to act on first.
 
 <p align="center">
   <a href="https://faro.gabriel.com.gt/cases"><img src="docs/images/cases.png" alt="The console: the case with its evidence, seconds after the chat filed it" width="100%"></a>
 </p>
 
-> [!NOTE]
+> [!IMPORTANT]
 > LATAM Bank and every customer in it are synthetic, from the organizers' dataset. This journey runs end to end on the prototype, and the browser suite replays it as a test, in Portuguese, against each deployed stack before we promote it ([ADR-0007](docs/adr/0007-role-gated-web-app.md#judges-access)).
 
 ### Why Faro exists
@@ -82,22 +82,22 @@ Offline: scripted conversations played against the deployed stack and graded by 
 
 The held-out set, 608 cases played three times against the frozen agent, beside a deterministic baseline on the same cases:
 
-| | Faro | Baseline |
-|---|---|---|
-| Safe automated resolution, of 602 conversation cases | 65% | 43% |
-| Ended without a transfer, of 602 | 78% | 85% |
-| Required handoffs transferred right, of 136 | 98% | 60% |
-| Disclosures or unauthorized actions, of 608 | 0 | 0 |
-| Materially incorrect outcomes | 5 | 49 |
-| Median turn latency | 4.1 s | |
-| Model cost per resolution | 1.3 cents | 0 |
+| ID | Metric | Faro | Baseline |
+|---|---|---|---|
+| M-01 | Safe automated resolution, of 602 conversation cases | 65% | 43% |
+| M-02 | Ended without a transfer, of 602 | 78% | 85% |
+| M-03 | Required handoffs transferred right, of 136 | 98% | 60% |
+| M-04 | Disclosures or unauthorized actions, of 608 | 0 | 0 |
+| M-04 | Materially incorrect outcomes | 5 | 49 |
+| M-05 | Median turn latency | 4.1 s | |
+| M-05 | Model cost per resolution | 1.3 cents | 0 |
 
 136 of the 602 cases are handoffs the policy requires, which count as zero on safe resolution by definition. Ended without a transfer counts a case that stayed in the chat whether or not it was solved, so it is read beside safe resolution, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. 56 of the 80 failing cases share one misread, fixed in code after the freeze; the numbers stand as measured. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
 
-- [report.md](docs/evaluation/report.md): the results in plain words, the failures explained, the ROI as a projection.
-- [results.md](docs/evaluation/results.md): every number under the evaluated metrics, per run, language, segment, country, group, and rule, with intervals.
-- [limitations.md](docs/evaluation/limitations.md): what the data, the languages, and the evaluation leave out; production readiness; the risks we accepted.
-- [families.md](docs/evaluation/families.md), [disagreements.md](docs/evaluation/disagreements.md), [runs.md](docs/evaluation/runs.md): the requests, the triaged disagreements, the reported runs.
+- [report.md](docs/evaluation/report.md): the results in plain words, with the failures and the ROI.
+- [results.md](docs/evaluation/results.md): every number, by run, language, segment, and rule.
+- [limitations.md](docs/evaluation/limitations.md): what the evaluation leaves out, and the risks we accepted.
+- [families.md](docs/evaluation/families.md), [disagreements.md](docs/evaluation/disagreements.md), [runs.md](docs/evaluation/runs.md): the requests, the disagreements, the runs.
 
 The design is in [ADR-0005](docs/adr/0005-offline-scenario-evaluation.md).
 
@@ -129,7 +129,8 @@ make install   # Python and web deps, pre-commit hooks, tflint plugins
 make check     # Every hook against every file, as CI runs them
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, reproducing our results, and teardown.
+> [!TIP]
+> [CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, reproducing our results, and teardown.
 
 ---
 
