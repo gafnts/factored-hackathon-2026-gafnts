@@ -397,7 +397,7 @@ make lock
 
 ### Evaluate
 
-The evaluation ([ADR-0005](docs/adr/0005-offline-scenario-evaluation.md)) plays scripted conversations and grades them by code against an oracle; [docs/evaluation/](docs/evaluation/) holds the sets' manifests, the reported runs, and the disagreement log. The targets read the last `make pipeline` build and write under `data/evaluation/`, printing counts and never an ID, a reply, or a token:
+The evaluation ([ADR-0005](docs/adr/0005-offline-scenario-evaluation.md)) plays scripted conversations and grades them by code against an oracle; [docs/evaluation/](docs/evaluation/) holds the report, the results, the limitations, the sets' manifests, the reported runs, and the disagreement log. The targets read the last `make pipeline` build and write under `data/evaluation/`, printing counts and never an ID, a reply, or a token:
 
 ```bash
 make eval-sets                   # Draw the regression and selection sets; manifests to docs/evaluation/sets/
@@ -406,14 +406,21 @@ make eval-play SET=regression    # Play a set in process with scripted models, a
 make eval-play MODELS=baseline   # The same with the deterministic baseline's keywords, patterns, and templates
 make eval-run SET=selection      # Play a set end to end against ENV's deployed stack, and grade it
 make eval-cleanup                # Delete the test users a stopped run left behind
-make disagreements               # Regenerate docs/evaluation/disagreements.md from docs/evaluation/disagreements.json
 make eval-index                  # Regenerate docs/evaluation/runs.md from the manifests under docs/evaluation/runs/
+make disagreements               # Regenerate docs/evaluation/disagreements.md from docs/evaluation/disagreements.json
+make eval-report RUNS="..." BASELINE=... JUDGED="..." AGREEMENT=...   # Write docs/evaluation/results.md from stored grades
 make language-check              # Read every development paraphrase with the real prompts; report to docs/evaluation/language.md
+make router-compare              # Compare the keyword router with model routers, paired over families
+make judge RUN=...               # Judge a run's replies through the batch API
+make judge-sample RUN=...        # Draw the judge's blind sample and the sheet to grade by hand
+make judge-agreement SAMPLE=... JUDGED=...   # Score the judge against the filled sheet
+make relabel-sample              # Draw 50 messages to relabel blind, for label quality
+make relabel-agreement SAMPLE=...            # Score the filled sheet against the families' labels
 ```
 
-`make language-check` reads `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file) and calls the model once per development message and answer, and once more per block request to read its reason, about a thousand calls at about a dollar; it never reads the held-out side. Its report and page are committed, like a run's manifest.
+`make eval-run` needs `AWS_PROFILE`, the stack's outputs (`STACK_OUTPUTS`, default `build/<env>.outputs.json`), and the model key stored. It creates one test user per case in the pool's evaluation group and deletes it when the case ends, and keeps each case's evidence under `data/evaluation/runs/` and in the stack's evaluation bucket; `SITUATIONS=`, `LANGUAGES=`, and `LIMIT=` narrow a run, and `PARALLEL=` sets how many cases play at once. To report a run, commit its manifest and summary under `docs/evaluation/runs/` and run `make eval-index`. Where the system and the oracle disagree, add an entry to `docs/evaluation/disagreements.json` and run `make disagreements`: CI's regression job fails on any finding without an open entry.
 
-`make eval-run` needs `AWS_PROFILE`, the stack's outputs (`STACK_OUTPUTS`, default `build/<env>.outputs.json`), and the model key stored. It creates one test user per case in the pool's evaluation group and deletes it when the case ends, and keeps each case's evidence under `data/evaluation/runs/` and in the stack's evaluation bucket. `SITUATIONS=`, `LANGUAGES=`, and `LIMIT=` narrow a run, and `PARALLEL=` sets how many cases play at once (default 2). To report a run, commit its manifest and summary under `docs/evaluation/runs/` and run `make eval-index`. Where the system and the oracle disagree, add an entry to `docs/evaluation/disagreements.json` and run `make disagreements`: CI's regression job fails on any finding without an open entry. Only the development sets play today; the held-out run is still to come.
+`make language-check`, `make router-compare`, and `make judge` call the model and cost money: they read `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file), and `ESTIMATE=1` prices a judge or router run without making it. A judge's verdicts count only on the questions `make judge-agreement` shows met the bar (ADR-0005, Grading). `make eval-report` takes every input at once or the page loses a section.
 
 ### Promote to prototype
 
@@ -505,6 +512,11 @@ Run `make help` for every target.
 | `RUN` | Unset: every stopped run | `make eval-cleanup` |
 | `SLOW` | Unset | Set to `1` to add the tests that wait out a token to `make integration` |
 | `WHAT`, `JUDGE` | `create`, every judge | `make judges` |
+| `RUNS`, `BASELINE`, `JUDGED`, `AGREEMENT`, `LABELS` | Unset | `make eval-report`: the runs, the baseline run, the judge runs, the agreement file, and the relabel sample it reads |
+| `ENV_FILE`, `ESTIMATE` | `.env`, unset | `make language-check`, `make judge`, `make router-compare`: the file holding the model key, and `1` to price a run without making it |
+| `FAMILIES` | All | `make language-check`: a few families, for cents |
+| `ITEMS`, `SEEDED`, `SAMPLE`, `ROWS`, `SEED` | See `make help` | `make judge`, `make judge-sample`, `make judge-agreement`, `make relabel-sample`, `make relabel-agreement` |
+| `ROUTERS`, `SIDE`, `FOLDS` | All, `development`, see `make help` | `make router-compare` |
 
 ### What's pinned
 
@@ -527,7 +539,7 @@ Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) opens a monthly PR
 
 ### Files
 
-The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, the manifests in `docs/pipeline/` by `make export`, bronze's YAML in `pipeline/models/bronze/` by `make contracts`, and `infra/modules/gateway/tools.json` by `make build`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly. [infra/](infra/README.md), [src/banking_agent/](src/banking_agent/README.md), and [pipeline/](pipeline/README.md) each open with a README that maps the directory.
+The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbackend`, `infra/dataset/backend.tfbackend`) are generated by `make backend` from the project name and the account ID, and committed. CI regenerates them on every deploy job, after its OIDC login. `dataset.lock` is committed too: `make data` writes it the first time, and `make data ADOPT=1` after that. The reports in `docs/analysis/` are written by `make analysis`, the manifests in `docs/pipeline/` by `make export`, bronze's YAML in `pipeline/models/bronze/` by `make contracts`, `infra/modules/gateway/tools.json` by `make build`, and, under `docs/evaluation/`, `runs.md` by `make eval-index`, `disagreements.md` by `make disagreements`, `results.md` by `make eval-report`, and `language.md` by `make language-check`; regenerate them instead of editing them. The scripts behind the setup targets live in [scripts/](scripts/) and share their naming and guards through `scripts/common.sh`; run them through `make` rather than directly. [infra/](infra/README.md), [src/banking_agent/](src/banking_agent/README.md), [pipeline/](pipeline/README.md), and [web/](web/README.md) each open with a README that maps the directory.
 
 Gitignored files worth knowing about:
 
