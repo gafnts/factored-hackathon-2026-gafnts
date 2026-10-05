@@ -119,7 +119,7 @@ make install   # Python and web deps, both hook stages, tflint plugins
 make check     # Every hook against every file, as CI's pre-commit job runs them
 ```
 
-If `make check` passes, your machine matches CI. Re-run `make install` after pulling changes to `pyproject.toml`, `web/package.json`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
+If `make check` passes, your machine runs the same hooks as CI; CI also plays the regression set, which `make regression` runs locally. Re-run `make install` after pulling changes to `pyproject.toml`, `web/package.json`, `.pre-commit-config.yaml`, or `.tflint.hcl`.
 
 From now on, hooks run on their own:
 
@@ -561,7 +561,7 @@ The backend files (`infra/envs/*.backend.tfbackend`, `infra/iam/backend.tfbacken
 Gitignored files worth knowing about:
 
 - `.terraform/`: Terraform plugin cache and local state
-- `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make integration` reads
+- `build/`: the zips `make build` writes, the plan `make plan` saves, and the outputs `make outputs` writes for every target that reaches a stack
 - `web/node_modules/`, `web/dist/`, `web/coverage/`: the web app's dependencies, its build, and its coverage report
 - `web/public/config.json`: the configuration `make web-dev` copies from the stack's outputs
 - `infra/iam/iam.tfvars`: your principal ARN, the state bucket, and the OIDC subject prefix the CI roles trust
