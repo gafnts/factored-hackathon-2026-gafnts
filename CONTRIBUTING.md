@@ -115,7 +115,7 @@ The operations that can hurt are hard to trigger by mistake:
 Then install the dependencies and hooks, and run every check once:
 
 ```bash
-make install   # Python and web deps, pre-commit hooks for both stages, tflint plugins
+make install   # Python and web deps, both hook stages, tflint plugins
 make check     # Every hook against every file, as CI's pre-commit job runs them
 ```
 
@@ -250,8 +250,8 @@ This runs `make data`, then uploads the verified copy to `snapshots/<snapshot-id
 The stack's plan reads an export of the tools' data from the same bucket ([ADR-0006](docs/adr/0006-batch-medallion-pipeline.md)), so upload one before the first deploy. The [pipeline](pipeline/README.md) builds it from the snapshot:
 
 ```bash
-make pipeline      # Build bronze, silver, and gold into data/pipeline/, and run every check
-make export        # Write gold's items into data/exports/ and upload them under gold/ in the data bucket
+make pipeline  # Build bronze, silver, and gold, with every check
+make export    # Export gold's items and upload them to the data bucket
 ```
 
 On a recent laptop, `make pipeline` takes under a minute and `make export` about a minute and a half before its upload. Both read the snapshot in `data/` and print counts, never a customer's ID or values; what they write under `data/` stays out of git. `make export` prints the export's snapshot and pipeline version, which `tools_data_export` in `infra/envs/<env>.tfvars` must name. The version is a hash of the code that shapes the export, so the same code gives the same version on every machine, and the committed value works in your fork once your bucket holds the export. The first import in an account logs to `/aws-dynamodb/imports`, which [step 3.3](#33-create-the-deploy-roles) created with a retention.
@@ -266,7 +266,7 @@ The agent calls Anthropic's API with a key that Terraform never sees. [Step 3.3]
 make doctor            # Every line but the model keys' should read ok
 cp .env.example .env   # Then set ANTHROPIC_API_KEY in .env
 make model-key         # Store it in banking-agent-local-anthropic-api-key
-make plan              # Build the zips, preview the local stack, and save the plan
+make plan              # Build the zips, then preview and save the plan
 make apply             # Apply the saved plan
 make site              # Build the web app and upload it to the site
 ```
@@ -334,16 +334,18 @@ A few habits keep PRs quick to review:
 Hooks run on commit and push, and you can run them on demand:
 
 ```bash
-make check        # Every hook against every file (both stages)
-make format       # Apply ruff's fixes and formatting, and Prettier's and ESLint's to the web app
-make lint         # Run ruff check, and ESLint on the web app
-make type         # Run mypy, and tsc on the web app
+make check        # Every hook against every file, both stages
+make format       # Apply ruff's, Prettier's, and ESLint's fixes
+make lint         # Run ruff check and ESLint
+make type         # Run mypy and tsc
 make test         # Run pytest and Vitest, each with its coverage floor
-make integration  # Test ENV's deployed stack (needs credentials, the model key, and make personas; deselected by default)
-make browser      # Play the chat and the console in Chromium against ENV's deployed site (same needs; installs Chromium)
-make regression   # Play and grade the regression set in process, as CI's second job does (no credentials)
-make tf-format    # Format all Terraform files
+make integration  # Test ENV's deployed stack
+make browser      # Play the chat and the console in Chromium
+make regression   # Play and grade the regression set, as CI does
+make tf-format    # Format the Terraform files
 ```
+
+`make integration` and `make browser` need credentials, the stored model key, and `make personas`, so `make test` leaves their tests out; `make browser` also installs Chromium. `make regression` needs no credentials.
 
 CI's quality gates are `make check` and `make regression`, so a green local run of both predicts a green PR. What each suite checks, and which test stops each attack we expect, is in [tests/README.md](tests/README.md). In an emergency, skip a single hook with `SKIP=<hook-id> git commit`; CI still runs it.
 
@@ -354,16 +356,16 @@ Inside `web/`, each tool runs on its own: `pnpm lint`, `pnpm format`, `pnpm type
 With `AWS_PROFILE=banking-agent-local` active (direnv sets it when you enter the repo):
 
 ```bash
-make init                # Initialize the local backend (safe to re-run)
-make plan                # Build, preview changes, and save the plan to build/local.tfplan
-make apply               # Apply the saved plan
-make site                # Build the web app, upload it to the site, and invalidate the distribution's cache
-make integration         # Test the deployed stack with throwaway users (SLOW=1 also waits out a token, 15 minutes)
-make browser             # Play the chat and the console in Chromium against the deployed site
-make probe               # Time the Runtime per persona and check what it stores and traces
-make judges              # Create or manage the judges' users in the pool (credentials and the private note under data/judges/, never printed)
-make web-dev             # Serve the web app on localhost:5173 against the deployed stack, /api included
-make destroy ENV=local   # Tear down your local resources
+make init               # Initialize the local backend (safe to re-run)
+make plan               # Build, preview, and save the plan to build/
+make apply              # Apply the saved plan
+make site               # Build the web app, upload it, and clear the cache
+make integration        # Test the stack (SLOW=1 waits out a token, 15 min)
+make browser            # Play the chat and the console in Chromium
+make probe              # Time the Runtime and check what it stores and traces
+make judges             # Manage the judges' users, kept in data/judges/
+make web-dev            # Serve the web app on localhost:5173
+make destroy ENV=local  # Tear down your local resources
 ```
 
 `ENV` defaults to `local`. Terraform runs with the credentials the AWS CLI resolves for `AWS_PROFILE` (`aws configure export-credentials`), since the pinned AWS provider can't assume the deploy role on top of an `aws login` sign-in.
@@ -400,27 +402,27 @@ make lock
 The evaluation ([ADR-0005](docs/adr/0005-offline-scenario-evaluation.md)) plays scripted conversations and grades them by code against an oracle; [docs/evaluation/](docs/evaluation/) holds the report, the results, the limitations, the sets' manifests, the reported runs, and the disagreement log. The targets read the last `make pipeline` build and write under `data/evaluation/`, printing counts and never an ID, a reply, or a token:
 
 ```bash
-make eval-sets                   # Draw the regression and selection sets; manifests to docs/evaluation/sets/
-make eval-sets HELD_OUT=600      # Draw the held-out set too, once at the freeze; refused after a run names it
-make eval-play SET=regression    # Play a set in process with scripted models, and grade it (no credentials)
-make eval-play MODELS=baseline   # The same with the deterministic baseline's keywords, patterns, and templates
-make eval-run SET=selection      # Play a set end to end against ENV's deployed stack, and grade it
-make eval-cleanup                # Delete the test users a stopped run left behind
-make eval-index                  # Regenerate docs/evaluation/runs.md from the manifests under docs/evaluation/runs/
-make disagreements               # Regenerate docs/evaluation/disagreements.md from docs/evaluation/disagreements.json
-make eval-report RUNS="..." BASELINE=... JUDGED="..." AGREEMENT=...   # Write docs/evaluation/results.md from stored grades
-make language-check              # Read every development paraphrase with the real prompts; report to docs/evaluation/language.md
-make router-compare              # Compare the keyword router with model routers, paired over families
-make judge RUN=...               # Judge a run's replies through the batch API
-make judge-sample RUN=...        # Draw the judge's blind sample and the sheet to grade by hand
-make judge-agreement SAMPLE=... JUDGED=...   # Score the judge against the filled sheet
-make relabel-sample              # Draw 50 messages to relabel blind, for label quality
-make relabel-agreement SAMPLE=...            # Score the filled sheet against the families' labels
+make eval-sets                  # Draw the regression and selection sets
+make eval-sets HELD_OUT=600     # Draw the held-out set too, or rebuild ours
+make eval-play SET=regression   # Play a set in process with scripted models
+make eval-play MODELS=baseline  # The same with the deterministic baseline
+make eval-run SET=selection     # Play a set end to end on ENV's stack
+make eval-cleanup               # Delete a stopped run's leftover test users
+make eval-index                 # Regenerate docs/evaluation/runs.md
+make disagreements              # Regenerate docs/evaluation/disagreements.md
+make eval-report                # Write docs/evaluation/results.md
+make language-check             # Read the paraphrases with the real prompts
+make router-compare             # Compare the keyword router with model routers
+make judge                      # Judge a run's replies through the batch API
+make judge-sample               # Draw the judge's blind sample and its sheet
+make judge-agreement            # Score the judge against the filled sheet
+make relabel-sample             # Draw 50 messages to relabel blind
+make relabel-agreement          # Score the filled sheet against the labels
 ```
 
 `make eval-run` needs `AWS_PROFILE`, the stack's outputs (`STACK_OUTPUTS`, default `build/<env>.outputs.json`), and the model key stored. It creates one test user per case in the pool's evaluation group and deletes it when the case ends, and keeps each case's evidence under `data/evaluation/runs/` and in the stack's evaluation bucket; `SITUATIONS=`, `LANGUAGES=`, and `LIMIT=` narrow a run, and `PARALLEL=` sets how many cases play at once. To report a run, commit its manifest and summary under `docs/evaluation/runs/` and run `make eval-index`. Where the system and the oracle disagree, add an entry to `docs/evaluation/disagreements.json` and run `make disagreements`: CI's regression job fails on any finding without an open entry.
 
-`make language-check`, `make router-compare`, and `make judge` call the model and cost money: they read `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file), and `ESTIMATE=1` prices a judge or router run without making it. A judge's verdicts count only on the questions `make judge-agreement` shows met the bar (ADR-0005, Grading). `make eval-report` takes every input at once or the page loses a section.
+`make language-check`, `make router-compare`, and `make judge` call the model and cost money: they read `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file), and `ESTIMATE=1` prices a judge or router run without making it. A judge's verdicts count only on the questions `make judge-agreement` shows met the bar (ADR-0005, Grading). The judge, relabel, and report targets take their inputs as variables, which `make help` names and [Configuration](#configuration) describes; `make eval-report` takes every input at once or the page loses a section.
 
 ### Promote to prototype
 
@@ -505,18 +507,23 @@ Run `make help` for every target.
 | `ANTHROPIC_API_KEY` | Unset; set it in `.env`, not the shell | `make model-key` |
 | `GITHUB_OIDC_SUBJECT_PREFIX` | Read from GitHub for `origin` | `make bootstrap` |
 | `DATA_DIR` | `data` | The pipeline and evaluation targets, for a worktree whose `data/` is empty |
+| `SLOW` | Unset | Set to `1` to add the tests that wait out a token to `make integration` |
+| `WHAT`, `JUDGE` | `create`, every judge | `make judges`: `create`, `reset`, `sign-out`, `disable`, `enable`, or `delete` |
+
+The evaluation targets ([Evaluate](#evaluate)) take their own:
+
+| Variable | Default | Used by |
+|---|---|---|
 | `STACK_OUTPUTS` | `build/<env>.outputs.json` | `make eval-run`, `make eval-cleanup` |
 | `SET`, `SITUATIONS`, `LANGUAGES`, `LIMIT`, `PARALLEL` | `regression`, all, all, none, `2` | `make eval-play` (`SET` only) and `make eval-run` |
 | `MODELS` | `scripted` | `make eval-play`: `baseline` plays the deterministic baseline, the only models the held-out set plays in process |
-| `HELD_OUT` | Unset: no held-out draw | `make eval-sets`: the held-out set's size, `600`, `400`, or `240` by the scope rule (ADR-0005); its manifest is committed before its first run |
-| `RUN` | Unset: every stopped run | `make eval-cleanup` |
-| `SLOW` | Unset | Set to `1` to add the tests that wait out a token to `make integration` |
-| `WHAT`, `JUDGE` | `create`, every judge | `make judges` |
+| `HELD_OUT` | Unset: no held-out draw | `make eval-sets`: the held-out set's size, `600`, `400`, or `240` by the scope rule (ADR-0005); its manifest is committed before its first run, and after one, a draw is kept only when it rebuilds the committed set |
+| `RUN` | Unset: every stopped run | `make eval-cleanup`; `make judge` and `make judge-sample` take a run under `data/evaluation/runs/` |
 | `RUNS`, `BASELINE`, `JUDGED`, `AGREEMENT`, `LABELS` | Unset | `make eval-report`: the runs, the baseline run, the judge runs, the agreement file, and the relabel sample it reads |
 | `ENV_FILE`, `ESTIMATE` | `.env`, unset | `make language-check`, `make judge`, `make router-compare`: the file holding the model key, and `1` to price a run without making it |
 | `FAMILIES` | All | `make language-check`: a few families, for cents |
-| `ITEMS`, `SEEDED`, `SAMPLE`, `ROWS`, `SEED` | See `make help` | `make judge`, `make judge-sample`, `make judge-agreement`, `make relabel-sample`, `make relabel-agreement` |
-| `ROUTERS`, `SIDE`, `FOLDS` | All, `development`, see `make help` | `make router-compare` |
+| `ITEMS`, `SEEDED`, `SAMPLE`, `ROWS`, `SEED` | Unset, the bar's 10, none, `50`, fixed | `make judge` (a sample's items, in place of `RUN`), `make judge-sample` (seeded replies per question, never below the bar's), `make judge-agreement` and `make relabel-agreement` (the filled sample), `make relabel-sample` |
+| `ROUTERS`, `SIDE`, `FOLDS` | `keyword haiku sonnet`, `development`, unset: no folds | `make router-compare` |
 
 ### What's pinned
 
