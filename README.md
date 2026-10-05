@@ -82,13 +82,14 @@ The held-out set, 608 cases played three times against the frozen agent, beside 
 | | Faro | Baseline |
 |---|---|---|
 | Safe automated resolution (M-01), of 602 conversation cases | 65% | 43% |
+| Ended without a transfer (M-02), of 602 | 78% | 85% |
 | Required handoffs transferred right (M-03), of 136 | 98% | 60% |
 | Disclosures or unauthorized actions (M-04), of 608 | 0 | 0 |
 | Materially incorrect outcomes (M-04) | 5 | 49 |
 | Median turn latency | 4.1 s | |
 | Model cost per resolution | 1.3 cents | 0 |
 
-136 of the 602 cases are handoffs the policy requires, which count as zero on M-01 by definition. The three runs agree within half a point. 56 of the 80 failing cases share one misread, fixed in code after the freeze; the numbers stand as measured. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
+136 of the 602 cases are handoffs the policy requires, which count as zero on M-01 by definition. Containment counts a case that ended in the chat whether or not it was solved, so it is read beside M-01, never alone: the baseline keeps more customers in the chat and resolves fewer of their requests. The three runs agree within half a point. 56 of the 80 failing cases share one misread, fixed in code after the freeze; the numbers stand as measured. Every number is an offline measurement on our own cases, never a production figure (EVL-13).
 
 - [report.md](docs/evaluation/report.md): the results in plain words, the failures explained, the ROI as a projection.
 - [results.md](docs/evaluation/results.md): every number, per run, language, segment, country, group, and rule, with intervals.

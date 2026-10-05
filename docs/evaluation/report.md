@@ -63,7 +63,7 @@ The access and expired-session cases are decided by the deployed stack's authori
 
 **M-01, safe automated resolution.** 394, 392, and 393 cases of 602 resolved without a person in the three runs: 65% each time, interval 61% to 69%, and 391 in all three (pass^3). Automation was attempted on 92% of cases; the rest were handed off at once, as the policy requires for a complaint, a person asked for, or a customer who isn't active. By outcome class, answers resolve at 96% (353 of 366), declines and abstentions at 93% (41 of 44), and blocks that pass through the reason question at 0 of 56: the one misread described below.
 
-**M-02, containment,** is 78% and is never read alone: a case can end without a transfer and still be wrong, which is why M-01 and M-04 come first.
+**M-02, containment,** is 78% (468 of 602) in every run and is never read alone: a case can end without a transfer and still be wrong, which is why M-01 and M-04 come first. The baseline contains 85% and resolves 43%.
 
 **M-03, escalation quality.** 133 of 136 handoffs were right in every run, the same three short each time: two missed, where a complaint and an unblock request were read as another request (D-014), and one whose payload differs because the chat asked which transaction instead of offering the block (D-014). No unnecessary transfer in 466 eligible cases.
 
@@ -104,6 +104,7 @@ On the 602 conversation cases both played (EVL-01):
 | | System | Baseline |
 |---|---|---|
 | M-01 | 65% (394 of 602) | 43% (261 of 602) |
+| M-02 | 78% (468 of 602) | 85% (510 of 602) |
 | M-03 | 98% (133 of 136) | 60% (82 of 136), 51 missed, 7 unnecessary |
 | M-04 | 0.8% (5 of 602) | 8.1% (49 of 602) |
 
