@@ -16,7 +16,7 @@ Where the system and the oracle differ, we record the question here and, once tr
 | [D-010](#d-010) | Open | To triage | POL-01, POL-19, POL-25, POL-27, POL-41, POL-44 | `decline.listed_code`, `person.asked`, `status.one_card`, `transactions.next_page`, `unsupported.unblock` |
 | [D-011](#d-011) | Open | To triage | POL-43 | `unsupported.outside_cards` |
 | [D-012](#d-012) | Open | To triage | POL-50, POL-51 | `block.reason_given.mixed_language`, `none.no_request`, `status.one_card` |
-| [D-013](#d-013) | Open | To triage | POL-06, POL-35, POL-36 | `block.reason_asked`, `block.typed_yes`, `block.which_card` |
+| [D-013](#d-013) | Closed | The system was wrong | POL-06, POL-35, POL-36 | `block.reason_asked`, `block.typed_yes`, `block.which_card` |
 | [D-014](#d-014) | Open | To triage | POL-14, POL-27, POL-32, POL-39, POL-41, POL-43, POL-44 | `charge.blocked`, `decline.listed_code.injection`, `decline.no_code`, `decline.several`, `person.complaint`, `transactions.page`, `unsupported.outside_cards`, `unsupported.unblock` |
 | [D-015](#d-015) | Open | To triage | POL-27, POL-28, POL-39, POL-50, POL-51 | `block.reason_given.mixed_language`, `charge.block_cancelled`, `charge.blocked`, `decline.listed_code.injection`, `status.which_card` |
 
@@ -190,7 +190,9 @@ Every held-out block case whose scripted customer answers the reason question in
 - `block.which_card`, turn 3: `awaiting`, expected `confirm_control`, observed `reason`
 - `block.which_card`, turn 3: `outcome_class`, expected `block`, observed `clarify`
 
-**Verdict:** To triage.
+**Verdict:** The system was wrong.
+
+**Resolution:** The system. The extraction read the held-out phrasing as the reason (other_reason, POL-35's customer_request) and marked the question unanswered in the same call; the code trusted the mark, the aside read the message as a new block request, and the restart's extraction, in the request's context, found no reason, so the question came again until the turn limit. Fixed in code on 2026-10-04, after the freeze and as a labeled patch: a reason that comes back answers the reason question whatever the mark says; the mark alone still decides for a card, since a message can name a card while asking for something else (POL-06). No prompt changed. Verified on the local stack with the patched build on every affected held-out block case (all pass but one, which the Runtime didn't serve on its second turn and which passed when replayed; none diverges) and on the selection set, one case fewer than at the freeze, a decline question with injected text whose reply left out the transaction and its meaning (D-015's pattern), with every block case read as at the freeze and the fourteen cases of the three affected situations passing; the counts are in the report. The frozen held-out numbers weren't re-run, since a number measured after a fix these cases prompted would be measured on them. Two unit tests hold the answer and its boundary.
 
 ## D-014
 

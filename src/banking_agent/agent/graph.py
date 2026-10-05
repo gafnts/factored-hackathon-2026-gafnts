@@ -817,7 +817,11 @@ async def resolve_card(state: State) -> dict[str, Any]:
                 return {**turn, "case": "third_language"}
             turn |= heard(state, text, extracted.language)
             details = extracted.details()
-            if asked and details["question"] == "unanswered":
+            # A reason that came back answers the question, whatever the mark says (POL-06, POL-35).
+            answered = (
+                asked.get("detail") == "reason" and details["block_reason"] is not None
+            )
+            if asked and details["question"] == "unanswered" and not answered:
                 return {**turn, "case": "aside"}
     # A charge someone else made on the customer's card is still theirs to report (POL-39).
     if details.get("owner") == "someone_else" and not charge:
