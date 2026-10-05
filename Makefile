@@ -35,13 +35,13 @@ help:
 	awk -v t="$$t" -v h="$$h" -v r="$$r" 'BEGIN {FS = ":.*## "} \
 		NR == 1 {printf "Usage: make %s<target>%s [ENV=local]\n", t, r} \
 		/^##@ / {printf "\n%s%s%s\n", h, substr($$0, 5), r} \
-		/^[a-zA-Z_-]+:.*## / {printf "  %s%-15s%s %s\n", t, $$1, r, $$2} \
+		/^[a-zA-Z_-]+:.*## / {printf "  %s%-17s%s %s\n", t, $$1, r, $$2} \
 		END {printf "\nDetails in CONTRIBUTING.md\n"}' $(MAKEFILE_LIST)
 
 
 ##@ Setup
 
-install: ## Install Python and web deps, both hook stages, and tflint plugins
+install: ## Install Python and web deps, hooks, and tflint plugins
 	uv sync --all-groups --all-extras
 	pnpm --dir web install --frozen-lockfile
 	uv run pre-commit install
@@ -82,24 +82,24 @@ test: ## Run pytest and Vitest, each with its coverage floor
 	pnpm --dir web test
 
 # Short tracebacks: a long one prints a failing helper's arguments, tokens included.
-integration: _check-profile outputs ## Test ENV's deployed stack (SLOW=1 adds the tests that wait out a token)
+integration: _check-profile outputs ## Test ENV's deployed stack (SLOW=1 waits out a token too)
 	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m "integration and not browser$(if $(SLOW),, and not slow)" -v --tb=short
 
 browser: _check-profile outputs ## Play the chat and the console in Chromium against ENV's site
 	uv run playwright install chromium
 	STACK_OUTPUTS=$(OUTPUTS) uv run pytest -m browser -v --tb=short
 
-probe: _check-profile outputs ## Time ENV's Runtime per persona and check what it stores and traces
+probe: _check-profile outputs ## Time ENV's Runtime and check what it stores and traces
 	STACK_OUTPUTS=$(OUTPUTS) uv run python -m tests.integration.probe
 
 # JUDGE, not USER: make inherits USER from the shell as the login name, so it is always set.
-judges: _check-profile outputs ## Manage the judges' users in ENV's pool (WHAT=create|reset|sign-out|disable|enable|delete, JUDGE=)
+judges: _check-profile outputs ## Manage the judges' users in ENV's pool (WHAT=, JUDGE=)
 	uv run python -m banking_agent.judges $(or $(WHAT),create) --stack $(OUTPUTS) $(if $(JUDGE),--user $(JUDGE))
 
 
 ##@ Build
 
-build: ## Build the Runtime's and the Lambdas' zips, and rewrite the Gateway's tools.json
+build: ## Build the zips and rewrite the Gateway's tools.json
 	uv run python -m banking_agent.build
 
 web: ## Build the web app
@@ -123,7 +123,7 @@ bootstrap: ## Create the state bucket and write the backend files (admin)
 	@bash scripts/bootstrap.sh
 
 # The local deploy profile doesn't exist yet, so local initializes as admin.
-provision: ## Create the deploy roles and the data bucket, and initialize local (admin)
+provision: ## Create the deploy roles and data bucket, init local (admin)
 	$(MAKE) iam-init
 	$(MAKE) iam-apply
 	$(MAKE) dataset-init
@@ -137,12 +137,12 @@ doctor: ## Check every AWS profile and setup step (read-only)
 backend: ## Write the backend files (CI)
 	@bash scripts/bootstrap-backend.sh
 
-teardown: ## Delete the state bucket, last of all (admin; asks you to confirm)
+teardown: ## Delete the state bucket, last of all (admin; asks first)
 	@bash scripts/teardown.sh
 
 ##@ Dataset snapshot
 
-data: ## Download and verify the pinned snapshot into data/ (ADOPT=1 accepts a changed source)
+data: ## Download and verify the pinned snapshot (ADOPT=1)
 	uv run python -m banking_agent.dataset download $(if $(filter 1,$(ADOPT)),--adopt)
 
 snapshot: _check-profile data ## Copy the pinned snapshot into the data bucket
@@ -161,7 +161,7 @@ tiny-export: _check-profile ## Build and upload the personas' tiny export
 # A worktree's data/ is empty: make pipeline DATA_DIR=<main tree>/data
 DATA_DIR ?= data
 
-pipeline: ## Build bronze, silver, and gold from the snapshot into DATA_DIR/pipeline/
+pipeline: ## Build bronze, silver, and gold into DATA_DIR/pipeline/
 	uv run python -m banking_agent.pipeline --data-dir $(DATA_DIR) build
 
 export: _check-profile ## Export and upload the last build's gold
@@ -174,17 +174,17 @@ contracts: ## Rewrite the bronze contracts from the dictionary
 
 .PHONY: eval-sets eval-play eval-run eval-cleanup disagreements eval-index eval-report regression language-check
 
-eval-sets: ## Draw the development sets, and the held-out set at HELD_OUT=600|400|240; manifests to docs/evaluation/sets/
+eval-sets: ## Draw the development sets (HELD_OUT= adds the held-out set)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) generate $(if $(HELD_OUT),--held-out $(HELD_OUT))
 
-eval-play: ## Play a set in process and grade it (SET=regression|selection|held_out, MODELS=scripted|baseline)
+eval-play: ## Play and grade a set in process (SET=, MODELS=)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) play --set $(or $(SET),regression) --models $(or $(MODELS),scripted)
 
-eval-run: _check-profile ## Play a set against ENV's stack and grade it (SET=, SITUATIONS=, LANGUAGES=, LIMIT=, PARALLEL=)
+eval-run: _check-profile ## Play and grade a set against ENV (SET=, LIMIT=, PARALLEL=)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) run --set $(or $(SET),regression) --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) \
 		$(foreach s,$(SITUATIONS),--situation $(s)) $(foreach l,$(LANGUAGES),--language $(l)) $(if $(LIMIT),--limit $(LIMIT)) --parallel $(or $(PARALLEL),2)
 
-eval-cleanup: _check-profile ## Delete the test users a stopped run left behind (RUN= for one)
+eval-cleanup: _check-profile ## Delete stopped runs' test users (RUN= for one)
 	uv run python -m banking_agent.evaluation cleanup --stack $(or $(STACK_OUTPUTS),$(OUTPUTS)) $(if $(RUN),--run $(RUN))
 
 disagreements: ## Regenerate docs/evaluation/disagreements.md
@@ -193,7 +193,7 @@ disagreements: ## Regenerate docs/evaluation/disagreements.md
 eval-index: ## Regenerate docs/evaluation/runs.md
 	uv run python -m banking_agent.evaluation index
 
-eval-report: ## Write docs/evaluation/results.md from stored grades (RUNS="<run> ...", BASELINE=, JUDGED="<judge run> ...", AGREEMENT=, LABELS=)
+eval-report: ## Write results.md (RUNS=, BASELINE=, JUDGED=, AGREEMENT=, LABELS=)
 	uv run python -m banking_agent.evaluation --data-dir $(DATA_DIR) report $(foreach r,$(RUNS),--run $(r)) \
 		$(if $(BASELINE),--baseline $(BASELINE)) $(foreach j,$(JUDGED),--judged $(j)) $(if $(AGREEMENT),--agreement $(AGREEMENT)) \
 		$(if $(LABELS),--labels $(LABELS))
@@ -201,36 +201,36 @@ eval-report: ## Write docs/evaluation/results.md from stored grades (RUNS="<run>
 regression: ## Play and grade the regression set in process, as CI does
 	uv run pytest -m regression -v --tb=short
 
-language-check: ## Run the real prompts over the development paraphrases and answers; report to docs/evaluation/ (ENV_FILE=.env, FAMILIES= to try some)
+language-check: ## Read the paraphrases with the real prompts (paid; FAMILIES=)
 	uv run python -m banking_agent.evaluation language --env-file $(or $(ENV_FILE),.env) $(if $(PARALLEL),--parallel $(PARALLEL)) $(foreach f,$(FAMILIES),--only $(f))
 
 # The judge and the router comparison call models outside the system under test; ESTIMATE=1 prices a call and makes none.
 .PHONY: judge judge-sample judge-agreement relabel-sample relabel-agreement router-compare
 
-judge: ## Judge a run's replies (RUN=data/evaluation/runs/<run>) or a sample's (ITEMS=) through the batch API (ENV_FILE=, LIMIT=, ESTIMATE=1)
+judge: ## Judge replies (paid; RUN= or ITEMS=, LIMIT=, ESTIMATE=1)
 	uv run python -m banking_agent.evaluation judge $(if $(ITEMS),--items $(ITEMS),--run $(RUN)) --env-file $(or $(ENV_FILE),.env) \
 		$(if $(LIMIT),--limit $(LIMIT)) $(if $(filter 1,$(ESTIMATE)),--estimate)
 
-judge-sample: ## Draw the judge's blind sample and sheet from a run's replies, seeding failing ones (RUN=, SEEDED= per question, never below the bar's 10)
+judge-sample: ## Draw the judge's blind sample and sheet (RUN=, SEEDED=)
 	uv run python -m banking_agent.evaluation judge-sample --run $(RUN) $(if $(SEEDED),--seeded $(SEEDED))
 
-judge-agreement: ## Score the judge against a filled blind sheet: agreement and kappa with intervals (SAMPLE=, JUDGED=)
+judge-agreement: ## Score the judge against a filled sheet (SAMPLE=, JUDGED=)
 	uv run python -m banking_agent.evaluation judge-agreement --sample $(SAMPLE) --judged $(JUDGED)
 
-relabel-sample: ## Draw the 50 messages relabeled by hand for label quality, and the sheet (ROWS=, SEED=)
+relabel-sample: ## Draw the hand-relabel sample and sheet (ROWS=, SEED=)
 	uv run python -m banking_agent.evaluation relabel-sample $(if $(ROWS),--rows $(ROWS)) $(if $(SEED),--seed $(SEED))
 
-relabel-agreement: ## Score the filled relabel sheet against the families' labels (SAMPLE=data/evaluation/labels/<sample>)
+relabel-agreement: ## Score the relabel sheet against the labels (SAMPLE=)
 	uv run python -m banking_agent.evaluation relabel-agreement --sample $(SAMPLE)
 
 # SIDE=held_out runs only once the candidates are frozen, from a clean tree, and never with FOLDS.
-router-compare: ## Compare router candidates per language, paired over families (ROUTERS=, SIDE=development, FOLDS=, ENV_FILE=, ESTIMATE=1)
+router-compare: ## Compare routers (paid; ROUTERS=, SIDE=, FOLDS=, ESTIMATE=1)
 	uv run python -m banking_agent.evaluation router $(foreach c,$(or $(ROUTERS),keyword haiku sonnet),--candidate $(c)) --side $(or $(SIDE),development) \
 		--env-file $(or $(ENV_FILE),.env) $(if $(FOLDS),--folds $(FOLDS)) $(if $(PARALLEL),--parallel $(PARALLEL)) $(if $(filter 1,$(ESTIMATE)),--estimate)
 
 ##@ Analysis
 
-analysis: ## Write the four reports under docs/analysis/ from the snapshot
+analysis: ## Write the four docs/analysis/ reports from the snapshot
 	uv run python -m banking_agent.analysis all
 
 ##@ IAM module

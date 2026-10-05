@@ -1,8 +1,8 @@
 """
 The held-out side (ADR-0005, The split), on fixture sets drawn from the bank's held-out customer, never the real set: a
-redraw is refused once a run names the set, a set plays only as its committed manifest describes it, in process with
-the baseline alone and end to end with the system, and the held-out workload keeps the selection's proportions at the
-scope rule's sizes.
+redraw once a run names the set keeps only the committed set, a set plays only as its committed manifest describes it,
+in process with the baseline alone and end to end with the system, and the held-out workload keeps the selection's
+proportions at the scope rule's sizes.
 """
 
 import json
@@ -55,9 +55,7 @@ def run_file(path: Path, run: str, set_name: str, reported: bool) -> None:
     )
 
 
-def test_a_redraw_is_refused_once_a_reported_or_kept_run_names_the_set(
-    tmp_path: Path,
-) -> None:
+def test_the_runs_against_a_set_are_found_reported_or_kept(tmp_path: Path) -> None:
     reported, local = tmp_path / "docs", tmp_path / "data"
     run_file(
         reported / "20261003T010000Z-aaaa.json",
@@ -66,7 +64,7 @@ def test_a_redraw_is_refused_once_a_reported_or_kept_run_names_the_set(
         True,
     )
 
-    heldout.refuse_redraw(heldout.NAME, reported, local)
+    assert heldout.runs_against(heldout.NAME, reported, local) == []
     run_file(
         local / "20261003T020000Z-bbbb" / "manifest.json",
         "20261003T020000Z-bbbb",
@@ -84,8 +82,18 @@ def test_a_redraw_is_refused_once_a_reported_or_kept_run_names_the_set(
         "20261003T020000Z-bbbb",
         "20261003T030000Z-cccc",
     ]
-    with pytest.raises(heldout.HeldOutError, match="never redrawn after a run"):
-        heldout.refuse_redraw(heldout.NAME, reported, local)
+
+
+def test_a_redraw_after_a_run_keeps_only_the_set_its_committed_manifest_describes(
+    drawn: generator.Drawn,
+) -> None:
+    manifest = generator.manifest(heldout.NAME, 7, drawn, {})
+    played = ["20261003T030000Z-cccc"]
+
+    heldout.reproduce(played, drawn.cases, manifest, True)
+    for found, is_committed in ((drawn.cases, False), (drawn.cases[1:], True)):
+        with pytest.raises(heldout.HeldOutError, match="a redraw only rebuilds it"):
+            heldout.reproduce(played, found, manifest, is_committed)
 
 
 def test_a_held_out_set_plays_only_as_its_committed_manifest_describes_it(

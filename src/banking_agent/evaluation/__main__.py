@@ -1,10 +1,11 @@
 """
 The evaluation's commands. generate draws the development regression and selection sets from the pinned snapshot's
-bronze (the last pipeline build) into data/evaluation/sets/, and the held-out set when asked, once (heldout.py), and
-writes their manifests to docs/evaluation/sets/: case IDs, hashes, and counts. play plays a drawn set in process with
-the scripted models, or the deterministic baseline's, and grades it, keeping the evidence, grades, and manifest under
-data/evaluation/runs/. run plays a drawn set end to end against a deployed stack and grades it, keeping each case's results under data/evaluation/runs/ and in the
-stack's evaluation bucket; cleanup deletes the test users a stopped run left behind. disagreements regenerates the
+bronze (the last pipeline build) into data/evaluation/sets/, and the held-out set when asked (once; after a run, a
+redraw only rebuilds it, heldout.py), and writes their manifests to docs/evaluation/sets/: case IDs, hashes, and
+counts. play plays a drawn set in process with the scripted models, or the deterministic baseline's, and grades it,
+keeping the evidence, grades, and manifest under data/evaluation/runs/. run plays a drawn set end to end against a
+deployed stack and grades it, keeping each case's results under data/evaluation/runs/ and in the stack's evaluation
+bucket; cleanup deletes the test users a stopped run left behind. disagreements regenerates the
 disagreement log's page. language runs the real prompts over the development side's paraphrases and answers and writes
 the language check's report and page under docs/evaluation/. Each prints counts, situations, and checks, never an ID, a
 token, or a value (SEC-03).
@@ -78,14 +79,23 @@ def generate(
     lock_path: Path, data_dir: Path, docs: Path, seed: int, held_out: int | None
 ) -> None:
     """
-    held_out is the held-out set's size, when it is drawn too: once, at the freeze, and never after a run names it.
+    held_out is the held-out set's size, when it is drawn too: once, at the freeze, and after a run names it only as
+    the committed manifest describes it, with the manifest left as it is.
     """
     lock = read_lock(lock_path)
     database = runner.workspace(data_dir, lock.snapshot_id).database
     if not database.is_file():
         raise LockError(f"no pipeline build at {database}; run make pipeline first")
-    if held_out is not None:
-        heldout.refuse_redraw(heldout.NAME, kept=data_dir / "evaluation" / "runs")
+    played = (
+        heldout.runs_against(heldout.NAME, kept=data_dir / "evaluation" / "runs")
+        if held_out is not None
+        else []
+    )
+    manifest_path = docs / f"{heldout.NAME}.json"
+    if played and not manifest_path.is_file():
+        raise LockError(
+            f"runs name the held-out set, and it has no manifest at {manifest_path}"
+        )
     loaded, answers = families.load(), families.load_answers()
     held = families.held_out_ids(loaded, answers)
 
@@ -124,10 +134,16 @@ def generate(
         drawing = generator.Generator(
             con, "held_out", loaded, answers, held, contract_words()
         )
-        keep(
-            heldout.NAME,
-            drawing.draw(heldout.NAME, seed, generator.held_out(held_out)),
-        )
+        drawn = drawing.draw(heldout.NAME, seed, generator.held_out(held_out))
+    if not played:
+        keep(heldout.NAME, drawn)
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    heldout.reproduce(played, drawn.cases, manifest, heldout.committed(manifest_path))
+    cases.write(data_dir / "evaluation" / "sets" / f"{heldout.NAME}.jsonl", drawn.cases)
+    print(
+        f"{heldout.NAME}: {len(drawn.cases)} cases, the ones its committed manifest describes; the manifest is unchanged"
+    )
 
 
 def headline(found: dict[str, Any]) -> str:
@@ -330,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         choices=generator.HELD_OUT_SIZES,
         default=None,
-        help="Draw the held-out set too, at this size; refused once a run names it",
+        help="Draw the held-out set too, at this size; once a run names it, only a draw that rebuilds it is kept",
     )
     playing = commands.add_parser(
         "play",
