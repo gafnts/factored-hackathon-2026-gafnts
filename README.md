@@ -116,6 +116,7 @@ A fork stands up in an AWS account you control, with Terraform and nothing tied 
 | Change code, tests, or docs | Only the toolchain |
 | Explore or process the organizers' dataset | The read-only keys from the dataset dictionary |
 | Run the whole stack in your own AWS account | Admin access to an AWS account, and your own fork |
+| [Check our reported numbers](CONTRIBUTING.md#reproduce-the-results) | The toolchain to start; the dataset keys and your own stack for the later checks |
 
 With the [toolchain](CONTRIBUTING.md#1-install-the-toolchain) installed:
 
@@ -124,7 +125,7 @@ make install   # Python and web deps, pre-commit hooks, tflint plugins
 make check     # Every hook against every file, as CI runs them
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, and teardown.
+[CONTRIBUTING.md](CONTRIBUTING.md) takes it from there: the dataset snapshot, the pipeline, the deploy roles, the `local` and `prototype` environments, reproducing our results, and teardown.
 
 ---
 

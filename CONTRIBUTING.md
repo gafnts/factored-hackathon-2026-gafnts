@@ -15,6 +15,7 @@ Setup commands are idempotent, so re-running one after a failure is always safe,
   - [1. Install the toolchain](#1-install-the-toolchain)
   - [2. Connect to the dataset](#2-connect-to-the-dataset)
   - [3. Deploy your own copy](#3-deploy-your-own-copy)
+- [Reproduce the results](#reproduce-the-results)
 - [Day-to-day workflow](#day-to-day-workflow)
   - [Make a change](#make-a-change)
   - [Run the quality gates](#run-the-quality-gates)
@@ -40,6 +41,7 @@ Most contributions need no AWS access at all. Find the row that matches what you
 | Change code, tests, or docs | Only the toolchain | [Step 1](#1-install-the-toolchain) |
 | Explore or process the organizers' dataset | The read-only keys from the dataset dictionary | [Steps 1 and 2](#2-connect-to-the-dataset) |
 | Run the whole stack in your own AWS account | Admin access to an AWS account, and your own fork of this repository | [Steps 1 and 3](#3-deploy-your-own-copy), plus step 2 when you need the data |
+| Check our reported numbers | The toolchain to start; the dataset keys and your own stack for the later checks | [Reproduce the results](#reproduce-the-results) |
 
 No path depends on the maintainers' AWS account or credentials. Resource names are derived from the account you sign in to, so a second copy of the project never collides with the first.
 
@@ -308,6 +310,24 @@ No failures.
 
 ---
 
+## Reproduce the results
+
+These checks rerun what our reports rest on (OPS-07). Each needs a little more than the one before it: the first runs on the toolchain alone, the next five on the snapshot from [step 2](#2-connect-to-the-dataset) (a 5.35 GB download), and the last on your own stack from [step 3](#3-deploy-your-own-copy), with a model key.
+
+| What you check | Run | What you should see |
+|---|---|---|
+| The control logic, as CI checks it | `make regression` | It passes: no safety check fails, and every finding has an open entry in the [disagreement log](docs/evaluation/disagreements.md) |
+| The four analysis reports | `make data`, then `make analysis` | The same bytes: `git status` shows no change under `docs/analysis/` |
+| The development sets | `make pipeline`, then `make eval-sets` | The same cases: each manifest under `docs/evaluation/sets/` keeps its `sha256`, and only `versions.generator`, your commit, changes. `git restore docs/evaluation/sets/` puts ours back |
+| The held-out set | `make eval-sets HELD_OUT=600` | The 608 cases its committed manifest describes; the manifest stays as it is |
+| The deterministic baseline | `make eval-play SET=selection MODELS=baseline` | 139 of 151 cases passed, on every rerun, in about 15 seconds |
+| The baseline on the held-out set | `make eval-play SET=held_out MODELS=baseline` | The counts of our baseline run, 339 of 602 cases passed, in the [results](docs/evaluation/results.md); we play the held-out set once, so we haven't rerun it |
+| The system, end to end | `make eval-run SET=selection` | Counts near our two reported selection runs (147 and 146 of 157, in [runs.md](docs/evaluation/runs.md)), not equal to them, since the model's answers vary between runs. A run costs about 0.80 USD |
+
+Every number in the [results](docs/evaluation/results.md) comes from the held-out set. It is drawn once ([ADR-0005](docs/adr/0005-offline-scenario-evaluation.md#the-split)), and once a run names it, `make eval-sets HELD_OUT=600` only rebuilds it: the draw is kept when it matches the committed manifest's hash, and refused otherwise, so no one can change the set under its name. Like every set's cases, its cases stay out of the repository, and so does the runs' evidence, since both hold the snapshot's row-level values (SEC-03); each reported run's manifest under [docs/evaluation/runs/](docs/evaluation/runs/) names the commit, the snapshot, the pipeline version, and each prompt's hash. A held-out run end to end, `make eval-run SET=held_out`, costs about 5 USD. Ours measured the frozen agent; today's carries the one change to the agent's code made after the freeze, so the 56 block cases it fixed now pass ([limitations](docs/evaluation/limitations.md)).
+
+---
+
 ## Day-to-day workflow
 
 ### Make a change
@@ -432,7 +452,7 @@ make relabel-agreement          # Score the filled sheet against the labels
 
 `make eval-run` needs `AWS_PROFILE`, the stack's outputs (`STACK_OUTPUTS`, default `build/<env>.outputs.json`), and the model key stored. It creates one test user per case in the pool's evaluation group and deletes it when the case ends, and keeps each case's evidence under `data/evaluation/runs/` and in the stack's evaluation bucket; `SITUATIONS=`, `LANGUAGES=`, and `LIMIT=` narrow a run, and `PARALLEL=` sets how many cases play at once. To report a run, commit its manifest and summary under `docs/evaluation/runs/` and run `make eval-index`. Where the system and the oracle disagree, add an entry to `docs/evaluation/disagreements.json` and run `make disagreements`: CI's regression job fails on any finding without an open entry.
 
-`make language-check`, `make router-compare`, and `make judge` call the model and cost money: they read `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file), and `ESTIMATE=1` prices a judge or router run without making it. A judge's verdicts count only on the questions `make judge-agreement` shows met the bar (ADR-0005, Grading). The judge, relabel, and report targets take their inputs as variables, which `make help` names and [Configuration](#configuration) describes; `make eval-report` takes every input at once or the page loses a section.
+`make language-check`, `make router-compare`, and `make judge` call the model and cost money: they read `ANTHROPIC_API_KEY` from `.env` (`ENV_FILE=` names another file), and `ESTIMATE=1` prices a judge or router run without making it. A judge's verdicts count only on the questions `make judge-agreement` shows met the bar (ADR-0005, Grading). The judge, relabel, and report targets take their inputs as variables, which `make help` names and [Configuration](#configuration) describes; `make eval-report` takes every input at once or the page loses a section. To rerun what the reports rest on, start at [Reproduce the results](#reproduce-the-results).
 
 ### Promote to prototype
 
