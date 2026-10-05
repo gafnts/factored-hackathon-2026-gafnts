@@ -82,6 +82,45 @@ The execution record is the trace, the audit log, and the evaluation's evidence 
 A workflow with model steps, not an agent loop (DSN-03, DSN-05). Code chooses every node and tool. The model does five things: it labels a message among eight requests and says whether it holds one at all; it extracts what a card request names, among allowed values; it says which listed transactions fit what the customer said; it writes the words of a read's answer around placeholders; and it writes a handoff's three free-text fields. The calls that read a message also say which language it is mostly in, and code applies POL-50 and POL-51 to that reading. The policy's rules are the router's labels and the nodes' branches ([the policy](policy/card-support.md), CTL-01).
 
 ```mermaid
+flowchart LR
+  MSG(["A message"])
+  ROUTE["Route: the requests it holds, in order"]
+  CARD["Which card or charge, and what the request names"]
+  subgraph R["No. 1 RESOLVE"]
+    READ["Read: status, credit, transactions, a decline"]
+    CONFIRM["Confirm control: the card and the reason"]
+    BLOCK["Block, then read the card back; unverified, it is handed off"]
+  end
+  subgraph A["No. 2 ASK OR DECLINE"]
+    ASK["Ask: which card, which charge, why block"]
+    DECLINE["Decline what card support doesn't serve"]
+  end
+  subgraph H["No. 3 HAND OFF"]
+    HANDOFF["A case with the evidence, for a person"]
+  end
+  REPLY["Reply: the model's words, code's facts, checked"]
+  OUT(["Sent whole"])
+  MSG --> ROUTE
+  ROUTE -->|"a card request"| CARD
+  CARD --> READ
+  CARD -->|"a block, with its reason"| CONFIRM
+  CONFIRM -->|"only the control confirms"| BLOCK
+  CARD -->|"unclear"| ASK
+  ROUTE -->|"outside card support"| DECLINE
+  CARD -->|"someone else's, missing data, a conflict"| HANDOFF
+  READ --> REPLY
+  BLOCK --> REPLY
+  ASK --> REPLY
+  DECLINE --> REPLY
+  HANDOFF --> REPLY
+  REPLY --> OUT
+  classDef model stroke:#8b5cf6,stroke-width:3px
+  class ROUTE,CARD,REPLY,HANDOFF model
+```
+
+The model takes part only in the steps outlined in purple. Node by node:
+
+```mermaid
 flowchart TD
   IN(["message or resume"])
   BEGIN["begin: a pending control"]
