@@ -29,32 +29,32 @@
 
 Built for the Factored AI &amp; Data Hackathon 2026. In Spanish, *faro* is a lighthouse; in Portuguese, *ter faro* is to have a nose for things. Guidance in one language, judgment in the other: Faro grounds every answer in the cardholder's own records, enforces permissions in code rather than in the prompt, and gives a human agent a structured case file whenever a request needs one.
 
-A card is declined, goes missing, or shows a charge its holder didn't make. At this bank a person answers those moments: about 500 contacts a day, 5:22 each on average after a 2:00 wait, 35% of them in the category nearest card support. Faro resolves 65% of held-out card contacts without a person, at under a cent each in model calls. Per thousand contacts, that is about 650 answered at once, 37 hours of a person's time, and 640 to 3,240 USD at 1 to 5 USD per human contact: a projection, since the data holds no cost per contact ([the ROI](docs/evaluation/report.md#roi-a-projection)).
-
-A LATAM Bank customer spots a purchase on their credit card that they didn't make, and writes to the bank's chat in Portuguese: *Não reconheço uma compra no meu cartão.*
-
-Faro finds the charge among the card's transactions and offers to block the card. It won't act on a typed *sim*: the chat shows a button that names the card and the reason, and only that button confirms. Once the customer presses it, the tool reads the card back, and Faro says the card is blocked only because that read shows it. Then it files the case to dispute intake and gives the customer a reference.
-
-In another tab, a human agent sees the case arrive within seconds: the request, each verified fact next to the tool call that read it, the verified block, and the customer's own words kept apart from the facts. Nothing to read back, nothing to ask twice. Had the customer cancelled the block, the same case would have arrived marked urgent.
+A LATAM Bank customer spots a charge on their credit card that they didn't make, and writes to the bank's chat in Portuguese: *Não reconheço uma compra no meu cartão.* Faro finds the charge among the card's transactions and offers to block the card. A typed *sim* does nothing: the chat shows a button that names the card and the reason, and only that button confirms. Once the customer presses it, the tool reads the card back, and Faro reports the block because that read shows it. Then it files the case to dispute intake and gives the customer a reference.
 
 <p align="center">
-  <a href="https://faro.gabriel.com.gt"><img src="docs/images/chat.png" alt="The chat, before the first message" width="100%"></a>
+  <a href="https://faro.gabriel.com.gt"><img src="docs/images/chat.png" alt="The chat: the charge found, the block confirmed with the button, the reference given" width="100%"></a>
+</p>
+
+In the console, a human agent sees the case within seconds: the request, every verified fact next to the tool call that read it, the confirmed block, and the customer's own words kept apart from the facts. Nothing to read back, nothing to ask twice. Had the customer cancelled the block, the card would still be live with a charge they don't recognize, so the same case would have arrived marked urgent, for a person to act on first.
+
+<p align="center">
+  <a href="https://faro.gabriel.com.gt/cases"><img src="docs/images/cases.png" alt="The console: the case with its evidence, seconds after the chat filed it" width="100%"></a>
 </p>
 
 > [!NOTE]
-> LATAM Bank and every customer in it are synthetic, from the organizers' dataset. This journey runs end to end on the prototype, and the browser suite plays it, in Portuguese, against every deployed stack it checks ([ADR-0007](docs/adr/0007-role-gated-web-app.md#judges-access)).
+> LATAM Bank and every customer in it are synthetic, from the organizers' dataset. This journey runs end to end on the prototype, and the browser suite replays it as a test, in Portuguese, against each deployed stack before we promote it ([ADR-0007](docs/adr/0007-role-gated-web-app.md#judges-access)).
 
-What sets Faro apart:
+### Why Faro exists
+
+A card is declined, goes missing, or shows a charge its holder didn't make. At this bank, a person answers every one of those moments. The contact center logs about 500 contacts a day; a customer waits about two minutes to be heard and then keeps a person for five more, and 35% of all contacts fall in the category nearest card support. Faro resolves 65% of held-out card contacts without a person, for under a cent each in model calls. For every thousand contacts, that is about 650 answered on the spot and 37 hours of a person's time freed. At 1 to 5 USD per human contact, it is 640 to 3,240 USD saved: a projection, since the data holds no cost per contact (see [the ROI section of the report](docs/evaluation/report.md#roi-a-projection)).
+
+### What sets Faro apart
 
 - **A lighthouse doesn't steer the ship.** Faro shows what the records say and proposes the one action it can take. The customer's button decides; typed text never does.
 - **Judgment in code, not in the prompt.** The tools and Cedar decide every access and action, so a fully compromised model still can't read another customer's card or block one unconfirmed.
 - **Done means verified.** A block is reported only after the card is read back, and handed to a person when the read doesn't show it.
 - **Candid about its records.** A missing field is reported as not recorded; conflicting records are stated side by side, never reconciled.
 - **Graded by an independent oracle.** Expected outcomes come from the policy applied to the frozen bank, in code that shares nothing with Faro's tools, and results are reported with their failures.
-
-<p align="center">
-  <img src="docs/images/confirm.png" alt="The confirm control names the card and the reason; only a person at the bank can undo a block" width="100%">
-</p>
 
 The [product brief](docs/product/brief.md) says who Faro serves and what it refuses to do; the [policy](docs/policy/card-support.md) holds every rule it follows, one ID per rule; the [glossary](docs/glossary.md) explains the terms; [docs/](docs/README.md) indexes the rest.
 
