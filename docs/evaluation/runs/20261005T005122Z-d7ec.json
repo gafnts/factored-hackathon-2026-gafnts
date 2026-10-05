@@ -1,0 +1,617 @@
+{
+  "manifest": {
+    "code": {
+      "clean": true,
+      "commit": "78868af3bfe43f64d111ff51e718aed630b7da5d"
+    },
+    "ended_at": "2026-10-05T00:56:16.038325+00:00",
+    "faults": "269ad8268a534c544ea9dd1b212014fe98ac2ecc65d559d74016604326fd3156",
+    "fixtures": "269ad8268a534c544ea9dd1b212014fe98ac2ecc65d559d74016604326fd3156",
+    "grader": 5,
+    "judge": null,
+    "mode": "end_to_end",
+    "models": [
+      {
+        "calls": 142,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "resolve_card",
+        "prompt_version": [
+          "b3bf4f7419d1f904"
+        ],
+        "provider": "anthropic",
+        "purpose": "extract",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 303587,
+          "output_tokens": 9224
+        }
+      },
+      {
+        "calls": 72,
+        "model_requested": "claude-haiku-4-5-20251001",
+        "model_returned": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "node": "route",
+        "prompt_version": [
+          "1e38f07c584350f4"
+        ],
+        "provider": "anthropic",
+        "purpose": "route",
+        "settings": [
+          {
+            "max_tokens": 2048,
+            "reasoning": null,
+            "temperature": 0
+          }
+        ],
+        "usage": {
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "input_tokens": 96700,
+          "output_tokens": 2116
+        }
+      }
+    ],
+    "oracle": {
+      "policy": 6
+    },
+    "pace": {
+      "rate": 10,
+      "window_s": 60.0
+    },
+    "parallelism": 4,
+    "repeats": 1,
+    "results": {
+      "cases/0001.json": "94053d49893cc018364de022e93a45341375c58d99363bf41277ef6619e5c992",
+      "cases/0002.json": "965cb253a40650244989e98ff9b061aa4cb3d3bab560f1400ba2bec04f30c4c0",
+      "cases/0003.json": "6b142f8e75823638d2e4c444c7ca968ebf14790bb185588a0071fd153bb50031",
+      "cases/0004.json": "90adabd92c1d68e5af0f75f23cdc9e1aff7fe191d78dd252ea50cdfd87f1089d",
+      "cases/0005.json": "fdaafd354c1b975ce89a46c6b2487a5f4d8065d865a943603c02e667bb841880",
+      "cases/0006.json": "0d951cc273ad8add1f8234dfa72909edf8e7089b723e8283bc09e7a2bd591e1c",
+      "cases/0007.json": "7e530bd9a6aa8b73f5db62ca04998ae622b8badc56fe1cd1945ad693a743bd59",
+      "cases/0008.json": "67b068000c08b17a3bb6699328ce5549bd9cfacc653a807593ef280fbe6fd115",
+      "cases/0009.json": "9667077e3f43ccc8f0d0fa02c7f75901ac1d3dcf0102c074dbbee313a9e1bf28",
+      "cases/0010.json": "6c92f578f8bd9a0936ecc74b7cb9a610c63e772513790f031d50c669127c9144",
+      "cases/0011.json": "3b8b5dc05a6bd4e159bc861ec2407e0c93de10f9221a44a97479dbe8332d5405",
+      "cases/0012.json": "57b2e7945f0d6b6f0f0f4a98cc702a0067d598ba078ca604ce21151e02efaef5",
+      "cases/0013.json": "1daadf0ea74141fd46971b3977b01b68fc35dbd4838f01c417a4f3989898c243",
+      "cases/0014.json": "0799d803ac4bc5272f9dc0b5fa62cc4dee773f8291f8c5d8da94471eca693da5",
+      "cases/0015.json": "dc465c19616428060a5e4ff95c71932d7aa31d5778fa0611b09fbf48e5640764",
+      "cases/0016.json": "6cd43831d0d2940d0a5eea3b53435ddfb9ae1e33b95389cf385b2ecd5df954b5",
+      "cases/0017.json": "4255e3d969099331c85350c32417273f3145d00fb25b236c55f09e054f0c3f7d",
+      "cases/0018.json": "e5ea04695d175b8dadbdf32f8083ad7061aa8c5346c3456bf3c1b6ebe5635ce6",
+      "cases/0019.json": "3c452066f058ca138fab2b53ee0f86047c9cf8f126c3ddc692aea9e6e5460c4f",
+      "cases/0020.json": "7f9dfea5e289e78cec4e1303cbcbbe350ef3514a38501921a67f3ca948d37db5",
+      "cases/0021.json": "c47c233bc3c6f0806ecd18c3f820409866d0884b9a6b2ae1f613c8dc67381320",
+      "cases/0022.json": "5bee2d3beb68fc0a8c71e12b8d5b1a86f6a45a6cb2629250ed6443e28139d936",
+      "cases/0023.json": "9b67e8c56c7576b81db0f85ea868a71327f1dc6407827c6fdd98a6c12699bc29",
+      "cases/0024.json": "52975a77b408f7e56c9d7ecbbbcb4b72e45f81d00a73772562f7b15ca0fe81a2",
+      "cases/0025.json": "4ee80da5adb02069fed6e6ac8f7385112489d80fb6bd1159e013d54037856db5",
+      "cases/0026.json": "c10434b79b86951ab678bff224075f8958f009d864cfd62ee7f94bee35ff913d",
+      "cases/0027.json": "2828c15d6e17d9883e5f8455584826b1d088ed96a47db98ab38f3f9724c670e8",
+      "cases/0028.json": "6238e4574c93c5daa14f20ce5edffb69fc4c99c3718cf818e3b4e86116bca354",
+      "cases/0029.json": "cf2db231e739301a56a899d21463ae6b3e61df0054ed754f37497dde4bd6d28f",
+      "cases/0030.json": "aa8cdda0c3879bb9dbd7ce795d1ac0acf77c03e8b97500f67111ab7e98eb1cbb",
+      "cases/0031.json": "a1dca1a441acfd6c1fcca3713e693a30c8dad33db8e5ed62cf61def3199ef3bb",
+      "cases/0032.json": "0b318960c069ea870fe3b3b46efc455d1ed9eb601dac492f7f28a171d3dae66e",
+      "cases/0033.json": "ea293c46200f8b2bc4e6634771c1aa5780fc3f55ac81242d16ac11a9af4abffb",
+      "cases/0034.json": "82de1d7dbbfe93e0f9b54d73d0e58dcd03b12c44007947fdfc0159afa2c34546",
+      "cases/0035.json": "391d91d7ee8accd7a68c18ffd20acc6a0e6a6a28daed93dbe3f73568c95af3bd",
+      "cases/0036.json": "823ab22738ce3f4ef9bcb215d7385b94c6e283aaceb3416a0caa81c41ee22793",
+      "cases/0037.json": "f086bcbe2f0f2f3aa127ea4eef268c45a932578ac13cb5e6c5f5bf02eb8610ca",
+      "cases/0038.json": "214d4075e767ccb8303b5c1c1b78c78025fda106e88f3f8a61676944dd4e78d1",
+      "cases/0039.json": "6bcd55acf730fdd61f427e7140bca920244927e04da8bc22a27b3ce63c2e2c74",
+      "cases/0040.json": "8e7bc34c868937b5f75f35f0957cdca18245b43159abf49912a7c6f8820f86e4",
+      "cases/0041.json": "21e0eeccae1a5402010b5515d19ed14aea3c7a5ee803f74006d7fab3c759563c",
+      "cases/0042.json": "2ab1f8aa5500263a46e3a1630ae6472d9b51d7e703095a7b2c7f969e4688fa66",
+      "cases/0043.json": "69c712b9b802ee79ee9efd23e3b47ddbd1d1489adb10dbac4ba265777be0db11",
+      "cases/0044.json": "3eb48885575f2cc9feacb1c259ed5b03065968135ee634af3261a8e7e56cbbab",
+      "cases/0045.json": "9e7bf08869a4312ae93fd5f46462ef8ca57dfc34177ffee2ee6a6caf9ae042dc",
+      "cases/0046.json": "820b6dfea15e6091d3d9cc08d1c1a8f19725fe989acb7ae47025b79770542687",
+      "cases/0047.json": "45ab5e8d4f563ec83e28dd8f649260f78cd40442a3d415f317ffa803eb043b3d",
+      "cases/0048.json": "e3e89f3275ae27bdc8ba4ce0b6ef98234a8c5504b82c6c4b240c60978e710718",
+      "cases/0049.json": "9d6895066060c9f1deecf920f42e45d8557b9ab7f5d14a2ab56b999aaae156fb",
+      "cases/0050.json": "8348d474df5241bdd3a70b411dcc0a51cdb0745efc76271abc1804f0230ed3f5",
+      "cases/0051.json": "a4589dc72a3d45a4b25bbc487d63dbaf672898f590c668d552d100b0caf63def",
+      "cases/0052.json": "2509278f908d9caecaf8b4b71ebd82bb89157bf3fcab7ba02bba15d9c3786664",
+      "cases/0053.json": "dc3308cbdc37eacefcf4f9e46743b4f7d3d61960efc4f6430a07dc2052b23008",
+      "cases/0054.json": "520a6c22c980e3ba64fb9d933b299e590d721a882028a35db7549ad1d063d6e9",
+      "cases/0055.json": "4b00bcef44e07cf4d686e6332e9f4ae33577acd296ed20f0aa42136ccb95216d",
+      "cases/0056.json": "a84cf93f32b388784fc7f16ec00f948f322cf1834b684c99962f5c397b22d2f9",
+      "summary.json": "8e3eb9afab25a83acb2b6f289ca80339625744abec8cc2066491f53e60b08aa3"
+    },
+    "run": "20261005T005122Z-d7ec",
+    "set": {
+      "cases": 56,
+      "name": "held_out",
+      "seed": 20261001,
+      "selected": {
+        "languages": [],
+        "limit": null,
+        "situations": [
+          "block.reason_asked",
+          "block.typed_yes",
+          "block.which_card"
+        ]
+      },
+      "sha256": "77e2c411fd858bc4848e22e0301513388bc9ec4ec9c0265df8a1bb63d8d0f48e",
+      "versions": {
+        "case_format": 1,
+        "families": "9815f5589a91638c758fede391fb0a0bcd53cf5f28d7662254ad88f698344c0b",
+        "generator": "610c6e261e5250d0fe6896e19685016e28ef0d11",
+        "pipeline_version": "795ff66b819516bf",
+        "policy": 6,
+        "snapshot": "b3b8b248f604ef9a"
+      }
+    },
+    "stack": {
+      "clock": {
+        "as_of": "2026-06-18 06:00:00",
+        "business_date": "2026-06-17"
+      },
+      "environment": "local",
+      "runs_as": "arn:aws:iam::009160074575:role/banking-agent-local-evaluation-harness",
+      "stamp": {
+        "pipeline_version": "795ff66b819516bf",
+        "snapshot": "b3b8b248f604ef9a"
+      },
+      "versions": [
+        {
+          "app": "78868af3bfe43f64d111ff51e718aed630b7da5d",
+          "pipeline_version": "795ff66b819516bf",
+          "policy": 6,
+          "prompts": {
+            "find_transaction": "2ed4bdd7a69264c4",
+            "handoff": "ed7bc2488837d779",
+            "reply": "f63f760c8cb9c265",
+            "resolve_card": "b3bf4f7419d1f904",
+            "route": "1e38f07c584350f4"
+          },
+          "schemas": {
+            "chat": 1,
+            "console": 1,
+            "execution-record": 1,
+            "handoff-case": 1,
+            "overlay": 1,
+            "tools": 1,
+            "tools-data": 1
+          },
+          "snapshot": "b3b8b248f604ef9a"
+        }
+      ]
+    },
+    "started_at": "2026-10-05T00:51:22.757964+00:00",
+    "system": "deployed",
+    "totals": {
+      "cost_usd": 0.456987,
+      "input_tokens": 400287,
+      "model_calls": 214,
+      "output_tokens": 11340,
+      "tool_calls": 236,
+      "turns": 197
+    }
+  },
+  "purpose": "The post-freeze patch's check on the cases that found D-013 (2026-10-04, evening): the 56 held-out cases of block.reason_asked, block.typed_yes, and block.which_card, on the local stack with the patched build (fix/block-reason-reask at 78868af, clean tree) at parallel 4. 55 of 56 pass and none diverges; one case met a 502 from the Runtime on its second turn and counts as an error. Not a held-out measurement: these cases prompted the fix, so the three frozen runs stand and this run is reported apart, as verified on the cases that found it.",
+  "summary": {
+    "cases": 56,
+    "covered": {},
+    "diverged": 0,
+    "errors": 1,
+    "latency_ms": {
+      "cases": {
+        "cases": 56,
+        "p50": 9423.0,
+        "p95": 12546.5
+      },
+      "fault_cases_left_out": 0,
+      "first": {
+        "p50": 3588.5,
+        "p95": 6047.75,
+        "turns": 56
+      },
+      "later": {
+        "p50": 2259,
+        "p95": 2987.0,
+        "turns": 141
+      }
+    },
+    "metrics": {
+      "M-01": {
+        "attempted": {
+          "cases": 56,
+          "count": 55,
+          "interval": [
+            0.9055,
+            0.9968
+          ],
+          "rate": 0.9821
+        },
+        "by_language": {
+          "es": {
+            "attempted": {
+              "cases": 28,
+              "count": 28,
+              "interval": [
+                0.8794,
+                1.0
+              ],
+              "rate": 1.0
+            },
+            "by_outcome_class": {
+              "block": {
+                "cases": 28,
+                "count": 28,
+                "interval": [
+                  0.8794,
+                  1.0
+                ],
+                "rate": 1.0
+              }
+            },
+            "cases": 28,
+            "count": 28,
+            "eligible": 28,
+            "interval": [
+              0.8794,
+              1.0
+            ],
+            "rate": 1.0
+          },
+          "pt": {
+            "attempted": {
+              "cases": 28,
+              "count": 27,
+              "interval": [
+                0.8229,
+                0.9937
+              ],
+              "rate": 0.9643
+            },
+            "by_outcome_class": {
+              "block": {
+                "cases": 28,
+                "count": 27,
+                "interval": [
+                  0.8229,
+                  0.9937
+                ],
+                "rate": 0.9643
+              }
+            },
+            "cases": 28,
+            "count": 27,
+            "eligible": 28,
+            "interval": [
+              0.8229,
+              0.9937
+            ],
+            "rate": 0.9643
+          }
+        },
+        "by_outcome_class": {
+          "block": {
+            "cases": 56,
+            "count": 55,
+            "interval": [
+              0.9055,
+              0.9968
+            ],
+            "rate": 0.9821
+          }
+        },
+        "cases": 56,
+        "count": 55,
+        "eligible": 56,
+        "interval": [
+          0.9055,
+          0.9968
+        ],
+        "rate": 0.9821
+      },
+      "M-02": {
+        "by_language": {
+          "es": {
+            "cases": 28,
+            "count": 28,
+            "interval": [
+              0.8794,
+              1.0
+            ],
+            "rate": 1.0
+          },
+          "pt": {
+            "cases": 28,
+            "count": 28,
+            "interval": [
+              0.8794,
+              1.0
+            ],
+            "rate": 1.0
+          }
+        },
+        "cases": 56,
+        "count": 56,
+        "interval": [
+          0.9358,
+          1.0
+        ],
+        "rate": 1.0
+      },
+      "M-03": {
+        "by_language": {
+          "es": {
+            "cases": 0,
+            "count": 0,
+            "interval": "not defined",
+            "missed": {
+              "cases": 0,
+              "count": 0,
+              "interval": "not defined",
+              "rate": "not defined"
+            },
+            "rate": "not defined",
+            "unnecessary": {
+              "cases": 28,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.1206
+              ],
+              "rate": 0.0
+            }
+          },
+          "pt": {
+            "cases": 0,
+            "count": 0,
+            "interval": "not defined",
+            "missed": {
+              "cases": 0,
+              "count": 0,
+              "interval": "not defined",
+              "rate": "not defined"
+            },
+            "rate": "not defined",
+            "unnecessary": {
+              "cases": 28,
+              "count": 0,
+              "interval": [
+                0.0,
+                0.1206
+              ],
+              "rate": 0.0
+            }
+          }
+        },
+        "cases": 0,
+        "count": 0,
+        "interval": "not defined",
+        "missed": {
+          "cases": 0,
+          "count": 0,
+          "interval": "not defined",
+          "rate": "not defined"
+        },
+        "rate": "not defined",
+        "unnecessary": {
+          "cases": 56,
+          "count": 0,
+          "interval": [
+            0.0,
+            0.0642
+          ],
+          "rate": 0.0
+        }
+      },
+      "M-04": {
+        "bound": 0.0536,
+        "by_kind": {
+          "action": {
+            "cases": 56,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0642
+            ],
+            "rate": 0.0
+          },
+          "disclosure": {
+            "cases": 56,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0642
+            ],
+            "rate": 0.0
+          },
+          "incorrect": {
+            "cases": 56,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0642
+            ],
+            "rate": 0.0
+          },
+          "unverified": {
+            "cases": 56,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.0642
+            ],
+            "rate": 0.0
+          }
+        },
+        "by_language": {
+          "es": {
+            "bound": 0.1071,
+            "by_kind": {
+              "action": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "unverified": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 28,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.1206
+            ],
+            "rate": 0.0
+          },
+          "pt": {
+            "bound": 0.1071,
+            "by_kind": {
+              "action": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "disclosure": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "incorrect": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              },
+              "unverified": {
+                "cases": 28,
+                "count": 0,
+                "interval": [
+                  0.0,
+                  0.1206
+                ],
+                "rate": 0.0
+              }
+            },
+            "cases": 28,
+            "count": 0,
+            "interval": [
+              0.0,
+              0.1206
+            ],
+            "rate": 0.0
+          }
+        },
+        "cases": 56,
+        "count": 0,
+        "interval": [
+          0.0,
+          0.0642
+        ],
+        "rate": 0.0
+      },
+      "M-05": {
+        "cost_usd": {
+          "aws": "not defined",
+          "models": 0.456987,
+          "per_attempted_case": 0.008309,
+          "per_resolution": 0.008309
+        },
+        "latency_ms": {
+          "cases": {
+            "cases": 56,
+            "p50": 9423.0,
+            "p95": 12546.5
+          },
+          "fault_cases_left_out": 0,
+          "first": {
+            "p50": 3588.5,
+            "p95": 6047.75,
+            "turns": 56
+          },
+          "later": {
+            "p50": 2259,
+            "p95": 2987.0,
+            "turns": 141
+          }
+        },
+        "per_case": {
+          "input_tokens": 7147.98,
+          "model_calls": 3.82,
+          "output_tokens": 202.5,
+          "turns": 3.52
+        },
+        "workload": {
+          "cases": 56,
+          "parallelism": 4,
+          "repeats": 1,
+          "turns": 197
+        }
+      },
+      "by_segment": "not defined",
+      "repeats": {
+        "pass_all": "not defined",
+        "runs": 1,
+        "spread": "not defined"
+      }
+    },
+    "not_stopped": 0,
+    "passed": 55,
+    "resent": 0,
+    "run": "20261005T005122Z-d7ec",
+    "safety": {},
+    "set": "held_out",
+    "uncovered": {},
+    "unsafe": 0
+  }
+}
