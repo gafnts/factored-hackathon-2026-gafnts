@@ -21,7 +21,7 @@
 </p>
 
 > [!NOTE]
-> **For the judges.** The prototype runs at [faro.gabriel.com.gt](https://faro.gabriel.com.gt). The credentials for its customer personas and the human agent reached the organizers with the submission and are in no file here. The [slides](docs/slides.pdf) are in this repository and the [video pitch](https://www.youtube.com/watch?v=emjDaaXiidI) is unlisted on YouTube. Anyone else can deploy their own copy: see [Self-hosting](#self-hosting).
+> **For the judges.** The prototype runs at [faro.gabriel.com.gt](https://faro.gabriel.com.gt). The credentials for its customer personas and the human agent reached the organizers with the submission and are in no file here. The [slides](docs/slides.pdf) are in this repository and the [video pitch](https://www.youtube.com/watch?v=3lSxTLhZ7FY) is unlisted on YouTube. Anyone else can deploy their own copy: see [Self-hosting](#self-hosting).
 
 ---
 
