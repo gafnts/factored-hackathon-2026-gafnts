@@ -16,7 +16,7 @@ What we decided about Faro, why, and the evidence behind it. Every document cite
 | [policy/](policy/) | The [card support policy](policy/card-support.md): what Faro answers, does, and refuses, one ID per rule |
 | [prerequisites.md](prerequisites.md) | Everything the organizers evaluate, with stable requirement IDs |
 | [product/](product/) | The [product brief](product/brief.md) and the [identity guide](product/identity.md) |
-| [slides.pdf](slides.pdf) | The submission's deck, six slides (SUB-03); the [video pitch](https://www.youtube.com/watch?v=emjDaaXiidI) is on YouTube (SUB-04) |
+| [slides.pdf](slides.pdf) | The submission's deck, six slides; the [video pitch](https://www.youtube.com/watch?v=3lSxTLhZ7FY) is on YouTube |
 
 ## Full reading order
 
